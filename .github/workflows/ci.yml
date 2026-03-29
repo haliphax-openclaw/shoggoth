@@ -13,8 +13,8 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -27,7 +27,7 @@ jobs:
     container:
       image: node:22-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: create shoggoth (900) and agent (901) users to match Docker image UIDs
         run: |
           groupadd --system --gid 900 shoggoth
