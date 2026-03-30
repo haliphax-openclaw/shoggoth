@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import type { ShoggothConfig } from "@shoggoth/shared";
-import { formatSkillPathLine, formatSkillsListJson } from "../src/skills-cli";
+import { formatSkillPathLine, formatSkillReadJson, formatSkillsListJson } from "../src/skills-cli";
 
 function cfg(
   configDirectory: string,
@@ -50,5 +50,18 @@ describe("skills-cli", () => {
     const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
     const line = formatSkillPathLine(c, "bee").trim();
     assert.strictEqual(line, fp);
+  });
+
+  test("formatSkillReadJson returns path and content", () => {
+    const d = mkdtempSync(join(tmpdir(), "sh-clisk-"));
+    const sd = join(d, "sk");
+    mkdirSync(sd);
+    const fp = join(sd, "c.md");
+    const body = "---\nid: cee\ntitle: C\n---\nHello skill";
+    writeFileSync(fp, body);
+    const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
+    const out = JSON.parse(formatSkillReadJson(c, "cee")) as { path: string; content: string };
+    assert.strictEqual(out.path, fp);
+    assert.strictEqual(out.content, body);
   });
 });

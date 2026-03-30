@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
-import { formatSkillPathLine, formatSkillsListJson } from "./skills-cli";
+import { formatSkillPathLine, formatSkillReadJson, formatSkillsListJson } from "./skills-cli";
 import { runRetentionCli } from "./run-retention";
 import { runEventsDlqCli } from "./run-events-dlq";
 import { runSessionCli } from "./run-session";
@@ -65,7 +65,8 @@ if (argv[0] === "skills") {
     console.log(`shoggoth ${VERSION}
 Usage:
   shoggoth skills list        List skills from configured scan roots (JSON)
-  shoggoth skills path <id>   Print absolute path to skill markdown`);
+  shoggoth skills path <id>   Print absolute path to skill markdown
+  shoggoth skills read <id>   Print skill path and contents (JSON)`);
     process.exit(0);
   }
   const config = loadLayeredConfig(configDir);
@@ -87,7 +88,21 @@ Usage:
       process.exit(1);
     }
   }
-  console.error("usage: shoggoth skills list | shoggoth skills path <id>");
+  if (rest[0] === "read") {
+    const id = rest[1];
+    if (!id) {
+      console.error("usage: shoggoth skills read <id>");
+      process.exit(1);
+    }
+    try {
+      process.stdout.write(formatSkillReadJson(config, id));
+      process.exit(0);
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e));
+      process.exit(1);
+    }
+  }
+  console.error("usage: shoggoth skills list | shoggoth skills path <id> | shoggoth skills read <id>");
   process.exit(1);
 }
 
