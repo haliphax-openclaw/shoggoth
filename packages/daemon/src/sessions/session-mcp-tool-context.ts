@@ -7,6 +7,7 @@ import type {
 } from "@shoggoth/mcp-integration";
 import { buildMessageToolDescriptor } from "@shoggoth/mcp-integration";
 import { isSubagentSessionUrn } from "@shoggoth/shared";
+import { messageToolContextRef } from "../messaging/message-tool-context-ref";
 import {
   buildAggregatedMcpCatalog,
   mcpToolsForToolLoop,
@@ -137,4 +138,24 @@ export function omitBuiltinSubagentToolForSubagentSession(
     toolsLoop: mcpToolsForToolLoop(aggregated),
     external: ctx.external,
   };
+}
+
+/**
+ * Standalone finalizer: appends `builtin.message` when a messaging runtime is active.
+ */
+export function messageToolFinalizer(
+  ctx: SessionMcpToolContext,
+  _sessionId: string,
+): SessionMcpToolContext {
+  return augmentSessionMcpToolContextWithMessageTool(ctx, messageToolContextRef.current?.slice);
+}
+
+/**
+ * Standalone finalizer: strips `builtin.subagent` for subagent session URNs.
+ */
+export function subagentToolStripFinalizer(
+  ctx: SessionMcpToolContext,
+  sessionId: string,
+): SessionMcpToolContext {
+  return omitBuiltinSubagentToolForSubagentSession(ctx, sessionId);
 }

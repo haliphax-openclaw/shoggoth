@@ -22,7 +22,10 @@ Usage:
   shoggoth hitl list [sessionId]   List pending HITL actions (JSON via control socket)
   shoggoth hitl get <id>           Fetch one pending row (JSON)
   shoggoth hitl approve <id>       Approve pending tool (JSON)
-  shoggoth hitl deny <id>          Deny pending tool (JSON)`);
+  shoggoth hitl deny <id>          Deny pending tool (JSON)
+  shoggoth hitl clear <agent id>   Clear pending HITL rows (use agent id \`all\` for every agent)
+    [--session <session URN>]      Only this session; leaves auto-approve state unchanged
+    [--noauto]                     Clear pending only; keep session + agent auto-approve`);
 }
 
 export async function runHitlCli(argv: string[]): Promise<void> {
@@ -102,6 +105,56 @@ export async function runHitlCli(argv: string[]): Promise<void> {
     return;
   }
 
-  console.error(`usage: shoggoth hitl list [sessionId] | get <id> | approve <id> | deny <id>`);
+  if (sub === "clear") {
+    const tail = argv.slice(1);
+    const agentId = tail[0]?.trim();
+    if (!agentId) {
+      console.error(
+        "usage: shoggoth hitl clear <agent id|all> [--session <session URN>] [--noauto]",
+      );
+      process.exitCode = 1;
+      return;
+    }
+    let sessionId: string | undefined;
+    let noAuto = false;
+    for (let i = 1; i < tail.length; i++) {
+      const t = tail[i];
+      if (t === "--session") {
+        const v = tail[i + 1]?.trim();
+        if (!v) {
+          console.error("usage: shoggoth hitl clear ... --session <session URN>");
+          process.exitCode = 1;
+          return;
+        }
+        sessionId = v;
+        i += 1;
+        continue;
+      }
+      if (t === "--noauto") {
+        noAuto = true;
+        continue;
+      }
+      console.error(`unknown argument: ${t}`);
+      process.exitCode = 1;
+      return;
+    }
+    const res = await invokeControlRequest({
+      socketPath,
+      auth,
+      op: "hitl_clear",
+      payload: {
+        agent_id: agentId,
+        ...(sessionId ? { session_id: sessionId } : {}),
+        ...(noAuto ? { no_auto: true } : {}),
+      },
+    });
+    console.log(JSON.stringify(res, null, 2));
+    if (!res.ok) process.exitCode = 1;
+    return;
+  }
+
+  console.error(
+    `usage: shoggoth hitl list [sessionId] | get <id> | approve <id> | deny <id> | clear <agent id|all> ...`,
+  );
   process.exitCode = 1;
 }

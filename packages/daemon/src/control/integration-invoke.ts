@@ -33,6 +33,7 @@ export function createInProcessAgentIntegrationInvoker(input: {
     | "sessionManager"
     | "acpxSupervisor"
     | "hitlPending"
+    | "hitlClear"
     | "cancelMcpHttpRequest"
   >;
   readonly policyEngine: PolicyEngine;

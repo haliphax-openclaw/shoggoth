@@ -20,6 +20,8 @@ describe("classifyHitlDiscordReaction", () => {
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "✅" }), "session");
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾️" }), "agent");
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾" }), "agent");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "\u267E" }), "agent");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "\u267E\uFE0F" }), "agent");
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "❌" }), "deny");
   });
 

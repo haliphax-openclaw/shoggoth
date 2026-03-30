@@ -126,7 +126,10 @@ const sessionSendArgs = {
   required: ["message"],
 } as const;
 
-export function builtinShoggothToolsCatalog(sourceId = "builtin"): McpSourceCatalog {
+/** Canonical builtin source id. */
+export const BUILTIN_SOURCE_ID = "builtin";
+
+export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSourceCatalog {
   return {
     sourceId,
     tools: [
@@ -178,3 +181,8 @@ export function builtinShoggothToolsCatalog(sourceId = "builtin"): McpSourceCata
     ],
   };
 }
+
+/** All known builtin short names, used for normalizing legacy short keys to canonical form. */
+export const BUILTIN_TOOL_SHORT_NAMES: ReadonlySet<string> = new Set(
+  builtinShoggothToolsCatalog().tools.map((t) => t.name),
+);

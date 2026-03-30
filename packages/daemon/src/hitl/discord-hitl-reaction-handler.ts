@@ -18,7 +18,8 @@ export function classifyHitlDiscordReaction(emoji: {
   const n = emoji.name ?? "";
   if (n === "❌") return "deny";
   if (n === "✅") return "session";
-  if (n === "♾️" || n === "♾") return "agent";
+  // Permanent / “forever” (U+267E); Discord may omit or include VS16 (U+FE0F)
+  if (n === "♾️" || n === "♾" || n === "\u267E" || n === "\u267E\uFE0F") return "agent";
   if (n === "1️⃣" || /^1\uFE0F?\u20E3$/.test(n)) return "once";
   return null;
 }

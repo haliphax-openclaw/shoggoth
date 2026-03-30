@@ -27,7 +27,7 @@ Usage:
   shoggoth retention              Data retention (see: shoggoth retention --help)
   shoggoth events                 Event tooling (see: shoggoth events --help)
   shoggoth skills                 Skill discovery (see: shoggoth skills --help)
-  shoggoth hitl                   HITL queue (see: shoggoth hitl --help)
+  shoggoth hitl                   HITL queue / clear (see: shoggoth hitl --help)
   shoggoth mcp                    MCP helpers (see: shoggoth mcp --help)
 
 Env: SHOGGOTH_CONTROL_SOCKET, SHOGGOTH_OPERATOR_TOKEN (non-Linux), SHOGGOTH_CONFIG_DIR`);

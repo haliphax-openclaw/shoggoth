@@ -8,8 +8,7 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { createConnection } from "node:net";
 import { describe, it } from "node:test";
-import { stat, mkdtemp } from "node:fs/promises";
-import { writeFile } from "node:fs/promises";
+import { mkdir, stat, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSqliteAgentTokenStore } from "../../src/auth/sqlite-agent-tokens";
@@ -25,9 +24,13 @@ import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { insertSessionToolAutoApprove } from "../../src/hitl/hitl-session-tool-auto-store";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
 import { startControlPlane, type ReadPeerCredFn } from "../../src/control/control-plane";
+import type { IntegrationOpsContext } from "../../src/control/integration-ops";
+import { createPersistingHitlAutoApproveGate } from "../../src/hitl/hitl-auto-approve-persisting";
 import {
+  DEFAULT_HITL_CONFIG,
   DEFAULT_POLICY_CONFIG,
   formatAgentSessionUrn,
+  loadLayeredConfig,
   SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
   type ShoggothConfig,
 } from "@shoggoth/shared";
@@ -125,6 +128,7 @@ async function withControlPlaneSession(
     config?: ShoggothConfig;
     acpxSpawn?: AcpxSpawnFn;
     hitlPending?: ReturnType<typeof createPendingActionsStore>;
+    hitlClear?: IntegrationOpsContext["hitlClear"];
     cancelMcpHttpRequest?: (input: {
       sessionId: string;
       sourceId: string;
@@ -156,6 +160,7 @@ async function withControlPlaneSession(
     stateDb: options.stateDb,
     acpxSpawn: options.acpxSpawn,
     hitlPending: options.hitlPending,
+    hitlClear: options.hitlClear,
     cancelMcpHttpRequest: options.cancelMcpHttpRequest,
   });
 
@@ -787,6 +792,209 @@ describe("control plane (unix socket + JSONL)", () => {
         const get2 = parseResponseLine(lineGet2);
         assert.equal(get2.ok, true);
         assert.equal((get2.result as { row: { status: string } | null }).row?.status, "denied");
+      },
+    );
+
+    db.close();
+  });
+
+  it("hitl_clear (no_auto) deletes pending; session-scoped leaves session auto-approve", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-hitl-clear-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    const pending = createPendingActionsStore(db);
+    const sid = formatAgentSessionUrn("aghitl", "discord", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+    pending.enqueue({
+      id: "hp-cl1",
+      sessionId: sid,
+      toolName: "exec",
+      payload: {},
+      riskTier: "critical",
+      expiresAtIso: "2099-01-01T00:00:00.000Z",
+    });
+    insertSessionToolAutoApprove(db, sid, "builtin.write");
+
+    const countSessionAuto = () =>
+      (
+        db
+          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
+          .get(sid) as { c: number }
+      ).c;
+
+    await withControlPlaneSession(
+      {
+        readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+        stateDb: db,
+        config: minimalConfig(sock),
+        hitlPending: pending,
+      },
+      async (send) => {
+        const peer = { kind: "operator_peercred" } as const;
+        const lineNoAuto = await send({
+          v: WIRE_VERSION,
+          id: "hc-na",
+          op: "hitl_clear",
+          auth: peer,
+          payload: { agent_id: "aghitl", no_auto: true },
+        });
+        const resNoAuto = parseResponseLine(lineNoAuto);
+        assert.equal(resNoAuto.ok, true);
+        const bodyNoAuto = resNoAuto.result as { deleted_pending: number };
+        assert.equal(bodyNoAuto.deleted_pending, 1);
+
+        pending.enqueue({
+          id: "hp-cl2",
+          sessionId: sid,
+          toolName: "exec",
+          payload: {},
+          riskTier: "critical",
+          expiresAtIso: "2099-01-01T00:00:00.000Z",
+        });
+
+        assert.equal(countSessionAuto(), 1);
+        const lineSess = await send({
+          v: WIRE_VERSION,
+          id: "hc-sid",
+          op: "hitl_clear",
+          auth: peer,
+          payload: { agent_id: "aghitl", session_id: sid },
+        });
+        const resSess = parseResponseLine(lineSess);
+        assert.equal(resSess.ok, true);
+        assert.equal((resSess.result as { deleted_pending: number }).deleted_pending, 1);
+        assert.equal(countSessionAuto(), 1);
+      },
+    );
+
+    db.close();
+  });
+
+  it("hitl_clear without no_auto requires hitlClear for auto-approve wipe", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-hitl-clear-nocfg-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    const pending = createPendingActionsStore(db);
+    const sid = formatAgentSessionUrn("agx", "discord", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+
+    await withControlPlaneSession(
+      {
+        readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+        stateDb: db,
+        config: minimalConfig(sock),
+        hitlPending: pending,
+      },
+      async (send) => {
+        const peer = { kind: "operator_peercred" } as const;
+        const line = await send({
+          v: WIRE_VERSION,
+          id: "hc-need",
+          op: "hitl_clear",
+          auth: peer,
+          payload: { agent_id: "agx" },
+        });
+        const res = parseResponseLine(line);
+        assert.equal(res.ok, false);
+        assert.equal(res.error?.code, "ERR_HITL_UNAVAILABLE");
+      },
+    );
+
+    db.close();
+  });
+
+  it("hitl_clear wipes agent + session auto-approve when hitlClear is configured", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-hitl-clear-full-"));
+    const sock = join(dir, "c.sock");
+    const cfgDir = join(dir, "cfg");
+    await mkdir(cfgDir, { recursive: true });
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    const pending = createPendingActionsStore(db);
+    const sid = formatAgentSessionUrn("wipeme", "discord", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+    pending.enqueue({
+      id: "hp-wipe",
+      sessionId: sid,
+      toolName: "exec",
+      payload: {},
+      riskTier: "critical",
+      expiresAtIso: "2099-01-01T00:00:00.000Z",
+    });
+    insertSessionToolAutoApprove(db, sid, "builtin.write");
+
+    const testConfig: ShoggothConfig = { ...minimalConfig(sock), configDirectory: cfgDir };
+    const configRef = { current: testConfig };
+    const hitlRef = { value: { ...DEFAULT_HITL_CONFIG, ...testConfig.hitl } };
+    const hitlLog = createLogger({ component: "test", minLevel: "error" }).child({
+      subsystem: "hitl",
+    });
+    const autoGate = createPersistingHitlAutoApproveGate({
+      db,
+      configDirectory: cfgDir,
+      configRef,
+      hitlRef,
+      logger: hitlLog,
+    });
+    autoGate.enableAgentTool("wipeme", "builtin.read");
+    assert.ok(autoGate.shouldAutoApprove(sid, "builtin.read"));
+
+    await withControlPlaneSession(
+      {
+        readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+        stateDb: db,
+        config: testConfig,
+        hitlPending: pending,
+        hitlClear: {
+          configDirectory: cfgDir,
+          configRef,
+          hitlRef,
+          autoApproveGate: autoGate,
+        },
+      },
+      async (send) => {
+        const peer = { kind: "operator_peercred" } as const;
+        const line = await send({
+          v: WIRE_VERSION,
+          id: "hc-all",
+          op: "hitl_clear",
+          auth: peer,
+          payload: { agent_id: "all" },
+        });
+        const res = parseResponseLine(line);
+        assert.equal(res.ok, true);
+        const body = res.result as { deleted_pending: number; cleared_session_auto_approve: number };
+        assert.equal(body.deleted_pending, 1);
+        assert.ok(body.cleared_session_auto_approve >= 1);
+
+        const lineList = await send({
+          v: WIRE_VERSION,
+          id: "hc-li",
+          op: "hitl_pending_list",
+          auth: peer,
+          payload: {},
+        });
+        assert.equal((parseResponseLine(lineList).result as { pending: unknown[] }).pending.length, 0);
+
+        const sessRows = (
+          db.prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve`).get() as { c: number }
+        ).c;
+        assert.equal(sessRows, 0);
+
+        assert.equal(autoGate.shouldAutoApprove(sid, "builtin.read"), false);
+        const after = loadLayeredConfig(cfgDir).hitl.agentToolAutoApprove;
+        assert.deepStrictEqual(after["wipeme"], []);
       },
     );
 

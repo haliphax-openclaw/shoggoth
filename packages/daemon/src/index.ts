@@ -65,10 +65,17 @@ import {
 import { executeDiscordMessageToolAction } from "@shoggoth/messaging";
 import { loadDaemonNotices } from "./notices/load-notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
+import { registerContextFinalizer } from "./sessions/session-mcp-runtime";
+import {
+  messageToolFinalizer,
+  subagentToolStripFinalizer,
+} from "./sessions/session-mcp-tool-context";
 
 loadDaemonPrompts();
 loadDaemonNotices();
 registerBuiltInMessagingPlatforms();
+registerContextFinalizer(messageToolFinalizer);
+registerContextFinalizer(subagentToolStripFinalizer);
 
 const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
 const config = loadLayeredConfig(configDir);
@@ -170,6 +177,15 @@ void (async () => {
       version: VERSION,
       stateDb,
       hitlPending: hitlStack?.pending,
+      hitlClear:
+        hitlStack && stateDb && hitlAutoApproveGate
+          ? {
+              configDirectory: configRef.current.configDirectory,
+              configRef,
+              hitlRef,
+              autoApproveGate: hitlAutoApproveGate,
+            }
+          : undefined,
     });
     const stopConfigHotReload = startConfigHotReload({
       configDirectory: config.configDirectory,

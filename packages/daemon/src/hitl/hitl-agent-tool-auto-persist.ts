@@ -35,3 +35,26 @@ export function persistAgentToolAutoApproveAndReload(input: {
   input.configRef.current = next;
   input.hitlRef.value = { ...DEFAULT_HITL_CONFIG, ...next.hitl };
 }
+
+/**
+ * Rewrite `z-hitl-agent-tool-auto-approve.json` with a new `agentToolAutoApprove` map and reload config.
+ * Use empty arrays per agent to clear entries (layered merge cannot remove keys with `{}`).
+ */
+export function rewriteAgentToolAutoApproveMapAndReload(input: {
+  readonly configDirectory: string;
+  readonly configRef: { current: ShoggothConfig };
+  readonly hitlRef: HitlConfigRef;
+  readonly nextAgentToolAutoApprove: Record<string, string[]>;
+}): void {
+  const dir = input.configDirectory.trim();
+  if (!dir) throw new Error("configDirectory required");
+  mkdirSync(dir, { recursive: true });
+  const body = `${JSON.stringify({ hitl: { agentToolAutoApprove: input.nextAgentToolAutoApprove } }, null, 2)}\n`;
+  const full = join(dir, HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME);
+  const tmp = `${full}.tmp`;
+  writeFileSync(tmp, body, "utf8");
+  renameSync(tmp, full);
+  const next = loadLayeredConfig(dir);
+  input.configRef.current = next;
+  input.hitlRef.value = { ...DEFAULT_HITL_CONFIG, ...next.hitl };
+}

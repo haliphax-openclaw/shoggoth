@@ -50,6 +50,8 @@ export interface PendingActionsStore {
   deny(id: string, resolverPrincipal: string): boolean;
   /** Marks overdue pending rows as denied (timeout). Returns count updated. */
   expireDue(nowIso: string): number;
+  /** Hard-deletes queued (`pending`) rows for the given sessions. */
+  deletePendingForSessionIds(sessionIds: readonly string[]): number;
 }
 
 function rowToPending(r: {
@@ -229,6 +231,16 @@ export function createPendingActionsStore(
         }
       }
       return n;
+    },
+
+    deletePendingForSessionIds(sessionIds) {
+      if (sessionIds.length === 0) return 0;
+      const placeholders = sessionIds.map(() => "?").join(", ");
+      const q = db.prepare(
+        `DELETE FROM hitl_pending_actions WHERE status = 'pending' AND session_id IN (${placeholders})`,
+      );
+      const info = q.run(...sessionIds.map((s) => s.trim()));
+      return Number(info.changes);
     },
   };
 }

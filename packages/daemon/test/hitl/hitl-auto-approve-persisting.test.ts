@@ -59,6 +59,22 @@ describe("createPersistingHitlAutoApproveGate", () => {
         assert.equal(gate.shouldAutoApprove(sessionId, "memory.search"), true);
         db.close();
       }
+
+      {
+        const db = new Database(dbPath);
+        db.pragma("foreign_keys = ON");
+        const gate = createPersistingHitlAutoApproveGate({
+          db,
+          configDirectory: cfgDir,
+          configRef,
+          hitlRef,
+          logger: log,
+        });
+        gate.enableAgentTool("main", "builtin.write");
+        assert.equal(gate.shouldAutoApprove(sessionId, "builtin.write"), true);
+        assert.equal(gate.shouldAutoApprove(sessionId, "write"), false);
+        db.close();
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

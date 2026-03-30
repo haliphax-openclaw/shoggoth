@@ -8,6 +8,11 @@ export type HitlAutoApproveGate = {
   enableSessionTool(sessionId: string, toolName: string): void;
   enableAgentTool(agentId: string, toolName: string): void;
   shouldAutoApprove(sessionId: string, toolName: string): boolean;
+  /**
+   * Daemon persisting gate only: drop in-process ♾️ entries (optional).
+   * Used by `hitl_clear` so auto-approve state matches disk after a wipe.
+   */
+  clearAutoApproveMemory?(input: { readonly agents: "all" | readonly string[] }): void;
 };
 
 export function createHitlAutoApproveGate(): HitlAutoApproveGate {

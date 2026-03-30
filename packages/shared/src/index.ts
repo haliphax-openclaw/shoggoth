@@ -6,6 +6,8 @@ export {
   DEFAULT_POLICY_CONFIG,
   defaultConfig,
   hitlRiskTierSchema,
+  normalizeHitlToolKeys,
+  normalizeToolName,
   shoggothAgentDiscordConfigSchema,
   shoggothAgentEntrySchema,
   shoggothAgentModelsOverrideSchema,

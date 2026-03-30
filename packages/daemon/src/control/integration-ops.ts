@@ -8,6 +8,7 @@ import {
   assertValidAgentId,
   crossAgentSessionSendAllowed,
   effectiveSpawnSubagentsEnabled,
+  loadLayeredConfig,
   parseAgentSessionUrn,
 } from "@shoggoth/shared";
 import {
@@ -29,7 +30,14 @@ import {
   applySessionContextSegmentNew,
   applySessionContextSegmentReset,
 } from "../sessions/session-context-segment";
+import type { HitlConfigRef } from "../config-hot-reload";
+import { rewriteAgentToolAutoApproveMapAndReload } from "../hitl/hitl-agent-tool-auto-persist";
+import type { HitlAutoApproveGate } from "../hitl/hitl-auto-approve";
 import type { PendingActionsStore } from "../hitl/pending-actions-store";
+import {
+  clearAllSessionToolAutoApprove,
+  clearSessionToolAutoApproveForSessionIds,
+} from "../hitl/hitl-session-tool-auto-store";
 import { mergeSubagentSpawnModelSelection } from "@shoggoth/models";
 import { dispatchMcpHttpCancelRequest } from "../mcp/mcp-http-cancel-registry";
 import { SUBAGENT_DEFAULT_BOUND_LIFETIME_MS } from "../subagent/subagent-constants";
@@ -69,6 +77,16 @@ export type IntegrationOpsContext = {
   readonly recordIntegrationAudit: IntegrationAuditRecorder;
   /** When unset, HITL control ops return ERR_HITL_UNAVAILABLE. */
   readonly hitlPending?: PendingActionsStore;
+  /**
+   * When set with {@link hitlPending}, `hitl_clear` can wipe agent/session auto-approve (disk + memory).
+   * Omitted in minimal setups (e.g. tests with only the pending store).
+   */
+  readonly hitlClear?: {
+    readonly configDirectory: string;
+    readonly configRef: { current: ShoggothConfig };
+    readonly hitlRef: HitlConfigRef;
+    readonly autoApproveGate: HitlAutoApproveGate;
+  };
   /**
    * MCP streamable HTTP cancel routing (default: process registry filled by Discord platform).
    * Override in tests.
@@ -125,6 +143,18 @@ function optionalStringArray(obj: Record<string, unknown>, key: string): string[
     throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.${key} must be an array of strings`);
   }
   return v as string[];
+}
+
+function optionalNonEmptySessionId(pl: Record<string, unknown>): string | undefined {
+  const v = pl.session_id;
+  if (v === undefined) return undefined;
+  if (typeof v !== "string" || !v.trim()) {
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      "payload.session_id must be a non-empty string when provided",
+    );
+  }
+  return v.trim();
 }
 
 function mapSessionListRow(row: SessionRow) {
@@ -552,6 +582,107 @@ export async function handleIntegrationControlOp(
         outcome: ok ? "ok" : "not_pending",
       });
       return { ok };
+    }
+
+    case "hitl_clear": {
+      if (principal.kind !== "operator") {
+        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_clear requires operator principal");
+      }
+      if (!ctx.hitlPending) {
+        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+      }
+      if (!ctx.stateDb || !ctx.sessions) {
+        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "hitl_clear requires SQLite session store");
+      }
+      const pl = payloadObject(req);
+      const agentIdRaw = requireString(pl, "agent_id").trim();
+      if (agentIdRaw !== "all") {
+        assertValidAgentId(agentIdRaw);
+      }
+      const sessionIdOpt = optionalNonEmptySessionId(pl);
+      const noAuto = pl.no_auto === true;
+      /** Session-scoped clear never touches auto-approve (SQLite / z-JSON / memory). */
+      const skipAutoClear = Boolean(sessionIdOpt) || noAuto;
+
+      let sessionIds: string[];
+      if (sessionIdOpt) {
+        const parsed = parseAgentSessionUrn(sessionIdOpt);
+        if (!parsed) {
+          throw new IntegrationOpError(
+            "ERR_INVALID_PAYLOAD",
+            "payload.session_id must be a valid agent session URN",
+          );
+        }
+        if (agentIdRaw !== "all" && parsed.agentId !== agentIdRaw) {
+          throw new IntegrationOpError(
+            "ERR_INVALID_PAYLOAD",
+            "payload.session_id agent does not match payload.agent_id",
+          );
+        }
+        const row = ctx.sessions.getById(sessionIdOpt);
+        if (!row) {
+          throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+        }
+        sessionIds = [sessionIdOpt];
+      } else if (agentIdRaw === "all") {
+        sessionIds = ctx.sessions.list().map((r) => r.id);
+      } else {
+        sessionIds = ctx.sessions.list({ agentId: agentIdRaw }).map((r) => r.id);
+      }
+
+      const deletedPending = ctx.hitlPending.deletePendingForSessionIds(sessionIds);
+
+      let clearedSessionAutoApprove = 0;
+      let clearedAgentAutoApproveAgents = 0;
+      if (!skipAutoClear) {
+        const hc = ctx.hitlClear;
+        if (!hc) {
+          throw new IntegrationOpError(
+            "ERR_HITL_UNAVAILABLE",
+            "HITL auto-approve clear not configured (requires persisting HITL gate)",
+          );
+        }
+        if (agentIdRaw === "all") {
+          clearedSessionAutoApprove = clearAllSessionToolAutoApprove(ctx.stateDb);
+        } else {
+          clearedSessionAutoApprove = clearSessionToolAutoApproveForSessionIds(ctx.stateDb, sessionIds);
+        }
+        const merged = loadLayeredConfig(hc.configDirectory).hitl.agentToolAutoApprove;
+        const nextMap: Record<string, string[]> =
+          agentIdRaw === "all"
+            ? Object.fromEntries(Object.keys(merged).map((k) => [k, [] as string[]]))
+            : { ...merged, [agentIdRaw]: [] };
+        rewriteAgentToolAutoApproveMapAndReload({
+          configDirectory: hc.configDirectory,
+          configRef: hc.configRef,
+          hitlRef: hc.hitlRef,
+          nextAgentToolAutoApprove: nextMap,
+        });
+        clearedAgentAutoApproveAgents = agentIdRaw === "all" ? Object.keys(merged).length : 1;
+        if (agentIdRaw === "all") {
+          hc.autoApproveGate.clearAutoApproveMemory?.({ agents: "all" });
+        } else {
+          hc.autoApproveGate.clearAutoApproveMemory?.({ agents: [agentIdRaw] });
+        }
+      }
+
+      ctx.recordIntegrationAudit({
+        action: "hitl.clear",
+        resource: sessionIdOpt ?? agentIdRaw,
+        outcome: "ok",
+        argsRedactedJson: JSON.stringify({
+          agent_id: agentIdRaw,
+          session_id: sessionIdOpt,
+          no_auto: noAuto,
+        }),
+      });
+
+      return {
+        deleted_pending: deletedPending,
+        session_ids: sessionIds,
+        cleared_session_auto_approve: clearedSessionAutoApprove,
+        cleared_agent_auto_approve_agents: clearedAgentAutoApproveAgents,
+      };
     }
 
     case "canvas_authorize": {

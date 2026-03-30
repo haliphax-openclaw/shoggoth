@@ -270,6 +270,7 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
         "hitl_pending_get",
         "hitl_pending_approve",
         "hitl_pending_deny",
+        "hitl_clear",
         "mcp_http_cancel_request",
         "session_context_new",
         "session_context_reset",
@@ -716,15 +717,15 @@ export type ShoggothConfig = z.infer<typeof shoggothConfigSchema>;
 export const DEFAULT_HITL_CONFIG: ShoggothHitlConfig = {
   defaultApprovalTimeoutMs: 300_000,
   toolRisk: {
-    read: "safe",
-    write: "caution",
-    exec: "critical",
-    "memory.search": "safe",
-    "memory.ingest": "caution",
-    "session.list": "safe",
-    "session.send": "caution",
-    subagent: "caution",
-    message: "caution",
+    "builtin.read": "safe",
+    "builtin.write": "caution",
+    "builtin.exec": "critical",
+    "builtin.memory.search": "safe",
+    "builtin.memory.ingest": "caution",
+    "builtin.session.list": "safe",
+    "builtin.session.send": "caution",
+    "builtin.subagent": "caution",
+    "builtin.message": "caution",
   },
   /**
    * Keys are arbitrary role ids passed as `principalRoles` into the tool loop. Session turns use
@@ -736,6 +737,36 @@ export const DEFAULT_HITL_CONFIG: ShoggothHitlConfig = {
   },
   agentToolAutoApprove: {},
 };
+
+/**
+ * Legacy short tool names → canonical `source.toolName` form.
+ * Used to normalise existing config / DB entries written before canonical names.
+ */
+const LEGACY_SHORT_TO_CANONICAL: Readonly<Record<string, string>> = {
+  read: "builtin.read",
+  write: "builtin.write",
+  exec: "builtin.exec",
+  "memory.search": "builtin.memory.search",
+  "memory.ingest": "builtin.memory.ingest",
+  subagent: "builtin.subagent",
+  "session.list": "builtin.session.list",
+  "session.send": "builtin.session.send",
+  message: "builtin.message",
+};
+
+/** Expand legacy short keys in a `toolRisk`-shaped record to canonical form. */
+export function normalizeHitlToolKeys<V>(map: Record<string, V>): Record<string, V> {
+  const out: Record<string, V> = {};
+  for (const [k, v] of Object.entries(map)) {
+    out[LEGACY_SHORT_TO_CANONICAL[k] ?? k] = v;
+  }
+  return out;
+}
+
+/** Expand a single tool name from legacy short form to canonical if applicable. */
+export function normalizeToolName(name: string): string {
+  return LEGACY_SHORT_TO_CANONICAL[name] ?? name;
+}
 
 export function defaultConfig(configDirectory: string): ShoggothConfig {
   return {

@@ -6,6 +6,26 @@ import { fillPromptTemplate } from "../prompts/load-prompts";
 
 const NOTICES_DIR = dirname(fileURLToPath(import.meta.url));
 
+export const REQUIRED_NOTICE_KEYS: readonly string[] = [
+  "discord-degraded-banner",
+  "discord-error-hitl-pending",
+  "discord-error-model-400-generic",
+  "discord-error-model-400-with-detail",
+  "discord-error-model-401",
+  "discord-error-model-429",
+  "discord-error-model-500",
+  "discord-error-model-502-504",
+  "discord-error-model-default",
+  "discord-error-network-fetch",
+  "discord-model-tag-footer",
+  "discord-segment-ack-new",
+  "discord-segment-ack-reset",
+  "discord-segment-command-error",
+  "discord-subagent-bound-ended-killed",
+  "discord-subagent-bound-ended-ttl",
+  "hitl-queued-notice",
+] as const;
+
 let cache: Map<string, string> | undefined;
 
 /** Load all `*.md` in this directory (call once from daemon startup). Idempotent. */
@@ -17,6 +37,10 @@ export function loadDaemonNotices(): void {
     const key = name.slice(0, -".md".length);
     const text = readFileSync(join(NOTICES_DIR, name), "utf8").replace(/\r\n/g, "\n").trim();
     cache.set(key, text);
+  }
+  const missing = REQUIRED_NOTICE_KEYS.filter((k) => !cache!.get(k));
+  if (missing.length) {
+    throw new Error(`Missing or empty daemon notices at startup: ${missing.join(", ")}`);
   }
 }
 

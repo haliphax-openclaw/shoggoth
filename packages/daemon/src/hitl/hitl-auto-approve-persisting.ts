@@ -6,9 +6,10 @@ import type { Logger } from "../logging";
 import { persistAgentToolAutoApproveAndReload } from "./hitl-agent-tool-auto-persist";
 import {
   insertSessionToolAutoApprove,
-  sessionHasToolAutoApprove,
+  sessionHasToolAutoApproveFlexible,
 } from "./hitl-session-tool-auto-store";
 import type { HitlAutoApproveGate } from "./hitl-auto-approve";
+import { hitlAutoApproveToolNamesMatch } from "./hitl-tool-name-match";
 
 export function createPersistingHitlAutoApproveGate(input: {
   readonly db: Database.Database;
@@ -17,11 +18,27 @@ export function createPersistingHitlAutoApproveGate(input: {
   readonly hitlRef: HitlConfigRef;
   readonly logger: Logger;
 }): HitlAutoApproveGate {
+  /** Process-local agent-scope auto-approve (♾️); updated before disk persist so it sticks even if JSON write fails */
+  const agentToolsMem = new Map<string, Set<string>>();
+
+  function rememberAgentTool(agentId: string, toolName: string): void {
+    const aid = agentId.trim();
+    const tn = toolName.trim();
+    if (!aid || !tn) return;
+    let s = agentToolsMem.get(aid);
+    if (!s) {
+      s = new Set();
+      agentToolsMem.set(aid, s);
+    }
+    s.add(tn);
+  }
+
   return {
     enableSessionTool(sessionId, toolName) {
       insertSessionToolAutoApprove(input.db, sessionId, toolName);
     },
     enableAgentTool(agentId, toolName) {
+      rememberAgentTool(agentId, toolName);
       try {
         persistAgentToolAutoApproveAndReload({
           configDirectory: input.configDirectory,
@@ -41,11 +58,30 @@ export function createPersistingHitlAutoApproveGate(input: {
     shouldAutoApprove(sessionId, toolName) {
       const sid = sessionId.trim();
       const t = toolName.trim();
-      if (sessionHasToolAutoApprove(input.db, sid, t)) return true;
+      if (sessionHasToolAutoApproveFlexible(input.db, sid, t)) return true;
       const p = parseAgentSessionUrn(sid);
       if (!p) return false;
+      const mem = agentToolsMem.get(p.agentId);
+      if (mem) {
+        for (const entry of mem) {
+          if (hitlAutoApproveToolNamesMatch(t, entry)) return true;
+        }
+      }
       const list = input.hitlRef.value.agentToolAutoApprove[p.agentId];
-      return Array.isArray(list) && list.includes(t);
+      if (!Array.isArray(list)) return false;
+      for (const a of list) {
+        if (hitlAutoApproveToolNamesMatch(t, a)) return true;
+      }
+      return false;
+    },
+    clearAutoApproveMemory(input) {
+      if (input.agents === "all") {
+        agentToolsMem.clear();
+        return;
+      }
+      for (const a of input.agents) {
+        agentToolsMem.delete(a.trim());
+      }
     },
   };
 }

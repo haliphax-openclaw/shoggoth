@@ -75,6 +75,8 @@ export type ControlPlaneOptions = {
   acpxSpawn?: AcpxSpawnFn;
   /** When set with `stateDb`, exposes `hitl_pending_*` control ops. */
   hitlPending?: PendingActionsStore;
+  /** When set with `hitlPending`, enables `hitl_clear` to wipe agent auto-approve (disk + memory). */
+  hitlClear?: IntegrationOpsContext["hitlClear"];
   /** Test hook: override `mcp_http_cancel_request` routing (default: Discord platform cancel registry). */
   cancelMcpHttpRequest?: IntegrationOpsContext["cancelMcpHttpRequest"];
 };
@@ -186,6 +188,7 @@ async function handleOneLine(
       | "sessionManager"
       | "acpxSupervisor"
       | "hitlPending"
+      | "hitlClear"
       | "cancelMcpHttpRequest"
     >;
     logger: Logger;
@@ -283,6 +286,7 @@ async function handleOneLine(
       sessionManager: deps.integration.sessionManager,
       acpxSupervisor: deps.integration.acpxSupervisor,
       hitlPending: deps.integration.hitlPending,
+      hitlClear: deps.integration.hitlClear,
       cancelMcpHttpRequest: deps.integration.cancelMcpHttpRequest,
       recordIntegrationAudit: (extras) =>
         recordControlPlaneAudit(deps.stateDb, deps.logger, {
@@ -360,6 +364,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
     registerShutdownDrain = true,
     acpxSpawn,
     hitlPending: hitlPendingOpt,
+    hitlClear: hitlClearOpt,
     cancelMcpHttpRequest: cancelMcpHttpRequestOpt,
   } = opts;
 
@@ -405,6 +410,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
     | "sessionManager"
     | "acpxSupervisor"
     | "hitlPending"
+    | "hitlClear"
     | "cancelMcpHttpRequest"
   > = {
     config,
@@ -414,6 +420,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
     sessionManager,
     acpxSupervisor,
     hitlPending: hitlPendingOpt,
+    hitlClear: hitlClearOpt,
     cancelMcpHttpRequest: cancelMcpHttpRequestOpt ?? dispatchMcpHttpCancelRequest,
   };
 

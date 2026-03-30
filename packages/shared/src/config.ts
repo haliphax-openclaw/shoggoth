@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { deepMerge } from "./merge";
 import {
   defaultConfig,
+  normalizeHitlToolKeys,
+  normalizeToolName,
   shoggothConfigFragmentSchema,
   shoggothConfigSchema,
   type ShoggothConfig,
@@ -49,5 +51,13 @@ export function loadLayeredConfig(configDir: string): ShoggothConfig {
     }
   }
 
-  return shoggothConfigSchema.parse(merged);
+  const config = shoggothConfigSchema.parse(merged);
+
+  // Normalise legacy short tool names → canonical `source.toolName` form.
+  config.hitl.toolRisk = normalizeHitlToolKeys(config.hitl.toolRisk);
+  for (const [agentId, tools] of Object.entries(config.hitl.agentToolAutoApprove)) {
+    config.hitl.agentToolAutoApprove[agentId] = tools.map(normalizeToolName);
+  }
+
+  return config;
 }
