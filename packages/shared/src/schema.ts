@@ -531,6 +531,27 @@ export const shoggothAgentToAgentConfigSchema = z
 export type ShoggothAgentToAgentConfig = z.infer<typeof shoggothAgentToAgentConfigSchema>;
 
 /**
+ * Per-agent `sessionQuery` block: which other agent ids this agent may query transcripts for.
+ * Own agent id is always implicitly allowed.
+ */
+export const shoggothSessionQueryAllowSchema = z
+  .object({
+    allowedAgentIds: z.array(z.string().min(1)).optional(),
+  })
+  .strict();
+
+/**
+ * Global `sessionQuery` config: default allowed agent ids merged into every agent's effective list.
+ */
+export const shoggothSessionQueryConfigSchema = z
+  .object({
+    allowedAgentIds: z.array(z.string().min(1)).optional(),
+  })
+  .strict();
+
+export type ShoggothSessionQueryConfig = z.infer<typeof shoggothSessionQueryConfigSchema>;
+
+/**
  * Which logical agent ids subagent sessions may be spawned for (merged global + `agents.list.<senderId>`),
  * i.e. the child inherits this agent id from the parent URN. Use `"*"` to allow any id for that sender.
  * If this block is absent both globally and on the sender’s `agents.list` entry, only that sender’s own
@@ -588,6 +609,8 @@ export const shoggothAgentEntrySchema = z
      * Overrides top-level `spawnSubagents` when set.
      */
     spawnSubagents: z.boolean().optional(),
+    /** Which agent ids this agent may query transcripts for (merged with global `sessionQuery.allowedAgentIds`; own id always allowed). */
+    sessionQuery: shoggothSessionQueryAllowSchema.optional(),
   })
   .strict();
 
@@ -671,6 +694,8 @@ export const shoggothConfigFragmentSchema = z
      * `agents.list.<id>.subagentSpawnAllow.allow`. Omitted everywhere for a sender ⇒ only that sender’s own id.
      */
     subagentSpawnAllow: shoggothSubagentSpawnAllowSchema.optional(),
+    /** Global session query access control: agent ids any agent may query transcripts for. */
+    sessionQuery: shoggothSessionQueryConfigSchema.optional(),
     policy: shoggothPolicyFragmentSchema,
   })
   .strict();
@@ -708,6 +733,7 @@ export const shoggothConfigSchema = z
     agentToAgent: shoggothAgentToAgentConfigSchema.optional(),
     spawnSubagents: z.boolean().optional(),
     subagentSpawnAllow: shoggothSubagentSpawnAllowSchema.optional(),
+    sessionQuery: shoggothSessionQueryConfigSchema.optional(),
     policy: shoggothPolicyConfigSchema,
   })
   .strict();
@@ -724,6 +750,7 @@ export const DEFAULT_HITL_CONFIG: ShoggothHitlConfig = {
     "builtin.memory.ingest": "caution",
     "builtin.session.list": "safe",
     "builtin.session.send": "caution",
+    "builtin.session.query": "safe",
     "builtin.subagent": "caution",
     "builtin.message": "caution",
   },
@@ -751,6 +778,7 @@ const LEGACY_SHORT_TO_CANONICAL: Readonly<Record<string, string>> = {
   subagent: "builtin.subagent",
   "session.list": "builtin.session.list",
   "session.send": "builtin.session.send",
+  "session.query": "builtin.session.query",
   message: "builtin.message",
 };
 

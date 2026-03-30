@@ -12,12 +12,16 @@ import { toolExec, toolRead, toolWrite, type AgentCredentials } from "@shoggoth/
 import type { ShoggothConfig } from "@shoggoth/shared";
 import {
   isSubagentSessionUrn,
+  resolveAgentIdFromSessionId,
   resolveEffectiveMemoryForSession,
   resolveEffectiveModelsConfig,
+  resolveEffectiveSessionQueryAllowedAgentIds,
 } from "@shoggoth/shared";
 import { mergeOrchestratorEnv } from "../config/effective-runtime";
 import { getAgentIntegrationInvoker } from "../control/agent-integration-invoke-ref";
 import { IntegrationOpError } from "../control/integration-ops";
+import { readFileSync } from "node:fs";
+import { listSkillsForConfig, skillAbsolutePathById } from "@shoggoth/skills-plugins";
 import { runMemoryBuiltin } from "../memory/builtin-memory-tools";
 import { createMcpRoutingToolExecutor } from "../mcp/tool-loop-mcp";
 import { createToolLoopPolicyAndAudit } from "../policy/tool-loop-bridge";
@@ -157,6 +161,61 @@ export async function executeSessionAgentTurn(
           }
           const result = await ctx.execute(input.sessionId, args);
           return { resultJson: JSON.stringify(result) };
+        }
+        if (originalName === "session.query") {
+          const callerAgentId = resolveAgentIdFromSessionId(input.sessionId);
+          if (!callerAgentId) {
+            return { resultJson: JSON.stringify({ error: "session.query requires a valid agent session URN" }) };
+          }
+          const requestedAgentId = typeof args.agent_id === "string" && args.agent_id.trim()
+            ? args.agent_id.trim()
+            : callerAgentId;
+          const allowed = resolveEffectiveSessionQueryAllowedAgentIds(input.config, callerAgentId);
+          if (!allowed.has(requestedAgentId)) {
+            return { resultJson: JSON.stringify({ error: `not allowed to query sessions for agent id: ${requestedAgentId}` }) };
+          }
+          const limit = Math.min(Math.max(1, Math.trunc(Number(args.limit) || 50)), 200);
+          const offset = Math.max(0, Math.trunc(Number(args.offset) || 0));
+          const sessionIdFilter = typeof args.session_id === "string" && args.session_id.trim()
+            ? args.session_id.trim()
+            : undefined;
+          // Verify requested session belongs to the allowed agent id
+          if (sessionIdFilter) {
+            const sessionAgent = resolveAgentIdFromSessionId(sessionIdFilter);
+            if (sessionAgent !== requestedAgentId) {
+              return { resultJson: JSON.stringify({ error: `session ${sessionIdFilter} does not belong to agent ${requestedAgentId}` }) };
+            }
+          }
+          const stmt = input.db.prepare(
+            sessionIdFilter
+              ? `SELECT seq, role, content, tool_call_id, metadata_json, session_id
+                 FROM transcript_messages
+                 WHERE session_id = @session_id AND seq > @offset
+                 ORDER BY seq ASC LIMIT @limit`
+              : `SELECT seq, role, content, tool_call_id, metadata_json, session_id
+                 FROM transcript_messages
+                 WHERE session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)
+                   AND seq > @offset
+                 ORDER BY session_id, seq ASC LIMIT @limit`,
+          );
+          const params: Record<string, unknown> = { offset, limit };
+          if (sessionIdFilter) {
+            params.session_id = sessionIdFilter;
+          } else {
+            params.agent_pattern = `agent:${requestedAgentId}:%`;
+          }
+          const rows = stmt.all(params) as {
+            seq: number; role: string; content: string | null;
+            tool_call_id: string | null; metadata_json: string | null; session_id: string;
+          }[];
+          const messages = rows.map((r) => ({
+            session_id: r.session_id,
+            seq: r.seq,
+            role: r.role,
+            content: r.content,
+            ...(r.tool_call_id ? { tool_call_id: r.tool_call_id } : {}),
+          }));
+          return { resultJson: JSON.stringify({ messages, count: messages.length }) };
         }
         if (originalName === "subagent" || originalName.startsWith("session.")) {
           const inv = getAgentIntegrationInvoker();
@@ -340,6 +399,34 @@ export async function executeSessionAgentTurn(
             env: orchestratorEnv,
             runtimeOpenaiBaseUrl: input.config.runtime?.openaiBaseUrl,
           });
+        }
+        if (originalName === "skills") {
+          const action = String(args.action ?? "").trim();
+          if (action === "list") {
+            const rows = listSkillsForConfig(input.config).map((s) => ({
+              id: s.id,
+              title: s.title,
+              path: s.absolutePath,
+              enabled: s.enabled,
+            }));
+            return { resultJson: JSON.stringify(rows) };
+          }
+          const id = String(args.id ?? "").trim();
+          if (!id) {
+            return { resultJson: JSON.stringify({ error: "id required for path and read actions" }) };
+          }
+          if (action === "path") {
+            const p = skillAbsolutePathById(input.config, id);
+            if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
+            return { resultJson: JSON.stringify({ path: p }) };
+          }
+          if (action === "read") {
+            const p = skillAbsolutePathById(input.config, id);
+            if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
+            const content = readFileSync(p, "utf8");
+            return { resultJson: JSON.stringify({ path: p, content }) };
+          }
+          return { resultJson: JSON.stringify({ error: `unknown skills action: ${action}` }) };
         }
         return { resultJson: JSON.stringify({ error: `unknown builtin: ${originalName}` }) };
       } catch (e) {

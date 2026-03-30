@@ -13,6 +13,23 @@ export function resolveAgentIdFromSessionId(sessionId: string): string | undefin
   return parseAgentSessionUrn(sessionId)?.agentId;
 }
 
+/**
+ * Effective allowed agent ids for `session.query`: merges global `sessionQuery.allowedAgentIds`
+ * with `agents.list.<agentId>.sessionQuery.allowedAgentIds`, always including the caller's own id.
+ */
+export function resolveEffectiveSessionQueryAllowedAgentIds(
+  cfg: ShoggothConfig,
+  callerAgentId: string,
+): Set<string> {
+  const allowed = new Set<string>([callerAgentId]);
+  const globalIds = cfg.sessionQuery?.allowedAgentIds;
+  if (globalIds) for (const id of globalIds) allowed.add(id);
+  const entry = findAgentEntry(cfg, callerAgentId);
+  const perIds = entry?.sessionQuery?.allowedAgentIds;
+  if (perIds) for (const id of perIds) allowed.add(id);
+  return allowed;
+}
+
 function mergeDefaultInvocation(
   base: ShoggothModelsConfig["defaultInvocation"] | undefined,
   over: ShoggothModelsConfig["defaultInvocation"] | undefined,

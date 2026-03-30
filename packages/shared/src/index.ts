@@ -36,6 +36,8 @@ export {
   shoggothRetentionConfigSchema,
   shoggothRuntimeConfigSchema,
   shoggothSkillsConfigSchema,
+  shoggothSessionQueryAllowSchema,
+  shoggothSessionQueryConfigSchema,
   shoggothSubagentSpawnAllowSchema,
   shoggothToolRulesSchema,
   DEFAULT_SKILLS_CONFIG,
@@ -62,6 +64,7 @@ export {
   type ShoggothPolicyConfig,
   type ShoggothPolicyFragment,
   type ShoggothSkillsConfig,
+  type ShoggothSessionQueryConfig,
   type ShoggothSubagentSpawnAllowConfig,
   type ShoggothRetentionConfig,
   type ShoggothRuntimeConfig,
@@ -83,6 +86,7 @@ export {
   resolveAgentIdFromSessionId,
   resolveEffectiveMemoryForSession,
   resolveEffectiveModelsConfig,
+  resolveEffectiveSessionQueryAllowedAgentIds,
   SHOGGOTH_DISCORD_AGENT_DEFAULT_EMOJI,
 } from "./effective-agent-for-session";
 export { VERSION } from "./version";

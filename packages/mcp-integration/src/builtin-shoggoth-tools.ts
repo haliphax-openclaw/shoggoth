@@ -126,6 +126,37 @@ const sessionSendArgs = {
   required: ["message"],
 } as const;
 
+const skillsToolArgs = {
+  type: "object",
+  description:
+    "Query available skills: list all, resolve absolute path, or read content by id.",
+  properties: {
+    action: {
+      type: "string",
+      enum: ["list", "path", "read"],
+      description:
+        "list: return all skills as JSON array. path: return absolute filesystem path for a skill id. read: return path and file contents for a skill id.",
+    },
+    id: {
+      type: "string",
+      description: "Skill id (required for path and read actions)",
+    },
+  },
+  required: ["action"],
+} as const;
+
+const sessionQueryArgs = {
+  type: "object",
+  description:
+    "Read-only query of session transcript messages. Agents can only query sessions belonging to their own agent id unless explicitly allowed via sessionQuery config.",
+  properties: {
+    session_id: { type: "string", description: "Specific session URN to query (optional; without it, queries all allowed sessions)" },
+    agent_id: { type: "string", description: "Filter by agent id (defaults to calling agent's own id; must be in allowed list)" },
+    limit: { type: "integer", description: "Max messages to return (default 50, max 200)", minimum: 1, maximum: 200 },
+    offset: { type: "integer", description: "Pagination offset (seq cursor; messages with seq > offset are returned)", minimum: 0 },
+  },
+} as const;
+
 /** Canonical builtin source id. */
 export const BUILTIN_SOURCE_ID = "builtin";
 
@@ -177,6 +208,18 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
         description:
           "Send a message to another session (session_id or agent_id for main session). Cross-agent sends require agentToAgent.allow and/or agents.list.<senderId>.agentToAgent.allow in Shoggoth config (\"*\" allows any target). silent skips posting the reply to the bound channel.",
         inputSchema: sessionSendArgs,
+      },
+      {
+        name: "session.query",
+        description:
+          "Read-only query of session transcript messages. Returns messages with seq, role, and content. Agents can only query their own sessions unless allowed via sessionQuery config.",
+        inputSchema: sessionQueryArgs,
+      },
+      {
+        name: "skills",
+        description:
+          "Query available skills from the configured scan roots. Use list to enumerate, path to resolve a skill's file path, or read to get its content.",
+        inputSchema: skillsToolArgs,
       },
     ],
   };
