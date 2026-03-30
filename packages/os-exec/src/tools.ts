@@ -1,4 +1,5 @@
 import { realpathSync } from "node:fs";
+import { join } from "node:path";
 import { runAsUser, type RunAsUserResult } from "./subprocess";
 import { resolvePathForRead, resolvePathForWrite } from "./workspace-path";
 
@@ -68,6 +69,19 @@ export async function toolWrite(
 }
 
 /**
+ * XDG base directories scoped to the agent workspace so tools like `uv` get writable
+ * config/cache/data paths without touching daemon-owned trees.
+ */
+function xdgEnvForWorkspace(workspaceRoot: string): NodeJS.ProcessEnv {
+  return {
+    XDG_CONFIG_HOME: join(workspaceRoot, ".config"),
+    XDG_DATA_HOME: join(workspaceRoot, ".local", "share"),
+    XDG_CACHE_HOME: join(workspaceRoot, ".cache"),
+    XDG_STATE_HOME: join(workspaceRoot, ".local", "state"),
+  };
+}
+
+/**
  * Execute argv[0] with remaining args; working directory is the real workspace root.
  */
 export async function toolExec(
@@ -87,5 +101,6 @@ export async function toolExec(
     cwd,
     uid: creds.uid,
     gid: creds.gid,
+    env: xdgEnvForWorkspace(cwd),
   });
 }
