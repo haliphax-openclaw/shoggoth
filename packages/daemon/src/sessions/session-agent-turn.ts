@@ -188,11 +188,11 @@ export async function executeSessionAgentTurn(
           }
           const stmt = input.db.prepare(
             sessionIdFilter
-              ? `SELECT seq, role, content, tool_call_id, metadata_json, session_id
+              ? `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id
                  FROM transcript_messages
                  WHERE session_id = @session_id AND seq > @offset
                  ORDER BY seq ASC LIMIT @limit`
-              : `SELECT seq, role, content, tool_call_id, metadata_json, session_id
+              : `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id
                  FROM transcript_messages
                  WHERE session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)
                    AND seq > @offset
@@ -206,7 +206,7 @@ export async function executeSessionAgentTurn(
           }
           const rows = stmt.all(params) as {
             seq: number; role: string; content: string | null;
-            tool_call_id: string | null; metadata_json: string | null; session_id: string;
+            tool_call_id: string | null; tool_calls_json: string | null; metadata_json: string | null; session_id: string;
           }[];
           const messages = rows.map((r) => ({
             session_id: r.session_id,
@@ -214,6 +214,7 @@ export async function executeSessionAgentTurn(
             role: r.role,
             content: r.content,
             ...(r.tool_call_id ? { tool_call_id: r.tool_call_id } : {}),
+            ...(r.tool_calls_json ? { tool_calls: JSON.parse(r.tool_calls_json) } : {}),
           }));
           return { resultJson: JSON.stringify({ messages, count: messages.length }) };
         }
