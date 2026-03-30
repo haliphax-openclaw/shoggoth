@@ -65,6 +65,26 @@ describe("policy engine", () => {
       engine.check({ principal: agent, action: "control.invoke", resource: "ping" }),
       { allow: false, reason: "default_deny" },
     );
+    assert.deepStrictEqual(
+      engine.check({ principal: agent, action: "control.invoke", resource: "session_context_new" }),
+      { allow: false, reason: "default_deny" },
+    );
+    assert.deepStrictEqual(
+      engine.check({ principal: agent, action: "control.invoke", resource: "session_context_reset" }),
+      { allow: false, reason: "default_deny" },
+    );
+    assert.deepStrictEqual(
+      engine.check({ principal: operator, action: "control.invoke", resource: "session_context_new" }),
+      { allow: true },
+    );
+    assert.deepStrictEqual(
+      engine.check({ principal: agent, action: "control.invoke", resource: "subagent_spawn" }),
+      { allow: false, reason: "default_deny" },
+    );
+    assert.deepStrictEqual(
+      engine.check({ principal: operator, action: "control.invoke", resource: "session_inspect" }),
+      { allow: true },
+    );
   });
 
   it("emptyPolicyConfig denies control and tools", () => {
@@ -85,6 +105,11 @@ describe("policy engine", () => {
     assert.equal(isDefinedControlOp("ping"), true);
     assert.equal(isDefinedControlOp("canvas_authorize"), true);
     assert.equal(isDefinedControlOp("mcp_http_cancel_request"), true);
+    assert.equal(isDefinedControlOp("session_context_new"), true);
+    assert.equal(isDefinedControlOp("session_context_reset"), true);
+    assert.equal(isDefinedControlOp("subagent_spawn"), true);
+    assert.equal(isDefinedControlOp("session_abort"), true);
+    assert.equal(isDefinedControlOp("session_list"), true);
     assert.equal(isDefinedControlOp("nope"), false);
   });
 });

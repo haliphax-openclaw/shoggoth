@@ -2,10 +2,14 @@ import type Database from "better-sqlite3";
 import type { ShoggothHitlConfig } from "@shoggoth/shared";
 import { classifyToolRisk } from "../hitl/risk-classify";
 import { effectiveBypassUpTo, requiresHumanApproval } from "../hitl/approval-gate";
+import type { HitlAutoApproveGate } from "../hitl/hitl-auto-approve";
 import type { HitlNotifier } from "../hitl/hitl-notifier";
 import type { PendingActionRow, PendingActionsStore } from "../hitl/pending-actions-store";
 import type { TranscriptStore } from "./transcript-store";
 import type { ToolRunStore } from "./tool-run-store";
+import { TurnAbortedError } from "./session-turn-abort";
+
+export { TurnAbortedError } from "./session-turn-abort";
 
 export interface ToolCall {
   readonly id: string;
@@ -57,6 +61,10 @@ export interface RunToolLoopHitl {
    * Optional follow-up after enqueue (e.g. Discord in-thread notice). Errors are swallowed by the tool loop.
    */
   readonly afterHitlQueued?: (row: PendingActionRow) => void | Promise<void>;
+  /**
+   * When set (e.g. Discord ♾️/✅ reactions), matching session/agent **for this tool name** skips HITL.
+   */
+  readonly autoApprove?: HitlAutoApproveGate;
 }
 
 export interface RunToolLoopOptions {
@@ -71,27 +79,64 @@ export interface RunToolLoopOptions {
   readonly executor: ToolExecutor;
   readonly toolRuns: ToolRunStore;
   readonly transcript?: TranscriptStore;
+  /** Required when `transcript` is set; must match the session row’s `contextSegmentId`. */
+  readonly contextSegmentId?: string;
   /** When set, tools above the effective role bypass tier enqueue here instead of executing. */
   readonly hitl?: RunToolLoopHitl;
+  /** When aborted (e.g. `session_abort`), the loop exits between hops; in-flight HTTP/tool work may finish first. */
+  readonly turnAbortSignal?: AbortSignal;
 }
 
 const allowedNames = (tools: ReadonlyArray<{ name: string }>) => new Set(tools.map((t) => t.name));
 
 const HITL_EXPIRE_POLL_MS = 1000;
 
+function assertNotAborted(sig: AbortSignal | undefined): void {
+  if (sig?.aborted) throw new TurnAbortedError();
+}
+
+function abortPromise(signal: AbortSignal | undefined): Promise<never> {
+  if (!signal) return new Promise(() => {});
+  if (signal.aborted) return Promise.reject(new TurnAbortedError());
+  return new Promise((_, rej) => {
+    signal.addEventListener("abort", () => rej(new TurnAbortedError()), { once: true });
+  });
+}
+
 export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
   void options.db;
   const names = allowedNames(options.tools);
+  const ctxSeg = options.contextSegmentId?.trim() ?? "";
+  if (options.transcript && !ctxSeg) {
+    throw new Error("runToolLoop: contextSegmentId is required when transcript is set");
+  }
+  const appendTx = (row: {
+    role: string;
+    content?: string | null;
+    toolCallId?: string | null;
+    metadata?: unknown;
+  }) => {
+    if (!options.transcript) return;
+    options.transcript.append({
+      sessionId: options.sessionId,
+      contextSegmentId: ctxSeg,
+      role: row.role,
+      content: row.content,
+      toolCallId: row.toolCallId,
+      metadata: row.metadata,
+    });
+  };
+
   options.toolRuns.insertRunning({ id: options.runId, sessionId: options.sessionId });
 
   try {
     for (;;) {
+      assertNotAborted(options.turnAbortSignal);
       const turn = await options.model.complete();
 
       if (turn.toolCalls.length === 0) {
         if (options.transcript && turn.content) {
-          options.transcript.append({
-            sessionId: options.sessionId,
+          appendTx({
             role: "assistant",
             content: turn.content,
           });
@@ -100,8 +145,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       }
 
       if (options.transcript) {
-        options.transcript.append({
-          sessionId: options.sessionId,
+        appendTx({
           role: "assistant",
           content: turn.content ?? null,
           metadata: {
@@ -115,6 +159,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       }
 
       for (const tc of turn.toolCalls) {
+        assertNotAborted(options.turnAbortSignal);
         if (!names.has(tc.name)) {
           options.toolRuns.markFailed(options.runId, `unknown_tool:${tc.name}`);
           throw new Error(`unknown tool: ${tc.name}`);
@@ -145,7 +190,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           h.pending.expireDue(new Date(h.clock.nowMs()).toISOString());
           const tier = classifyToolRisk(tc.name, h.config.toolRisk);
           const bypass = effectiveBypassUpTo(h.principalRoles, h.config.roleBypassUpTo);
-          if (requiresHumanApproval(tier, bypass)) {
+          if (
+            requiresHumanApproval(tier, bypass) &&
+            !h.autoApprove?.shouldAutoApprove(options.sessionId, tc.name)
+          ) {
             const pendingId = h.newPendingId();
             const expiresAtIso = new Date(
               h.clock.nowMs() + h.config.defaultApprovalTimeoutMs,
@@ -178,7 +226,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             }, HITL_EXPIRE_POLL_MS);
             try {
               h.pending.expireDue(new Date(h.clock.nowMs()).toISOString());
-              const outcome = await h.waitForHitlResolution(pendingId);
+              const outcome = await Promise.race([
+                h.waitForHitlResolution(pendingId),
+                abortPromise(options.turnAbortSignal),
+              ]);
               if (outcome === "denied") {
                 const row = h.pending.getById(pendingId);
                 const reason = row?.denialReason === "timeout" ? "timeout" : "operator";
@@ -198,8 +249,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
                 // call or the outer for (;;) will spin (HITL re-queue + wait forever).
                 options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
                 if (options.transcript) {
-                  options.transcript.append({
-                    sessionId: options.sessionId,
+                  appendTx({
                     role: "tool",
                     content: errBody,
                     toolCallId: tc.id,
@@ -221,6 +271,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           argsJson: tc.argsJson,
         });
 
+        assertNotAborted(options.turnAbortSignal);
         const out = await options.executor.execute({
           name: tc.name,
           argsJson: tc.argsJson,
@@ -237,8 +288,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         options.model.pushToolMessage?.({ toolCallId: tc.id, content: out.resultJson });
 
         if (options.transcript) {
-          options.transcript.append({
-            sessionId: options.sessionId,
+          appendTx({
             role: "tool",
             content: out.resultJson,
             toolCallId: tc.id,
@@ -254,7 +304,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
       .get(options.runId) as { status: string } | undefined;
     if (row?.status === "running") {
-      options.toolRuns.markFailed(options.runId, `error:${String(e)}`);
+      const reason = e instanceof TurnAbortedError ? "aborted" : `error:${String(e)}`;
+      options.toolRuns.markFailed(options.runId, reason);
     }
     throw e;
   }

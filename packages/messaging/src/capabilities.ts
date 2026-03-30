@@ -21,6 +21,14 @@ export interface ExtensionFlags {
   readonly streamingOutbound: boolean;
 }
 
+/** Well-known {@link MessagingAdapterCapabilities.features} ids (extensible string union at runtime). */
+export const MESSAGING_FEATURE = {
+  TYPING_NOTIFICATION: "typing_notification",
+  SILENT_REPLIES_CHANNEL_AWARE: "silent_replies_channel_aware",
+} as const;
+
+export type MessagingFeatureId = (typeof MESSAGING_FEATURE)[keyof typeof MESSAGING_FEATURE];
+
 export interface MessagingAdapterCapabilities {
   readonly platform: string;
   readonly supports: {
@@ -29,12 +37,24 @@ export interface MessagingAdapterCapabilities {
     readonly groupChannels: boolean;
   };
   readonly extensions: ExtensionFlags;
+  /**
+   * Optional transport features for core negotiation (typing indicators, prompt variants, …).
+   * Unknown ids are ignored by callers that do not implement them.
+   */
+  readonly features?: readonly string[];
   readonly parameterSchemas: {
     readonly outboundText: JsonSchemaLike;
     readonly attachment: JsonSchemaLike;
     readonly threadReply: JsonSchemaLike;
     readonly streamChunk: JsonSchemaLike;
   };
+}
+
+export function messagingCapabilitiesHasFeature(
+  caps: MessagingAdapterCapabilities | undefined,
+  featureId: string,
+): boolean {
+  return caps?.features?.includes(featureId) ?? false;
 }
 
 const outboundTextSchema: JsonSchemaLike = {
@@ -92,6 +112,7 @@ export function discordCapabilityDescriptor(): MessagingAdapterCapabilities {
       reactionsInbound: true,
       streamingOutbound: true,
     },
+    features: [MESSAGING_FEATURE.TYPING_NOTIFICATION, MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE],
     parameterSchemas: {
       outboundText: outboundTextSchema,
       attachment: attachmentSchema,

@@ -12,6 +12,7 @@ import {
 import { ModelHttpError } from "@shoggoth/models";
 import { defaultConfig } from "@shoggoth/shared";
 import type { ShoggothMcpServerEntry } from "@shoggoth/shared";
+import { createHitlDiscordNoticeRegistry } from "../../src/hitl/hitl-discord-notice-registry.js";
 import { createHitlPendingResolutionStack } from "../../src/hitl/hitl-pending-stack";
 import { connectShoggothMcpServers } from "../../src/mcp/mcp-server-pool";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
@@ -40,6 +41,15 @@ const stubDiscordRestTransport: DiscordMessagingRuntime["discordRestTransport"] 
     return { id: "noop" };
   },
   async editMessage() {},
+  async createMessageReaction() {},
+  async triggerTypingIndicator() {},
+};
+
+const stubNotifyAgentTyping: DiscordMessagingRuntime["notifyAgentTypingForSession"] = async () => {};
+
+const stubDiscordGatewaySession: DiscordMessagingRuntime["gateway"] = {
+  stop: async () => {},
+  getBotUserId: () => undefined,
 };
 
 describe("discord platform helpers", () => {
@@ -151,7 +161,7 @@ describe("discord-hitl-notifier", () => {
   function row(overrides: Partial<PendingActionRow>): PendingActionRow {
     return {
       id: "pend-1",
-      sessionId: "sess1",
+      sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
       correlationId: undefined,
       toolName: "builtin.write",
       resourceSummary: undefined,
@@ -200,7 +210,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     db = new Database(dbPath);
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess1", workspacePath: tmp });
+    createSessionStore(db).create({ id: "agent:test:discord:10000000-0000-4000-8000-000000000001", workspacePath: tmp });
   });
 
   /** Unblocks runToolLoop when a HITL row is queued (same store as Discord platform). */
@@ -250,10 +260,13 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
 
   it("runs tool loop and sends Discord reply with degraded banner", async () => {
     const sent: { body: string }[] = [];
+    const typingSessions: string[] = [];
     const bus = createAgentToAgentBus();
+    const sessionUrn = "agent:test:discord:10000000-0000-4000-8000-000000000001";
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (msg) => {
           sent.push({ body: msg.body });
@@ -264,7 +277,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: async (sid) => {
+        typingSessions.push(sid);
+      },
+      routes: [{ channelId: "c1", sessionId: sessionUrn }],
     };
 
     const platform = await startDiscordPlatform({
@@ -288,10 +305,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      sessionUrn,
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: sessionUrn,
         createdAt: new Date().toISOString(),
         body: "ping",
       }),
@@ -303,6 +320,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(sent.length, 1);
     assert.match(sent[0]!.body, /Degraded/);
     assert.match(sent[0]!.body, /Hello/);
+    assert.ok(typingSessions.length >= 1);
+    assert.ok(typingSessions.every((s) => s === sessionUrn));
   });
 
   it("on tool loop ModelHttpError 429, sends friendly Discord error body", async () => {
@@ -310,7 +329,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (msg) => {
           sent.push({ body: msg.body });
@@ -321,7 +341,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const platform = await startDiscordPlatform({
@@ -342,10 +364,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "ping",
       }),
@@ -366,7 +388,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (msg) => {
           sent.push({ body: msg.body });
@@ -377,7 +400,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const platform = await startDiscordPlatform({
@@ -402,10 +427,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "ping",
       }),
@@ -436,7 +461,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -444,7 +470,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const cfg = defaultConfig(tmp);
@@ -485,12 +513,13 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       };
     };
 
-    createSessionStore(db).create({ id: "sess2", workspacePath: tmp });
+    createSessionStore(db).create({ id: "agent:test:discord:10000000-0000-4000-8000-000000000002", workspacePath: tmp });
 
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -498,9 +527,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
       routes: [
-        { channelId: "c1", sessionId: "sess1" },
-        { channelId: "c2", sessionId: "sess2" },
+        { channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" },
+        { channelId: "c2", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002" },
       ],
     };
 
@@ -528,10 +559,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(connectCalls, 0);
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -540,10 +571,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(connectCalls, 1);
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -552,10 +583,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(connectCalls, 1);
 
     bus.deliver(
-      "sess2",
+      "agent:test:discord:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId: "sess2",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -582,7 +613,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -590,7 +622,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const cfg = defaultConfig(tmp);
@@ -616,10 +650,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -630,10 +664,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     await new Promise((r) => setTimeout(r, 120));
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -660,7 +694,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -668,7 +703,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const cfg = defaultConfig(tmp);
@@ -694,10 +731,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -708,10 +745,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     await new Promise((r) => setTimeout(r, 120));
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -735,12 +772,13 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       };
     };
 
-    createSessionStore(db).create({ id: "sess2", workspacePath: tmp });
+    createSessionStore(db).create({ id: "agent:test:discord:10000000-0000-4000-8000-000000000002", workspacePath: tmp });
 
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -748,9 +786,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
       routes: [
-        { channelId: "c1", sessionId: "sess1" },
-        { channelId: "c2", sessionId: "sess2" },
+        { channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" },
+        { channelId: "c2", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002" },
       ],
     };
 
@@ -782,10 +822,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.deepStrictEqual(connectLog[0]!.ids, ["g"]);
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -795,10 +835,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.deepStrictEqual(connectLog[1]!.ids, ["p"]);
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -807,10 +847,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(connectLog.length, 2);
 
     bus.deliver(
-      "sess2",
+      "agent:test:discord:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId: "sess2",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -837,12 +877,13 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       };
     };
 
-    createSessionStore(db).create({ id: "sess2", workspacePath: tmp });
+    createSessionStore(db).create({ id: "agent:test:discord:10000000-0000-4000-8000-000000000002", workspacePath: tmp });
 
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -850,9 +891,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
       routes: [
-        { channelId: "c1", sessionId: "sess1" },
-        { channelId: "c2", sessionId: "sess2" },
+        { channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" },
+        { channelId: "c2", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002" },
       ],
     };
 
@@ -894,10 +937,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -910,10 +953,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -922,10 +965,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.equal(connectCalls, 2);
 
     bus.deliver(
-      "sess2",
+      "agent:test:discord:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId: "sess2",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -958,7 +1001,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -966,7 +1010,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const cfg = defaultConfig(tmp);
@@ -999,10 +1045,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "hi",
       }),
@@ -1020,7 +1066,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -1033,14 +1080,18 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
           return { id: "rest-op-1" };
         },
         async editMessage() {},
+        async createMessageReaction() {},
+        async triggerTypingIndicator() {},
       },
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
-    const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+    const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
     const platform = await startDiscordPlatform({
       db,
@@ -1048,6 +1099,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       logger: createLogger({ component: "t", minLevel: "error" }),
       discord,
       hitlPending: hitlStack,
+      hitlDiscordNoticeRegistry: createHitlDiscordNoticeRegistry(),
       env: { ...process.env, SHOGGOTH_HITL_NOTIFY_CHANNEL_ID: notifyChannelId },
       deps: {
         createToolCallingClient: createHitlWriteToolModelStub(),
@@ -1055,10 +1107,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-ch",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl",
       }),
@@ -1073,7 +1125,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     assert.match(opMsgs[0]!.content, /HITL/);
     assert.match(opMsgs[0]!.content, /builtin\.write/);
     assert.match(opMsgs[0]!.content, /shoggoth hitl approve/);
-    assert.match(opMsgs[0]!.content, /sess1/);
+    assert.match(opMsgs[0]!.content, /agent:test:discord:10000000-0000-4000-8000-000000000001/);
     assert.match(opMsgs[0]!.content, /payload \(truncated\):/);
     assert.match(opMsgs[0]!.content, /hitl-notify\.txt/);
   });
@@ -1085,7 +1137,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
       },
@@ -1099,15 +1152,19 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
           return { id: "rest-dm-1" };
         },
         async editMessage() {},
+        async createMessageReaction() {},
+        async triggerTypingIndicator() {},
       },
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
     const targetDmUser = "347033761822801922";
-    const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+    const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
     const platform = await startDiscordPlatform({
       db,
@@ -1115,6 +1172,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       logger: createLogger({ component: "t", minLevel: "error" }),
       discord,
       hitlPending: hitlStack,
+      hitlDiscordNoticeRegistry: createHitlDiscordNoticeRegistry(),
       env: { ...process.env, SHOGGOTH_HITL_NOTIFY_DM_USER_ID: targetDmUser },
       deps: {
         createToolCallingClient: createHitlWriteToolModelStub(),
@@ -1122,10 +1180,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-dm",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl dm",
       }),
@@ -1157,7 +1215,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       const bus = createAgentToAgentBus();
       const discord: DiscordMessagingRuntime = {
         stop: async () => {},
-        gateway: {} as DiscordMessagingRuntime["gateway"],
+        gateway: stubDiscordGatewaySession,
+        discordBotUserId: undefined,
         outbound: {
           sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
         },
@@ -1165,10 +1224,12 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         streamingForSession: () => undefined,
         bus,
         capabilities: discordCapabilityDescriptor(),
-        routes: [{ channelId: "c1", sessionId: "sess1" }],
+        registerDiscordThreadBinding: () => () => {},
+        notifyAgentTypingForSession: stubNotifyAgentTyping,
+        routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
       };
 
-      const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+      const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
       const platform = await startDiscordPlatform({
         db,
@@ -1183,10 +1244,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       });
 
       bus.deliver(
-        "sess1",
+        "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-wh",
-          sessionId: "sess1",
+          sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "trigger hitl webhook",
         }),
@@ -1210,7 +1271,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         payloadPreview: string | null;
       };
       assert.equal(parsed.event, "hitl.pending_queued");
-      assert.equal(parsed.sessionId, "sess1");
+      assert.equal(parsed.sessionId, "agent:test:discord:10000000-0000-4000-8000-000000000001");
       assert.equal(parsed.tool, "builtin.write");
       assert.equal(parsed.riskTier, "caution");
       assert.ok(typeof parsed.pendingId === "string" && parsed.pendingId.length > 0);
@@ -1236,7 +1297,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       const bus = createAgentToAgentBus();
       const discord: DiscordMessagingRuntime = {
         stop: async () => {},
-        gateway: {} as DiscordMessagingRuntime["gateway"],
+        gateway: stubDiscordGatewaySession,
+        discordBotUserId: undefined,
         outbound: {
           sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
         },
@@ -1249,14 +1311,18 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
             return { id: "rest-both" };
           },
           async editMessage() {},
+          async createMessageReaction() {},
+          async triggerTypingIndicator() {},
         },
         streamingForSession: () => undefined,
         bus,
         capabilities: discordCapabilityDescriptor(),
-        routes: [{ channelId: "c1", sessionId: "sess1" }],
+        registerDiscordThreadBinding: () => () => {},
+        notifyAgentTypingForSession: stubNotifyAgentTyping,
+        routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
       };
 
-      const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+      const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
       const platform = await startDiscordPlatform({
         db,
@@ -1264,6 +1330,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         logger: createLogger({ component: "t", minLevel: "error" }),
         discord,
         hitlPending: hitlStack,
+        hitlDiscordNoticeRegistry: createHitlDiscordNoticeRegistry(),
         env: {
           ...process.env,
           SHOGGOTH_HITL_NOTIFY_CHANNEL_ID: notifyChannelId,
@@ -1275,10 +1342,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       });
 
       bus.deliver(
-        "sess1",
+        "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-both",
-          sessionId: "sess1",
+          sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "trigger both",
         }),
@@ -1317,7 +1384,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       const bus = createAgentToAgentBus();
       const discord: DiscordMessagingRuntime = {
         stop: async () => {},
-        gateway: {} as DiscordMessagingRuntime["gateway"],
+        gateway: stubDiscordGatewaySession,
+        discordBotUserId: undefined,
         outbound: {
           sendDiscord: async () => ({ channelId: "c", messageId: "mid" }),
         },
@@ -1330,14 +1398,18 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
             return { id: "x" };
           },
           async editMessage() {},
+          async createMessageReaction() {},
+          async triggerTypingIndicator() {},
         },
         streamingForSession: () => undefined,
         bus,
         capabilities: discordCapabilityDescriptor(),
-        routes: [{ channelId: "c1", sessionId: "sess1" }],
+        registerDiscordThreadBinding: () => () => {},
+        notifyAgentTypingForSession: stubNotifyAgentTyping,
+        routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
       };
 
-      const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+      const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
       const platform = await startDiscordPlatform({
         db,
@@ -1345,6 +1417,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         logger: createLogger({ component: "t", minLevel: "error" }),
         discord,
         hitlPending: hitlStack,
+        hitlDiscordNoticeRegistry: createHitlDiscordNoticeRegistry(),
         env,
         deps: {
           createToolCallingClient: createHitlWriteToolModelStub(),
@@ -1352,10 +1425,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       });
 
       bus.deliver(
-        "sess1",
+        "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-none",
-          sessionId: "sess1",
+          sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "hitl no notify",
         }),
@@ -1378,7 +1451,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (m) => {
           outboundBodies.push(m.body);
@@ -1389,10 +1463,12 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
-    const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+    const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
     const platform = await startDiscordPlatform({
       db,
@@ -1414,10 +1490,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-in-thread",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl in thread",
       }),
@@ -1430,7 +1506,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const hitlBodies = outboundBodies.filter((b) => b.includes("HITL") && b.includes("shoggoth hitl approve"));
     assert.ok(hitlBodies.length >= 1, "expected at least one outbound HITL notice");
     assert.match(hitlBodies[0]!, /builtin\.write/);
-    assert.match(hitlBodies[0]!, /sess1/);
+    assert.match(hitlBodies[0]!, /agent:test:discord:10000000-0000-4000-8000-000000000001/);
     assert.match(hitlBodies[0]!, /hitl-notify\.txt/);
   });
 
@@ -1440,7 +1516,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (m) => {
           outboundBodies.push(m.body);
@@ -1451,10 +1528,12 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
-    const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+    const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
 
     const platform = await startDiscordPlatform({
       db,
@@ -1476,10 +1555,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-no-in-thread",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl no in-thread",
       }),
@@ -1499,7 +1578,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const bus = createAgentToAgentBus();
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
-      gateway: {} as DiscordMessagingRuntime["gateway"],
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
       outbound: {
         sendDiscord: async (m) => {
           outboundBodies.push(m.body);
@@ -1510,10 +1590,12 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       streamingForSession: () => undefined,
       bus,
       capabilities: discordCapabilityDescriptor(),
-      routes: [{ channelId: "c1", sessionId: "sess1" }],
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
     };
 
-    const approveP = approveFirstPendingWhenQueued(hitlStack, "sess1");
+    const approveP = approveFirstPendingWhenQueued(hitlStack, "agent:test:discord:10000000-0000-4000-8000-000000000001");
     const cfg = { ...defaultConfig(tmp), discord: { hitlReplyInSession: false as const } };
 
     const platform = await startDiscordPlatform({
@@ -1536,10 +1618,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
 
     bus.deliver(
-      "sess1",
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-config-off",
-        sessionId: "sess1",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl config off",
       }),
@@ -1551,5 +1633,132 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
 
     const hitlBodies = outboundBodies.filter((b) => b.includes("HITL") && b.includes("shoggoth hitl approve"));
     assert.equal(hitlBodies.length, 0);
+  });
+
+  it("silently ignores inbound when discord.ownerUserId is set and author is not owner", async () => {
+    const sent: { body: string }[] = [];
+    const bus = createAgentToAgentBus();
+    const discord: DiscordMessagingRuntime = {
+      stop: async () => {},
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
+      outbound: {
+        sendDiscord: async (msg) => {
+          sent.push({ body: msg.body });
+          return { channelId: "c", messageId: "mid" };
+        },
+      },
+      discordRestTransport: stubDiscordRestTransport,
+      streamingForSession: () => undefined,
+      bus,
+      capabilities: discordCapabilityDescriptor(),
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
+    };
+
+    const ownerId = "111111111111111111";
+    const cfg = { ...defaultConfig(tmp), discord: { ownerUserId: ownerId } };
+
+    const platform = await startDiscordPlatform({
+      db,
+      config: cfg,
+      logger: createLogger({ component: "t", minLevel: "error" }),
+      discord,
+      deps: {
+        createToolCallingClient: () => ({
+          async completeWithTools() {
+            return { content: "nope", toolCalls: [], usedModel: "m", usedProviderId: "p" };
+          },
+        }),
+      },
+    });
+
+    bus.deliver(
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
+      createInboundMessage({
+        id: "d-nonowner",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
+        createdAt: new Date().toISOString(),
+        body: "hi",
+        extensions: {
+          discord: {
+            authorSnowflake: "222222222222222222",
+            authorIsBot: false,
+            isSelf: false,
+            isOwner: false,
+          },
+        },
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 400));
+    await platform.stop();
+
+    assert.equal(sent.length, 0);
+  });
+
+  it("forwards inbound when discord.ownerUserId is set and extensions.discord.isOwner is true", async () => {
+    const sent: { body: string }[] = [];
+    const bus = createAgentToAgentBus();
+    const discord: DiscordMessagingRuntime = {
+      stop: async () => {},
+      gateway: stubDiscordGatewaySession,
+      discordBotUserId: undefined,
+      outbound: {
+        sendDiscord: async (msg) => {
+          sent.push({ body: msg.body });
+          return { channelId: "c", messageId: "mid" };
+        },
+      },
+      discordRestTransport: stubDiscordRestTransport,
+      streamingForSession: () => undefined,
+      bus,
+      capabilities: discordCapabilityDescriptor(),
+      registerDiscordThreadBinding: () => () => {},
+      notifyAgentTypingForSession: stubNotifyAgentTyping,
+      routes: [{ channelId: "c1", sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001" }],
+    };
+
+    const ownerId = "111111111111111111";
+    const cfg = { ...defaultConfig(tmp), discord: { ownerUserId: ownerId } };
+
+    const platform = await startDiscordPlatform({
+      db,
+      config: cfg,
+      logger: createLogger({ component: "t", minLevel: "error" }),
+      discord,
+      deps: {
+        createToolCallingClient: () => ({
+          async completeWithTools() {
+            return { content: "owner reply", toolCalls: [], usedModel: "m", usedProviderId: "p" };
+          },
+        }),
+      },
+    });
+
+    bus.deliver(
+      "agent:test:discord:10000000-0000-4000-8000-000000000001",
+      createInboundMessage({
+        id: "d-owner",
+        sessionId: "agent:test:discord:10000000-0000-4000-8000-000000000001",
+        createdAt: new Date().toISOString(),
+        body: "hi",
+        extensions: {
+          discord: {
+            authorSnowflake: ownerId,
+            authorIsBot: false,
+            isSelf: false,
+            isOwner: true,
+          },
+        },
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 400));
+    await platform.stop();
+
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]!.body, /owner reply/);
   });
 });

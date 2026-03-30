@@ -5,8 +5,7 @@ Use before tagging or shipping a new image.
 ## Pre-release
 
 - [ ] **Changelog** or release notes summarize user-visible behavior and security fixes.
-- [ ] **Migrations:** all DB migrations from version **N** apply cleanly on a copy of production-like data; note the highest migration id shipped in **N+1**.
-- [ ] **Rollback:** document that operators who skip a version may need to restore DB backup if migrations are not reversible; forward-only migrations require backup-before-upgrade.
+- [ ] **State DB:** if `migrations/0001_initial.sql` changed this release, operators must **wipe** the SQLite file / state volume (no in-place upgrade).
 - [ ] **Breaking config keys:** list any removed or renamed keys in layered JSON / `config.d`; provide before/after examples.
 - [ ] **CI green:** unit tests plus **agent UID isolation** job (`SHOGGOTH_CI_STRICT_AGENT_TESTS=1` for `@shoggoth/os-exec`, root container, users **900/901** aligned with `Dockerfile`).
 - [ ] **Image:** build production image; verify non-root `shoggoth` user and `agent` uid **901** exist as in `Dockerfile`.

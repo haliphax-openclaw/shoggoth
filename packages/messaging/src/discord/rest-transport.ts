@@ -41,7 +41,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type DiscordRestOperation = "createMessage" | "editMessage" | "openDmChannel";
+type DiscordRestOperation =
+  | "createMessage"
+  | "editMessage"
+  | "openDmChannel"
+  | "createMessageReaction"
+  | "triggerTypingIndicator";
 
 async function discordFetchWithRateLimitRetry(
   doFetch: () => Promise<Response>,
@@ -96,7 +101,9 @@ export function createDiscordRestTransport(options: DiscordRestTransportOptions)
   async function discordFetch(path: string, init: RequestInit): Promise<Response> {
     const headers = new Headers(init.headers);
     if (!headers.has("Authorization")) headers.set("Authorization", auth);
-    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    if (init.body != null && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
     return fetchFn(`${base}${path}`, { ...init, headers });
   }
 
@@ -141,6 +148,37 @@ export function createDiscordRestTransport(options: DiscordRestTransportOptions)
           ),
         "editMessage",
       );
+    },
+
+    async createMessageReaction(channelId, messageId, emoji) {
+      const enc = encodeURIComponent(emoji);
+      const res = await discordFetchWithRateLimitRetry(
+        () =>
+          discordFetch(
+            `/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${enc}/@me`,
+            { method: "PUT" },
+          ),
+        "createMessageReaction",
+      );
+      if (!res.ok && res.status !== 204) {
+        const bodyText = await res.text();
+        throw new Error(`Discord REST createMessageReaction ${res.status}: ${bodyText}`);
+      }
+    },
+
+    async triggerTypingIndicator(channelId) {
+      const res = await discordFetchWithRateLimitRetry(
+        () =>
+          discordFetch(`/channels/${encodeURIComponent(channelId)}/typing`, {
+            method: "POST",
+            body: JSON.stringify({}),
+          }),
+        "triggerTypingIndicator",
+      );
+      if (!res.ok) {
+        const bodyText = await res.text();
+        throw new Error(`Discord REST triggerTypingIndicator ${res.status}: ${bodyText}`);
+      }
     },
   };
 }

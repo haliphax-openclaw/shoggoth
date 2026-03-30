@@ -2,36 +2,75 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   createOutboundMessage,
-  type DiscordStreamHandle,
+  MESSAGING_FEATURE,
+  messagingCapabilitiesHasFeature,
   type InternalMessage,
 } from "@shoggoth/messaging";
-import {
-  DEFAULT_HITL_CONFIG,
-  type ShoggothConfig,
-} from "@shoggoth/shared";
+import { DEFAULT_HITL_CONFIG, parseAgentSessionUrn, type ShoggothConfig } from "@shoggoth/shared";
 import type { HitlNotifier } from "../hitl/hitl-notifier";
 import { createHitlPendingResolutionStack, type HitlPendingStack } from "../hitl/hitl-pending-stack";
 import type { Logger } from "../logging";
 import { createPolicyEngine, type PolicyEngine } from "../policy/engine";
 import type { HitlConfigRef } from "../config-hot-reload";
-import { mergeOrchestratorEnv } from "../config/effective-runtime";
-import { executeSessionAgentTurn } from "../sessions/session-agent-turn";
+import { mergeOrchestratorEnv, resolveDiscordOwnerUserId } from "../config/effective-runtime";
+import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
+import { resolveSessionAgentHitlPrincipalRoles } from "../hitl/session-agent-principals";
+import { runInboundSessionTurn } from "../messaging/inbound-session-turn";
+import {
+  executeSessionAgentTurn,
+  type SessionAgentTurnResult,
+} from "../sessions/session-agent-turn";
 import {
   defaultDiscordAssistantDeps,
   type DiscordPlatformAssistantDeps,
 } from "../sessions/assistant-runtime";
 import { createSessionStore } from "../sessions/session-store";
+import {
+  applySessionContextSegmentNew,
+  applySessionContextSegmentReset,
+} from "../sessions/session-context-segment";
+import {
+  parseSessionSegmentInlineCommand,
+  sessionSegmentStartupUserContent,
+} from "../sessions/session-segment-inline-command";
 import { createTranscriptStore } from "../sessions/transcript-store";
 import { createToolRunStore } from "../sessions/tool-run-store";
 import { createSessionMcpRuntime } from "../sessions/session-mcp-runtime";
+import { daemonNotice } from "../notices/load-notices";
 import { buildSessionSystemContext } from "../sessions/session-system-prompt";
 import type { SessionToolLoopFailoverState } from "../sessions/session-tool-loop-model-client";
-import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
+import { registerDiscordHitlNoticeAndAddReactions } from "../hitl/discord-hitl-reaction-wiring";
+import type { HitlAutoApproveGate } from "../hitl/hitl-auto-approve";
+import type { HitlDiscordNoticeRegistry } from "../hitl/hitl-discord-notice-registry";
 import { buildHitlQueuedNoticeLines, createDiscordHitlNotifier } from "./discord-hitl-notifier";
 import {
   formatDiscordPlatformErrorUserText,
   sliceDiscordPlatformMessageBody,
 } from "./discord-errors";
+import type { SessionModelTurnDelivery } from "../messaging/session-model-turn-delivery";
+
+/** Discord typing indicator lasts ~10s; renew while the model formulates a reply. */
+const DISCORD_TYPING_RENEWAL_MS = 8000;
+
+async function withAgentTypingWhile(
+  discord: DiscordPlatformOptions["discord"],
+  sessionId: string,
+  work: () => Promise<void>,
+): Promise<void> {
+  if (!messagingCapabilitiesHasFeature(discord.capabilities, MESSAGING_FEATURE.TYPING_NOTIFICATION)) {
+    await work();
+    return;
+  }
+  await discord.notifyAgentTypingForSession(sessionId);
+  const id = setInterval(() => {
+    void discord.notifyAgentTypingForSession(sessionId);
+  }, DISCORD_TYPING_RENEWAL_MS);
+  try {
+    await work();
+  } finally {
+    clearInterval(id);
+  }
+}
 
 function pickDiscordAssistantDeps(
   input?: Partial<DiscordPlatformAssistantDeps> & { readonly hitlNotifier?: HitlNotifier },
@@ -46,9 +85,10 @@ export function formatDiscordPlatformDegradedPrefix(
   meta: SessionToolLoopFailoverState | undefined,
 ): string {
   if (!meta?.degraded) return "";
-  return (
-    `⚠️ *Degraded:* backup model \`${meta.usedModel}\` (${meta.usedProviderId}) — primary unavailable.\n\n`
-  );
+  return `${daemonNotice("discord-degraded-banner", {
+    usedModel: meta.usedModel,
+    usedProviderId: meta.usedProviderId,
+  })}\n\n`;
 }
 
 /** When `SHOGGOTH_DISCORD_MODEL_TAG=1`, append italic operator footer with last hop model/provider. */
@@ -58,51 +98,10 @@ export function formatDiscordPlatformModelTagFooter(
 ): string {
   const e = processEnv ?? process.env;
   if (e.SHOGGOTH_DISCORD_MODEL_TAG !== "1" || !meta) return "";
-  return `\n\n_model: ${meta.usedModel} · provider: ${meta.usedProviderId}_`;
-}
-
-/**
- * Coalesces high-frequency model token updates into occasional Discord `editMessage` calls
- * (rate-limit friendly). Always call {@link flush} before the final body patch.
- */
-function createStreamEditBatcher(
-  setFull: (s: string) => Promise<void>,
-  minIntervalMs: number,
-): {
-  push: (text: string) => void;
-  flush: () => Promise<void>;
-} {
-  let latest = "";
-  let lastSent = 0;
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  let chain: Promise<void> = Promise.resolve();
-
-  function push(text: string) {
-    latest = text;
-    const now = Date.now();
-    if (minIntervalMs <= 0 || now - lastSent >= minIntervalMs) {
-      lastSent = now;
-      chain = chain.then(() => setFull(latest)).catch(() => {});
-      return;
-    }
-    if (timeout) clearTimeout(timeout);
-    const wait = minIntervalMs - (now - lastSent);
-    timeout = setTimeout(() => {
-      timeout = undefined;
-      lastSent = Date.now();
-      chain = chain.then(() => setFull(latest)).catch(() => {});
-    }, wait);
-  }
-
-  async function flush() {
-    if (timeout) clearTimeout(timeout);
-    timeout = undefined;
-    await chain;
-    lastSent = Date.now();
-    await setFull(latest);
-  }
-
-  return { push, flush };
+  return `\n\n${daemonNotice("discord-model-tag-footer", {
+    usedModel: meta.usedModel,
+    usedProviderId: meta.usedProviderId,
+  })}`;
 }
 
 export interface DiscordPlatformOptions {
@@ -121,6 +120,15 @@ export interface DiscordPlatformOptions {
   readonly logger: Logger;
   readonly discord: DiscordMessagingRuntime;
   /**
+   * When set, {@link resolveDiscordOwnerUserId} reads from `current` so inbound owner-only gating
+   * tracks config hot-reload. Otherwise `config` alone is used.
+   */
+  readonly configRef?: { current: ShoggothConfig };
+  /** Maps HITL Discord messages to pending ids; powers owner reaction approvals. */
+  readonly hitlDiscordNoticeRegistry?: HitlDiscordNoticeRegistry;
+  /** Session/agent auto-approve after ✅ / ♾️ Discord reactions. */
+  readonly hitlAutoApproveGate?: HitlAutoApproveGate;
+  /**
    * Merged with `process.env` then layered `discord` / `runtime` flags fill empty `SHOGGOTH_*` keys
    * ({@link mergeOrchestratorEnv}). Omit to use only process env + config.
    */
@@ -134,18 +142,34 @@ export interface DiscordPlatformOptions {
   };
 }
 
+/** @deprecated Use {@link SessionModelTurnDelivery} from `../messaging/session-model-turn-delivery`. */
+export type RunDiscordSessionModelTurnDelivery = SessionModelTurnDelivery;
+
 export interface DiscordPlatformHandle {
   /** Unsubscribe from Discord routes and close MCP subprocesses/sockets when configured. */
   readonly stop: () => Promise<void>;
+  /**
+   * Runs one model turn for an existing session (e.g. subagent spawn / steer). Internal delivery returns
+   * assistant text only; `messaging_surface` delivery posts the formatted reply via REST (no live stream).
+   */
+  readonly runSessionModelTurn: (input: {
+    readonly sessionId: string;
+    readonly userContent: string;
+    readonly userMetadata?: Record<string, unknown>;
+    readonly delivery: SessionModelTurnDelivery;
+  }) => Promise<SessionAgentTurnResult>;
+  /** Subscribe a session id to the Discord A2A bus (bound subagents). Returns unsubscribe. */
+  readonly subscribeSubagentSession: (sessionId: string) => () => void;
 }
 
 /**
- * Subscribes to the Discord A2A bus, forwards inbound text to the core session agent turn
- * (transcript, MCP pools, tool loop), and delivers replies via Discord REST/streaming.
+ * Subscribes to the Discord A2A bus, forwards inbound text through {@link runInboundSessionTurn},
+ * and delivers replies via Discord REST/streaming.
  */
 export async function startDiscordPlatform(
   opts: DiscordPlatformOptions,
 ): Promise<DiscordPlatformHandle> {
+  const configForOwnerGate = (): ShoggothConfig => opts.configRef?.current ?? opts.config;
   const env =
     opts.env !== undefined
       ? mergeOrchestratorEnv(opts.config, opts.env)
@@ -159,7 +183,12 @@ export async function startDiscordPlatform(
   const assistantDeps = pickDiscordAssistantDeps(opts.deps);
   const hitlNotifier =
     opts.deps?.hitlNotifier ??
-    createDiscordHitlNotifier({ logger: opts.logger, env, discord: opts.discord });
+    createDiscordHitlNotifier({
+      logger: opts.logger,
+      env,
+      discord: opts.discord,
+      hitlDiscordNoticeRegistry: opts.hitlDiscordNoticeRegistry,
+    });
 
   const engine = opts.policyEngine ?? createPolicyEngine(opts.config.policy);
   const getHitlConfig = (): ShoggothConfig["hitl"] =>
@@ -178,6 +207,7 @@ export async function startDiscordPlatform(
   const createToolClient = assistantDeps.createToolCallingClient;
 
   const chainTail = new Map<string, Promise<void>>();
+  const subagentBusUnsubs: (() => void)[] = [];
 
   const unsubs = opts.discord.routes.map((route) =>
     opts.discord.bus.subscribe(route.sessionId, (msg) => {
@@ -208,140 +238,344 @@ export async function startDiscordPlatform(
       return;
     }
 
-    if (mcpRuntime.trackPerSessionIdle) {
-      mcpRuntime.notifyTurnBegin(msg.sessionId);
+    const ownerSnowflake = resolveDiscordOwnerUserId(configForOwnerGate());
+    if (ownerSnowflake && !session.subagentMode) {
+      if (!msg.extensions.discord?.isOwner) return;
     }
 
+    const segmentMode = parseSessionSegmentInlineCommand(text);
+    if (segmentMode) {
+      try {
+        if (segmentMode === "new") {
+          applySessionContextSegmentNew({
+            db: opts.db,
+            sessions,
+            pending,
+            sessionId: msg.sessionId,
+          });
+        } else {
+          applySessionContextSegmentReset({
+            db: opts.db,
+            sessions,
+            pending,
+            sessionId: msg.sessionId,
+          });
+        }
+      } catch (e) {
+        opts.logger.warn("discord.platform.segment_command_failed", {
+          err: String(e),
+          sessionId: msg.sessionId,
+          mode: segmentMode,
+        });
+        try {
+          await opts.discord.outbound.sendDiscord(
+            createOutboundMessage({
+              id: randomUUID(),
+              sessionId: msg.sessionId,
+              userId: msg.userId,
+              createdAt: new Date().toISOString(),
+              body: sliceDiscordPlatformMessageBody(
+                daemonNotice("discord-segment-command-error", { mode: segmentMode, error: String(e) }),
+              ),
+              extensions: { replyToMessageId: msg.id },
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      const sessionAfter = sessions.getById(msg.sessionId);
+      if (!sessionAfter) return;
+      const segShort = sessionAfter.contextSegmentId.slice(0, 8);
+      const ack =
+        segmentMode === "new"
+          ? daemonNotice("discord-segment-ack-new", { segmentPreview: segShort })
+          : daemonNotice("discord-segment-ack-reset", { segmentPreview: segShort });
+      try {
+        await opts.discord.outbound.sendDiscord(
+          createOutboundMessage({
+            id: randomUUID(),
+            sessionId: msg.sessionId,
+            userId: msg.userId,
+            createdAt: new Date().toISOString(),
+            body: sliceDiscordPlatformMessageBody(ack),
+            extensions: { replyToMessageId: msg.id },
+          }),
+        );
+      } catch (e) {
+        opts.logger.warn("discord.platform.segment_ack_failed", { err: String(e) });
+      }
+      await runDiscordInboundModelTurn(msg, sessionAfter, sessionSegmentStartupUserContent(segmentMode), {
+        sessionSegmentStartup: segmentMode,
+      });
+      return;
+    }
+
+    await runDiscordInboundModelTurn(msg, session, msg.body, {});
+  }
+
+  async function runDiscordInboundModelTurn(
+    msg: InternalMessage,
+    session: NonNullable<ReturnType<typeof sessions.getById>>,
+    userContent: string,
+    extraUserMetadata: Record<string, unknown>,
+  ): Promise<void> {
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
     const streamEnabled = env.SHOGGOTH_DISCORD_STREAM === "1";
     const streamingOutbound = streamEnabled ? opts.discord.streamingForSession(msg.sessionId) : undefined;
-    let streamHandle: DiscordStreamHandle | undefined;
-    let streamPusher: ReturnType<typeof createStreamEditBatcher> | undefined;
-    if (streamingOutbound) {
-      try {
-        streamHandle = await streamingOutbound.start();
-        const rawMin = Number(env.SHOGGOTH_DISCORD_STREAM_MIN_MS ?? 400);
-        const minMs = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 400;
-        const h = streamHandle;
-        streamPusher = createStreamEditBatcher((s) => h.setFullContent(s), minMs);
-      } catch (e) {
-        opts.logger.warn("discord.platform.stream_start_failed", { err: String(e) });
-        streamHandle = undefined;
-        streamPusher = undefined;
-      }
-    }
+    const rawStreamMin = Number(env.SHOGGOTH_DISCORD_STREAM_MIN_MS ?? 400);
+    const streamMinMs = Number.isFinite(rawStreamMin) ? Math.max(0, rawStreamMin) : 400;
 
-    try {
-      const mcpCtx = await mcpRuntime.resolveContext(msg.sessionId);
-      const turn = await executeSessionAgentTurn({
+    const mcpLifecycle =
+      mcpRuntime.trackPerSessionIdle
+        ? {
+            onTurnBegin: () => {
+              mcpRuntime.notifyTurnBegin(msg.sessionId);
+            },
+            onTurnEnd: () => {
+              mcpRuntime.notifyTurnEnd(msg.sessionId);
+            },
+          }
+        : undefined;
+
+    const d = msg.extensions.discord;
+    const userMetadata: Record<string, unknown> = {
+      ...extraUserMetadata,
+      discordMessageId: msg.id,
+      ...(d
+        ? {
+            discordAuthorSnowflake: d.authorSnowflake,
+            discordAuthorIsBot: d.authorIsBot,
+            discordIsSelf: d.isSelf,
+            discordIsOwner: d.isOwner,
+          }
+        : {}),
+    };
+
+    await withAgentTypingWhile(opts.discord, msg.sessionId, async () => {
+      await runInboundSessionTurn({
+        logger: opts.logger,
+        logContext: { sessionId: msg.sessionId },
+        mcpLifecycle,
+        streaming:
+          streamingOutbound !== undefined
+            ? {
+                minIntervalMs: streamMinMs,
+                start: () => streamingOutbound.start(),
+                onStartFailed: (errMsg) => {
+                  opts.logger.warn("discord.platform.stream_start_failed", { err: errMsg });
+                },
+              }
+            : undefined,
+        sliceDisplayText: sliceDiscordPlatformMessageBody,
+        formatAssistantReply: (latest, meta) =>
+          `${formatDiscordPlatformDegradedPrefix(meta)}${latest}${formatDiscordPlatformModelTagFooter(env, meta)}`,
+        formatErrorReply: (e) => `⚠️ ${formatDiscordPlatformErrorUserText(e)}`,
+        onTurnExecutionFailed: (e) => {
+          opts.logger.warn("discord.platform.turn_failed", { err: String(e), sessionId: msg.sessionId });
+        },
+        sendAssistantBody: async (body) => {
+          await opts.discord.outbound.sendDiscord(
+            createOutboundMessage({
+              id: randomUUID(),
+              sessionId: msg.sessionId,
+              userId: msg.userId,
+              createdAt: new Date().toISOString(),
+              body,
+              extensions: { replyToMessageId: msg.id },
+            }),
+          );
+        },
+        sendErrorBody: async (body) => {
+          try {
+            await opts.discord.outbound.sendDiscord(
+              createOutboundMessage({
+                id: randomUUID(),
+                sessionId: msg.sessionId,
+                userId: msg.userId,
+                createdAt: new Date().toISOString(),
+                body,
+                extensions: { replyToMessageId: msg.id },
+              }),
+            );
+          } catch (sendErr) {
+            opts.logger.error("discord.platform.error_reply_failed", { err: String(sendErr) });
+          }
+        },
+        buildTurn: async () => {
+          const mcpCtx = await mcpRuntime.resolveContext(msg.sessionId);
+          return {
+            db: opts.db,
+            sessionId: msg.sessionId,
+            session,
+            transcript,
+            toolRuns,
+            userContent,
+            userMetadata,
+            systemPrompt: buildSessionSystemContext({
+              workspacePath: session.workspacePath,
+              config: opts.config,
+              env,
+              sessionId: session.id,
+              contextSegmentId: session.contextSegmentId,
+              channel: parseAgentSessionUrn(session.id)?.platform,
+              messagingCapabilities: opts.discord.capabilities,
+              toolNames: mcpCtx.toolsOpenAi.map((t) => t.function.name),
+              sandbox: { runtimeUid: session.runtimeUid, runtimeGid: session.runtimeGid },
+            }),
+            env,
+            config: opts.config,
+            policyEngine: engine,
+            getHitlConfig,
+            hitl: {
+              principalRoles: resolveSessionAgentHitlPrincipalRoles(msg.sessionId),
+              pending,
+              clock: { nowMs: () => Date.now() },
+              newPendingId: () => randomUUID(),
+              waitForHitlResolution,
+              hitlNotifier,
+              autoApprove: opts.hitlAutoApproveGate,
+              ...(hitlReplyInSession
+                ? {
+                    afterHitlQueued: async (row) => {
+                      const ref = await opts.discord.outbound.sendDiscord(
+                        createOutboundMessage({
+                          id: randomUUID(),
+                          sessionId: msg.sessionId,
+                          userId: msg.userId,
+                          createdAt: new Date().toISOString(),
+                          body: sliceDiscordPlatformMessageBody(buildHitlQueuedNoticeLines(row).join("\n")),
+                          extensions: { replyToMessageId: msg.id },
+                        }),
+                      );
+                      if (opts.hitlDiscordNoticeRegistry) {
+                        await registerDiscordHitlNoticeAndAddReactions({
+                          transport: opts.discord.discordRestTransport,
+                          channelId: ref.channelId,
+                          messageId: ref.messageId,
+                          row,
+                          registry: opts.hitlDiscordNoticeRegistry,
+                          logger: opts.logger,
+                        });
+                      }
+                    },
+                  }
+                : {}),
+            },
+            loopImpl,
+            createToolCallingClient: createToolClient,
+            resolveMcpContext: mcpRuntime.resolveContext,
+          };
+        },
+      });
+    });
+  }
+
+  async function runSessionModelTurn(input: {
+    readonly sessionId: string;
+    readonly userContent: string;
+    readonly userMetadata?: Record<string, unknown>;
+    readonly delivery: SessionModelTurnDelivery;
+  }): Promise<SessionAgentTurnResult> {
+    const sid = input.sessionId.trim();
+    const sessionRow = sessions.getById(sid);
+    if (!sessionRow || sessionRow.status === "terminated") {
+      throw new Error(`session not available: ${sid}`);
+    }
+    const mcpCtx = await mcpRuntime.resolveContext(sid);
+    const userMetadata = input.userMetadata ?? {};
+    const executeTurn = () =>
+      executeSessionAgentTurn({
         db: opts.db,
-        sessionId: msg.sessionId,
-        session,
+        sessionId: sid,
+        session: sessionRow,
         transcript,
         toolRuns,
-        userContent: msg.body,
-        userMetadata: { discordMessageId: msg.id },
+        userContent: input.userContent,
+        userMetadata,
         systemPrompt: buildSessionSystemContext({
-          workspacePath: session.workspacePath,
+          workspacePath: sessionRow.workspacePath,
           config: opts.config,
           env,
-          sessionId: session.id,
-          channel: "discord",
+          sessionId: sessionRow.id,
+          contextSegmentId: sessionRow.contextSegmentId,
+          channel: parseAgentSessionUrn(sessionRow.id)?.platform,
+          messagingCapabilities: opts.discord.capabilities,
           toolNames: mcpCtx.toolsOpenAi.map((t) => t.function.name),
-          sandbox: { runtimeUid: session.runtimeUid, runtimeGid: session.runtimeGid },
+          sandbox: { runtimeUid: sessionRow.runtimeUid, runtimeGid: sessionRow.runtimeGid },
         }),
         env,
         config: opts.config,
         policyEngine: engine,
         getHitlConfig,
         hitl: {
-          principalRoles: [],
+          principalRoles: resolveSessionAgentHitlPrincipalRoles(sid),
           pending,
           clock: { nowMs: () => Date.now() },
           newPendingId: () => randomUUID(),
           waitForHitlResolution,
           hitlNotifier,
-          ...(hitlReplyInSession
-            ? {
-                afterHitlQueued: async (row) => {
-                  await opts.discord.outbound.sendDiscord(
-                    createOutboundMessage({
-                      id: randomUUID(),
-                      sessionId: msg.sessionId,
-                      userId: msg.userId,
-                      createdAt: new Date().toISOString(),
-                      body: sliceDiscordPlatformMessageBody(buildHitlQueuedNoticeLines(row).join("\n")),
-                      extensions: { replyToMessageId: msg.id },
-                    }),
-                  );
-                },
-              }
-            : {}),
+          autoApprove: opts.hitlAutoApproveGate,
         },
         loopImpl,
         createToolCallingClient: createToolClient,
         resolveMcpContext: mcpRuntime.resolveContext,
-        stream: streamPusher
-          ? {
-              streamModel: true,
-              onModelTextDelta: (t) => {
-                const vis = t.trim() ? t : "…";
-                streamPusher!.push(sliceDiscordPlatformMessageBody(vis));
-              },
-            }
-          : undefined,
       });
 
-      const banner = formatDiscordPlatformDegradedPrefix(turn.failoverMeta);
-      const modelTag = formatDiscordPlatformModelTagFooter(env, turn.failoverMeta);
-      const body = sliceDiscordPlatformMessageBody(`${banner}${turn.latestAssistantText}${modelTag}`);
-
-      if (streamPusher && streamHandle) {
-        await streamPusher.flush();
-        await streamHandle.setFullContent(body);
-      } else {
+    if (input.delivery.kind === "messaging_surface") {
+      const delivery = input.delivery;
+      let turnResult!: SessionAgentTurnResult;
+      await withAgentTypingWhile(opts.discord, sid, async () => {
+        turnResult = await executeTurn();
+        const body = sliceDiscordPlatformMessageBody(
+          `${formatDiscordPlatformDegradedPrefix(turnResult.failoverMeta)}${turnResult.latestAssistantText}${formatDiscordPlatformModelTagFooter(env, turnResult.failoverMeta)}`,
+        );
         await opts.discord.outbound.sendDiscord(
           createOutboundMessage({
             id: randomUUID(),
-            sessionId: msg.sessionId,
-            userId: msg.userId,
+            sessionId: sid,
+            userId: delivery.userId,
             createdAt: new Date().toISOString(),
             body,
-            extensions: { replyToMessageId: msg.id },
+            extensions: {
+              replyToMessageId: delivery.replyToMessageId,
+            },
           }),
         );
-      }
-    } catch (e) {
-      const errBody = sliceDiscordPlatformMessageBody(`⚠️ ${formatDiscordPlatformErrorUserText(e)}`);
-      opts.logger.warn("discord.platform.turn_failed", { err: String(e), sessionId: msg.sessionId });
-      try {
-        await opts.discord.outbound.sendDiscord(
-          createOutboundMessage({
-            id: randomUUID(),
-            sessionId: msg.sessionId,
-            userId: msg.userId,
-            createdAt: new Date().toISOString(),
-            body: errBody,
-            extensions: { replyToMessageId: msg.id },
-          }),
-        );
-      } catch (sendErr) {
-        opts.logger.error("discord.platform.error_reply_failed", { err: String(sendErr) });
-      }
-    } finally {
-      if (mcpRuntime.trackPerSessionIdle) {
-        mcpRuntime.notifyTurnEnd(msg.sessionId);
-      }
+      });
+      return turnResult;
     }
+
+    return await executeTurn();
+  }
+
+  function subscribeSubagentSession(sessionId: string): () => void {
+    const sid = sessionId.trim();
+    const u = opts.discord.bus.subscribe(sid, (msg) => {
+      void dispatchChained(sid, msg).catch((e) => {
+        opts.logger.error("discord.platform.dispatch_failed", { err: String(e) });
+      });
+    });
+    subagentBusUnsubs.push(u);
+    return () => {
+      u();
+      const ix = subagentBusUnsubs.indexOf(u);
+      if (ix >= 0) subagentBusUnsubs.splice(ix, 1);
+    };
   }
 
   return {
     stop: async () => {
       for (const u of unsubs) u();
+      for (const u of subagentBusUnsubs) u();
+      subagentBusUnsubs.length = 0;
       const inFlightChains = [...chainTail.values()];
       chainTail.clear();
       await Promise.all(inFlightChains);
       await mcpRuntime.shutdown();
     },
+    runSessionModelTurn,
+    subscribeSubagentSession,
   };
 }

@@ -114,4 +114,36 @@ describe("Discord REST transport", () => {
     await assert.rejects(() => t.createMessage("c", { content: "a" }), /400/);
     assert.equal(calls.length, 1);
   });
+
+  it("createMessageReaction PUTs encoded emoji and accepts 204", async () => {
+    const calls: { url: string; method: string }[] = [];
+    const fetchFn: typeof fetch = async (url, init) => {
+      calls.push({ url: String(url), method: (init?.method as string) ?? "GET" });
+      return new Response(null, { status: 204 });
+    };
+    const t = createDiscordRestTransport({ botToken: "tok", fetchFn, apiBase: "https://example.com/v10" });
+    await t.createMessageReaction("ch1", "m1", "✅");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.method, "PUT");
+    assert.match(calls[0]!.url, /\/reactions\//);
+    assert.ok(calls[0]!.url.includes(encodeURIComponent("✅")));
+  });
+
+  it("triggerTypingIndicator POSTs to channel typing endpoint", async () => {
+    const calls: { url: string; method: string; body: string }[] = [];
+    const fetchFn: typeof fetch = async (url, init) => {
+      calls.push({
+        url: String(url),
+        method: (init?.method as string) ?? "GET",
+        body: typeof init?.body === "string" ? init.body : "",
+      });
+      return new Response(null, { status: 204 });
+    };
+    const t = createDiscordRestTransport({ botToken: "tok", fetchFn, apiBase: "https://example.com/v10" });
+    await t.triggerTypingIndicator("ch-typing-1");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.method, "POST");
+    assert.match(calls[0]!.url, /\/channels\/ch-typing-1\/typing$/);
+    assert.equal(calls[0]!.body, "{}");
+  });
 });

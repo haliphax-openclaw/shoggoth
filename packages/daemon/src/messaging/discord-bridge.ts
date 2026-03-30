@@ -7,33 +7,89 @@ import {
   createOutboundSender,
   discordCapabilityDescriptor,
   DISCORD_GATEWAY_INTENTS_DEFAULT,
+  fetchDiscordBotUserId,
   type AgentToAgentBus,
   type DiscordGatewaySession,
   type DiscordInboundEvent,
+  type DiscordReactionAddEvent,
   type DiscordRestTransport,
   type DiscordSessionRoute,
+  type InternalMessage,
   type MessagingAdapterCapabilities,
   type OutboundSender,
 } from "@shoggoth/messaging";
+import type { ShoggothConfig } from "@shoggoth/shared";
+import { isValidAgentSessionUrn, parseAgentSessionUrn } from "@shoggoth/shared";
+import { DiscordRoutesConfigurationError } from "../platforms/discord/discord-messaging-urn-policy";
+import {
+  resolveDefaultSessionPlatform,
+  resolveShoggothAgentId,
+} from "../config/effective-runtime";
+import { getMessagingPlatformUrnPolicy } from "./messaging-platform-urn-registry";
+import { registerBuiltInMessagingPlatforms } from "./register-built-in-messaging-platforms";
+
+registerBuiltInMessagingPlatforms();
 import type { Logger } from "../logging";
 
-export function parseDiscordRoutesJson(raw: string): DiscordSessionRoute[] {
+function applyDiscordTransportEnvelope(
+  msg: InternalMessage,
+  ev: DiscordInboundEvent,
+  botUserId: string | undefined,
+  ownerUserId: string | undefined,
+): InternalMessage {
+  const ownerTrim = ownerUserId?.trim();
+  const bid = botUserId?.trim();
+  return {
+    ...msg,
+    extensions: {
+      ...msg.extensions,
+      discord: {
+        authorSnowflake: ev.authorId,
+        authorIsBot: ev.authorIsBot,
+        isSelf: Boolean(bid && ev.authorId === bid),
+        isOwner: Boolean(ownerTrim && ev.authorId === ownerTrim),
+      },
+    },
+  };
+}
+
+/**
+ * Parses Discord route JSON. Entries with invalid `sessionId` (not an agent session URN) are **dropped**
+ * (logged). Malformed top-level JSON still throws.
+ */
+export function parseDiscordRoutesWithMeta(raw: string): {
+  readonly routes: DiscordSessionRoute[];
+  readonly inputRowCount: number;
+} {
   const j = JSON.parse(raw) as unknown;
   if (!Array.isArray(j)) {
     throw new Error("expected JSON array of route objects");
   }
-  return j.map((row, i) => {
-    if (row === null || typeof row !== "object") {
-      throw new Error(`route[${i}]: expected object`);
-    }
+  const routes: DiscordSessionRoute[] = [];
+  for (let i = 0; i < j.length; i++) {
+    const row = j[i];
+    if (row === null || typeof row !== "object") continue;
     const o = row as Record<string, unknown>;
-    if (typeof o.channelId !== "string" || typeof o.sessionId !== "string") {
-      throw new Error(`route[${i}]: channelId and sessionId must be strings`);
+    if (typeof o.channelId !== "string" || typeof o.sessionId !== "string") continue;
+    if (!isValidAgentSessionUrn(o.sessionId)) continue;
+    const parsed = parseAgentSessionUrn(o.sessionId);
+    if (!parsed) continue;
+    const policy = getMessagingPlatformUrnPolicy(parsed.platform);
+    if (!policy) continue;
+    const urnCheck = policy.checkRouteSessionUrn(parsed, o.channelId);
+    if (typeof urnCheck === "object" && "fatal" in urnCheck) {
+      throw new DiscordRoutesConfigurationError(urnCheck.fatal);
     }
+    if (urnCheck === "drop") continue;
     const guildId =
       o.guildId === undefined || o.guildId === null ? undefined : String(o.guildId);
-    return { channelId: o.channelId, sessionId: o.sessionId, guildId };
-  });
+    routes.push({ channelId: o.channelId, sessionId: o.sessionId, guildId });
+  }
+  return { routes, inputRowCount: j.length };
+}
+
+export function parseDiscordRoutesJson(raw: string): DiscordSessionRoute[] {
+  return parseDiscordRoutesWithMeta(raw).routes;
 }
 
 export interface DiscordMessagingDeps {
@@ -43,10 +99,21 @@ export interface DiscordMessagingDeps {
 export interface StartDiscordMessagingOptions {
   readonly logger: Logger;
   readonly botToken: string | undefined;
-  /** JSON array: `{ channelId, sessionId, guildId? }[]` */
+  /** JSON array: `{ channelId, sessionId, guildId? }[]` — each `sessionId` is an `agent:` session URN */
   readonly routesJson: string | undefined;
   readonly intents?: number;
   readonly allowBotMessages?: boolean;
+  /**
+   * When set, routes that use the reserved default-primary session UUID must match
+   * `SHOGGOTH_AGENT_ID` / `SHOGGOTH_DEFAULT_SESSION_PLATFORM` (same as `bootstrap-main-session.mjs`).
+   */
+  readonly routeGuardConfig?: ShoggothConfig;
+  /** Operator Discord user snowflake; marks inbound `extensions.discord.isOwner` (metadata / approver context). HITL approval is human-driven; tool bypass tiers use session `agent:<id>` principals, not this field. */
+  readonly ownerUserId?: string;
+  /** Gateway `MESSAGE_REACTION_ADD` (e.g. HITL notice buttons). */
+  readonly onMessageReactionAdd?: (ev: DiscordReactionAddEvent) => void;
+  /** Filled with resolved bot user id after connect (ignore reaction events from this user). */
+  readonly reactionBotUserIdRef?: { current: string | undefined };
   readonly deps?: DiscordMessagingDeps;
 }
 
@@ -56,6 +123,11 @@ export interface DiscordMessagingRuntime {
   readonly outbound: OutboundSender;
   /** Same REST transport as outbound; use for operator-only channels (e.g. HITL alerts). */
   readonly discordRestTransport: DiscordRestTransport;
+  /**
+   * Best-effort Discord typing indicator for the channel mapped to `sessionId` (static route or
+   * thread binding). Errors are logged at debug and ignored.
+   */
+  readonly notifyAgentTypingForSession: (sessionId: string) => Promise<void>;
   readonly streamingForSession: (
     sessionId: string,
   ) => ReturnType<typeof createDiscordStreamingOutbound> | undefined;
@@ -63,6 +135,16 @@ export interface DiscordMessagingRuntime {
   readonly capabilities: MessagingAdapterCapabilities;
   /** Channel ↔ session routes from config (for inbound Discord session subscriptions). */
   readonly routes: DiscordSessionRoute[];
+  /** Bot user snowflake from Gateway READY or `GET /users/@me`. */
+  readonly discordBotUserId: string | undefined;
+  /**
+   * Bind a Discord thread (or thread channel snowflake) to a session for inbound routing and outbound delivery.
+   * Returns an unregister function (idempotent).
+   */
+  readonly registerDiscordThreadBinding: (
+    threadChannelId: string,
+    sessionId: string,
+  ) => () => void;
 }
 
 /**
@@ -85,21 +167,60 @@ export async function startDiscordMessagingIfConfigured(
   }
 
   let routes: DiscordSessionRoute[];
+  let inputRowCount = 0;
   try {
-    routes = parseDiscordRoutesJson(routesRaw);
+    const parsed = parseDiscordRoutesWithMeta(routesRaw);
+    routes = parsed.routes;
+    inputRowCount = parsed.inputRowCount;
   } catch (e) {
+    if (e instanceof DiscordRoutesConfigurationError) {
+      opts.logger.error("discord messaging: discord route configuration error", { err: String(e) });
+      throw e;
+    }
     opts.logger.warn("discord messaging: invalid SHOGGOTH_DISCORD_ROUTES", { err: String(e) });
     return undefined;
   }
+  if (routes.length < inputRowCount) {
+    opts.logger.warn("discord messaging: dropped discord routes with invalid sessionId (expected agent session URN)", {
+      kept: routes.length,
+      inputRows: inputRowCount,
+    });
+  }
   if (routes.length === 0) return undefined;
 
-  const adapter = createDiscordAdapter({ routes });
+  /** Thread or thread-as-channel snowflake → subagent session id (runtime registrations). */
+  const discordDynamicSessionByChannel = new Map<string, string>();
+  /** Subagent session id → Discord channel id to POST messages (thread snowflake or channel id). */
+  const discordOutboundChannelBySession = new Map<string, string>();
+
+  if (opts.routeGuardConfig) {
+    try {
+      const plat = resolveDefaultSessionPlatform(opts.routeGuardConfig);
+      const pol = getMessagingPlatformUrnPolicy(plat);
+      if (pol) {
+        pol.assertRoutesDefaultPrimaryUuidMatchesAgent(
+          routes,
+          resolveShoggothAgentId(opts.routeGuardConfig),
+          plat,
+        );
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      opts.logger.error("discord messaging: route / agent id guard failed", { err: msg });
+      throw e;
+    }
+  }
+
+  const adapter = createDiscordAdapter({
+    routes,
+    resolveThreadSessionId: (channelOrThreadId) => discordDynamicSessionByChannel.get(channelOrThreadId),
+  });
   const bus = createAgentToAgentBus();
   const capabilities = discordCapabilityDescriptor();
   const transport = createDiscordRestTransport({ botToken: token });
 
   const sessionToChannel = (sessionId: string): string | undefined =>
-    routes.find((r) => r.sessionId === sessionId)?.channelId;
+    discordOutboundChannelBySession.get(sessionId) ?? routes.find((r) => r.sessionId === sessionId)?.channelId;
 
   const outbound = createOutboundSender({ capabilities, transport, sessionToChannel });
 
@@ -110,14 +231,24 @@ export async function startDiscordMessagingIfConfigured(
   };
 
   const connect = opts.deps?.connectGateway ?? connectDiscordGateway;
+  const ownerUserId = opts.ownerUserId;
+
+  const gatewayRef: { current: DiscordGatewaySession | null } = { current: null };
+  const botIdRef: { current: string | undefined } = { current: undefined };
 
   const onMessageCreate = (ev: DiscordInboundEvent) => {
     try {
+      const bid = botIdRef.current ?? gatewayRef.current?.getBotUserId();
+      if (bid && ev.authorId === bid) {
+        opts.logger.debug("discord.inbound.skip_self", { messageId: ev.messageId });
+        return;
+      }
       const internal = adapter.inboundToInternal(ev);
-      bus.deliver(internal.sessionId, internal);
+      const enriched = applyDiscordTransportEnvelope(internal, ev, bid, ownerUserId);
+      bus.deliver(enriched.sessionId, enriched);
       opts.logger.info("discord.inbound", {
-        sessionId: internal.sessionId,
-        messageId: internal.id,
+        sessionId: enriched.sessionId,
+        messageId: enriched.id,
       });
     } catch (err) {
       opts.logger.debug("discord.inbound.unrouted", { err: String(err) });
@@ -129,12 +260,29 @@ export async function startDiscordMessagingIfConfigured(
     intents: opts.intents ?? DISCORD_GATEWAY_INTENTS_DEFAULT,
     allowBotMessages: opts.allowBotMessages,
     onMessageCreate,
+    onMessageReactionAdd: opts.onMessageReactionAdd,
   });
+  gatewayRef.current = gateway;
+
+  let discordBotUserId = gateway.getBotUserId()?.trim();
+  if (!discordBotUserId) {
+    try {
+      discordBotUserId = await fetchDiscordBotUserId({ botToken: token });
+      opts.logger.info("discord.bot_user.rest", { userId: discordBotUserId });
+    } catch (e) {
+      opts.logger.warn("discord.bot_user.unresolved", { err: String(e) });
+    }
+  }
+  botIdRef.current = discordBotUserId;
+  if (opts.reactionBotUserIdRef) {
+    opts.reactionBotUserIdRef.current = discordBotUserId;
+  }
 
   opts.logger.info("discord.messaging.ready", {
     routes: routes.length,
     platform: capabilities.platform,
     streamingOutbound: capabilities.extensions.streamingOutbound,
+    botUserId: discordBotUserId ?? null,
   });
 
   return {
@@ -142,9 +290,34 @@ export async function startDiscordMessagingIfConfigured(
     gateway,
     outbound,
     discordRestTransport: transport,
+    async notifyAgentTypingForSession(sessionId) {
+      const ch = sessionToChannel(sessionId.trim());
+      if (!ch) return;
+      try {
+        await transport.triggerTypingIndicator(ch);
+      } catch (e) {
+        opts.logger.debug("discord.typing.notify_failed", {
+          sessionId: sessionId.trim(),
+          err: String(e),
+        });
+      }
+    },
     streamingForSession,
     bus,
     capabilities,
     routes,
+    discordBotUserId,
+    registerDiscordThreadBinding(threadChannelId: string, sessionId: string) {
+      const t = threadChannelId.trim();
+      const s = sessionId.trim();
+      if (!t || !s) return () => {};
+      discordDynamicSessionByChannel.set(t, s);
+      discordOutboundChannelBySession.set(s, t);
+      return () => {
+        discordOutboundChannelBySession.delete(s);
+        const cur = discordDynamicSessionByChannel.get(t);
+        if (cur === s) discordDynamicSessionByChannel.delete(t);
+      };
+    },
   };
 }

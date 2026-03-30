@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { discordCapabilityDescriptor } from "../src/capabilities";
+import { discordCapabilityDescriptor, MESSAGING_FEATURE } from "../src/capabilities";
 
 describe("Adapter capability descriptor", () => {
   it("advertises Discord v1 extensions and parameter shapes", () => {
@@ -14,6 +14,8 @@ describe("Adapter capability descriptor", () => {
     assert.equal(cap.extensions.replies, true);
     assert.equal(cap.extensions.reactionsInbound, true);
     assert.equal(cap.extensions.streamingOutbound, true);
+    assert.ok(cap.features?.includes(MESSAGING_FEATURE.TYPING_NOTIFICATION));
+    assert.ok(cap.features?.includes(MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE));
     assert.ok(cap.parameterSchemas.outboundText);
     assert.equal(cap.parameterSchemas.outboundText.type, "object");
     assert.ok(cap.parameterSchemas.attachment);

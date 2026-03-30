@@ -5,7 +5,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runSessionCompact } from "../src/run-session-compact";
 import Database from "better-sqlite3";
-import { defaultMigrationsDir, migrate } from "@shoggoth/daemon/lib";
+import {
+  createSessionStore,
+  defaultMigrationsDir,
+  getSessionContextSegmentId,
+  migrate,
+} from "@shoggoth/daemon/lib";
 
 describe("runSessionCompact", () => {
   it("compacts transcript in state DB on demand", async () => {
@@ -14,11 +19,8 @@ describe("runSessionCompact", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    db.prepare(`INSERT INTO sessions (id, workspace_path, status) VALUES (?, ?, ?)`).run(
-      "sess-1",
-      "/w",
-      "active",
-    );
+    createSessionStore(db).create({ id: "sess-1", workspacePath: "/w", status: "active" });
+    const seg = getSessionContextSegmentId(db, "sess-1");
     const big = "z".repeat(80);
     for (const [seq, role, content] of [
       [1, "user", big],
@@ -27,8 +29,8 @@ describe("runSessionCompact", () => {
       [4, "assistant", "t2"],
     ] as const) {
       db.prepare(
-        `INSERT INTO transcript_messages (session_id, seq, role, content) VALUES (?, ?, ?, ?)`,
-      ).run("sess-1", seq, role, content);
+        `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content) VALUES (?, ?, ?, ?, ?)`,
+      ).run("sess-1", seg, seq, role, content);
     }
     db.close();
 

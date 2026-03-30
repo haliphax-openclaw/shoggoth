@@ -29,12 +29,33 @@ export interface OpenAIToolFunctionDefinition {
 /** Optional callback for streaming assistant text (`stream: true` on OpenAI-compatible providers). */
 export type ModelStreamTextDeltaCallback = (delta: string, accumulated: string) => void;
 
-export interface ModelToolCompleteInput {
+/**
+ * Extended thinking (Anthropic Messages `thinking` block). When `enabled`, providers that support it
+ * send `budget_tokens` (default applied in the Anthropic adapter when omitted).
+ */
+export interface ModelThinkingOptions {
+  readonly enabled: boolean;
+  readonly budgetTokens?: number;
+}
+
+/**
+ * Cross-provider knobs merged into HTTP JSON bodies where the upstream supports them.
+ * Configure globally under `models.defaultInvocation` and per-session via `sessions.model_selection`.
+ */
+export interface ModelInvocationParams {
+  readonly maxOutputTokens?: number;
+  readonly temperature?: number;
+  readonly thinking?: ModelThinkingOptions;
+  /** OpenAI-style chat completions `reasoning_effort` when the gateway honors it. */
+  readonly reasoningEffort?: string;
+  /** Shallow-merged into the provider request object after built-in fields (escape hatch). */
+  readonly requestExtras?: Record<string, unknown>;
+}
+
+export interface ModelToolCompleteInput extends ModelInvocationParams {
   readonly model?: string;
   readonly messages: readonly ChatMessage[];
   readonly tools: readonly OpenAIToolFunctionDefinition[];
-  readonly maxOutputTokens?: number;
-  readonly temperature?: number;
   /** When true, request SSE (`stream: true`); omitted or false keeps JSON non-streaming behavior. */
   readonly stream?: boolean;
   readonly onTextDelta?: ModelStreamTextDeltaCallback;
@@ -45,11 +66,9 @@ export interface ModelToolCompleteOutput {
   readonly toolCalls: readonly ChatToolCall[];
 }
 
-export interface ModelCompleteInput {
+export interface ModelCompleteInput extends ModelInvocationParams {
   readonly model: string;
   readonly messages: readonly ChatMessage[];
-  readonly maxOutputTokens?: number;
-  readonly temperature?: number;
   readonly stream?: boolean;
   readonly onTextDelta?: ModelStreamTextDeltaCallback;
 }

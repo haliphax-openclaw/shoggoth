@@ -29,6 +29,6 @@ Restore by replacing `state.db` with the backup file (and removing stale `-wal`/
 
 Mount a single volume for state (e.g. `/var/lib/shoggoth`). Back up that volume on your orchestrator’s schedule using snapshots or the hot-backup flow above.
 
-## Migrations
+## Schema bootstrap
 
-Run `migrate(db, migrationsDir)` once at process startup before serving traffic. Migrations are **forward-only** (`NNNN_name.sql` under repo `migrations/`). Each step runs in an **IMMEDIATE** transaction and is recorded in `_schema_migrations`.
+Run `migrate(db, migrationsDir)` once at process startup. The repo ships a **single** `0001_initial.sql` (prototype); changing it means **replacing the state DB**, not upgrading in place.

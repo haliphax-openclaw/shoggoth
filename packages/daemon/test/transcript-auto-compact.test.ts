@@ -10,6 +10,7 @@ import { DEFAULT_POLICY_CONFIG, type ShoggothConfig } from "@shoggoth/shared";
 import type { FailoverModelClient } from "@shoggoth/models";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createSessionStore, getSessionContextSegmentId } from "../src/sessions/session-store";
 
 function baseConfig(): ShoggothConfig {
   return {
@@ -24,6 +25,7 @@ function baseConfig(): ShoggothConfig {
       defaultApprovalTimeoutMs: 300_000,
       toolRisk: { read: "safe", write: "caution", exec: "critical" },
       roleBypassUpTo: {},
+      agentToolAutoApprove: {},
     },
     memory: { paths: [], embeddings: { enabled: false } },
     skills: { scanRoots: [], disabledIds: [] },
@@ -36,16 +38,15 @@ describe("transcript-auto-compact", () => {
   it("compacts sessions over threshold on tick", async () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    db.prepare(
-      `INSERT INTO sessions (id, workspace_path, status) VALUES (?, ?, ?)`,
-    ).run("s-auto", "/w", "active");
+    createSessionStore(db).create({ id: "s-auto", workspacePath: "/w", status: "active" });
+    const seg = getSessionContextSegmentId(db, "s-auto");
     const big = "z".repeat(200);
     db.prepare(
-      `INSERT INTO transcript_messages (session_id, seq, role, content) VALUES (?, ?, ?, ?)`,
-    ).run("s-auto", 1, "user", big);
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content) VALUES (?, ?, ?, ?, ?)`,
+    ).run("s-auto", seg, 1, "user", big);
     db.prepare(
-      `INSERT INTO transcript_messages (session_id, seq, role, content) VALUES (?, ?, ?, ?)`,
-    ).run("s-auto", 2, "assistant", big);
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content) VALUES (?, ?, ?, ?, ?)`,
+    ).run("s-auto", seg, 2, "assistant", big);
 
     const mockClient: FailoverModelClient = {
       async complete() {

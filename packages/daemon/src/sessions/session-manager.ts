@@ -1,9 +1,15 @@
-import { randomUUID } from "node:crypto";
 import {
   mintAgentCredentialRaw,
   SHOGGOTH_AGENT_TOKEN_ENV,
   type AgentTokenStore,
 } from "@shoggoth/authn";
+import {
+  DEFAULT_MESSAGING_PLATFORM_ID,
+  mintAgentSessionUrn,
+  mintSubagentSessionUrnFromParent,
+  parseAgentSessionUrn,
+  resolveAgentWorkspacePath,
+} from "@shoggoth/shared";
 import type Database from "better-sqlite3";
 import { ensureAgentWorkspaceLayout } from "../workspaces/agent-workspace-layout";
 import type { SessionStore } from "./session-store";
@@ -20,12 +26,24 @@ export interface SessionManagerOptions {
   readonly db: Database.Database;
   readonly sessions: SessionStore;
   readonly agentTokens: AgentTokenStore;
+  readonly workspacesRoot: string;
+  /** Default agent id (workspace `{workspacesRoot}/{agentId}`) for top-level spawns. */
+  readonly agentId?: string;
+  /** Default platform segment when `spawn` omits `platform`. */
+  readonly defaultSessionPlatform?: string;
   /** Test hook */
   readonly mintToken?: () => string;
 }
 
 export interface SpawnSessionInput {
-  readonly workspacePath: string;
+  /**
+   * Top-level only: agent owning the workspace. Defaults to the manager’s `agentId`.
+   * Ignored when `parentSessionId` is set (workspace follows the parent URN’s agent id).
+   */
+  readonly agentId?: string;
+  readonly platform?: string;
+  /** When set, mints `agent:…:<parent-leaf-uuid>:<new uuid>` under the parent’s agent + platform. */
+  readonly parentSessionId?: string;
   readonly modelSelection?: unknown;
   readonly lightContext?: boolean;
 }
@@ -51,23 +69,43 @@ export interface SessionManager {
 
 export function createSessionManager(options: SessionManagerOptions): SessionManager {
   const mintToken = options.mintToken ?? mintAgentCredentialRaw;
+  const defaultAgentId = options.agentId ?? "main";
+  const defaultSessionPlatform = options.defaultSessionPlatform ?? DEFAULT_MESSAGING_PLATFORM_ID;
 
   return {
     spawn(input) {
+      const platform = input.platform ?? defaultSessionPlatform;
+      let id: string;
+      let dirAgentId: string;
+      if (input.parentSessionId) {
+        const p = parseAgentSessionUrn(input.parentSessionId);
+        if (!p) {
+          throw new SessionManagerError(
+            "ERR_INVALID_PARENT_SESSION",
+            `invalid parent session URN: ${input.parentSessionId}`,
+          );
+        }
+        id = mintSubagentSessionUrnFromParent(input.parentSessionId);
+        dirAgentId = p.agentId;
+      } else {
+        const aid = input.agentId?.trim() || defaultAgentId;
+        id = mintAgentSessionUrn(aid, platform);
+        dirAgentId = aid;
+      }
+      const wsPath = resolveAgentWorkspacePath(options.workspacesRoot, dirAgentId);
       try {
-        ensureAgentWorkspaceLayout(input.workspacePath);
+        ensureAgentWorkspaceLayout(wsPath);
       } catch (e) {
         throw new SessionManagerError(
           "ERR_WORKSPACE_LAYOUT",
-          `could not prepare workspace ${input.workspacePath}: ${String(e)}`,
+          `could not prepare workspace ${wsPath}: ${String(e)}`,
         );
       }
-      const id = randomUUID();
       const agentToken = mintToken();
       const run = options.db.transaction(() => {
         options.sessions.create({
           id,
-          workspacePath: input.workspacePath,
+          workspacePath: wsPath,
           status: "active",
           modelSelection: input.modelSelection,
           lightContext: input.lightContext,

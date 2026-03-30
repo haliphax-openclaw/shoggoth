@@ -25,6 +25,8 @@ describe("Streaming outbound Discord", () => {
       async editMessage(_channelId, _messageId, body) {
         editBodies.push(body);
       },
+      async createMessageReaction() {},
+      async triggerTypingIndicator() {},
     };
     const caps = discordCapabilityDescriptor();
     const stream = createDiscordStreamingOutbound({ transport, capabilities: caps, channelId: "ch-1" });
@@ -48,6 +50,8 @@ describe("Streaming outbound Discord", () => {
       async editMessage(_c, _m, body) {
         editBodies.push(body);
       },
+      async createMessageReaction() {},
+      async triggerTypingIndicator() {},
     };
     const stream = createDiscordStreamingOutbound({
       transport,
@@ -75,6 +79,8 @@ describe("Streaming outbound Discord", () => {
         return { id: "x" };
       },
       async editMessage() {},
+      async createMessageReaction() {},
+      async triggerTypingIndicator() {},
     };
     const stream = createDiscordStreamingOutbound({
       transport,

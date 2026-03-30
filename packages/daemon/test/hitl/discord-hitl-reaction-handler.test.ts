@@ -1,0 +1,96 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import Database from "better-sqlite3";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import {
+  classifyHitlDiscordReaction,
+  handleDiscordHitlReactionAdd,
+} from "../../src/hitl/discord-hitl-reaction-handler.js";
+import { createHitlAutoApproveGate } from "../../src/hitl/hitl-auto-approve.js";
+import { createHitlDiscordNoticeRegistry } from "../../src/hitl/hitl-discord-notice-registry.js";
+import { createPendingActionsStore } from "../../src/hitl/pending-actions-store.js";
+import { defaultMigrationsDir, migrate } from "../../src/db/migrate.js";
+import { createLogger } from "../../src/logging.js";
+
+describe("classifyHitlDiscordReaction", () => {
+  it("classifies unicode HITL emojis", () => {
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "1️⃣" }), "once");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "✅" }), "session");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾️" }), "agent");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾" }), "agent");
+    assert.equal(classifyHitlDiscordReaction({ id: null, name: "❌" }), "deny");
+  });
+
+  it("ignores custom emoji", () => {
+    assert.equal(classifyHitlDiscordReaction({ id: "123", name: "x" }), null);
+  });
+});
+
+describe("handleDiscordHitlReactionAdd", () => {
+  it("approve-once resolves pending for owner only", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "shoggoth-hitl-react-"));
+    const db = new Database(join(tmp, "s.db"));
+    try {
+      db.pragma("foreign_keys = ON");
+      migrate(db, defaultMigrationsDir());
+      const pending = createPendingActionsStore(db);
+      const id = "pend-r1";
+      pending.enqueue({
+        id,
+        sessionId: "agent:main:discord:10000000-0000-4000-8000-000000000001",
+        toolName: "builtin.write",
+        payload: {},
+        riskTier: "caution",
+        expiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+      });
+      const registry = createHitlDiscordNoticeRegistry();
+      registry.register(
+        "ch99",
+        "msg99",
+        id,
+        "agent:main:discord:10000000-0000-4000-8000-000000000001",
+        "builtin.write",
+      );
+      const autoApprove = createHitlAutoApproveGate();
+      const log = createLogger({ component: "t", minLevel: "error" });
+      handleDiscordHitlReactionAdd({
+        ev: {
+          kind: "message_reaction_add",
+          userId: "owner-snow",
+          channelId: "ch99",
+          messageId: "msg99",
+          emoji: { id: null, name: "1️⃣" },
+        },
+        pending,
+        registry,
+        autoApprove,
+        ownerUserId: "owner-snow",
+        botUserIdRef: { current: "bot-snow" },
+        logger: log,
+      });
+      assert.equal(pending.getById(id)!.status, "approved");
+
+      handleDiscordHitlReactionAdd({
+        ev: {
+          kind: "message_reaction_add",
+          userId: "stranger",
+          channelId: "ch99",
+          messageId: "msg99",
+          emoji: { id: null, name: "❌" },
+        },
+        pending,
+        registry,
+        autoApprove,
+        ownerUserId: "owner-snow",
+        botUserIdRef: { current: "bot-snow" },
+        logger: log,
+      });
+      assert.equal(pending.getById(id)!.status, "approved");
+    } finally {
+      db.close();
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});

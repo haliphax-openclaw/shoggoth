@@ -33,6 +33,10 @@ import { createPolicyEngine, isDefinedControlOp, type PolicyEngine } from "../po
 import type { ShutdownCoordinator } from "../shutdown";
 import { createAcpxProcessSupervisor, type AcpxSpawnFn } from "../acpx/acpx-process-supervisor";
 import { createSqliteAcpxBindingStore } from "../acpx/sqlite-acpx-bindings";
+import {
+  resolveDefaultSessionPlatform,
+  resolveShoggothAgentId,
+} from "../config/effective-runtime";
 import { createSessionManager } from "../sessions/session-manager";
 import { createSessionStore } from "../sessions/session-store";
 import type { PendingActionsStore } from "../hitl/pending-actions-store";
@@ -137,7 +141,7 @@ async function dispatchOp(
   principal: AuthenticatedPrincipal,
   integrationCtx: IntegrationOpsContext,
 ): Promise<unknown> {
-  const integration = handleIntegrationControlOp(req, principal, integrationCtx);
+  const integration = await handleIntegrationControlOp(req, principal, integrationCtx);
   if (integration !== undefined) return integration;
 
   if (principal.kind === "agent") {
@@ -174,6 +178,7 @@ async function handleOneLine(
     integration: Pick<
       IntegrationOpsContext,
       | "config"
+      | "stateDb"
       | "acpxStore"
       | "sessions"
       | "sessionManager"
@@ -270,6 +275,7 @@ async function handleOneLine(
 
     const integrationCtx: IntegrationOpsContext = {
       config: deps.integration.config,
+      stateDb: deps.integration.stateDb,
       acpxStore: deps.integration.acpxStore,
       sessions: deps.integration.sessions,
       sessionManager: deps.integration.sessionManager,
@@ -375,6 +381,9 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
       db: stateDb,
       sessions,
       agentTokens: agentStore,
+      workspacesRoot: config.workspacesRoot,
+      agentId: resolveShoggothAgentId(config),
+      defaultSessionPlatform: resolveDefaultSessionPlatform(config),
     });
     acpxSupervisor = createAcpxProcessSupervisor({
       logger: logger.child({ subsystem: "acpx" }),
@@ -388,6 +397,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
   const integrationBundle: Pick<
     IntegrationOpsContext,
     | "config"
+    | "stateDb"
     | "acpxStore"
     | "sessions"
     | "sessionManager"
@@ -396,6 +406,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
     | "cancelMcpHttpRequest"
   > = {
     config,
+    stateDb,
     acpxStore,
     sessions,
     sessionManager,

@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   ChatToolCall,
   ModelCompleteInput,
+  ModelInvocationParams,
   ModelProvider,
   ModelToolCompleteInput,
   ModelToolCompleteOutput,
@@ -23,6 +24,18 @@ export interface OpenAICompatibleProviderOptions {
 
 function trimSlash(u: string): string {
   return u.replace(/\/+$/, "");
+}
+
+function applyOpenAICompatibleRequestExtensions(
+  body: Record<string, unknown>,
+  input: Pick<ModelInvocationParams, "reasoningEffort" | "requestExtras">,
+): void {
+  const effort = input.reasoningEffort?.trim();
+  if (effort) body.reasoning_effort = effort;
+  const x = input.requestExtras;
+  if (x && typeof x === "object") {
+    Object.assign(body, x);
+  }
 }
 
 function serializeChatMessage(m: ChatMessage): Record<string, unknown> {
@@ -187,6 +200,7 @@ export function createOpenAICompatibleProvider(
       if (input.stream === true) {
         body.stream = true;
       }
+      applyOpenAICompatibleRequestExtensions(body, input);
 
       const res = await fetchImpl(url, {
         method: "POST",
@@ -276,6 +290,7 @@ export function createOpenAICompatibleProvider(
       if (input.stream === true) {
         body.stream = true;
       }
+      applyOpenAICompatibleRequestExtensions(body, input);
 
       const res = await fetchImpl(url, {
         method: "POST",

@@ -8,6 +8,7 @@ import {
 } from "@shoggoth/models";
 import { compactSessionTranscript, loadSessionTranscript } from "./transcript-compact";
 import type { Logger } from "./logging";
+import { getSessionContextSegmentId } from "./sessions/session-store";
 
 export interface TranscriptAutoCompactTickOptions {
   readonly env?: NodeJS.ProcessEnv;
@@ -42,10 +43,18 @@ export async function runTranscriptAutoCompactTick(
   const log = options.logger;
 
   for (const { id: sessionId } of sessionRows) {
-    const messages = loadSessionTranscript(db, sessionId);
+    let contextSegmentId: string;
+    try {
+      contextSegmentId = getSessionContextSegmentId(db, sessionId);
+    } catch {
+      continue;
+    }
+    const messages = loadSessionTranscript(db, sessionId, contextSegmentId);
     if (!shouldAutoCompact(messages, policy)) continue;
     try {
-      const { compacted } = await compactSessionTranscript(db, sessionId, policy, client, {});
+      const { compacted } = await compactSessionTranscript(db, sessionId, policy, client, {
+        modelsConfig: config.models,
+      });
       if (compacted) {
         sessionsCompacted += 1;
         log?.info("transcript auto-compacted", { sessionId });

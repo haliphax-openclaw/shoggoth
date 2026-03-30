@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { discordCapabilityDescriptor } from "@shoggoth/messaging";
 import { buildSessionSystemContext } from "../../src/sessions/session-system-prompt";
 
 describe("buildSessionSystemContext", () => {
@@ -22,9 +23,13 @@ describe("buildSessionSystemContext", () => {
       env: { SHOGGOTH_MODEL: "test-model" },
       sessionId: "sid-1",
       channel: "discord",
+      messagingCapabilities: discordCapabilityDescriptor(),
       toolNames: ["builtin.read", "builtin.exec"],
     });
     assert.match(s, /^You are \*\*Shoggoth\*\*/m);
+    assert.match(s, /## Shoggoth CLI and reference docs/);
+    assert.match(s, /`shoggoth --help`/);
+    assert.match(s, /\/app\/docs/);
     assert.match(s, /## Tooling/);
     assert.match(s, /`builtin\.exec`/);
     assert.match(s, /`builtin\.read`/);

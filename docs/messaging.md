@@ -8,13 +8,13 @@ The daemon uses `@shoggoth/messaging` for the internal message model, capability
 |----------|---------|
 | `DISCORD_BOT_TOKEN` | Bot token from the Discord application (same value as in the developer portal). Used for Gateway `IDENTIFY` and REST `Authorization: Bot …`. **Do not commit**; inject via Compose secret or env. If unset, the daemon uses layered config `discord.botToken` (see below). When both are set, **env wins**. |
 
-Alternatively, set **`discord.botToken`** in a layered JSON config fragment (same string as the portal token). The readiness **discord** health probe uses the same resolution order. `shoggoth config-show` prints the effective config — **redact** tokens if you share output.
+Alternatively, set **`discord.botToken`** in a layered JSON config fragment (same string as the portal token). The readiness **discord** health probe uses the same resolution order. `shoggoth config show` prints the effective config — **redact** tokens if you share output.
 
 ## Routing (inbound + outbound)
 
 | Variable | Purpose |
 |----------|---------|
-| `SHOGGOTH_DISCORD_ROUTES` | JSON **array** of objects: `{ "channelId": string, "sessionId": string, "guildId"?: string }`. Maps Discord channels (or DM channel ids) to internal session ids. **Guild channels** should include `guildId` so routing matches gateway payloads. **DMs** omit `guildId`. |
+| `SHOGGOTH_DISCORD_ROUTES` | JSON **array** of objects: `{ "channelId": string, "sessionId": string, "guildId"?: string }`. Maps Discord channels (or DM channel ids) to Shoggoth sessions. **`sessionId`** must be a structurally valid agent session URN (`agent:<agentId>:discord:…`); the daemon’s Discord bridge then requires `platform: discord` and each tail segment to be a **UUID or Discord snowflake**, and single-leaf snowflake sessions must match `channelId`. Rows that fail structural or Discord-specific checks are **dropped** (or the array parse **throws** on snowflake mismatch vs `channelId`). If every row is dropped, the Discord bridge stays off. **Guild channels** should include `guildId` so routing matches gateway payloads. **DMs** omit `guildId`. |
 
 ## Optional
 

@@ -1,4 +1,4 @@
-import { loadLayeredConfig, LAYOUT } from "@shoggoth/shared";
+import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
 import { invokeControlRequest } from "@shoggoth/daemon/lib";
 
 function controlAuth():
@@ -42,7 +42,17 @@ export function parseMcpCancelCliArgs(argv: string[]):
   };
 }
 
+function printMcpHelp(): void {
+  console.log(`shoggoth ${VERSION}
+Usage:
+  shoggoth mcp cancel <sessionId> <sourceId> <requestId>  Cancel streamable HTTP MCP JSON-RPC id (JSON)`);
+}
+
 export async function runMcpCli(argv: string[]): Promise<void> {
+  if (!argv.length || argv[0] === "--help" || argv[0] === "-h") {
+    printMcpHelp();
+    return;
+  }
   const sub = argv[0];
   if (sub === "cancel") {
     const parsed = parseMcpCancelCliArgs(argv.slice(1));

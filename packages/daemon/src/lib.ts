@@ -1,3 +1,7 @@
+import { registerBuiltInMessagingPlatforms } from "./messaging/register-built-in-messaging-platforms";
+
+registerBuiltInMessagingPlatforms();
+
 export { openStateDb, getJournalMode } from "./db/open";
 export { backupDatabaseToFile } from "./db/backup";
 export {
@@ -9,6 +13,7 @@ export {
   loadSessionTranscript,
   replaceSessionTranscript,
   compactSessionTranscript,
+  type CompactSessionTranscriptOptions,
 } from "./transcript-compact";
 export { appendAuditRow, type AppendAuditRowInput } from "./audit/append-audit";
 export {
@@ -52,12 +57,18 @@ export {
 } from "./memory/memory-index";
 export {
   createSessionStore,
+  getSessionContextSegmentId,
   type SessionStore,
   type SessionRow,
   type CreateSessionInput,
   type UpdateSessionInput,
   type SessionStatus,
 } from "./sessions/session-store";
+export { applySessionContextSegmentNew, applySessionContextSegmentReset } from "./sessions/session-context-segment";
+export {
+  parseSessionSegmentInlineCommand,
+  sessionSegmentStartupUserContent,
+} from "./sessions/session-segment-inline-command";
 export {
   ensureAgentWorkspaceLayout,
   resolveAgentTemplateDir,
@@ -130,3 +141,10 @@ export {
   type PendingActionStatus,
 } from "./hitl/pending-actions-store";
 export { invokeControlRequest, type InvokeControlRequestInput } from "./control/control-client";
+export { SUBAGENT_DEFAULT_BOUND_LIFETIME_MS } from "./subagent/subagent-constants";
+export { resolveSessionTargetFromCliArg } from "./control/resolve-session-cli-target";
+export { DiscordRoutesConfigurationError } from "./platforms/discord/discord-messaging-urn-policy";
+export {
+  resolveBootstrapPrimarySessionUrn,
+  parseFirstChannelIdFromRoutesJson,
+} from "./messaging/messaging-platform-urn-registry";

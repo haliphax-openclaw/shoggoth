@@ -4,6 +4,7 @@ import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import type { ChatMessage } from "@shoggoth/models";
 import {
   createFailoverToolCallingClientFromModelsConfig,
+  mergeModelInvocationParams,
   type CreateFailoverFromConfigOptions,
   type FailoverToolCallingClient,
 } from "@shoggoth/models";
@@ -28,6 +29,10 @@ import {
 } from "./session-tool-loop-model-client";
 import type { SessionMcpToolContext } from "./session-mcp-tool-context";
 import type { PolicyEngine } from "../policy/engine";
+import {
+  beginSessionTurnAbortScope,
+  TurnAbortedError,
+} from "./session-turn-abort";
 
 export interface ExecuteSessionAgentTurnInput {
   readonly db: Database.Database;
@@ -75,15 +80,20 @@ export async function executeSessionAgentTurn(
   input: ExecuteSessionAgentTurnInput,
 ): Promise<SessionAgentTurnResult> {
   const loopImpl = input.loopImpl ?? runToolLoop;
+  const ctxSeg = input.session.contextSegmentId.trim();
+  if (!ctxSeg) {
+    throw new Error("executeSessionAgentTurn: session.contextSegmentId must be non-empty");
+  }
 
   input.transcript.append({
     sessionId: input.sessionId,
+    contextSegmentId: ctxSeg,
     role: "user",
     content: input.userContent,
     metadata: input.userMetadata ?? {},
   });
 
-  const history = loadSessionTranscriptAsModelChat(input.db, input.sessionId);
+  const history = loadSessionTranscriptAsModelChat(input.db, input.sessionId, ctxSeg);
   const system: ChatMessage = {
     role: "system",
     content: input.systemPrompt,
@@ -96,10 +106,13 @@ export async function executeSessionAgentTurn(
     input.createToolCallingClient ?? createFailoverToolCallingClientFromModelsConfig;
   const toolClient = createToolClient(input.config.models, { env: input.env });
 
+  const modelInvocation = mergeModelInvocationParams(input.config.models, input.session.modelSelection);
+
   const model: SessionToolLoopModelClient = createSessionToolLoopModelClient({
     toolClient,
     initialMessages,
     tools: mcpCtx.toolsOpenAi,
+    modelInvocation,
     streamModel: Boolean(input.stream?.streamModel),
     onModelTextDelta: input.stream?.onModelTextDelta,
   });
@@ -170,27 +183,44 @@ export async function executeSessionAgentTurn(
     },
   });
 
-  await loopImpl({
-    db: input.db,
-    sessionId: input.sessionId,
-    runId,
-    principalId: input.sessionId,
-    policy,
-    audit,
-    model,
-    tools: mcpCtx.toolsLoop,
-    executor,
-    toolRuns: input.toolRuns,
-    transcript: input.transcript,
-    hitl: {
-      ...input.hitl,
-      config: input.getHitlConfig(),
-    },
-  });
+  const { signal: turnAbortSignal, end: endTurnAbortScope } = beginSessionTurnAbortScope(
+    input.sessionId,
+  );
+  try {
+    await loopImpl({
+      db: input.db,
+      sessionId: input.sessionId,
+      runId,
+      principalId: input.sessionId,
+      policy,
+      audit,
+      model,
+      tools: mcpCtx.toolsLoop,
+      executor,
+      toolRuns: input.toolRuns,
+      transcript: input.transcript,
+      contextSegmentId: ctxSeg,
+      turnAbortSignal,
+      hitl: {
+        ...input.hitl,
+        config: input.getHitlConfig(),
+      },
+    });
+  } catch (e) {
+    if (e instanceof TurnAbortedError) {
+      const failoverMeta = model.getSessionToolLoopFailoverState();
+      const latestAssistantText =
+        extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ?? "_Aborted._";
+      return { failoverMeta, latestAssistantText };
+    }
+    throw e;
+  } finally {
+    endTurnAbortScope();
+  }
 
   const failoverMeta = model.getSessionToolLoopFailoverState();
   const latestAssistantText =
-    extractLatestTranscriptAssistantText(input.db, input.sessionId) ?? "_No reply text._";
+    extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ?? "_No reply text._";
 
   return { failoverMeta, latestAssistantText };
 }

@@ -44,13 +44,17 @@ export function transcriptRowsToModelChatMessages(
   return out;
 }
 
-function loadTranscriptPage(db: Database.Database, sessionId: string): TranscriptMessageRow[] {
+function loadTranscriptPage(
+  db: Database.Database,
+  sessionId: string,
+  contextSegmentId: string,
+): TranscriptMessageRow[] {
   const tr = createTranscriptStore(db);
   const all: TranscriptMessageRow[] = [];
   let after = 0;
   const cap = 2000;
   for (;;) {
-    const page = tr.listPage({ sessionId, afterSeq: after, limit: 200 });
+    const page = tr.listPage({ sessionId, contextSegmentId, afterSeq: after, limit: 200 });
     all.push(...page.messages);
     if (!page.nextCursor || all.length >= cap) break;
     after = page.nextCursor;
@@ -62,20 +66,22 @@ function loadTranscriptPage(db: Database.Database, sessionId: string): Transcrip
 export function loadSessionTranscriptAsModelChat(
   db: Database.Database,
   sessionId: string,
+  contextSegmentId: string,
 ): ChatMessage[] {
-  return transcriptRowsToModelChatMessages(loadTranscriptPage(db, sessionId));
+  return transcriptRowsToModelChatMessages(loadTranscriptPage(db, sessionId, contextSegmentId));
 }
 
 /** Last non–tool-call assistant content in the transcript (final visible reply). */
 export function extractLatestTranscriptAssistantText(
   db: Database.Database,
   sessionId: string,
+  contextSegmentId: string,
 ): string | undefined {
   const tr = createTranscriptStore(db);
   let after = 0;
   let last: string | undefined;
   for (;;) {
-    const page = tr.listPage({ sessionId, afterSeq: after, limit: 200 });
+    const page = tr.listPage({ sessionId, contextSegmentId, afterSeq: after, limit: 200 });
     for (const m of page.messages) {
       if (m.role === "assistant" && m.content) {
         const meta = m.metadata as { toolCalls?: unknown[] } | undefined;

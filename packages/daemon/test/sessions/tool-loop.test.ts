@@ -6,10 +6,15 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import { createSessionStore } from "../../src/sessions/session-store";
+import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { createToolRunStore } from "../../src/sessions/tool-run-store";
-import { runToolLoop, type ModelClient, type ToolExecutor } from "../../src/sessions/tool-loop";
+import {
+  runToolLoop,
+  TurnAbortedError,
+  type ModelClient,
+  type ToolExecutor,
+} from "../../src/sessions/tool-loop";
 import { createHitlPendingResolutionStack } from "../../src/hitl/hitl-pending-stack";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
 import { DEFAULT_HITL_CONFIG } from "@shoggoth/shared";
@@ -219,6 +224,55 @@ describe("runToolLoop", () => {
     assert.equal(pending.listPendingForSession("sess").length, 0);
   });
 
+  it("skips HITL enqueue when autoApprove.shouldAutoApprove is true", async () => {
+    const exec = mock.fn(async () => ({ resultJson: "{}" }));
+    const pending = createPendingActionsStore(db);
+    let step = 0;
+    const model: ModelClient = {
+      async complete() {
+        step += 1;
+        if (step === 1) {
+          return {
+            content: null,
+            toolCalls: [{ id: "h3", name: "exec", argsJson: "{}" }],
+          };
+        }
+        return { content: "ok", toolCalls: [] };
+      },
+    };
+    const toolRuns = createToolRunStore(db);
+    await runToolLoop({
+      db,
+      sessionId: "sess",
+      runId: "run-auto-hitl",
+      principalId: "op",
+      policy: { check: () => ({ allow: true }) },
+      audit: { record: () => {} },
+      model,
+      tools: [{ name: "exec" }],
+      executor: { execute: exec },
+      toolRuns,
+      hitl: {
+        config: DEFAULT_HITL_CONFIG,
+        principalRoles: ["agent:main"],
+        pending,
+        clock: { nowMs: () => Date.now() },
+        newPendingId: () => "no-queue",
+        waitForHitlResolution: () =>
+          new Promise(() => {
+            /* unused */
+          }),
+        autoApprove: {
+          enableSessionTool: () => {},
+          enableAgentTool: () => {},
+          shouldAutoApprove: () => true,
+        },
+      },
+    });
+    assert.equal(exec.mock.calls.length, 1);
+    assert.equal(pending.listPendingForSession("sess").length, 0);
+  });
+
   it("appends transcript for tool result when transcript store provided", async () => {
     const tr = createTranscriptStore(db);
     let step = 0;
@@ -235,6 +289,7 @@ describe("runToolLoop", () => {
       },
     };
     const toolRuns = createToolRunStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
     await runToolLoop({
       db,
       sessionId: "sess",
@@ -247,10 +302,51 @@ describe("runToolLoop", () => {
       executor: { execute: async () => ({ resultJson: '{"x":1}' }) },
       toolRuns,
       transcript: tr,
+      contextSegmentId: seg,
     });
-    const page = tr.listPage({ sessionId: "sess", afterSeq: 0, limit: 20 });
+    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
     const toolMsgs = page.messages.filter((m) => m.role === "tool");
     assert.equal(toolMsgs.length, 1);
     assert.ok(String(toolMsgs[0]!.metadata).includes("read") || toolMsgs[0]!.toolCallId === "t1");
+  });
+
+  it("throws TurnAbortedError when turnAbortSignal fires before the next model hop", async () => {
+    const ac = new AbortController();
+    let completeCalls = 0;
+    const model: ModelClient = {
+      async complete() {
+        completeCalls += 1;
+        if (completeCalls === 1) {
+          return {
+            content: null,
+            toolCalls: [{ id: "ab1", name: "read", argsJson: "{}" }],
+          };
+        }
+        return { content: "late", toolCalls: [] };
+      },
+    };
+    const toolRuns = createToolRunStore(db);
+    await assert.rejects(
+      runToolLoop({
+        db,
+        sessionId: "sess",
+        runId: "run-abort",
+        principalId: "p",
+        policy: { check: () => ({ allow: true }) },
+        audit: { record: () => {} },
+        model,
+        tools: [{ name: "read" }],
+        turnAbortSignal: ac.signal,
+        executor: {
+          async execute() {
+            ac.abort();
+            return { resultJson: "{}" };
+          },
+        },
+        toolRuns,
+      }),
+      (err: unknown) => err instanceof TurnAbortedError,
+    );
+    assert.equal(completeCalls, 1);
   });
 });

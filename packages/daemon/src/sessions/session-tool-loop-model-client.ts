@@ -1,6 +1,7 @@
 import type {
   ChatMessage,
   FailoverToolCallingClient,
+  ModelInvocationParams,
   OpenAIToolFunctionDefinition,
 } from "@shoggoth/models";
 import type { ModelClient } from "./tool-loop";
@@ -24,6 +25,8 @@ export function createSessionToolLoopModelClient(input: {
   readonly toolClient: FailoverToolCallingClient;
   readonly initialMessages: readonly ChatMessage[];
   readonly tools: readonly OpenAIToolFunctionDefinition[];
+  /** Per-turn parameters forwarded to each `completeWithTools` (merged with stream options). */
+  readonly modelInvocation?: ModelInvocationParams;
   /**
    * When true, passes `stream: true` to `completeWithTools` (OpenAI SSE). Use with
    * {@link onModelTextDelta} for live display (e.g. streaming edits on a message platform).
@@ -58,9 +61,15 @@ export function createSessionToolLoopModelClient(input: {
             }
           : {};
 
+      const inv = input.modelInvocation ?? {};
       const out = await input.toolClient.completeWithTools({
         messages,
         tools: input.tools,
+        maxOutputTokens: inv.maxOutputTokens,
+        temperature: inv.temperature,
+        thinking: inv.thinking,
+        reasoningEffort: inv.reasoningEffort,
+        requestExtras: inv.requestExtras,
         ...streamOpts,
       });
       degradedAny = degradedAny || out.degraded;

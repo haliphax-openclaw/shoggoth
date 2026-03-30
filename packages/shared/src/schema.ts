@@ -30,6 +30,23 @@ export const shoggothModelProviderEntrySchema = z.discriminatedUnion("kind", [
 
 export type ShoggothModelProviderEntry = z.infer<typeof shoggothModelProviderEntrySchema>;
 
+const shoggothModelThinkingSchema = z
+  .object({
+    enabled: z.boolean(),
+    budgetTokens: z.number().int().positive().optional(),
+  })
+  .strict();
+
+const shoggothModelDefaultInvocationSchema = z
+  .object({
+    maxOutputTokens: z.number().int().positive().optional(),
+    temperature: z.number().optional(),
+    thinking: shoggothModelThinkingSchema.optional(),
+    reasoningEffort: z.string().min(1).optional(),
+    requestExtras: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
 export const shoggothModelsConfigSchema = z
   .object({
     providers: z.array(shoggothModelProviderEntrySchema).optional(),
@@ -43,6 +60,8 @@ export const shoggothModelsConfigSchema = z
           .strict(),
       )
       .optional(),
+    /** Default model call parameters; per-session `model_selection` JSON overrides by field. */
+    defaultInvocation: shoggothModelDefaultInvocationSchema.optional(),
     compaction: z
       .object({
         maxContextChars: z.number().int().positive(),
@@ -82,6 +101,11 @@ export const shoggothHitlConfigSchema = z
     toolRisk: z.record(z.string(), hitlRiskTierSchema),
     /** Role id → highest tier that may run without human approval (inclusive). */
     roleBypassUpTo: z.record(z.string(), hitlRiskTierSchema),
+    /**
+     * Logical agent id (URN segment after `agent:`, e.g. `main` in `agent:main:discord:…`) → tools that skip HITL.
+     * Discord ♾️ appends here via `z-hitl-agent-tool-auto-approve.json` in `configDirectory`.
+     */
+    agentToolAutoApprove: z.record(z.string().min(1), z.array(z.string().min(1))).default({}),
   })
   .strict();
 
@@ -211,6 +235,14 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
         "hitl_pending_approve",
         "hitl_pending_deny",
         "mcp_http_cancel_request",
+        "session_context_new",
+        "session_context_reset",
+        "subagent_spawn",
+        "session_inspect",
+        "session_list",
+        "session_steer",
+        "session_abort",
+        "session_kill",
       ],
       deny: [],
     },
@@ -323,7 +355,7 @@ export const shoggothMcpConfigSchema = z
     servers: z.array(shoggothMcpServerEntrySchema),
     /**
      * Default for servers that omit `poolScope` or set `poolScope: "inherit"`.
-     * `global`: one MCP connection set for the whole Discord platform (legacy).
+     * `global`: one MCP connection set shared across all Discord-bound sessions.
      * `per_session`: lazy pool per Shoggoth `sessionId` on first inbound turn; closed on orchestrator stop.
      */
     poolScope: z.enum(["global", "per_session"]).default("global"),
@@ -370,6 +402,13 @@ export const shoggothDiscordConfigSchema = z
     /** Discord user snowflake; daemon opens a DM via REST and posts HITL notices there. */
     hitlNotifyDmUserId: z.string().min(1).optional(),
     /**
+     * Operator Discord user snowflake (human). When set, inbound channel messages from other users
+     * are ignored (v1); transport sets `isOwner` for this author. Also used for metadata and HITL DM
+     * routing. Not the tool-loop HITL principal (that is `agent:<id>` from the session URN).
+     * Env: `SHOGGOTH_DISCORD_OWNER_USER_ID`.
+     */
+    ownerUserId: z.string().min(1).optional(),
+    /**
      * When true (default), post a HITL notice as a reply in the routed session channel. Set false or
      * `SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION=0` to rely on DM / operator channel / webhook only.
      */
@@ -382,6 +421,24 @@ export type ShoggothDiscordConfig = z.infer<typeof shoggothDiscordConfigSchema>;
 /** Daemon timers, probes, and feature flags also available via `SHOGGOTH_*` env (env wins when set). */
 export const shoggothRuntimeConfigSchema = z
   .object({
+    /**
+     * Logical agent id embedded in session URNs (`agent:<agentId>:…`). Must not contain `:`.
+     * Env override: `SHOGGOTH_AGENT_ID`.
+     */
+    agentId: z
+      .string()
+      .min(1)
+      .refine((s) => !s.includes(":"), "must not contain ':'")
+      .optional(),
+    /**
+     * Default platform segment for auto-minted session URNs (e.g. `discord`, `control`).
+     * Env override: `SHOGGOTH_DEFAULT_SESSION_PLATFORM`.
+     */
+    defaultSessionPlatform: z
+      .string()
+      .min(1)
+      .refine((s) => !s.includes(":"), "must not contain ':'")
+      .optional(),
     drainTimeoutMs: z.number().int().positive().optional(),
     bootStaleClaimMs: z.number().int().nonnegative().optional(),
     heartbeatIntervalMs: z.number().int().positive().optional(),
@@ -505,7 +562,15 @@ export const DEFAULT_HITL_CONFIG: ShoggothHitlConfig = {
     "memory.search": "safe",
     "memory.ingest": "caution",
   },
-  roleBypassUpTo: {},
+  /**
+   * Keys are arbitrary role ids passed as `principalRoles` into the tool loop. Session turns use
+   * `agent:<agentId>` from the session URN (e.g. `agent:main`). Unlisted roles contribute nothing;
+   * baseline bypass remains `safe`. The human operator is not a principal here — they approve HITL.
+   */
+  roleBypassUpTo: {
+    "agent:main": "safe",
+  },
+  agentToolAutoApprove: {},
 };
 
 export function defaultConfig(configDirectory: string): ShoggothConfig {

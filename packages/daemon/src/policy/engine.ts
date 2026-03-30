@@ -33,6 +33,14 @@ export const DEFINED_CONTROL_OPS = [
   "hitl_pending_approve",
   "hitl_pending_deny",
   "mcp_http_cancel_request",
+  "session_context_new",
+  "session_context_reset",
+  "subagent_spawn",
+  "session_inspect",
+  "session_list",
+  "session_steer",
+  "session_abort",
+  "session_kill",
 ] as const;
 export type DefinedControlOp = (typeof DEFINED_CONTROL_OPS)[number];
 

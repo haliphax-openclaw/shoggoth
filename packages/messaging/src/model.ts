@@ -17,11 +17,22 @@ export interface MessageReaction {
   readonly count: number;
 }
 
+/** Discord-specific envelope (transport layer); session turn logic stays platform-agnostic. */
+export interface DiscordTransportEnvelope {
+  readonly authorSnowflake: string;
+  readonly authorIsBot: boolean;
+  /** True when the author is this Shoggoth bot (Gateway READY / `@me`). */
+  readonly isSelf: boolean;
+  /** True when the author matches configured `discord.ownerUserId`. */
+  readonly isOwner: boolean;
+}
+
 export interface MessageExtensions {
   readonly attachments?: readonly MessageAttachment[];
   readonly threadId?: string;
   readonly replyToMessageId?: string;
   readonly reactions?: readonly MessageReaction[];
+  readonly discord?: DiscordTransportEnvelope;
 }
 
 export interface InternalMessage {

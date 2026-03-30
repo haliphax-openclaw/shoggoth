@@ -183,6 +183,36 @@ describe("createAnthropicMessagesProvider", () => {
     assert.ok(capturedBody?.includes('"stream":false'));
   });
 
+  it("complete includes thinking block when thinking.enabled is true", async () => {
+    let capturedBody: string | undefined;
+    const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return new Response(
+        JSON.stringify({
+          id: "msg_1",
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "hello" }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    };
+    const p = createAnthropicMessagesProvider({
+      id: "anth",
+      baseUrl: "https://api.example",
+      apiKey: "sk-ant",
+      fetchImpl,
+    });
+    await p.complete({
+      model: "claude-test",
+      messages: [{ role: "user", content: "hi" }],
+      thinking: { enabled: true, budgetTokens: 1234 },
+    });
+    const req = JSON.parse(capturedBody ?? "{}") as { thinking?: { type: string; budget_tokens: number } };
+    assert.equal(req.thinking?.type, "enabled");
+    assert.equal(req.thinking?.budget_tokens, 1234);
+  });
+
   it("complete sends wire model without kiro/ prefix", async () => {
     let capturedBody: string | undefined;
     const fetchImpl = async (_url: string | URL, init?: RequestInit) => {

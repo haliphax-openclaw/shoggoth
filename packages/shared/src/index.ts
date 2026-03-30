@@ -49,3 +49,23 @@ export {
   type ShoggothToolRules,
 } from "./schema";
 export { VERSION } from "./version";
+export { DEFAULT_MESSAGING_PLATFORM_ID } from "./messaging-defaults";
+export {
+  assertValidAgentId,
+  defaultPrimarySessionUrnForAgent,
+  formatAgentSessionUrn,
+  isValidAgentSessionUrn,
+  isValidSessionUrnTailSegment,
+  mintAgentSessionUrn,
+  mintSubagentSessionUrnFromParent,
+  parseAgentSessionUrn,
+  readinessDmSessionUrn,
+  readinessGuildSessionUrn,
+  resolveAgentWorkspacePath,
+  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+  SHOGGOTH_READINESS_DM_SESSION_UUID,
+  SHOGGOTH_READINESS_GUILD_SESSION_UUID,
+  SHOGGOTH_SESSION_URN_TAIL_SEGMENT_RE,
+  SHOGGOTH_SESSION_UUID_RE,
+  type ParsedAgentSessionUrn,
+} from "./session-urn";

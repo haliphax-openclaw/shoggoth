@@ -19,10 +19,18 @@ import { ShutdownCoordinator } from "../../src/shutdown";
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 import type { AcpxSpawnFn } from "../../src/acpx/acpx-process-supervisor";
-import { createSessionStore } from "../../src/sessions/session-store";
+import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
+import { createTranscriptStore } from "../../src/sessions/transcript-store";
+import { insertSessionToolAutoApprove } from "../../src/hitl/hitl-session-tool-auto-store";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
 import { startControlPlane, type ReadPeerCredFn } from "../../src/control/control-plane";
-import { DEFAULT_POLICY_CONFIG, type ShoggothConfig } from "@shoggoth/shared";
+import {
+  DEFAULT_POLICY_CONFIG,
+  formatAgentSessionUrn,
+  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
+import { setSubagentRuntimeExtension } from "../../src/subagent/subagent-extension-ref";
 
 function minimalConfig(socketPath: string): ShoggothConfig {
   return {
@@ -37,11 +45,12 @@ function minimalConfig(socketPath: string): ShoggothConfig {
       defaultApprovalTimeoutMs: 300_000,
       toolRisk: { read: "safe", write: "caution", exec: "critical" },
       roleBypassUpTo: {},
+      agentToolAutoApprove: {},
     },
     memory: { paths: [], embeddings: { enabled: false } },
     skills: { scanRoots: [], disabledIds: [] },
     plugins: [],
-    mcp: { servers: [] },
+    mcp: { servers: [], poolScope: "global" },
     policy: DEFAULT_POLICY_CONFIG,
   };
 }
@@ -780,6 +789,229 @@ describe("control plane (unix socket + JSONL)", () => {
       },
     );
 
+    db.close();
+  });
+
+  it("session_context_new / session_context_reset (operator)", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-segcx-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    createSessionStore(db).create({ id: "sess-cx", workspacePath: "/tmp/w", status: "active" });
+    const seg1 = getSessionContextSegmentId(db, "sess-cx");
+    const tr = createTranscriptStore(db);
+    tr.append({ sessionId: "sess-cx", contextSegmentId: seg1, role: "user", content: "x" });
+    insertSessionToolAutoApprove(db, "sess-cx", "builtin.write");
+    const countSessionAutoApprove = () =>
+      (
+        db
+          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
+          .get("sess-cx") as { c: number }
+      ).c;
+    assert.equal(countSessionAutoApprove(), 1);
+
+    await withControlPlaneSession(
+      {
+        readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+        stateDb: db,
+        config: minimalConfig(sock),
+      },
+      async (send) => {
+        const peer = { kind: "operator_peercred" } as const;
+        const lineNew = await send({
+          v: WIRE_VERSION,
+          id: "scn1",
+          op: "session_context_new",
+          auth: peer,
+          payload: { session_id: "sess-cx" },
+        });
+        const newRes = parseResponseLine(lineNew);
+        assert.equal(newRes.ok, true);
+        const nr = newRes.result as {
+          previousContextSegmentId: string;
+          contextSegmentId: string;
+          deletedRows: number;
+        };
+        assert.equal(nr.previousContextSegmentId, seg1);
+        assert.notEqual(nr.contextSegmentId, seg1);
+        assert.equal(nr.deletedRows, 1);
+        assert.equal(countSessionAutoApprove(), 0);
+
+        const nAll = db
+          .prepare(`SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ?`)
+          .get("sess-cx") as { c: number };
+        assert.equal(nAll.c, 0);
+
+        const seg2 = getSessionContextSegmentId(db, "sess-cx");
+        tr.append({ sessionId: "sess-cx", contextSegmentId: seg2, role: "user", content: "y" });
+        insertSessionToolAutoApprove(db, "sess-cx", "builtin.write");
+        assert.equal(countSessionAutoApprove(), 1);
+        const lineReset = await send({
+          v: WIRE_VERSION,
+          id: "scr1",
+          op: "session_context_reset",
+          auth: peer,
+          payload: { session_id: "sess-cx" },
+        });
+        const resetRes = parseResponseLine(lineReset);
+        assert.equal(resetRes.ok, true);
+        const rr = resetRes.result as { contextSegmentId: string; deletedRows: number };
+        assert.equal(rr.deletedRows, 1);
+        const nSeg2 = db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ? AND context_segment_id = ?`,
+          )
+          .get("sess-cx", seg2) as { c: number };
+        assert.equal(nSeg2.c, 0);
+        assert.equal(countSessionAutoApprove(), 1);
+      },
+    );
+
+    db.close();
+  });
+
+  it("session_list (operator)", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-slist-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    createSessionStore(db).create({ id: "sess-list-a", workspacePath: "/wa", status: "active" });
+    createSessionStore(db).create({ id: "sess-list-z", workspacePath: "/wb", status: "terminated" });
+
+    await withControlPlaneSession(
+      {
+        readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+        stateDb: db,
+        config: minimalConfig(sock),
+      },
+      async (send) => {
+        const peer = { kind: "operator_peercred" } as const;
+        const line = await send({
+          v: WIRE_VERSION,
+          id: "sl1",
+          op: "session_list",
+          auth: peer,
+          payload: {},
+        });
+        const res = parseResponseLine(line);
+        assert.equal(res.ok, true);
+        const rows = (res.result as { sessions: { id: string; status: string }[] }).sessions;
+        assert.ok(rows.length >= 2);
+        assert.ok(rows.some((r) => r.id === "sess-list-a" && r.status === "active"));
+
+        const lineF = await send({
+          v: WIRE_VERSION,
+          id: "sl2",
+          op: "session_list",
+          auth: peer,
+          payload: { status: "terminated" },
+        });
+        const resF = parseResponseLine(lineF);
+        assert.equal(resF.ok, true);
+        const rowsF = (resF.result as { sessions: { id: string; status: string }[] }).sessions;
+        assert.ok(rowsF.length >= 1);
+        assert.ok(rowsF.every((r) => r.status === "terminated"));
+        assert.ok(rowsF.some((r) => r.id === "sess-list-z"));
+        assert.ok(!rowsF.some((r) => r.id === "sess-list-a"));
+      },
+    );
+
+    db.close();
+  });
+
+  it("subagent_spawn one_shot (operator + mock runtime)", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-sub-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    const parentId = formatAgentSessionUrn("par", "discord", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    createSessionStore(db).create({
+      id: parentId,
+      workspacePath: "/tmp/w",
+      status: "active",
+      modelSelection: { model: "gpt-parent", temperature: 0.1 },
+    });
+
+    let subscribed = 0;
+    setSubagentRuntimeExtension({
+      runSessionModelTurn: async () => ({
+        latestAssistantText: "SUBAGENT_REPLY",
+        failoverMeta: undefined,
+      }),
+      subscribeSubagentSession: () => {
+        subscribed += 1;
+        return () => {};
+      },
+      registerDiscordThreadBinding: () => () => {},
+    });
+    try {
+      await withControlPlaneSession(
+        {
+          readPeerCred: () => ({ uid: process.getuid(), gid: process.getgid(), pid: 1 }),
+          stateDb: db,
+          config: minimalConfig(sock),
+        },
+        async (send) => {
+          const peer = { kind: "operator_peercred" } as const;
+          const line = await send({
+            v: WIRE_VERSION,
+            id: "sub1",
+            op: "subagent_spawn",
+            auth: peer,
+            payload: {
+              parent_session_id: parentId,
+              prompt: "do the thing",
+              mode: "one_shot",
+            },
+          });
+          const res = parseResponseLine(line);
+          assert.equal(res.ok, true);
+          const r = res.result as { session_id: string; reply: string; mode: string };
+          assert.equal(r.mode, "one_shot");
+          assert.equal(r.reply, "SUBAGENT_REPLY");
+          assert.match(r.session_id, /^agent:par:discord:/);
+          const child = createSessionStore(db).getById(r.session_id);
+          assert.equal(child?.status, "terminated");
+          assert.deepStrictEqual(child?.modelSelection, {
+            model: "gpt-parent",
+            temperature: 0.1,
+          });
+
+          const line2 = await send({
+            v: WIRE_VERSION,
+            id: "sub2",
+            op: "subagent_spawn",
+            auth: peer,
+            payload: {
+              parent_session_id: parentId,
+              prompt: "overlay temp",
+              mode: "one_shot",
+              model_options: { temperature: 0.99 },
+            },
+          });
+          const res2 = parseResponseLine(line2);
+          assert.equal(res2.ok, true);
+          const r2 = res2.result as { session_id: string };
+          const child2 = createSessionStore(db).getById(r2.session_id);
+          assert.deepStrictEqual(child2?.modelSelection, {
+            model: "gpt-parent",
+            temperature: 0.99,
+          });
+        },
+      );
+    } finally {
+      setSubagentRuntimeExtension(undefined);
+    }
+    assert.equal(subscribed, 0);
     db.close();
   });
 

@@ -1,6 +1,8 @@
-import type { DiscordInboundEvent } from "./adapter";
+import type { DiscordInboundEvent, DiscordReactionAddEvent } from "./adapter";
 import {
   discordMessageCreateToInboundEvent,
+  discordMessageReactionAddToEvent,
+  discordReadyPayloadToBotUserId,
   DISCORD_GATEWAY_INTENTS_DEFAULT,
 } from "./gateway-payload";
 
@@ -8,6 +10,7 @@ export interface DiscordGatewayConnectOptions {
   readonly botToken: string;
   readonly intents?: number;
   readonly onMessageCreate: (ev: DiscordInboundEvent) => void;
+  readonly onMessageReactionAdd?: (ev: DiscordReactionAddEvent) => void;
   /** Default false: ignore bot-authored messages to avoid accidental feedback loops. */
   readonly allowBotMessages?: boolean;
   readonly fetchFn?: typeof fetch;
@@ -19,6 +22,8 @@ export interface DiscordGatewayConnectOptions {
 
 export interface DiscordGatewaySession {
   readonly stop: () => Promise<void>;
+  /** Bot user snowflake from Gateway `READY` (or undefined if not received). */
+  readonly getBotUserId: () => string | undefined;
 }
 
 interface GatewayPayload {
@@ -29,7 +34,8 @@ interface GatewayPayload {
 }
 
 /**
- * Minimal Discord Gateway session: JSON encoding, heartbeat, MESSAGE_CREATE dispatch.
+ * Minimal Discord Gateway session: JSON encoding, heartbeat, MESSAGE_CREATE and
+ * MESSAGE_REACTION_ADD dispatch.
  */
 export async function connectDiscordGateway(
   options: DiscordGatewayConnectOptions,
@@ -58,6 +64,7 @@ export async function connectDiscordGateway(
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   let closed = false;
   let helloReceived = false;
+  let botUserId: string | undefined;
 
   const stopPromise = new Promise<void>((resolve) => {
     ws.addEventListener("close", () => resolve());
@@ -78,11 +85,12 @@ export async function connectDiscordGateway(
       }
       await stopPromise;
     },
+    getBotUserId: () => botUserId,
   };
 
-  const helloPromise = new Promise<void>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("Discord gateway HELLO timeout")), 15_000);
-    const done = () => {
+  const handshakePromise = new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Discord gateway HELLO/READY timeout")), 30_000);
+    const finish = () => {
       clearTimeout(t);
       resolve();
     };
@@ -125,13 +133,25 @@ export async function connectDiscordGateway(
           },
         };
         ws.send(JSON.stringify(identify));
-        done();
+        return;
+      }
+
+      if (msg.op === 0 && msg.t === "READY") {
+        const id = discordReadyPayloadToBotUserId(msg.d);
+        if (id) botUserId = id;
+        finish();
         return;
       }
 
       if (msg.op === 0 && msg.t === "MESSAGE_CREATE") {
         const inbound = discordMessageCreateToInboundEvent(msg.d, { allowBotMessages: allowBot });
         if (inbound) options.onMessageCreate(inbound);
+        return;
+      }
+
+      if (msg.op === 0 && msg.t === "MESSAGE_REACTION_ADD") {
+        const rev = discordMessageReactionAddToEvent(msg.d);
+        if (rev) options.onMessageReactionAdd?.(rev);
       }
     });
   });
@@ -145,7 +165,7 @@ export async function connectDiscordGateway(
     );
   });
 
-  await helloPromise;
+  await handshakePromise;
 
   return session;
 }

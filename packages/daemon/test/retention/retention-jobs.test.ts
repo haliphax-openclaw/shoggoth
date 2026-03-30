@@ -9,6 +9,7 @@ import { defaultConfig } from "@shoggoth/shared";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
 import { runRetentionJobs, retentionScheduleIntervalMs } from "../../src/retention/retention-jobs";
+import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), "shoggoth-ret-"));
@@ -104,20 +105,24 @@ describe("retention jobs", () => {
   });
 
   it("deletes transcript rows by age and by per-session cap", async () => {
+    createSessionStore(db).create({ id: "s1", workspacePath: "/w", status: "active" });
+    const seg = getSessionContextSegmentId(db, "s1");
     db.prepare(
-      `INSERT INTO sessions (id, workspace_path, status) VALUES ('s1', '/w', 'active')`,
-    ).run();
-
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, created_at)
+       VALUES (?, ?, 1, 'user', 'a', datetime('now', '-30 days'))`,
+    ).run("s1", seg);
     db.prepare(
-      `
-      INSERT INTO transcript_messages (session_id, seq, role, content, created_at)
-      VALUES
-        ('s1', 1, 'user', 'a', datetime('now', '-30 days')),
-        ('s1', 2, 'user', 'b', datetime('now')),
-        ('s1', 3, 'user', 'c', datetime('now')),
-        ('s1', 4, 'user', 'd', datetime('now'))
-    `,
-    ).run();
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, created_at)
+       VALUES (?, ?, 2, 'user', 'b', datetime('now'))`,
+    ).run("s1", seg);
+    db.prepare(
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, created_at)
+       VALUES (?, ?, 3, 'user', 'c', datetime('now'))`,
+    ).run("s1", seg);
+    db.prepare(
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, created_at)
+       VALUES (?, ?, 4, 'user', 'd', datetime('now'))`,
+    ).run("s1", seg);
 
     const media = join(tmp, "media");
     mkdirSync(media);

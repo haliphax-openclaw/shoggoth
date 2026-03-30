@@ -1,0 +1,102 @@
+import assert from "node:assert";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import Database from "better-sqlite3";
+import { defaultConfig } from "@shoggoth/shared";
+import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
+import { createSessionStore } from "../../src/sessions/session-store";
+import { reconcilePersistentBoundSubagents } from "../../src/subagent/reconcile-persistent-bound-subagents";
+import { disposeSubagentRuntime } from "../../src/subagent/subagent-disposables";
+import { createLogger } from "../../src/logging";
+
+describe("reconcilePersistentBoundSubagents", () => {
+  let dir: string;
+  let db: Database.Database;
+
+  beforeEach(() => {
+    dir = join(tmpdir(), `sh-subrecon-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    const dbPath = join(dir, "state.db");
+    db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("restores active bound rows and registers thread + bus hooks", () => {
+    const sessions = createSessionStore(db);
+    const parent = "agent:p:discord:10000000-0000-4000-8000-000000000099";
+    const child = "agent:p:discord:10000000-0000-4000-8000-000000000099:aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee";
+    sessions.create({ id: parent, workspacePath: "/w", status: "active" });
+    sessions.create({ id: child, workspacePath: "/w", status: "active" });
+    const future = Date.now() + 3_600_000;
+    sessions.update(child, {
+      parentSessionId: parent,
+      subagentMode: "bound",
+      subagentDiscordThreadId: "thread-snowflake-1",
+      subagentExpiresAtMs: future,
+    });
+
+    const registered: string[] = [];
+    const subscribed: string[] = [];
+    const log = createLogger({ component: "t", minLevel: "error" });
+    const r = reconcilePersistentBoundSubagents({
+      db,
+      config: defaultConfig(dir),
+      logger: log,
+      ext: {
+        runSessionModelTurn: async () => ({ latestAssistantText: "", failoverMeta: undefined }),
+        subscribeSubagentSession: (sid) => {
+          subscribed.push(sid);
+          return () => {};
+        },
+        registerDiscordThreadBinding: (tid, sid) => {
+          registered.push(`${tid}:${sid}`);
+          return () => {};
+        },
+      },
+    });
+
+    assert.equal(r.restored, 1);
+    assert.equal(r.expiredKilled, 0);
+    assert.deepStrictEqual(registered, ["thread-snowflake-1:" + child]);
+    assert.deepStrictEqual(subscribed, [child]);
+    disposeSubagentRuntime(child);
+  });
+
+  it("kills sessions already past expires_at", () => {
+    const sessions = createSessionStore(db);
+    const parent = "agent:p:discord:20000000-0000-4000-8000-000000000099";
+    const child = "agent:p:discord:20000000-0000-4000-8000-000000000099:bbbbbbbb-bbbb-4ccc-dddd-eeeeeeeeeeee";
+    sessions.create({ id: parent, workspacePath: "/w", status: "active" });
+    sessions.create({ id: child, workspacePath: "/w", status: "active" });
+    sessions.update(child, {
+      parentSessionId: parent,
+      subagentMode: "bound",
+      subagentDiscordThreadId: "thread-x",
+      subagentExpiresAtMs: Date.now() - 1000,
+    });
+
+    const log = createLogger({ component: "t", minLevel: "error" });
+    const r = reconcilePersistentBoundSubagents({
+      db,
+      config: defaultConfig(dir),
+      logger: log,
+      ext: {
+        runSessionModelTurn: async () => ({ latestAssistantText: "", failoverMeta: undefined }),
+        subscribeSubagentSession: () => () => {},
+        registerDiscordThreadBinding: () => () => {},
+      },
+    });
+
+    assert.equal(r.restored, 0);
+    assert.equal(r.expiredKilled, 1);
+    const row = sessions.getById(child);
+    assert.equal(row?.status, "terminated");
+  });
+});

@@ -30,6 +30,7 @@ import {
   resolveCronTickIntervalMs,
   resolveDiscordAllowBotMessages,
   resolveDiscordIntents,
+  resolveDiscordOwnerUserId,
   resolveDiscordRoutesJson,
   resolveDrainTimeoutMs,
   resolveHeartbeatBatchSize,
@@ -44,12 +45,28 @@ import { bootstrapPlugins } from "./plugins/bootstrap";
 import { createDaemonRuntime } from "./runtime";
 import { createToolRunStore } from "./sessions/tool-run-store";
 import { startDiscordPlatform } from "./platforms/discord";
+import { reconcilePersistentBoundSubagents } from "./subagent/reconcile-persistent-bound-subagents";
+import { setSubagentRuntimeExtension } from "./subagent/subagent-extension-ref";
 import { defaultDiscordAssistantDeps } from "./sessions/assistant-runtime";
+import { createPersistingHitlAutoApproveGate } from "./hitl/hitl-auto-approve-persisting";
+import { type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
+import {
+  createHitlDiscordNoticeRegistry,
+  type HitlDiscordNoticeRegistry,
+} from "./hitl/hitl-discord-notice-registry";
+import { handleDiscordHitlReactionAdd } from "./hitl/discord-hitl-reaction-handler";
 import { createHitlPendingResolutionStack, type HitlPendingStack } from "./hitl/hitl-pending-stack";
 import {
   startDiscordMessagingIfConfigured,
   type DiscordMessagingRuntime,
 } from "./messaging/discord-bridge";
+import { loadDaemonNotices } from "./notices/load-notices";
+import { loadDaemonPrompts } from "./prompts/load-prompts";
+import { registerBuiltInMessagingPlatforms } from "./messaging/register-built-in-messaging-platforms";
+
+loadDaemonPrompts();
+loadDaemonNotices();
+registerBuiltInMessagingPlatforms();
 
 const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
 const config = loadLayeredConfig(configDir);
@@ -127,6 +144,20 @@ void (async () => {
     });
   }
 
+  let hitlDiscordNoticeRegistry: HitlDiscordNoticeRegistry | undefined;
+  let hitlAutoApproveGate: HitlAutoApproveGate | undefined;
+  const reactionBotUserIdRef = { current: undefined as string | undefined };
+  if (hitlStack && stateDb) {
+    hitlDiscordNoticeRegistry = createHitlDiscordNoticeRegistry();
+    hitlAutoApproveGate = createPersistingHitlAutoApproveGate({
+      db: stateDb,
+      configDirectory: configRef.current.configDirectory,
+      configRef,
+      hitlRef,
+      logger: rt.logger.child({ subsystem: "hitl-auto-approve" }),
+    });
+  }
+
   try {
     await startControlPlane({
       config,
@@ -165,6 +196,22 @@ void (async () => {
       routesJson: resolveDiscordRoutesJson(configRef.current),
       intents: resolveDiscordIntents(configRef.current),
       allowBotMessages: resolveDiscordAllowBotMessages(configRef.current),
+      ownerUserId: resolveDiscordOwnerUserId(configRef.current),
+      routeGuardConfig: configRef.current,
+      onMessageReactionAdd:
+        hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
+          ? (ev) =>
+              handleDiscordHitlReactionAdd({
+                ev,
+                pending: hitlStack.pending,
+                registry: hitlDiscordNoticeRegistry!,
+                autoApprove: hitlAutoApproveGate!,
+                ownerUserId: resolveDiscordOwnerUserId(configRef.current),
+                botUserIdRef: reactionBotUserIdRef,
+                logger: msgLog.child({ subsystem: "discord-reactions" }),
+              })
+          : undefined,
+      reactionBotUserIdRef,
     });
     if (discordMessaging) {
       rt.shutdown.registerDrain("discord-messaging", () => discordMessaging!.stop());
@@ -208,14 +255,38 @@ void (async () => {
     const discordPlatform = await startDiscordPlatform({
       db,
       config,
+      configRef,
       policyEngine,
       hitlConfigRef: hitlRef,
       hitlPending: hitlStack,
+      hitlDiscordNoticeRegistry,
+      hitlAutoApproveGate,
       logger: msgLog.child({ subsystem: "discord" }),
       discord: discordMessaging,
       deps: defaultDiscordAssistantDeps,
     });
-    rt.shutdown.registerDrain("discord", () => discordPlatform.stop());
+    const subagentExt = {
+      runSessionModelTurn: discordPlatform.runSessionModelTurn,
+      subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
+      registerDiscordThreadBinding: discordMessaging.registerDiscordThreadBinding,
+    };
+    setSubagentRuntimeExtension(subagentExt);
+    const subRecon = reconcilePersistentBoundSubagents({
+      db,
+      config,
+      logger: msgLog.child({ subsystem: "subagent-reconcile" }),
+      ext: subagentExt,
+    });
+    if (subRecon.restored > 0 || subRecon.expiredKilled > 0) {
+      msgLog.info("subagent.persisted_reconciled", {
+        restored: subRecon.restored,
+        expired_killed: subRecon.expiredKilled,
+      });
+    }
+    rt.shutdown.registerDrain("discord", async () => {
+      await discordPlatform.stop();
+      setSubagentRuntimeExtension(undefined);
+    });
   }
 
   const heartbeatMs = resolveHeartbeatIntervalMs(configRef.current);

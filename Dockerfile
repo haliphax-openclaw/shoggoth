@@ -22,6 +22,7 @@ COPY --from=build /app/package.json ./
 COPY scripts ./scripts
 COPY templates/agent-workspace /app/templates/agent-workspace
 COPY migrations /app/migrations
+COPY docs /app/docs
 # Layered JSON defaults (same as repo config/example-overlay). Baked in so bind mounts from the daemon host are not required.
 COPY config/example-overlay/ /etc/shoggoth/config.d/
 # Readiness compose exec smoke scripts (tests/readiness-compose.test.mjs); avoid bind-mounting ./tests (daemon path mismatch on some hosts).

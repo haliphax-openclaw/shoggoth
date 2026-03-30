@@ -20,6 +20,8 @@ export interface DiscordInboundEvent {
   readonly channelId: string;
   readonly guildId?: string;
   readonly authorId: string;
+  /** From Gateway `author.bot` (false when omitted in payload). */
+  readonly authorIsBot: boolean;
   readonly content: string;
   readonly timestampIso: string;
   readonly attachments?: readonly DiscordInboundAttachment[];
@@ -27,8 +29,23 @@ export interface DiscordInboundEvent {
   readonly threadId?: string;
 }
 
+/** Gateway `MESSAGE_REACTION_ADD` (unicode or custom emoji). */
+export interface DiscordReactionAddEvent {
+  readonly kind: "message_reaction_add";
+  readonly userId: string;
+  readonly channelId: string;
+  readonly messageId: string;
+  readonly guildId?: string;
+  readonly emoji: { readonly id: string | null; readonly name: string | null };
+}
+
 export interface DiscordAdapterConfig {
   readonly routes: readonly DiscordSessionRoute[];
+  /**
+   * When set, inbound messages whose Gateway payload includes `threadId` (forum / thread channel)
+   * can resolve to a dynamically registered subagent session before falling back to channel routes.
+   */
+  readonly resolveThreadSessionId?: (threadId: string) => string | undefined;
 }
 
 export interface DiscordAdapter {
@@ -39,7 +56,19 @@ function resolveSessionId(
   routes: readonly DiscordSessionRoute[],
   guildId: string | undefined,
   channelId: string,
+  resolveThread: DiscordAdapterConfig["resolveThreadSessionId"],
+  threadId: string | undefined,
 ): string {
+  if (resolveThread) {
+    const keys = [channelId.trim(), threadId?.trim()].filter((k): k is string => Boolean(k));
+    const seen = new Set<string>();
+    for (const key of keys) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const sid = resolveThread(key);
+      if (sid) return sid;
+    }
+  }
   for (const r of routes) {
     if (r.channelId !== channelId) continue;
     if (r.guildId !== undefined && r.guildId !== guildId) continue;
@@ -54,10 +83,11 @@ function resolveSessionId(
 
 export function createDiscordAdapter(config: DiscordAdapterConfig): DiscordAdapter {
   const routes = config.routes;
+  const resolveThread = config.resolveThreadSessionId;
 
   return {
     inboundToInternal(ev: DiscordInboundEvent) {
-      const sessionId = resolveSessionId(routes, ev.guildId, ev.channelId);
+      const sessionId = resolveSessionId(routes, ev.guildId, ev.channelId, resolveThread, ev.threadId);
       const attachments: MessageAttachment[] | undefined = ev.attachments?.map((a) => ({
         id: a.id,
         url: a.url,

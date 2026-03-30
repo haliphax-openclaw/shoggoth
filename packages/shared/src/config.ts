@@ -9,7 +9,14 @@ import {
 } from "./schema";
 
 function listJsonFilesSorted(dir: string): string[] {
-  const names = readdirSync(dir).filter((n) => n.endsWith(".json"));
+  const names = readdirSync(dir).filter((n) => {
+    if (!n.endsWith(".json")) return false;
+    try {
+      return statSync(join(dir, n)).isFile();
+    } catch {
+      return false;
+    }
+  });
   names.sort((a, b) => a.localeCompare(b, "en"));
   return names.map((n) => join(dir, n));
 }

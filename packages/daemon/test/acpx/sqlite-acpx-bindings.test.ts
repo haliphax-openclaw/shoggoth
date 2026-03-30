@@ -3,14 +3,13 @@ import assert from "node:assert";
 import Database from "better-sqlite3";
 import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
 import { createSqliteAcpxBindingStore } from "../../src/acpx/sqlite-acpx-bindings";
+import { createSessionStore } from "../../src/sessions/session-store";
 
 describe("sqlite-acpx-bindings", () => {
   it("upserts and lists acpx workspace bindings", () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    db.prepare(
-      `INSERT INTO sessions (id, workspace_path, status) VALUES (?, ?, ?)`,
-    ).run("sess-a", "/w", "active");
+    createSessionStore(db).create({ id: "sess-a", workspacePath: "/w", status: "active" });
 
     const store = createSqliteAcpxBindingStore(db);
     store.upsert({

@@ -18,6 +18,29 @@ function sseResponse(lines: readonly string[]): Response {
 }
 
 describe("createOpenAICompatibleProvider", () => {
+  it("complete sends reasoning_effort when set", async () => {
+    let body: string | undefined;
+    const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
+      body = init?.body as string;
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "ok" } }] }),
+        { status: 200 },
+      );
+    };
+    const p = createOpenAICompatibleProvider({
+      id: "oai",
+      baseUrl: "https://api.openai.com/v1",
+      fetchImpl,
+    });
+    await p.complete({
+      model: "gpt-5",
+      messages: [{ role: "user", content: "hi" }],
+      reasoningEffort: "medium",
+    });
+    const j = JSON.parse(body ?? "{}") as { reasoning_effort?: string };
+    assert.equal(j.reasoning_effort, "medium");
+  });
+
   it("POSTs chat/completions and returns assistant text", async () => {
     const messages: ChatMessage[] = [{ role: "user", content: "hi" }];
     let capturedUrl: string | undefined;

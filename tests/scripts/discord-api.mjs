@@ -1,6 +1,7 @@
 /**
  * Host-side helpers for readiness tests (Discord REST). Uses DISCORD_BOT_TOKEN from env only.
  */
+import { readinessDmSessionUrn, readinessGuildSessionUrn } from "@shoggoth/shared";
 
 const API = "https://discord.com/api/v10";
 
@@ -50,9 +51,9 @@ export async function buildDiscordRoutesJson(token, options) {
     guildId = "695327822306345040",
     /** Default: readiness channel <#1487579255616573533> (not #developer). */
     channelId = "1487579255616573533",
-    guildSessionId = "readiness-guild",
+    guildSessionId = readinessGuildSessionUrn("readiness"),
     dmUserId = "347033761822801922",
-    dmSessionId = "readiness-dm",
+    dmSessionId = readinessDmSessionUrn("readiness"),
     includeDm = true,
   } = options;
 

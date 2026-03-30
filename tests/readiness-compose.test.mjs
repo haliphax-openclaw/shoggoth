@@ -27,8 +27,10 @@ import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { describe, it, before, after } from "node:test";
+import { readinessGuildSessionUrn } from "@shoggoth/shared";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const readinessGuildSessionId = readinessGuildSessionUrn("readiness");
 const extraCompose = process.env.SHOGGOTH_EXTRA_COMPOSE_FILE?.trim();
 const extraComposePath = extraCompose
   ? extraCompose.startsWith("/")
@@ -188,9 +190,7 @@ describe(
         env.SHOGGOTH_DISCORD_ROUTES = await buildDiscordRoutesJson(token, {
           guildId: "695327822306345040",
           channelId: readinessDiscordChannelId,
-          guildSessionId: "readiness-guild",
           dmUserId: "347033761822801922",
-          dmSessionId: "readiness-dm",
           includeDm: true,
         });
       } else {
@@ -272,7 +272,7 @@ describe(
       const out = execInShoggoth("shoggoth", "tests/scripts/bootstrap-sessions.mjs");
       const j = JSON.parse(out);
       assert.equal(j.ok, true);
-      assert.ok(j.sessions.includes("readiness-guild"));
+      assert.ok(j.sessions.includes(readinessGuildSessionId));
     });
 
     it("§15: migrated SQLite schema includes core tables", () => {
@@ -372,9 +372,25 @@ describe(
       assert.ok(j.supports?.markdown === true || j.extensions?.streamingOutbound === true);
     });
 
-    it("§12: session compact CLI returns JSON for readiness-guild", async () => {
+    it("§12: session compact CLI returns JSON for readiness guild session URN", async () => {
       const out = runDocker(
-        [...composeBase, "exec", "-T", "-u", "shoggoth", "-w", "/app", "shoggoth", "node", "--import", "tsx/esm", "packages/cli/src/cli.ts", "session", "compact", "readiness-guild"],
+        [
+          ...composeBase,
+          "exec",
+          "-T",
+          "-u",
+          "shoggoth",
+          "-w",
+          "/app",
+          "shoggoth",
+          "node",
+          "--import",
+          "tsx/esm",
+          "packages/cli/src/cli.ts",
+          "session",
+          "compact",
+          readinessGuildSessionId,
+        ],
         { encoding: "utf8" },
       );
       const j = JSON.parse(out.trim());

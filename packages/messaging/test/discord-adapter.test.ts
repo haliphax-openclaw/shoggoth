@@ -21,6 +21,7 @@ describe("Discord adapter", () => {
       channelId: "c1",
       guildId: "g1",
       authorId: "user-7",
+      authorIsBot: false,
       content: "ping",
       timestampIso: "2026-03-27T21:05:00.000Z",
       attachments: [{ id: "att1", url: "https://cdn.discord/x.png", filename: "x.png" }],
@@ -36,6 +37,25 @@ describe("Discord adapter", () => {
     assert.equal(msg.extensions.attachments?.[0]?.filename, "x.png");
   });
 
+  it("resolves dynamic thread/channel id before static routes", () => {
+    const adapter = createDiscordAdapter({
+      routes,
+      resolveThreadSessionId: (id) => (id === "thread-99" ? "sub-sess" : undefined),
+    });
+    const ev: DiscordInboundEvent = {
+      kind: "message_create",
+      messageId: "m1",
+      channelId: "thread-99",
+      guildId: "g1",
+      authorId: "user-1",
+      authorIsBot: false,
+      content: "in thread",
+      timestampIso: "2026-03-27T21:05:00.000Z",
+    };
+    const msg = adapter.inboundToInternal(ev);
+    assert.equal(msg.sessionId, "sub-sess");
+  });
+
   it("throws when channel is not routed", () => {
     const adapter = createDiscordAdapter({ routes });
     const ev: DiscordInboundEvent = {
@@ -44,6 +64,7 @@ describe("Discord adapter", () => {
       channelId: "unknown",
       guildId: "g1",
       authorId: "u",
+      authorIsBot: false,
       content: "nope",
       timestampIso: "2026-03-27T21:05:00.000Z",
     };

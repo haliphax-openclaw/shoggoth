@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   ChatToolCall,
   ModelCompleteInput,
+  ModelInvocationParams,
   ModelProvider,
   ModelStreamTextDeltaCallback,
   ModelToolCompleteInput,
@@ -27,6 +28,26 @@ export interface AnthropicMessagesProviderOptions {
 
 const DEFAULT_ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_THINKING_BUDGET_TOKENS = 10_000;
+
+function applyAnthropicMessagesRequestExtensions(
+  body: Record<string, unknown>,
+  input: Pick<ModelInvocationParams, "thinking" | "requestExtras">,
+): void {
+  const th = input.thinking;
+  if (th?.enabled === true) {
+    body.thinking = {
+      type: "enabled",
+      budget_tokens: th.budgetTokens ?? DEFAULT_THINKING_BUDGET_TOKENS,
+    };
+  } else if (th?.enabled === false) {
+    body.thinking = { type: "disabled" };
+  }
+  const x = input.requestExtras;
+  if (x && typeof x === "object") {
+    Object.assign(body, x);
+  }
+}
 /** Anthropic tool names must match `^[a-zA-Z0-9_-]{1,64}$` (dots/colons from OpenAI/MCP are invalid). */
 const ANTHROPIC_TOOL_NAME_MAX = 64;
 
@@ -553,6 +574,7 @@ export function createAnthropicMessagesProvider(
         temperature: input.temperature,
       };
       if (system !== undefined) body.system = system;
+      applyAnthropicMessagesRequestExtensions(body, input);
 
       const res = await fetchImpl(url, {
         method: "POST",
@@ -644,6 +666,7 @@ export function createAnthropicMessagesProvider(
         body.tools = anthropicTools;
         body.tool_choice = { type: "auto" };
       }
+      applyAnthropicMessagesRequestExtensions(body, input);
 
       const res = await fetchImpl(url, {
         method: "POST",

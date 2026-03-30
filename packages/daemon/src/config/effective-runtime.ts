@@ -1,4 +1,4 @@
-import type { ShoggothConfig } from "@shoggoth/shared";
+import { DEFAULT_MESSAGING_PLATFORM_ID, type ShoggothConfig } from "@shoggoth/shared";
 
 function envInt(key: string): number | undefined {
   const v = process.env[key];
@@ -45,6 +45,20 @@ export function isConfigHotReloadEnabled(cfg: ShoggothConfig): boolean {
   return true;
 }
 
+/** Env `SHOGGOTH_AGENT_ID` wins; else `runtime.agentId`; default `main`. */
+export function resolveShoggothAgentId(cfg: ShoggothConfig): string {
+  const e = process.env.SHOGGOTH_AGENT_ID?.trim();
+  if (e) return e;
+  return cfg.runtime?.agentId?.trim() || "main";
+}
+
+/** Env `SHOGGOTH_DEFAULT_SESSION_PLATFORM` wins; else `runtime.defaultSessionPlatform`; else {@link DEFAULT_MESSAGING_PLATFORM_ID}. */
+export function resolveDefaultSessionPlatform(cfg: ShoggothConfig): string {
+  const e = process.env.SHOGGOTH_DEFAULT_SESSION_PLATFORM?.trim();
+  if (e) return e;
+  return cfg.runtime?.defaultSessionPlatform?.trim() || DEFAULT_MESSAGING_PLATFORM_ID;
+}
+
 export function resolveDiscordRoutesJson(cfg: ShoggothConfig): string | undefined {
   const e = process.env.SHOGGOTH_DISCORD_ROUTES?.trim();
   if (e) return e;
@@ -65,6 +79,13 @@ export function resolveDiscordAllowBotMessages(cfg: ShoggothConfig): boolean {
   if (e === "1") return true;
   if (e === "0") return false;
   return cfg.discord?.allowBotMessages === true;
+}
+
+/** Env `SHOGGOTH_DISCORD_OWNER_USER_ID` wins; else layered `discord.ownerUserId`. */
+export function resolveDiscordOwnerUserId(cfg: ShoggothConfig): string | undefined {
+  const e = process.env.SHOGGOTH_DISCORD_OWNER_USER_ID?.trim();
+  if (e) return e;
+  return cfg.discord?.ownerUserId?.trim() || undefined;
 }
 
 /**
@@ -109,7 +130,10 @@ export function mergeOrchestratorEnv(cfg: ShoggothConfig, override?: NodeJS.Proc
   if (d?.streamMinIntervalMs != null) {
     setIfEmpty("SHOGGOTH_DISCORD_STREAM_MIN_MS", String(d.streamMinIntervalMs));
   }
+  setIfEmpty("SHOGGOTH_DISCORD_OWNER_USER_ID", d?.ownerUserId);
   if (r?.mcpLogServerMessages === true) setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
+  setIfEmpty("SHOGGOTH_AGENT_ID", r?.agentId);
+  setIfEmpty("SHOGGOTH_DEFAULT_SESSION_PLATFORM", r?.defaultSessionPlatform);
   const memEmb = cfg.memory?.embeddings;
   setIfEmpty("SHOGGOTH_MEMORY_OPENAI_BASE_URL", memEmb?.openaiBaseUrl);
   return base;

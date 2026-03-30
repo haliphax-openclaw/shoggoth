@@ -29,7 +29,7 @@ Invalid JSON or schema errors: previous config is kept; check logs for `config h
 
 - Default search uses SQLite FTS5 (BM25). Set **`memory.embeddings.enabled`: true** to also rank via OpenAI-compatible **`POST …/v1/embeddings`** when a query embedding can be obtained and stored vectors exist for the same **`memory.embeddings.modelId`** (default `text-embedding-3-small`). On API errors or missing vectors, search falls back to FTS only.
 - **`memory.ingest`** still updates markdown rows first; when embeddings are enabled it then requests embeddings only for documents whose **`content_sha256`** changed since the last stored row (avoids redundant calls).
-- Credentials / base URL: **`OPENAI_API_KEY`** (or **`memory.embeddings.apiKeyEnv`**) and, in order, **`SHOGGOTH_MEMORY_OPENAI_BASE_URL`** (merged from **`memory.embeddings.openaiBaseUrl`** when unset in env), **`OPENAI_BASE_URL`**, **`OLLAMA_HOST`**, **`runtime.openaiBaseUrl`**, then the public OpenAI origin. Apply migration **`0008_memory_embedding_content_sha`** with the daemon so `memory_embeddings.content_sha256` exists.
+- Credentials / base URL: **`OPENAI_API_KEY`** (or **`memory.embeddings.apiKeyEnv`**) and, in order, **`SHOGGOTH_MEMORY_OPENAI_BASE_URL`** (merged from **`memory.embeddings.openaiBaseUrl`** when unset in env), **`OPENAI_BASE_URL`**, **`OLLAMA_HOST`**, **`runtime.openaiBaseUrl`**, then the public OpenAI origin. The schema defines **`memory_embeddings.content_sha256`** for skipping redundant embedding calls.
 
 ## Human-in-the-loop (HITL)
 
@@ -50,15 +50,11 @@ For manual/staging checks before release:
 
 If you see `SQLITE_BUSY` or heartbeat backlog growth, reduce concurrency or batch size, or scale out only after validating SQLite single-writer limits for your workload.
 
-## Release checklist (migration N → N+1)
+## Schema changes (prototype)
 
-Use before tagging / promoting an image:
+There is **no** incremental upgrade path for the SQLite schema. **`migrations/0001_initial.sql`** defines the full database; when it changes, **delete the state DB** (or the whole state volume) and let the daemon recreate it.
 
-1. **Migrations:** run the new daemon once against a **copy** of production state; confirm all migrations apply (`migrate` logs). Run `PRAGMA user_version` / inspect migration table if you track versions in SQL.
-2. **Rollback:** keep the previous image tag and state backup; rollback = stop, restore state volume from backup taken at upgrade boundary, start previous image. Document any one-way migrations as **no rollback** in release notes.
-3. **Breaking config:** check layered JSON for renames or stricter schema in `shoggothConfigFragmentSchema` (`@shoggoth/shared`). Breaking keys should be listed in the release notes (examples: path layout, policy shape, MCP entry transport fields).
-4. **Secrets / tokens:** rotate Discord bot token in orchestrator secrets; restart workers that cache env.
-5. **Smoke:** health via control `health` op; one end-to-end session turn; optional load smoke above.
+Before tagging an image: check layered config for breaking JSON changes, rotate secrets as needed, run smoke (control `health`, one session turn).
 
 ## Backup and restore
 
@@ -77,15 +73,15 @@ Use before tagging / promoting an image:
 
 ## Clear DLQ / failed events
 
-- Failed or poisoned work lives in SQLite (events queue and related tables per migration version).
+- Failed or poisoned work lives in SQLite (`events` and related tables).
 - **Operator visibility:** use read-only SQL against the state DB, or the CLI if exposed for your version.
 - **Clearing:** prefer marking rows for retry or deletion via supported tooling; ad-hoc `DELETE` only after understanding schema (`events`, status columns, and DLQ semantics).
 - Take a **backup** before bulk deletes.
 
 ## Inspect audit log
 
-- Audit entries are stored per schema (append-only table or rotated files per deployment).
-- Query the **audit** table (name/columns per current migrations) filtering by `source` (`cli_socket`, `agent`, `system`), time range, and correlation id.
+- Audit entries are append-only rows in **`audit_log`**.
+- Query **`audit_log`** filtering by `source` (`cli_socket`, `agent`, `system`), time range, and correlation id.
 - Redacted fields follow the configured redaction policy for tool arguments.
 
 ## Control socket permissions

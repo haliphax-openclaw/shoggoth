@@ -1,5 +1,5 @@
 import type { FailoverModelClient } from "./failover";
-import type { ChatMessage } from "./types";
+import type { ChatMessage, ModelInvocationParams } from "./types";
 
 export interface CompactionPolicy {
   /** When total transcript characters exceed this, auto-compaction runs (unless only tail remains). */
@@ -12,6 +12,8 @@ export interface CompactionPolicy {
 
 export interface CompactTranscriptOptions {
   readonly force?: boolean;
+  /** Merged into the summarization `complete()` call (defaults still apply for unset fields). */
+  readonly modelInvocation?: ModelInvocationParams;
 }
 
 export interface CompactTranscriptResult {
@@ -84,10 +86,14 @@ export async function compactTranscriptIfNeeded(
     { role: "user", content: excerpt },
   ];
 
+  const inv = options.modelInvocation ?? {};
   const summaryOut = await client.complete({
     messages: summarizerMessages,
-    maxOutputTokens: policy.summaryMaxOutputTokens,
-    temperature: 0.2,
+    maxOutputTokens: inv.maxOutputTokens ?? policy.summaryMaxOutputTokens,
+    temperature: inv.temperature ?? 0.2,
+    thinking: inv.thinking,
+    reasoningEffort: inv.reasoningEffort,
+    requestExtras: inv.requestExtras,
   });
 
   const summaryBlock: ChatMessage = {

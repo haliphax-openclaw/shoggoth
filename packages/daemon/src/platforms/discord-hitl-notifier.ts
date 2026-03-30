@@ -1,4 +1,7 @@
+import { daemonNotice } from "../notices/load-notices";
+import { registerDiscordHitlNoticeAndAddReactions } from "../hitl/discord-hitl-reaction-wiring";
 import type { HitlNotifier } from "../hitl/hitl-notifier";
+import type { HitlDiscordNoticeRegistry } from "../hitl/hitl-discord-notice-registry";
 import type { PendingActionRow } from "../hitl/pending-actions-store";
 import type { Logger } from "../logging";
 import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
@@ -26,27 +29,26 @@ export function formatHitlPayloadExcerpt(
 
 /** Shared copy for operator channel posts and in-session Discord replies when HITL queues. */
 export function buildHitlQueuedNoticeLines(row: PendingActionRow): string[] {
-  const lines = [
-    "**HITL** — tool blocked pending human approval",
-    `id: \`${row.id}\``,
-    `session: \`${row.sessionId}\``,
-    `tool: \`${row.toolName}\` (${row.riskTier})`,
-  ];
-  if (row.correlationId) lines.push(`run: \`${row.correlationId}\``);
+  const correlationLine = row.correlationId ? `run: \`${row.correlationId}\`\n` : "";
   const payloadExcerpt = formatHitlPayloadExcerpt(row.payload);
-  if (payloadExcerpt) {
-    lines.push(`payload (truncated): \`${payloadExcerpt}\``);
-  }
-  lines.push(
-    "Approve: `shoggoth hitl approve <id>` · Deny: `shoggoth hitl deny <id>` (or control ops `hitl_pending_approve` / `hitl_pending_deny`).",
-  );
-  return lines;
+  const payloadLine = payloadExcerpt ? `payload (truncated): \`${payloadExcerpt}\`\n` : "";
+  const text = daemonNotice("hitl-queued-notice", {
+    id: row.id,
+    sessionId: row.sessionId,
+    toolName: row.toolName,
+    riskTier: row.riskTier,
+    correlationLine,
+    payloadLine,
+  });
+  return text.split("\n");
 }
 
 export function createDiscordHitlNotifier(input: {
   readonly logger: Logger;
   readonly env: NodeJS.ProcessEnv;
   readonly discord: DiscordMessagingRuntime;
+  /** When set, REST-posted notices get reaction “buttons” and registry entries for owner approval. */
+  readonly hitlDiscordNoticeRegistry?: HitlDiscordNoticeRegistry;
 }): HitlNotifier {
   const hitlNotifyChannelId = input.env.SHOGGOTH_HITL_NOTIFY_CHANNEL_ID?.trim();
   const hitlNotifyWebhookUrl = input.env.SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL?.trim();
@@ -109,13 +111,35 @@ export function createDiscordHitlNotifier(input: {
       if (hitlNotifyChannelId) {
         void input.discord.discordRestTransport
           .createMessage(hitlNotifyChannelId, { content })
+          .then(async (sent) => {
+            if (!input.hitlDiscordNoticeRegistry) return;
+            await registerDiscordHitlNoticeAndAddReactions({
+              transport: input.discord.discordRestTransport,
+              channelId: hitlNotifyChannelId,
+              messageId: sent.id,
+              row,
+              registry: input.hitlDiscordNoticeRegistry,
+              logger: input.logger,
+            });
+          })
           .catch((e) => {
             input.logger.warn("hitl.discord_notify_failed", { err: String(e) });
           });
       }
       if (hitlNotifyDmUserId) {
         void resolveDmChannelId()
-          .then((ch) => input.discord.discordRestTransport.createMessage(ch, { content }))
+          .then(async (ch) => {
+            const sent = await input.discord.discordRestTransport.createMessage(ch, { content });
+            if (!input.hitlDiscordNoticeRegistry) return;
+            await registerDiscordHitlNoticeAndAddReactions({
+              transport: input.discord.discordRestTransport,
+              channelId: ch,
+              messageId: sent.id,
+              row,
+              registry: input.hitlDiscordNoticeRegistry,
+              logger: input.logger,
+            });
+          })
           .catch((e) => {
             input.logger.warn("hitl.discord_dm_notify_failed", { err: String(e) });
           });

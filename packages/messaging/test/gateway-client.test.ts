@@ -42,6 +42,15 @@ describe("connectDiscordGateway", () => {
             data: JSON.stringify({ op: 10, d: { heartbeat_interval: 60_000 } }),
           });
         },
+        deliverReady() {
+          emit("message", {
+            data: JSON.stringify({
+              op: 0,
+              t: "READY",
+              d: { user: { id: "bot-ready-1", username: "shoggoth" } },
+            }),
+          });
+        },
         deliverMessageCreate() {
           emit("message", {
             data: JSON.stringify({
@@ -87,7 +96,11 @@ describe("connectDiscordGateway", () => {
     await new Promise<void>((r) => setImmediate(r));
     assert.ok(sent.some((s) => s.includes('"op":2')));
 
+    sock!.deliverReady();
+    await new Promise<void>((r) => setImmediate(r));
+
     const session = await sessionP;
+    assert.equal(session.getBotUserId(), "bot-ready-1");
     sock!.deliverMessageCreate();
     await new Promise<void>((r) => setImmediate(r));
     assert.deepEqual(inbound, ["m2"]);

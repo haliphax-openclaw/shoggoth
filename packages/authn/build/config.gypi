@@ -508,7 +508,7 @@
     "prefix": "/home/node/npm",
     "local_prefix": "/home/node/.openclaw/workspaces/developer/shoggoth",
     "userconfig": "/home/node/.npmrc",
-    "user_agent": "npm/11.9.0 node/v24.14.0 linux x64 workspaces/true"
+    "user_agent": "npm/11.9.0 node/v24.14.0 linux x64 workspaces/false"
   },
   "target_defaults": {
     "include_dirs": [],

@@ -1,4 +1,5 @@
 import { ModelHttpError } from "@shoggoth/models";
+import { daemonNotice } from "../notices/load-notices";
 
 /** Discord message body limit; success and error replies are sliced to this length. */
 export const DISCORD_PLATFORM_MAX_MESSAGE_BODY_CHARS = 2000;
@@ -19,17 +20,14 @@ export function formatDiscordPlatformErrorUserText(e: unknown): string {
   if (e instanceof TypeError) {
     const m = e.message ?? "";
     if (FETCH_LIKE_TYPEERROR.test(m)) {
-      return "Network error reaching the model provider. Check connectivity and DNS, then try again.";
+      return daemonNotice("discord-error-network-fetch");
     }
   }
 
   const raw = e instanceof Error ? e.message : String(e);
   const hitlId = extractHitlPendingId(raw);
   if (hitlId) {
-    return (
-      "This action needs operator approval before it can run. " +
-      `Pending id: \`${hitlId}\`. An operator can approve or deny it via the pending-actions flow.`
-    );
+    return daemonNotice("discord-error-hitl-pending", { hitlId });
   }
 
   if (e instanceof Error) {
@@ -52,24 +50,24 @@ function extractHitlPendingId(s: string): string | undefined {
 function modelHttpErrorToDiscordMessage(err: ModelHttpError): string {
   switch (err.status) {
     case 429:
-      return "The model provider rate-limited this request. Wait a bit and try again.";
+      return daemonNotice("discord-error-model-429");
     case 502:
     case 503:
     case 504:
-      return "The model provider is temporarily unavailable (upstream error). Try again shortly.";
+      return daemonNotice("discord-error-model-502-504");
     case 500:
-      return "The model provider returned an internal error (HTTP 500). Try again later.";
+      return daemonNotice("discord-error-model-500");
     case 401:
-      return "Model API authentication failed (HTTP 401). Check API keys and provider configuration.";
+      return daemonNotice("discord-error-model-401");
     case 400: {
       const detail = err.bodySnippet?.trim();
       const excerpt = detail ? truncate(detail, 420) : "";
       return excerpt.length > 0
-        ? `Model request rejected (HTTP 400): ${excerpt}`
-        : "Model request rejected (HTTP 400). Check model id, message shape, and tool schemas.";
+        ? daemonNotice("discord-error-model-400-with-detail", { detail: excerpt })
+        : daemonNotice("discord-error-model-400-generic");
     }
     default:
-      return `Model request failed (HTTP ${err.status}). Try again or check provider status.`;
+      return daemonNotice("discord-error-model-default", { status: String(err.status) });
   }
 }
 

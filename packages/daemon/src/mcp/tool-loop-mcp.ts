@@ -5,6 +5,7 @@ import {
   type AggregateMcpCatalogResult,
   type McpSourceCatalog,
 } from "@shoggoth/mcp-integration";
+import { daemonPrompt } from "../prompts/load-prompts";
 import type { ToolExecutor } from "../sessions/tool-loop";
 
 export type BuiltinToolDelegate = (input: {
@@ -68,8 +69,7 @@ export function createMcpRoutingToolExecutor(options: {
           error: "mcp_external_transport_unavailable",
           sourceId: tool.sourceId,
           tool: tool.originalName,
-          detail:
-            "No MCP client subprocess/SDK is configured for this source; invocation is stubbed. See docs/mcp-transport.md",
+          detail: daemonPrompt("mcp-no-client-stub"),
         }),
       };
     },

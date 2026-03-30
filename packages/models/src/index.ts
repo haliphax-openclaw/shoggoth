@@ -23,7 +23,15 @@ export {
   type FailoverCompleteOutput,
   type FailoverModelClient,
 } from "./failover";
-export type { ChatMessage, ChatRole, ModelProvider, ModelCompleteInput, ModelCompleteOutput } from "./types";
+export type {
+  ChatMessage,
+  ChatRole,
+  ModelProvider,
+  ModelCompleteInput,
+  ModelCompleteOutput,
+  ModelInvocationParams,
+  ModelThinkingOptions,
+} from "./types";
 export {
   estimateTranscriptChars,
   shouldAutoCompact,
@@ -50,3 +58,9 @@ export type {
   ModelToolCompleteOutput,
   OpenAIToolFunctionDefinition,
 } from "./types";
+export {
+  mergeModelInvocationParams,
+  mergeModelInvocationOverlay,
+  mergeSubagentSpawnModelSelection,
+  parseModelInvocationFromUnknown,
+} from "./invocation-merge";

@@ -10,6 +10,8 @@ export interface TranscriptMessageRow {
 
 export interface AppendTranscriptInput {
   readonly sessionId: string;
+  /** Must match {@link SessionRow.contextSegmentId} for the session. */
+  readonly contextSegmentId: string;
   readonly role: string;
   readonly content?: string | null;
   readonly toolCallId?: string | null;
@@ -20,27 +22,36 @@ export interface TranscriptStore {
   append(input: AppendTranscriptInput): { seq: number };
   listPage(input: {
     sessionId: string;
+    contextSegmentId: string;
     afterSeq: number;
     limit: number;
   }): { messages: TranscriptMessageRow[]; nextCursor: number | undefined };
+  /** Removes all transcript rows for a session + segment (Discord `new` / `reset`). */
+  deleteForSessionSegment(sessionId: string, contextSegmentId: string): number;
 }
 
 export function createTranscriptStore(db: Database.Database): TranscriptStore {
+    /** Global per `session_id`; unique key is `(session_id, seq)`. */
   const nextSeq = db.prepare(`
     SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM transcript_messages WHERE session_id = @session_id
   `);
 
   const insert = db.prepare(`
-    INSERT INTO transcript_messages (session_id, seq, role, content, tool_call_id, metadata_json)
-    VALUES (@session_id, @seq, @role, @content, @tool_call_id, @metadata_json)
+    INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, tool_call_id, metadata_json)
+    VALUES (@session_id, @context_segment_id, @seq, @role, @content, @tool_call_id, @metadata_json)
   `);
 
   const selectPage = db.prepare(`
     SELECT seq, role, content, tool_call_id, metadata_json
     FROM transcript_messages
-    WHERE session_id = @session_id AND seq > @after_seq
+    WHERE session_id = @session_id AND context_segment_id = @context_segment_id AND seq > @after_seq
     ORDER BY seq ASC
     LIMIT @limit
+  `);
+
+  const delSegment = db.prepare(`
+    DELETE FROM transcript_messages
+    WHERE session_id = @session_id AND context_segment_id = @context_segment_id
   `);
 
   return {
@@ -49,6 +60,7 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
       const seq = row.n;
       insert.run({
         session_id: input.sessionId,
+        context_segment_id: input.contextSegmentId,
         seq,
         role: input.role,
         content: input.content ?? null,
@@ -58,9 +70,10 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
       return { seq };
     },
 
-    listPage({ sessionId, afterSeq, limit }) {
+    listPage({ sessionId, contextSegmentId, afterSeq, limit }) {
       const rows = selectPage.all({
         session_id: sessionId,
+        context_segment_id: contextSegmentId,
         after_seq: afterSeq,
         limit,
       }) as {
@@ -84,6 +97,14 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         messages.length >= limit && last !== undefined ? last.seq : undefined;
 
       return { messages, nextCursor };
+    },
+
+    deleteForSessionSegment(sessionId, contextSegmentId) {
+      const info = delSegment.run({
+        session_id: sessionId.trim(),
+        context_segment_id: contextSegmentId.trim(),
+      });
+      return Number(info.changes);
     },
   };
 }

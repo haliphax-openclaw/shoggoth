@@ -22,6 +22,8 @@ describe("Outbound send path", () => {
       async editMessage(channelId, messageId, body) {
         calls.push({ method: "editMessage", channelId, body: { ...body, messageId } });
       },
+      async createMessageReaction() {},
+      async triggerTypingIndicator() {},
     };
   });
 

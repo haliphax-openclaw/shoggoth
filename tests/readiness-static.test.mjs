@@ -102,6 +102,9 @@ describe("SHOGGOTH-READY §2 / §16 Policy, principals, audit fields", () => {
   it("operator and agent control paths use the same DEFINED_CONTROL_OPS vocabulary", () => {
     assert.ok(DEFINED_CONTROL_OPS.includes("hitl_pending_list"));
     assert.ok(DEFINED_CONTROL_OPS.includes("health"));
+    assert.ok(DEFINED_CONTROL_OPS.includes("subagent_spawn"));
+    assert.ok(DEFINED_CONTROL_OPS.includes("session_list"));
+    assert.ok(DEFINED_CONTROL_OPS.includes("session_abort"));
   });
 });
 

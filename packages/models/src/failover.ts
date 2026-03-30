@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   ModelCompleteInput,
   ModelCompleteOutput,
+  ModelInvocationParams,
   ModelStreamTextDeltaCallback,
 } from "./types";
 import type { ModelProvider } from "./types";
@@ -12,11 +13,9 @@ export interface FailoverChainEntry {
   readonly model: string;
 }
 
-export interface FailoverCompleteInput {
+export interface FailoverCompleteInput extends ModelInvocationParams {
   readonly model?: string;
   readonly messages: readonly ChatMessage[];
-  readonly maxOutputTokens?: number;
-  readonly temperature?: number;
   readonly stream?: boolean;
   readonly onTextDelta?: ModelStreamTextDeltaCallback;
 }
@@ -52,6 +51,9 @@ export function createFailoverModelClient(
           temperature: input.temperature,
           stream: input.stream,
           onTextDelta: input.onTextDelta,
+          thinking: input.thinking,
+          reasoningEffort: input.reasoningEffort,
+          requestExtras: input.requestExtras,
         };
         try {
           const out = await entry.provider.complete(req);

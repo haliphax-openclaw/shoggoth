@@ -47,7 +47,7 @@ npm ci
 npm run build   # authn native addon + `tsc --noEmit` in every workspace (no emit; runtime is tsx + src/*.ts)
 npm run typecheck   # same typecheck step alone, if native already built
 npm run cli -- --version
-npm run cli -- config-show
+npm run cli -- config show
 npm run cli -- retention run
 npm run cli -- session compact <sessionId> [--force]
 # or: npx shoggoth --version

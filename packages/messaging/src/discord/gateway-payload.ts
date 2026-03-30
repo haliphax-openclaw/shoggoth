@@ -1,11 +1,16 @@
-import type { DiscordInboundAttachment, DiscordInboundEvent } from "./adapter";
+import type {
+  DiscordInboundAttachment,
+  DiscordInboundEvent,
+  DiscordReactionAddEvent,
+} from "./adapter";
 
 /**
- * Default gateway intents: GUILDS + GUILD_MESSAGES + DIRECT_MESSAGES + MESSAGE_CONTENT_INTENT.
+ * Default gateway intents: GUILDS + GUILD_MESSAGES + GUILD_MESSAGE_REACTIONS + DIRECT_MESSAGES +
+ * DIRECT_MESSAGE_REACTIONS + MESSAGE_CONTENT_INTENT.
  * Guild text requires the privileged Message Content Intent in the Discord developer portal.
  */
 export const DISCORD_GATEWAY_INTENTS_DEFAULT =
-  (1 << 0) + (1 << 9) + (1 << 12) + (1 << 15);
+  (1 << 0) + (1 << 9) + (1 << 10) + (1 << 12) + (1 << 13) + (1 << 15);
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -67,9 +72,51 @@ export function discordMessageCreateToInboundEvent(
     channelId,
     guildId: typeof guildId === "string" ? guildId : undefined,
     authorId,
+    authorIsBot: author?.bot === true,
     content,
     timestampIso,
     attachments,
     referencedMessageId,
+  };
+}
+
+/**
+ * Extract the bot's user snowflake from a Gateway `READY` `d` payload (`d.user.id`).
+ */
+export function discordReadyPayloadToBotUserId(d: unknown): string | undefined {
+  const o = asRecord(d);
+  if (!o) return undefined;
+  const user = asRecord(o.user);
+  const id = user?.id;
+  return typeof id === "string" ? id : undefined;
+}
+
+/**
+ * Maps Discord Gateway `MESSAGE_REACTION_ADD` `d` payload to our event shape.
+ */
+export function discordMessageReactionAddToEvent(d: unknown): DiscordReactionAddEvent | null {
+  const o = asRecord(d);
+  if (!o) return null;
+  const userId = o.user_id;
+  const channelId = o.channel_id;
+  const messageId = o.message_id;
+  if (typeof userId !== "string" || typeof channelId !== "string" || typeof messageId !== "string") {
+    return null;
+  }
+  const guildId = o.guild_id;
+  const em = asRecord(o.emoji);
+  if (!em) return null;
+  const id = em.id;
+  const name = em.name;
+  return {
+    kind: "message_reaction_add",
+    userId,
+    channelId,
+    messageId,
+    guildId: typeof guildId === "string" ? guildId : undefined,
+    emoji: {
+      id: typeof id === "string" ? id : null,
+      name: typeof name === "string" ? name : null,
+    },
   };
 }

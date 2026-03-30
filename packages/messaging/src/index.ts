@@ -7,6 +7,7 @@ export * from "./discord/adapter";
 export * from "./discord/transport";
 export * from "./discord/rest-transport";
 export * from "./discord/gateway-payload";
+export { fetchDiscordBotUserId } from "./discord/bot-user";
 export { connectDiscordGateway } from "./discord/gateway-client";
 export type {
   DiscordGatewayConnectOptions,

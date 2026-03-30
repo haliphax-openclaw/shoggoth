@@ -7,7 +7,7 @@ import {
 } from "@shoggoth/daemon/lib";
 
 const dbPath = "/var/lib/shoggoth/state/shoggoth.db";
-const root = "/var/lib/shoggoth/workspaces/readiness-guild/memory";
+const root = "/var/lib/shoggoth/workspaces/readiness/memory";
 
 const db = openStateDb(dbPath);
 try {

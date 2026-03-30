@@ -1,4 +1,4 @@
-import { loadLayeredConfig, LAYOUT } from "@shoggoth/shared";
+import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
 import { invokeControlRequest } from "@shoggoth/daemon/lib";
 
 function controlAuth():
@@ -16,7 +16,20 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
+function printHitlHelp(): void {
+  console.log(`shoggoth ${VERSION}
+Usage:
+  shoggoth hitl list [sessionId]   List pending HITL actions (JSON via control socket)
+  shoggoth hitl get <id>           Fetch one pending row (JSON)
+  shoggoth hitl approve <id>       Approve pending tool (JSON)
+  shoggoth hitl deny <id>          Deny pending tool (JSON)`);
+}
+
 export async function runHitlCli(argv: string[]): Promise<void> {
+  if (!argv.length || argv[0] === "--help" || argv[0] === "-h") {
+    printHitlHelp();
+    return;
+  }
   const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
   const socketPath = socketPathFromEnv(configDir);
   const auth = controlAuth();
