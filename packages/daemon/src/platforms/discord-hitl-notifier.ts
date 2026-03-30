@@ -4,7 +4,7 @@ import type { HitlNotifier } from "../hitl/hitl-notifier";
 import type { HitlDiscordNoticeRegistry } from "../hitl/hitl-discord-notice-registry";
 import type { PendingActionRow } from "../hitl/pending-actions-store";
 import type { Logger } from "../logging";
-import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
+import type { DiscordMessagingRuntime } from "@shoggoth/messaging";
 
 /** Max chars for tool payload JSON shown in Discord HITL notices (webhook uses the same cap). */
 export const HITL_NOTICE_PAYLOAD_MAX_CHARS = 600;

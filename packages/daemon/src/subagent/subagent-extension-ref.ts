@@ -1,4 +1,4 @@
-import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
+import type { DiscordMessagingRuntime } from "@shoggoth/messaging";
 import type { SessionModelTurnDelivery } from "../messaging/session-model-turn-delivery";
 import type { SessionAgentTurnResult } from "../sessions/session-agent-turn";
 

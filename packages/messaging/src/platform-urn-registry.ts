@@ -13,7 +13,7 @@ export interface BootstrapPrimarySessionUrnOptions {
 }
 
 /**
- * Per-platform session URN rules for routes parsing and bootstrap. Register implementations at daemon
+ * Per-platform session URN rules for routes parsing and bootstrap. Register implementations at process
  * startup; core resolves by the `platform` segment of `agent:<agentId>:<platform>:…`.
  */
 export interface MessagingPlatformUrnPolicy {

@@ -1,35 +1,30 @@
+import { isValidAgentSessionUrn, parseAgentSessionUrn } from "@shoggoth/shared";
+import type { InternalMessage } from "../model";
+import { createAgentToAgentBus, type AgentToAgentBus } from "../a2a";
+import { discordCapabilityDescriptor, type MessagingAdapterCapabilities } from "../capabilities";
+import { createOutboundSender, type OutboundSender } from "../outbound";
+import { createDiscordStreamingOutbound } from "../streaming";
 import {
-  connectDiscordGateway,
-  createAgentToAgentBus,
   createDiscordAdapter,
-  createDiscordRestTransport,
-  createDiscordStreamingOutbound,
-  createOutboundSender,
-  discordCapabilityDescriptor,
-  DISCORD_GATEWAY_INTENTS_DEFAULT,
-  fetchDiscordBotUserId,
-  type AgentToAgentBus,
-  type DiscordGatewaySession,
   type DiscordInboundEvent,
   type DiscordReactionAddEvent,
-  type DiscordRestTransport,
   type DiscordSessionRoute,
-  type InternalMessage,
-  type MessagingAdapterCapabilities,
-  type OutboundSender,
-} from "@shoggoth/messaging";
-import type { ShoggothConfig } from "@shoggoth/shared";
-import { isValidAgentSessionUrn, parseAgentSessionUrn } from "@shoggoth/shared";
-import { DiscordRoutesConfigurationError } from "../platforms/discord/discord-messaging-urn-policy";
-import {
-  resolveDefaultSessionPlatform,
-  resolveShoggothAgentId,
-} from "../config/effective-runtime";
-import { getMessagingPlatformUrnPolicy } from "./messaging-platform-urn-registry";
-import { registerBuiltInMessagingPlatforms } from "./register-built-in-messaging-platforms";
+} from "./adapter";
+import { connectDiscordGateway, type DiscordGatewaySession } from "./gateway-client";
+import { DISCORD_GATEWAY_INTENTS_DEFAULT } from "./gateway-payload";
+import { createDiscordRestTransport } from "./rest-transport";
+import type { DiscordRestTransport } from "./transport";
+import { fetchDiscordBotUserId } from "./bot-user";
+import { DiscordRoutesConfigurationError } from "./messaging-urn-policy";
+import { getMessagingPlatformUrnPolicy } from "../platform-urn-registry";
 
-registerBuiltInMessagingPlatforms();
-import type { Logger } from "../logging";
+/** Minimal logger surface for the Discord bridge (daemon `Logger` is structurally compatible). */
+export interface DiscordBridgeLogger {
+  readonly debug: (msg: string, fields?: Record<string, unknown>) => void;
+  readonly info: (msg: string, fields?: Record<string, unknown>) => void;
+  readonly warn: (msg: string, fields?: Record<string, unknown>) => void;
+  readonly error: (msg: string, fields?: Record<string, unknown>) => void;
+}
 
 function applyDiscordTransportEnvelope(
   msg: InternalMessage,
@@ -96,8 +91,14 @@ export interface DiscordMessagingDeps {
   readonly connectGateway?: typeof connectDiscordGateway;
 }
 
+/** Route guard: reserved primary UUID in session URNs must match these resolved ids. */
+export interface DiscordMessagingRouteGuard {
+  readonly resolvedAgentId: string;
+  readonly defaultSessionPlatform: string;
+}
+
 export interface StartDiscordMessagingOptions {
-  readonly logger: Logger;
+  readonly logger: DiscordBridgeLogger;
   readonly botToken: string | undefined;
   /** JSON array: `{ channelId, sessionId, guildId? }[]` — each `sessionId` is an `agent:` session URN */
   readonly routesJson: string | undefined;
@@ -105,10 +106,10 @@ export interface StartDiscordMessagingOptions {
   readonly allowBotMessages?: boolean;
   /**
    * When set, routes that use the reserved default-primary session UUID must match
-   * `SHOGGOTH_AGENT_ID` / `SHOGGOTH_DEFAULT_SESSION_PLATFORM` (same as `bootstrap-main-session.mjs`).
+   * `resolvedAgentId` / `defaultSessionPlatform` (same contract as `bootstrap-main-session.mjs`).
    */
-  readonly routeGuardConfig?: ShoggothConfig;
-  /** Operator Discord user snowflake; marks inbound `extensions.discord.isOwner` (metadata / approver context). HITL approval is human-driven; tool bypass tiers use session `agent:<id>` principals, not this field. */
+  readonly routeGuard?: DiscordMessagingRouteGuard;
+  /** Operator Discord user snowflake; marks inbound `extensions.discord.isOwner` (metadata / approver context). */
   readonly ownerUserId?: string;
   /** Gateway `MESSAGE_REACTION_ADD` (e.g. HITL notice buttons). */
   readonly onMessageReactionAdd?: (ev: DiscordReactionAddEvent) => void;
@@ -193,14 +194,14 @@ export async function startDiscordMessagingIfConfigured(
   /** Subagent session id → Discord channel id to POST messages (thread snowflake or channel id). */
   const discordOutboundChannelBySession = new Map<string, string>();
 
-  if (opts.routeGuardConfig) {
+  if (opts.routeGuard) {
     try {
-      const plat = resolveDefaultSessionPlatform(opts.routeGuardConfig);
+      const plat = opts.routeGuard.defaultSessionPlatform;
       const pol = getMessagingPlatformUrnPolicy(plat);
       if (pol) {
         pol.assertRoutesDefaultPrimaryUuidMatchesAgent(
           routes,
-          resolveShoggothAgentId(opts.routeGuardConfig),
+          opts.routeGuard.resolvedAgentId,
           plat,
         );
       }

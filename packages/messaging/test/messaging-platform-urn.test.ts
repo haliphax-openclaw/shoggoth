@@ -10,12 +10,12 @@ import {
   assertDiscordRoutesDefaultPrimaryUuidMatchesAgent,
   checkDiscordMessagingRouteSessionUrn,
   parseFirstDiscordChannelIdFromRoutesJson,
-} from "../../src/platforms/discord/discord-messaging-urn-policy";
+} from "../src/discord/messaging-urn-policy";
 import {
   parseFirstChannelIdFromRoutesJson,
   resolveBootstrapPrimarySessionUrn,
-} from "../../src/messaging/messaging-platform-urn-registry";
-import { registerBuiltInMessagingPlatforms } from "../../src/messaging/register-built-in-messaging-platforms";
+} from "../src/platform-urn-registry";
+import { registerBuiltInMessagingPlatforms } from "../src/register-built-in-platforms";
 
 describe("messaging platform URN registry + Discord policy", () => {
   it("registers built-in policies idempotently", () => {

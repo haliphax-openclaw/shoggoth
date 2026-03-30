@@ -388,6 +388,11 @@ export type ShoggothAcpxConfig = z.infer<typeof shoggothAcpxConfigSchema>;
  */
 export const shoggothDiscordConfigSchema = z
   .object({
+    /**
+     * When false, the daemon does not start the Discord gateway bridge (default true).
+     * Token and routes are still validated only when the bridge starts.
+     */
+    enabled: z.boolean().optional(),
     botToken: z.string().min(1).optional(),
     /** Gateway intents decimal; same as `SHOGGOTH_DISCORD_INTENTS`. */
     intents: z.number().int().optional(),
@@ -589,5 +594,6 @@ export function defaultConfig(configDirectory: string): ShoggothConfig {
     plugins: [],
     mcp: { servers: [], poolScope: "global" },
     policy: DEFAULT_POLICY_CONFIG,
+    discord: { enabled: true },
   };
 }

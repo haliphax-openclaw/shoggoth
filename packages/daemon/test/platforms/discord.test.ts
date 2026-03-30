@@ -31,7 +31,7 @@ import {
 } from "../../src/platforms/discord-hitl-notifier";
 import type { PendingActionRow } from "../../src/hitl/pending-actions-store";
 import { transcriptRowsToModelChatMessages } from "../../src/sessions/transcript-to-chat";
-import type { DiscordMessagingRuntime } from "../../src/messaging/discord-bridge";
+import type { DiscordMessagingRuntime } from "@shoggoth/messaging";
 
 const stubDiscordRestTransport: DiscordMessagingRuntime["discordRestTransport"] = {
   async openDmChannel() {

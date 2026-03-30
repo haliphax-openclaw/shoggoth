@@ -13,3 +13,7 @@ export type {
   DiscordGatewayConnectOptions,
   DiscordGatewaySession,
 } from "./discord/gateway-client";
+export * from "./platform-urn-registry";
+export * from "./register-built-in-platforms";
+export * from "./discord/messaging-urn-policy";
+export * from "./discord/bridge";

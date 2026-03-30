@@ -28,10 +28,7 @@ import {
   isConfigHotReloadEnabled,
   resolveBootStaleClaimMs,
   resolveCronTickIntervalMs,
-  resolveDiscordAllowBotMessages,
-  resolveDiscordIntents,
   resolveDiscordOwnerUserId,
-  resolveDiscordRoutesJson,
   resolveDrainTimeoutMs,
   resolveHeartbeatBatchSize,
   resolveHeartbeatConcurrency,
@@ -56,13 +53,13 @@ import {
 } from "./hitl/hitl-discord-notice-registry";
 import { handleDiscordHitlReactionAdd } from "./hitl/discord-hitl-reaction-handler";
 import { createHitlPendingResolutionStack, type HitlPendingStack } from "./hitl/hitl-pending-stack";
+import { registerBuiltInMessagingPlatforms } from "@shoggoth/messaging";
 import {
-  startDiscordMessagingIfConfigured,
+  startDaemonDiscordMessaging,
   type DiscordMessagingRuntime,
-} from "./messaging/discord-bridge";
+} from "./messaging/daemon-messaging-bootstrap";
 import { loadDaemonNotices } from "./notices/load-notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
-import { registerBuiltInMessagingPlatforms } from "./messaging/register-built-in-messaging-platforms";
 
 loadDaemonPrompts();
 loadDaemonNotices();
@@ -190,14 +187,10 @@ void (async () => {
 
   const msgLog = rt.logger.child({ subsystem: "messaging" });
   try {
-    discordMessaging = await startDiscordMessagingIfConfigured({
+    discordMessaging = await startDaemonDiscordMessaging({
       logger: msgLog,
+      config: configRef.current,
       botToken: resolvedDiscordBotToken(),
-      routesJson: resolveDiscordRoutesJson(configRef.current),
-      intents: resolveDiscordIntents(configRef.current),
-      allowBotMessages: resolveDiscordAllowBotMessages(configRef.current),
-      ownerUserId: resolveDiscordOwnerUserId(configRef.current),
-      routeGuardConfig: configRef.current,
       onMessageReactionAdd:
         hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
           ? (ev) =>

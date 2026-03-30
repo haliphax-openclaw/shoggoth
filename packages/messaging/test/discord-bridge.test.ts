@@ -1,16 +1,25 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import type { ShoggothConfig } from "@shoggoth/shared";
 import {
   parseDiscordRoutesJson,
   parseDiscordRoutesWithMeta,
   startDiscordMessagingIfConfigured,
-} from "../../src/messaging/discord-bridge";
-import { createLogger } from "../../src/logging";
+  type DiscordBridgeLogger,
+} from "../src/discord/bridge";
+import { registerBuiltInMessagingPlatforms } from "../src/register-built-in-platforms";
 
-const routeGuardCfg = {
-  runtime: { agentId: "main", defaultSessionPlatform: "discord" },
-} as ShoggothConfig;
+registerBuiltInMessagingPlatforms();
+
+function stubLogger(): DiscordBridgeLogger {
+  return {
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+  };
+}
+
+const routeGuard = { resolvedAgentId: "main", defaultSessionPlatform: "discord" };
 
 const u1 = "agent:test:discord:10000000-0000-4000-8000-000000000001";
 const u2 = "agent:test:discord:10000000-0000-4000-8000-000000000002";
@@ -94,9 +103,8 @@ describe("discord-bridge", () => {
   });
 
   it("returns undefined without token", async () => {
-    const log = createLogger({ component: "t", minLevel: "error" });
     const r = await startDiscordMessagingIfConfigured({
-      logger: log,
+      logger: stubLogger(),
       botToken: undefined,
       routesJson: `[{"channelId":"c","sessionId":"${u1}"}]`,
     });
@@ -104,9 +112,8 @@ describe("discord-bridge", () => {
   });
 
   it("returns undefined without routes when token set", async () => {
-    const log = createLogger({ component: "t", minLevel: "error" });
     const r = await startDiscordMessagingIfConfigured({
-      logger: log,
+      logger: stubLogger(),
       botToken: "x",
       routesJson: undefined,
     });
@@ -114,11 +121,10 @@ describe("discord-bridge", () => {
   });
 
   it("rejects routes when snowflake session leaf does not match channelId", async () => {
-    const log = createLogger({ component: "t", minLevel: "error" });
     await assert.rejects(
       () =>
         startDiscordMessagingIfConfigured({
-          logger: log,
+          logger: stubLogger(),
           botToken: "token",
           routesJson: JSON.stringify([
             {
@@ -138,17 +144,16 @@ describe("discord-bridge", () => {
     );
   });
 
-  it("rejects routes when default-primary UUID does not match SHOGGOTH_AGENT_ID guard config", async () => {
-    const log = createLogger({ component: "t", minLevel: "error" });
+  it("rejects routes when default-primary UUID does not match route guard agent id", async () => {
     await assert.rejects(
       () =>
         startDiscordMessagingIfConfigured({
-          logger: log,
+          logger: stubLogger(),
           botToken: "token",
           routesJson: JSON.stringify([
             { channelId: "ch", sessionId: "agent:wrong:discord:00000000-0000-4000-8000-000000000001" },
           ]),
-          routeGuardConfig: routeGuardCfg,
+          routeGuard,
           deps: {
             connectGateway: async () => ({
               stop: async () => {},
@@ -161,13 +166,12 @@ describe("discord-bridge", () => {
   });
 
   it("starts with mocked gateway and registers outbound/streaming", async () => {
-    const log = createLogger({ component: "t", minLevel: "error" });
     let stopped = false;
     const runtime = await startDiscordMessagingIfConfigured({
-      logger: log,
+      logger: stubLogger(),
       botToken: "token",
       routesJson: JSON.stringify([{ guildId: "g", channelId: "ch", sessionId: u1 }]),
-      routeGuardConfig: routeGuardCfg,
+      routeGuard: { resolvedAgentId: "test", defaultSessionPlatform: "discord" },
       deps: {
         connectGateway: async () => ({
           stop: async () => {

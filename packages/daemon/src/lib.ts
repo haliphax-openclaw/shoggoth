@@ -1,4 +1,4 @@
-import { registerBuiltInMessagingPlatforms } from "./messaging/register-built-in-messaging-platforms";
+import { registerBuiltInMessagingPlatforms } from "@shoggoth/messaging";
 
 registerBuiltInMessagingPlatforms();
 
@@ -143,8 +143,8 @@ export {
 export { invokeControlRequest, type InvokeControlRequestInput } from "./control/control-client";
 export { SUBAGENT_DEFAULT_BOUND_LIFETIME_MS } from "./subagent/subagent-constants";
 export { resolveSessionTargetFromCliArg } from "./control/resolve-session-cli-target";
-export { DiscordRoutesConfigurationError } from "./platforms/discord/discord-messaging-urn-policy";
+export { DiscordRoutesConfigurationError } from "@shoggoth/messaging";
 export {
   resolveBootstrapPrimarySessionUrn,
   parseFirstChannelIdFromRoutesJson,
-} from "./messaging/messaging-platform-urn-registry";
+} from "@shoggoth/messaging";

@@ -493,7 +493,7 @@ export async function handleIntegrationControlOp(
       if (!ext) {
         throw new IntegrationOpError(
           "ERR_SUBAGENT_RUNTIME_UNAVAILABLE",
-          "subagent runtime not configured (start Discord messaging + platform)",
+          "subagent runtime not configured (start messaging platform; Discord when enabled)",
         );
       }
       const { sessions, sessionManager } = requireSubagentRuntime(ctx);
@@ -693,7 +693,7 @@ export async function handleIntegrationControlOp(
       if (!ext) {
         throw new IntegrationOpError(
           "ERR_SUBAGENT_RUNTIME_UNAVAILABLE",
-          "subagent runtime not configured (start Discord messaging + platform)",
+          "subagent runtime not configured (start messaging platform; Discord when enabled)",
         );
       }
       const { sessions } = requireSubagentRuntime(ctx);

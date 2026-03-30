@@ -1,8 +1,7 @@
 import type { ShoggothConfig } from "@shoggoth/shared";
 import { assertValidAgentId, parseAgentSessionUrn } from "@shoggoth/shared";
 import { resolveDefaultSessionPlatform, resolveDiscordRoutesJson } from "../config/effective-runtime";
-import { resolveBootstrapPrimarySessionUrn } from "../messaging/messaging-platform-urn-registry";
-import { registerBuiltInMessagingPlatforms } from "../messaging/register-built-in-messaging-platforms";
+import { registerBuiltInMessagingPlatforms, resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
 
 registerBuiltInMessagingPlatforms();
 

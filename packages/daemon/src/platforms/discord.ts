@@ -13,7 +13,7 @@ import type { Logger } from "../logging";
 import { createPolicyEngine, type PolicyEngine } from "../policy/engine";
 import type { HitlConfigRef } from "../config-hot-reload";
 import { mergeOrchestratorEnv, resolveDiscordOwnerUserId } from "../config/effective-runtime";
-import type { DiscordMessagingRuntime } from "../messaging/discord-bridge";
+import type { DiscordMessagingRuntime } from "@shoggoth/messaging";
 import { resolveSessionAgentHitlPrincipalRoles } from "../hitl/session-agent-principals";
 import { runInboundSessionTurn } from "../messaging/inbound-session-turn";
 import {

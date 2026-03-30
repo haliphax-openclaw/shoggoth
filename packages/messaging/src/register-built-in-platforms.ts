@@ -4,11 +4,8 @@ import {
   checkDiscordMessagingRouteSessionUrn,
   parseFirstDiscordChannelIdFromRoutesJson,
   resolveDiscordBootstrapPrimarySessionUrn,
-} from "../platforms/discord/discord-messaging-urn-policy";
-import {
-  registerMessagingPlatformUrnPolicy,
-  type MessagingPlatformUrnPolicy,
-} from "./messaging-platform-urn-registry";
+} from "./discord/messaging-urn-policy";
+import { registerMessagingPlatformUrnPolicy, type MessagingPlatformUrnPolicy } from "./platform-urn-registry";
 
 const discordUrnPolicy: MessagingPlatformUrnPolicy = {
   platformId: DEFAULT_MESSAGING_PLATFORM_ID,
@@ -20,7 +17,7 @@ const discordUrnPolicy: MessagingPlatformUrnPolicy = {
 
 let didRegister = false;
 
-/** Idempotent: registers built-in transport URN policies (Discord, …). Call once during daemon startup. */
+/** Idempotent: registers built-in transport URN policies (Discord, …). Call once during daemon / CLI startup. */
 export function registerBuiltInMessagingPlatforms(): void {
   if (didRegister) return;
   didRegister = true;
