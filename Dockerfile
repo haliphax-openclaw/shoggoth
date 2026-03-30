@@ -1,15 +1,17 @@
 # Shoggoth runtime image: daemon runs as `shoggoth` (UID 900) after entrypoint; agent worker pool `agent` (UID 901).
 # Entrypoint (root) creates layout, fixes volume perms, then setpriv drops to shoggoth while retaining spawn caps.
-FROM node:24-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json* ./
+# system packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  sqlite3 \
+  && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json* tsconfig.base.json ./
 COPY packages ./packages
 RUN npm ci
-COPY tsconfig.base.json ./
-# `npm run build` = authn `node-gyp-build` only (no workspace typecheck). Runtime uses `tsx` + `src/*.ts`; keep `tsx` in root `dependencies` after prune.
 RUN npm run build && npm prune --omit=dev
 
-FROM node:24-bookworm-slim
+FROM node:22-bookworm-slim
 RUN groupadd --system --gid 900 shoggoth \
   && useradd --system --uid 900 --gid shoggoth --home-dir /var/lib/shoggoth --shell /usr/sbin/nologin shoggoth \
   && groupadd --system --gid 901 agent \
