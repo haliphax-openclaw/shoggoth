@@ -11,7 +11,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
-import { DEFAULT_MESSAGING_PLATFORM_ID } from "./messaging-defaults";
+
 
 /** RFC 4122 UUID string (case-insensitive). */
 export const SHOGGOTH_SESSION_UUID_RE =
@@ -145,7 +145,7 @@ export function mintAgentSessionUrn(agentId: string, platform: string): string {
 /** Primary session URN for bootstrap when no platform-specific key is supplied (daemon resolves via registered per-platform URN policy). */
 export function defaultPrimarySessionUrnForAgent(
   agentId: string,
-  platform: string = DEFAULT_MESSAGING_PLATFORM_ID,
+  platform: string = "discord",
 ): string {
   return formatAgentSessionUrn(agentId, platform, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
 }
@@ -153,7 +153,7 @@ export function defaultPrimarySessionUrnForAgent(
 /** Default readiness stack: guild route session URN (`agent:<agentId>:<platform>:<guild uuid>`). */
 export function readinessGuildSessionUrn(
   agentId: string = "readiness",
-  platform: string = DEFAULT_MESSAGING_PLATFORM_ID,
+  platform: string = "discord",
 ): string {
   return formatAgentSessionUrn(agentId, platform, SHOGGOTH_READINESS_GUILD_SESSION_UUID);
 }
@@ -161,7 +161,7 @@ export function readinessGuildSessionUrn(
 /** Default readiness stack: DM route session URN (same agent workspace as {@link readinessGuildSessionUrn}). */
 export function readinessDmSessionUrn(
   agentId: string = "readiness",
-  platform: string = DEFAULT_MESSAGING_PLATFORM_ID,
+  platform: string = "discord",
 ): string {
   return formatAgentSessionUrn(agentId, platform, SHOGGOTH_READINESS_DM_SESSION_UUID);
 }

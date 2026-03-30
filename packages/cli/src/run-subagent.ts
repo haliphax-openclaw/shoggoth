@@ -150,8 +150,8 @@ export async function runSubagentCli(argv: string[]): Promise<void> {
       payload = {
         parent_session_id: parentSessionId,
         prompt,
-        mode: "bound_discord_thread",
-        discord_thread_id: threadId,
+        mode: "bound_thread",
+        platform_thread_id: threadId,
       };
       if (lifetimeMs !== undefined && Number.isFinite(lifetimeMs) && lifetimeMs > 0) {
         payload.lifetime_ms = lifetimeMs;

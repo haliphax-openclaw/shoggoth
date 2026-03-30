@@ -134,7 +134,7 @@ describe(
       const names = new Set(cols.map((c) => c.name));
       assert.ok(names.has("parent_session_id"));
       assert.ok(names.has("subagent_mode"));
-      assert.ok(names.has("subagent_discord_thread_id"));
+      assert.ok(names.has("subagent_platform_thread_id"));
       assert.ok(names.has("subagent_expires_at_ms"));
     } finally {
       db.close();

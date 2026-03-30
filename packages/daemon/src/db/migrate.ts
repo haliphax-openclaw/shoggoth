@@ -64,8 +64,8 @@ const SESSIONS_SUBAGENT_DDL: readonly { readonly column: string; readonly sql: s
   { column: "parent_session_id", sql: "ALTER TABLE sessions ADD COLUMN parent_session_id TEXT" },
   { column: "subagent_mode", sql: "ALTER TABLE sessions ADD COLUMN subagent_mode TEXT" },
   {
-    column: "subagent_discord_thread_id",
-    sql: "ALTER TABLE sessions ADD COLUMN subagent_discord_thread_id TEXT",
+    column: "subagent_platform_thread_id",
+    sql: "ALTER TABLE sessions ADD COLUMN subagent_platform_thread_id TEXT",
   },
   {
     column: "subagent_expires_at_ms",
@@ -85,6 +85,14 @@ function sessionsTableColumnNames(db: Database.Database): Set<string> | undefine
 export function repairSessionsSubagentColumnsIfNeeded(db: Database.Database): void {
   const cols = sessionsTableColumnNames(db);
   if (!cols?.has("id")) return;
+
+  // Rename legacy column if it exists (pre-platform-agnostic rename).
+  if (cols.has("subagent_discord_thread_id") && !cols.has("subagent_platform_thread_id")) {
+    db.exec("ALTER TABLE sessions RENAME COLUMN subagent_discord_thread_id TO subagent_platform_thread_id");
+    cols.delete("subagent_discord_thread_id");
+    cols.add("subagent_platform_thread_id");
+  }
+
   for (const { column, sql } of SESSIONS_SUBAGENT_DDL) {
     if (cols.has(column)) continue;
     db.exec(sql);

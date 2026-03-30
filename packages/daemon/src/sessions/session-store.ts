@@ -21,7 +21,7 @@ export interface SessionRow {
   readonly runtimeGid: number | undefined;
   readonly parentSessionId: string | undefined;
   readonly subagentMode: SubagentMode | undefined;
-  readonly subagentDiscordThreadId: string | undefined;
+  readonly subagentPlatformThreadId: string | undefined;
   readonly subagentExpiresAtMs: number | undefined;
 }
 
@@ -48,7 +48,7 @@ export interface UpdateSessionInput {
   readonly contextSegmentId?: string;
   readonly parentSessionId?: string | null;
   readonly subagentMode?: SubagentMode | null;
-  readonly subagentDiscordThreadId?: string | null;
+  readonly subagentPlatformThreadId?: string | null;
   readonly subagentExpiresAtMs?: number | null;
 }
 
@@ -65,7 +65,7 @@ function rowToSession(r: {
   runtime_gid: number | null;
   parent_session_id?: string | null;
   subagent_mode?: string | null;
-  subagent_discord_thread_id?: string | null;
+  subagent_platform_thread_id?: string | null;
   subagent_expires_at_ms?: number | null;
 }): SessionRow {
   let model: unknown = undefined;
@@ -104,7 +104,7 @@ function rowToSession(r: {
     runtimeGid: r.runtime_gid ?? undefined,
     parentSessionId: r.parent_session_id?.trim() || undefined,
     subagentMode,
-    subagentDiscordThreadId: r.subagent_discord_thread_id?.trim() || undefined,
+    subagentPlatformThreadId: r.subagent_platform_thread_id?.trim() || undefined,
     subagentExpiresAtMs:
       typeof exp === "number" && Number.isFinite(exp) ? Math.trunc(exp) : undefined,
   };
@@ -136,19 +136,19 @@ export function createSessionStore(db: Database.Database): SessionStore {
       id, agent_profile_id, workspace_path, status, context_segment_id,
       model_selection_json, light_context, prompt_stack_json,
       runtime_uid, runtime_gid,
-      parent_session_id, subagent_mode, subagent_discord_thread_id, subagent_expires_at_ms
+      parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms
     ) VALUES (
       @id, @agent_profile_id, @workspace_path, @status, @context_segment_id,
       @model_selection_json, @light_context, @prompt_stack_json,
       @runtime_uid, @runtime_gid,
-      @parent_session_id, @subagent_mode, @subagent_discord_thread_id, @subagent_expires_at_ms
+      @parent_session_id, @subagent_mode, @subagent_platform_thread_id, @subagent_expires_at_ms
     )
   `);
 
   const selectOne = db.prepare(`
     SELECT id, agent_profile_id, workspace_path, status, context_segment_id, model_selection_json,
            light_context, prompt_stack_json, runtime_uid, runtime_gid,
-           parent_session_id, subagent_mode, subagent_discord_thread_id, subagent_expires_at_ms
+           parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms
     FROM sessions WHERE id = @id
   `);
 
@@ -171,7 +171,7 @@ export function createSessionStore(db: Database.Database): SessionStore {
         runtime_gid: input.runtimeGid ?? null,
         parent_session_id: null,
         subagent_mode: null,
-        subagent_discord_thread_id: null,
+        subagent_platform_thread_id: null,
         subagent_expires_at_ms: null,
       });
     },
@@ -191,7 +191,7 @@ export function createSessionStore(db: Database.Database): SessionStore {
             runtime_gid: number | null;
             parent_session_id: string | null;
             subagent_mode: string | null;
-            subagent_discord_thread_id: string | null;
+            subagent_platform_thread_id: string | null;
             subagent_expires_at_ms: number | null;
           }
         | undefined;
@@ -208,9 +208,9 @@ export function createSessionStore(db: Database.Database): SessionStore {
       const nextSubMode =
         patch.subagentMode === undefined ? cur.subagentMode ?? null : patch.subagentMode;
       const nextThread =
-        patch.subagentDiscordThreadId === undefined
-          ? cur.subagentDiscordThreadId ?? null
-          : patch.subagentDiscordThreadId;
+        patch.subagentPlatformThreadId === undefined
+          ? cur.subagentPlatformThreadId ?? null
+          : patch.subagentPlatformThreadId;
       const nextExp =
         patch.subagentExpiresAtMs === undefined
           ? cur.subagentExpiresAtMs ?? null
@@ -233,7 +233,7 @@ export function createSessionStore(db: Database.Database): SessionStore {
         runtime_gid: patch.runtimeGid ?? cur.runtimeGid ?? null,
         parent_session_id: nextParent,
         subagent_mode: nextSubMode,
-        subagent_discord_thread_id: nextThread,
+        subagent_platform_thread_id: nextThread,
         subagent_expires_at_ms: nextExp,
       };
       db.prepare(
@@ -250,7 +250,7 @@ export function createSessionStore(db: Database.Database): SessionStore {
           runtime_gid = @runtime_gid,
           parent_session_id = @parent_session_id,
           subagent_mode = @subagent_mode,
-          subagent_discord_thread_id = @subagent_discord_thread_id,
+          subagent_platform_thread_id = @subagent_platform_thread_id,
           subagent_expires_at_ms = @subagent_expires_at_ms,
           updated_at = datetime('now')
         WHERE id = @id
@@ -266,7 +266,7 @@ export function createSessionStore(db: Database.Database): SessionStore {
       type R = Parameters<typeof rowToSession>[0];
       const cols = `id, agent_profile_id, workspace_path, status, context_segment_id, model_selection_json,
                  light_context, prompt_stack_json, runtime_uid, runtime_gid,
-                 parent_session_id, subagent_mode, subagent_discord_thread_id, subagent_expires_at_ms`;
+                 parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms`;
       if (filter?.parentSessionId !== undefined) {
         const rows = db
           .prepare(

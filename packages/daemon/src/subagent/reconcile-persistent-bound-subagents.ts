@@ -39,7 +39,7 @@ export function reconcilePersistentBoundSubagents(input: {
     (s) =>
       s.subagentMode === "bound" &&
       s.status !== "terminated" &&
-      Boolean(s.subagentDiscordThreadId?.trim()),
+      Boolean(s.subagentPlatformThreadId?.trim()),
   );
 
   let restored = 0;
@@ -47,7 +47,7 @@ export function reconcilePersistentBoundSubagents(input: {
   const now = Date.now();
 
   for (const s of candidates) {
-    const threadId = s.subagentDiscordThreadId!.trim();
+    const threadId = s.subagentPlatformThreadId!.trim();
     let expiresAt = s.subagentExpiresAtMs;
     if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt) || expiresAt <= 0) {
       expiresAt = now + SUBAGENT_DEFAULT_BOUND_LIFETIME_MS;
@@ -61,7 +61,7 @@ export function reconcilePersistentBoundSubagents(input: {
       continue;
     }
 
-    const unregisterThread = input.ext.registerDiscordThreadBinding(threadId, s.id);
+    const unregisterThread = input.ext.registerPlatformThreadBinding(threadId, s.id);
     const unsubscribeBus = input.ext.subscribeSubagentSession(s.id);
     let ttlTimer: ReturnType<typeof setTimeout> | undefined;
     const clearTtl = () => {

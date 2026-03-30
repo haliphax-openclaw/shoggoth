@@ -33,6 +33,12 @@ export interface MessageExtensions {
   readonly replyToMessageId?: string;
   readonly reactions?: readonly MessageReaction[];
   readonly discord?: DiscordTransportEnvelope;
+  /**
+   * Platform-keyed transport envelopes (e.g. `{ discord: { ... } }`).
+   * Provides a uniform lookup path for multi-platform support.
+   * The legacy {@link discord} field is kept for backward compatibility during migration.
+   */
+  readonly platform?: Record<string, import("./platform").PlatformTransportEnvelope>;
 }
 
 export interface InternalMessage {

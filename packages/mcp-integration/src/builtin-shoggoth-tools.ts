@@ -75,7 +75,7 @@ const subagentToolArgs = {
       type: "object",
       description: "spawn_*: optional overlay merged into inherited model_selection",
     },
-    discord_user_id: { type: "string", description: "spawn_bound, steer: optional messaging user id" },
+    platform_user_id: { type: "string", description: "spawn_bound, steer: optional messaging user id" },
     reply_to_message_id: { type: "string", description: "spawn_bound, steer: optional reply reference" },
     lifetime_ms: { type: "integer", description: "spawn_bound: optional bound lifetime in ms" },
     session_id: {
@@ -120,7 +120,7 @@ const sessionSendArgs = {
     },
     session_id: { type: "string", description: "Target session URN (omit if agent_id is set)" },
     agent_id: { type: "string", description: "Logical agent id; targets that agent’s bootstrap main session" },
-    discord_user_id: { type: "string", description: "When not silent, optional outbound user id for messaging_surface" },
+    platform_user_id: { type: "string", description: "When not silent, optional outbound user id for messaging_surface" },
     reply_to_message_id: { type: "string", description: "When not silent, optional reply reference" },
   },
   required: ["message"],

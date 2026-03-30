@@ -38,7 +38,7 @@ describe("reconcilePersistentBoundSubagents", () => {
     sessions.update(child, {
       parentSessionId: parent,
       subagentMode: "bound",
-      subagentDiscordThreadId: "thread-snowflake-1",
+      subagentPlatformThreadId: "thread-snowflake-1",
       subagentExpiresAtMs: future,
     });
 
@@ -55,7 +55,7 @@ describe("reconcilePersistentBoundSubagents", () => {
           subscribed.push(sid);
           return () => {};
         },
-        registerDiscordThreadBinding: (tid, sid) => {
+        registerPlatformThreadBinding: (tid, sid) => {
           registered.push(`${tid}:${sid}`);
           return () => {};
         },
@@ -78,7 +78,7 @@ describe("reconcilePersistentBoundSubagents", () => {
     sessions.update(child, {
       parentSessionId: parent,
       subagentMode: "bound",
-      subagentDiscordThreadId: "thread-x",
+      subagentPlatformThreadId: "thread-x",
       subagentExpiresAtMs: Date.now() - 1000,
     });
 
@@ -90,7 +90,7 @@ describe("reconcilePersistentBoundSubagents", () => {
       ext: {
         runSessionModelTurn: async () => ({ latestAssistantText: "", failoverMeta: undefined }),
         subscribeSubagentSession: () => () => {},
-        registerDiscordThreadBinding: () => () => {},
+        registerPlatformThreadBinding: () => () => {},
       },
     });
 

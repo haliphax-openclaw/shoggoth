@@ -253,11 +253,11 @@ export async function executeSessionAgentTurn(
               payload = {
                 parent_session_id: input.sessionId,
                 prompt,
-                mode: "bound_discord_thread",
-                discord_thread_id: threadId,
+                mode: "bound_thread",
+                platform_thread_id: threadId,
               };
-              const du = args.discord_user_id;
-              if (typeof du === "string" && du.trim()) payload.discord_user_id = du.trim();
+              const du = args.platform_user_id;
+              if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
               const rt = args.reply_to_message_id;
               if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
               const lt = args.lifetime_ms;
@@ -277,8 +277,8 @@ export async function executeSessionAgentTurn(
               payload = { session_id: sid, prompt };
               const del = args.delivery;
               if (del === "internal") payload.delivery = "internal";
-              const du = args.discord_user_id;
-              if (typeof du === "string" && du.trim()) payload.discord_user_id = du.trim();
+              const du = args.platform_user_id;
+              if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
               const rt = args.reply_to_message_id;
               if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
             } else if (action === "abort") {
@@ -331,8 +331,8 @@ export async function executeSessionAgentTurn(
                 resultJson: JSON.stringify({ error: "session_id or agent_id required" }),
               };
             }
-            const du = args.discord_user_id;
-            if (typeof du === "string" && du.trim()) payload.discord_user_id = du.trim();
+            const du = args.platform_user_id;
+            if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
             const rt = args.reply_to_message_id;
             if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
           } else {

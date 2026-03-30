@@ -4,7 +4,6 @@ import {
   type AgentTokenStore,
 } from "@shoggoth/authn";
 import {
-  DEFAULT_MESSAGING_PLATFORM_ID,
   mintAgentSessionUrn,
   mintSubagentSessionUrnFromParent,
   parseAgentSessionUrn,
@@ -70,7 +69,7 @@ export interface SessionManager {
 export function createSessionManager(options: SessionManagerOptions): SessionManager {
   const mintToken = options.mintToken ?? mintAgentCredentialRaw;
   const defaultAgentId = options.agentId ?? "main";
-  const defaultSessionPlatform = options.defaultSessionPlatform ?? DEFAULT_MESSAGING_PLATFORM_ID;
+  const defaultSessionPlatform = options.defaultSessionPlatform ?? "discord";
 
   return {
     spawn(input) {

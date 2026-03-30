@@ -8,7 +8,7 @@ export {
   hitlRiskTierSchema,
   normalizeHitlToolKeys,
   normalizeToolName,
-  shoggothAgentDiscordConfigSchema,
+  platformCommonConfigSchema,
   shoggothAgentEntrySchema,
   shoggothAgentModelsOverrideSchema,
   shoggothAgentToAgentAllowSchema,
@@ -16,7 +16,6 @@ export {
   shoggothAgentsConfigSchema,
   shoggothConfigFragmentSchema,
   shoggothConfigSchema,
-  shoggothDiscordConfigSchema,
   shoggothHitlConfigSchema,
   shoggothMemoryConfigSchema,
   shoggothMemoryEmbeddingsConfigSchema,
@@ -42,14 +41,12 @@ export {
   shoggothToolRulesSchema,
   DEFAULT_SKILLS_CONFIG,
   type HitlRiskTier,
-  type ShoggothAgentDiscordConfig,
   type ShoggothAgentEntry,
   type ShoggothAgentModelsOverride,
   type ShoggothAgentToAgentConfig,
   type ShoggothAgentsConfig,
   type ShoggothConfig,
   type ShoggothConfigFragment,
-  type ShoggothDiscordConfig,
   type ShoggothHitlConfig,
   type ShoggothMemoryConfig,
   type ShoggothMemoryEmbeddingsConfig,
@@ -71,6 +68,14 @@ export {
   type ShoggothToolRules,
 } from "./schema";
 export {
+  resolvePlatformConfig,
+  isPlatformEnabled,
+  resolveAgentPlatformConfig,
+  registerPlatformConfigValidator,
+  validatePlatformExtensions,
+  type PlatformConfigValidator,
+} from "./platform-config";
+export {
   crossAgentSessionSendAllowed,
   mergeAgentToAgentAllowPatterns,
 } from "./agent-to-agent-policy";
@@ -90,7 +95,6 @@ export {
   SHOGGOTH_DISCORD_AGENT_DEFAULT_EMOJI,
 } from "./effective-agent-for-session";
 export { VERSION } from "./version";
-export { DEFAULT_MESSAGING_PLATFORM_ID } from "./messaging-defaults";
 export {
   assertValidAgentId,
   defaultPrimarySessionUrnForAgent,

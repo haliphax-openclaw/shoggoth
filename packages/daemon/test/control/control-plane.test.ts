@@ -1220,7 +1220,7 @@ describe("control plane (unix socket + JSONL)", () => {
         return { latestAssistantText: "SEND_OK", failoverMeta: undefined };
       },
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(
@@ -1277,7 +1277,7 @@ describe("control plane (unix socket + JSONL)", () => {
         failoverMeta: undefined,
       }),
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       const base = minimalConfig(sock);
@@ -1389,7 +1389,7 @@ describe("control plane (unix socket + JSONL)", () => {
         subscribed += 1;
         return () => {};
       },
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(
@@ -1477,7 +1477,7 @@ describe("control plane (unix socket + JSONL)", () => {
         failoverMeta: undefined,
       }),
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(
@@ -1529,7 +1529,7 @@ describe("control plane (unix socket + JSONL)", () => {
         failoverMeta: undefined,
       }),
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(
@@ -1617,7 +1617,7 @@ describe("control plane (unix socket + JSONL)", () => {
         failoverMeta: undefined,
       }),
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(
@@ -1669,7 +1669,7 @@ describe("control plane (unix socket + JSONL)", () => {
         failoverMeta: undefined,
       }),
       subscribeSubagentSession: () => () => {},
-      registerDiscordThreadBinding: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
     });
     try {
       await withControlPlaneSession(

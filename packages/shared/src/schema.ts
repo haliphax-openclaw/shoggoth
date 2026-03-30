@@ -83,22 +83,6 @@ export const shoggothAgentModelsOverrideSchema = z
 
 export type ShoggothAgentModelsOverride = z.infer<typeof shoggothAgentModelsOverrideSchema>;
 
-const shoggothAgentDiscordRouteRowSchema = z
-  .object({
-    channelId: z.string().min(1),
-    sessionId: z.string().min(1),
-    guildId: z.string().min(1).optional(),
-  })
-  .strict();
-
-export const shoggothAgentDiscordConfigSchema = z
-  .object({
-    routes: z.array(shoggothAgentDiscordRouteRowSchema).optional(),
-  })
-  .strict();
-
-export type ShoggothAgentDiscordConfig = z.infer<typeof shoggothAgentDiscordConfigSchema>;
-
 export const shoggothModelsConfigSchema = z
   .object({
     providers: z.array(shoggothModelProviderEntrySchema).optional(),
@@ -433,45 +417,19 @@ export const shoggothAcpxConfigSchema = z
 export type ShoggothAcpxConfig = z.infer<typeof shoggothAcpxConfigSchema>;
 
 /**
- * Discord bridge + assistant toggles. Env vars with the same meaning still work and **override**
- * these fields when set (non-empty for strings; `0`/`1` for booleans where documented).
+ * Common platform config fields validated by core. Platform-specific extension fields pass through
+ * via `.passthrough()` and are validated separately by the platform plugin.
  */
-export const shoggothDiscordConfigSchema = z
+export const platformCommonConfigSchema = z
   .object({
-    /**
-     * When false, the daemon does not start the Discord gateway bridge (default true).
-     * Token and routes are still validated only when the bridge starts.
-     */
     enabled: z.boolean().optional(),
-    botToken: z.string().min(1).optional(),
-    /** Gateway intents decimal; same as `SHOGGOTH_DISCORD_INTENTS`. */
-    intents: z.number().int().optional(),
-    /** Same JSON string as `SHOGGOTH_DISCORD_ROUTES` (array of route objects). */
-    routesJson: z.string().min(1).optional(),
-    allowBotMessages: z.boolean().optional(),
+    routes: z.unknown().optional(),
     streamResponses: z.boolean().optional(),
-    streamMinIntervalMs: z.number().int().nonnegative().optional(),
+    streamMinIntervalMs: z.number().optional(),
     appendModelTagFooter: z.boolean().optional(),
-    hitlNotifyChannelId: z.string().min(1).optional(),
-    hitlNotifyWebhookUrl: z.string().min(1).optional(),
-    /** Discord user snowflake; daemon opens a DM via REST and posts HITL notices there. */
-    hitlNotifyDmUserId: z.string().min(1).optional(),
-    /**
-     * Operator Discord user snowflake (human). When set, inbound channel messages from other users
-     * are ignored (v1); transport sets `isOwner` for this author. Also used for metadata and HITL DM
-     * routing. Not the tool-loop HITL principal (that is `agent:<id>` from the session URN).
-     * Env: `SHOGGOTH_DISCORD_OWNER_USER_ID`.
-     */
-    ownerUserId: z.string().min(1).optional(),
-    /**
-     * When true (default), post a HITL notice as a reply in the routed session channel. Set false or
-     * `SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION=0` to rely on DM / operator channel / webhook only.
-     */
     hitlReplyInSession: z.boolean().optional(),
   })
-  .strict();
-
-export type ShoggothDiscordConfig = z.infer<typeof shoggothDiscordConfigSchema>;
+  .passthrough();
 
 /** Daemon timers, probes, and feature flags also available via `SHOGGOTH_*` env (env wins when set). */
 export const shoggothRuntimeConfigSchema = z
@@ -590,7 +548,10 @@ export const shoggothAgentEntrySchema = z
       .refine((s) => !s.includes(":"), "must not contain ':'")
       .optional(),
     models: shoggothAgentModelsOverrideSchema.optional(),
-    discord: shoggothAgentDiscordConfigSchema.optional(),
+    /** Per-agent platform overrides — each key is a platform id. */
+    platforms: z.record(z.string(), z.object({
+      routes: z.unknown().optional(),
+    }).passthrough()).optional(),
     /** Extra memory roots (merged after global `memory.paths` for this agent's sessions). */
     memory: z
       .object({
@@ -681,7 +642,8 @@ export const shoggothConfigFragmentSchema = z
     retention: shoggothRetentionConfigSchema.optional(),
     mcp: shoggothMcpConfigSchema.optional(),
     acpx: shoggothAcpxConfigSchema.partial().optional(),
-    discord: shoggothDiscordConfigSchema.optional(),
+    /** Generic platforms bag — each key is a platform id with common fields validated by core. */
+    platforms: z.record(z.string(), platformCommonConfigSchema).optional(),
     runtime: shoggothRuntimeConfigSchema.optional(),
     agents: shoggothAgentsConfigSchema.optional(),
     agentToAgent: shoggothAgentToAgentConfigSchema.optional(),
@@ -728,7 +690,8 @@ export const shoggothConfigSchema = z
     retention: shoggothRetentionConfigSchema.optional(),
     mcp: shoggothMcpConfigSchema,
     acpx: shoggothAcpxConfigSchema.optional(),
-    discord: shoggothDiscordConfigSchema.optional(),
+    /** Generic platforms bag — each key is a platform id with common fields validated by core. */
+    platforms: z.record(z.string(), platformCommonConfigSchema).optional(),
     runtime: shoggothRuntimeConfigSchema.optional(),
     agents: shoggothAgentsConfigSchema.optional(),
     agentToAgent: shoggothAgentToAgentConfigSchema.optional(),
@@ -813,6 +776,6 @@ export function defaultConfig(configDirectory: string): ShoggothConfig {
     plugins: [],
     mcp: { servers: [], poolScope: "global" },
     policy: DEFAULT_POLICY_CONFIG,
-    discord: { enabled: true },
+    platforms: { discord: { enabled: true } },
   };
 }

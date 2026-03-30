@@ -1,4 +1,4 @@
-import { registerBuiltInMessagingPlatforms } from "@shoggoth/messaging";
+import { registerBuiltInMessagingPlatforms } from "@shoggoth/platform-discord";
 
 registerBuiltInMessagingPlatforms();
 
@@ -143,8 +143,57 @@ export {
 export { invokeControlRequest, type InvokeControlRequestInput } from "./control/control-client";
 export { SUBAGENT_DEFAULT_BOUND_LIFETIME_MS } from "./subagent/subagent-constants";
 export { resolveSessionTargetFromCliArg } from "./control/resolve-session-cli-target";
-export { DiscordRoutesConfigurationError } from "@shoggoth/messaging";
+export { createLogger, type Logger, type LogLevel, type LogFields } from "./logging";
+export { createHitlAutoApproveGate, type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
+export { transcriptRowsToModelChatMessages } from "./sessions/transcript-to-chat";
+export { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
+export { DiscordRoutesConfigurationError } from "@shoggoth/platform-discord";
 export {
   resolveBootstrapPrimarySessionUrn,
   parseFirstChannelIdFromRoutesJson,
 } from "@shoggoth/messaging";
+
+// --- Exports needed by @shoggoth/platform-discord ---
+export {
+  executeSessionAgentTurn,
+  type ExecuteSessionAgentTurnInput,
+  type SessionAgentTurnResult,
+} from "./sessions/session-agent-turn";
+export {
+  runInboundSessionTurn,
+  createCoalescingStreamPusher,
+  type InboundSessionTurnStreaming,
+  type InboundSessionTurnInput,
+  type RunInboundSessionTurnOptions,
+} from "./messaging/inbound-session-turn";
+export {
+  buildSessionSystemContext,
+  type BuildSessionSystemContextInput,
+} from "./sessions/session-system-prompt";
+export {
+  createSessionMcpRuntime,
+  registerContextFinalizer,
+  type SessionMcpRuntime,
+  type CreateSessionMcpRuntimeOptions,
+  type SessionMcpContextFinalizer,
+} from "./sessions/session-mcp-runtime";
+export type {
+  SessionToolLoopFailoverState,
+  SessionToolLoopModelClient,
+} from "./sessions/session-tool-loop-model-client";
+export {
+  resolveSessionAgentHitlPrincipalRoles,
+  SHOGGOTH_HITL_UNKNOWN_SESSION_AGENT,
+} from "./hitl/session-agent-principals";
+export type { SessionModelTurnDelivery } from "./messaging/session-model-turn-delivery";
+export type { HitlConfigRef } from "./config-hot-reload";
+export {
+  defaultDiscordAssistantDeps,
+  type DiscordPlatformAssistantDeps,
+} from "./sessions/assistant-runtime";
+export {
+  connectShoggothMcpServers,
+  partitionMcpServersByEffectiveScope,
+  type ConnectShoggothMcpPoolOptions,
+  type McpServerPool,
+} from "./mcp/mcp-server-pool";

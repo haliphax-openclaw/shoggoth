@@ -4,7 +4,8 @@ import {
   resolveDefaultSessionPlatform,
   resolveEffectiveDiscordRoutesJson,
 } from "../config/effective-runtime";
-import { registerBuiltInMessagingPlatforms, resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
+import { registerBuiltInMessagingPlatforms } from "@shoggoth/platform-discord";
+import { resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
 
 registerBuiltInMessagingPlatforms();
 

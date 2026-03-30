@@ -1,5 +1,5 @@
-import { parseAgentSessionUrn, DEFAULT_MESSAGING_PLATFORM_ID, type ShoggothConfig } from "@shoggoth/shared";
-import { parseDiscordRoutesWithMeta, type DiscordSessionRoute } from "@shoggoth/messaging";
+import { parseAgentSessionUrn, resolvePlatformConfig, resolveAgentPlatformConfig, type ShoggothConfig } from "@shoggoth/shared";
+import { parseDiscordRoutesWithMeta, type DiscordSessionRoute } from "@shoggoth/platform-discord";
 
 function envInt(key: string): number | undefined {
   const v = process.env[key];
@@ -53,17 +53,18 @@ export function resolveShoggothAgentId(cfg: ShoggothConfig): string {
   return cfg.runtime?.agentId?.trim() || "main";
 }
 
-/** Env `SHOGGOTH_DEFAULT_SESSION_PLATFORM` wins; else `runtime.defaultSessionPlatform`; else {@link DEFAULT_MESSAGING_PLATFORM_ID}. */
+/** Env `SHOGGOTH_DEFAULT_SESSION_PLATFORM` wins; else `runtime.defaultSessionPlatform`; else `"discord"`. */
 export function resolveDefaultSessionPlatform(cfg: ShoggothConfig): string {
   const e = process.env.SHOGGOTH_DEFAULT_SESSION_PLATFORM?.trim();
   if (e) return e;
-  return cfg.runtime?.defaultSessionPlatform?.trim() || DEFAULT_MESSAGING_PLATFORM_ID;
+  return cfg.runtime?.defaultSessionPlatform?.trim() || "discord";
 }
 
 export function resolveDiscordRoutesJson(cfg: ShoggothConfig): string | undefined {
   const e = process.env.SHOGGOTH_DISCORD_ROUTES?.trim();
   if (e) return e;
-  return cfg.discord?.routesJson?.trim() || undefined;
+  const dc = resolvePlatformConfig(cfg, "discord");
+  return (dc?.routesJson as string | undefined)?.trim() || undefined;
 }
 
 /**
@@ -83,7 +84,8 @@ export function resolveEffectiveDiscordRoutesJson(cfg: ShoggothConfig): string |
 
   const fromAgents: DiscordSessionRoute[] = [];
   for (const [aidRaw, agent] of Object.entries(cfg.agents?.list ?? {})) {
-    const rows = agent.discord?.routes;
+    const agentDiscord = resolveAgentPlatformConfig(agent, "discord");
+    const rows = agentDiscord?.routes as Array<Record<string, unknown>> | undefined;
     if (!rows?.length) continue;
     const aid = aidRaw.trim();
     let parsed: DiscordSessionRoute[];
@@ -125,21 +127,24 @@ export function resolveDiscordIntents(cfg: ShoggothConfig): number | undefined {
     const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) ? n : undefined;
   }
-  return cfg.discord?.intents;
+  const dc = resolvePlatformConfig(cfg, "discord");
+  return dc?.intents as number | undefined;
 }
 
 export function resolveDiscordAllowBotMessages(cfg: ShoggothConfig): boolean {
   const e = process.env.SHOGGOTH_DISCORD_ALLOW_BOT;
   if (e === "1") return true;
   if (e === "0") return false;
-  return cfg.discord?.allowBotMessages === true;
+  const dc = resolvePlatformConfig(cfg, "discord");
+  return dc?.allowBotMessages === true;
 }
 
 /** Env `SHOGGOTH_DISCORD_OWNER_USER_ID` wins; else layered `discord.ownerUserId`. */
 export function resolveDiscordOwnerUserId(cfg: ShoggothConfig): string | undefined {
   const e = process.env.SHOGGOTH_DISCORD_OWNER_USER_ID?.trim();
   if (e) return e;
-  return cfg.discord?.ownerUserId?.trim() || undefined;
+  const dc = resolvePlatformConfig(cfg, "discord");
+  return (dc?.ownerUserId as string | undefined)?.trim() || undefined;
 }
 
 /**
@@ -166,16 +171,16 @@ export function resolveModelHealthProbeBaseUrl(cfg: ShoggothConfig): string | un
  */
 export function mergeOrchestratorEnv(cfg: ShoggothConfig, override?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const base: NodeJS.ProcessEnv = { ...process.env, ...override };
-  const d = cfg.discord;
+  const d = resolvePlatformConfig(cfg, "discord");
   const r = cfg.runtime;
   const setIfEmpty = (key: string, val: string | undefined) => {
     if (val === undefined || val === "") return;
     const cur = base[key];
     if (cur === undefined || cur === "") base[key] = val;
   };
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_CHANNEL_ID", d?.hitlNotifyChannelId);
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL", d?.hitlNotifyWebhookUrl);
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_DM_USER_ID", d?.hitlNotifyDmUserId);
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_CHANNEL_ID", d?.hitlNotifyChannelId as string | undefined);
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL", d?.hitlNotifyWebhookUrl as string | undefined);
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_DM_USER_ID", d?.hitlNotifyDmUserId as string | undefined);
   if (d?.hitlReplyInSession === false) {
     setIfEmpty("SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION", "0");
   }
@@ -184,7 +189,7 @@ export function mergeOrchestratorEnv(cfg: ShoggothConfig, override?: NodeJS.Proc
   if (d?.streamMinIntervalMs != null) {
     setIfEmpty("SHOGGOTH_DISCORD_STREAM_MIN_MS", String(d.streamMinIntervalMs));
   }
-  setIfEmpty("SHOGGOTH_DISCORD_OWNER_USER_ID", d?.ownerUserId);
+  setIfEmpty("SHOGGOTH_DISCORD_OWNER_USER_ID", d?.ownerUserId as string | undefined);
   if (r?.mcpLogServerMessages === true) setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
   setIfEmpty("SHOGGOTH_AGENT_ID", r?.agentId);
   setIfEmpty("SHOGGOTH_DEFAULT_SESSION_PLATFORM", r?.defaultSessionPlatform);

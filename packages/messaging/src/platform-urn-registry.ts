@@ -3,7 +3,6 @@ import {
   SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
   type ParsedAgentSessionUrn,
 } from "@shoggoth/shared";
-import type { DiscordDefaultPrimaryMultiAgentGuard } from "./discord/messaging-urn-policy.js";
 
 /** Result of validating a `(session URN, channel id)` pair for a static route row. */
 export type MessagingRouteSessionUrnCheck = "ok" | "drop" | { readonly fatal: string };
@@ -24,7 +23,7 @@ export interface MessagingPlatformUrnPolicy {
     routes: ReadonlyArray<{ readonly sessionId: string }>,
     resolvedAgentId: string,
     resolvedPlatform: string,
-    multiAgent?: DiscordDefaultPrimaryMultiAgentGuard,
+    multiAgent?: unknown,
   ): void;
   parseFirstChannelIdFromRoutesJson(raw: string | undefined): string | undefined;
   resolveBootstrapPrimarySessionUrn(

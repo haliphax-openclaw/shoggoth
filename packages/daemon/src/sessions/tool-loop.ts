@@ -114,6 +114,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
     role: string;
     content?: string | null;
     toolCallId?: string | null;
+    toolCalls?: readonly { id: string; name: string; argsJson: string }[];
     metadata?: unknown;
   }) => {
     if (!options.transcript) return;
@@ -123,6 +124,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       role: row.role,
       content: row.content,
       toolCallId: row.toolCallId,
+      toolCalls: row.toolCalls,
       metadata: row.metadata,
     });
   };

@@ -23,6 +23,7 @@
   "dependencies": {
     "@shoggoth/mcp-integration": "*",
     "@shoggoth/messaging": "*",
+    "@shoggoth/platform-discord": "*",
     "@shoggoth/os-exec": "*",
     "@shoggoth/authn": "*",
     "@shoggoth/models": "*",

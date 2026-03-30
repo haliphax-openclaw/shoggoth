@@ -20,13 +20,13 @@
     "test:readiness": "node --import tsx/esm --test tests/readiness-static.test.mjs && node --import tsx/esm --test tests/readiness-compose.test.mjs"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "~24"
   },
   "dependencies": {
     "tsx": "^4.19.3"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "~24",
     "typescript": "~5.7.2"
   }
 }

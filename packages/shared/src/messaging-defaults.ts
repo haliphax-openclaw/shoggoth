@@ -1,5 +1,6 @@
 /**
- * Default messaging bridge id for session URNs (`agent:<agentId>:<platform>:…`) when config does not
- * override. Daemon transports register URN policies under this id (e.g. Discord).
+ * Messaging platform defaults were previously exported from this module.
+ * The hard-coded `DEFAULT_MESSAGING_PLATFORM_ID = "discord"` constant has been removed;
+ * callers should use the platform id from config/context or pass `"discord"` explicitly
+ * where backward compatibility is needed.
  */
-export const DEFAULT_MESSAGING_PLATFORM_ID = "discord";

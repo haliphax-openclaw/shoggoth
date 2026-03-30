@@ -2,6 +2,7 @@ import {
   DEFAULT_HITL_CONFIG,
   loadLayeredConfig,
   LAYOUT,
+  resolvePlatformConfig,
   VERSION,
 } from "@shoggoth/shared";
 import { fileURLToPath } from "node:url";
@@ -41,7 +42,17 @@ import { createDelegatingPolicyEngine, createPolicyEngine } from "./policy/engin
 import { bootstrapPlugins } from "./plugins/bootstrap";
 import { createDaemonRuntime } from "./runtime";
 import { createToolRunStore } from "./sessions/tool-run-store";
-import { startDiscordPlatform } from "./platforms/discord";
+import {
+  startDiscordPlatform,
+  startDaemonDiscordMessaging,
+  type DiscordMessagingRuntime,
+  handleDiscordHitlReactionAdd,
+  createHitlDiscordNoticeRegistry,
+  type HitlDiscordNoticeRegistry,
+  executeDiscordMessageToolAction,
+  registerBuiltInMessagingPlatforms,
+} from "@shoggoth/platform-discord";
+import { registerPlatform, stopAllPlatforms } from "./platforms/platform-registry";
 import { reconcilePersistentBoundSubagents } from "./subagent/reconcile-persistent-bound-subagents";
 import {
   messageToolContextRef,
@@ -51,19 +62,8 @@ import { setSubagentRuntimeExtension } from "./subagent/subagent-extension-ref";
 import { defaultDiscordAssistantDeps } from "./sessions/assistant-runtime";
 import { createPersistingHitlAutoApproveGate } from "./hitl/hitl-auto-approve-persisting";
 import { type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
-import {
-  createHitlDiscordNoticeRegistry,
-  type HitlDiscordNoticeRegistry,
-} from "./hitl/hitl-discord-notice-registry";
-import { handleDiscordHitlReactionAdd } from "./hitl/discord-hitl-reaction-handler";
 import { createHitlPendingResolutionStack, type HitlPendingStack } from "./hitl/hitl-pending-stack";
-import { registerBuiltInMessagingPlatforms } from "@shoggoth/messaging";
-import {
-  startDaemonDiscordMessaging,
-  type DiscordMessagingRuntime,
-} from "./messaging/daemon-messaging-bootstrap";
-import { executeDiscordMessageToolAction } from "@shoggoth/messaging";
-import { loadDaemonNotices } from "./notices/load-notices";
+import { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
 import { registerContextFinalizer } from "./sessions/session-mcp-runtime";
 import {
@@ -86,7 +86,8 @@ const configRef = { current: config };
 function resolvedDiscordBotToken(): string | undefined {
   const fromEnv = process.env.DISCORD_BOT_TOKEN?.trim();
   if (fromEnv) return fromEnv;
-  return configRef.current.discord?.botToken?.trim() || undefined;
+  const dc = resolvePlatformConfig(configRef.current, "discord");
+  return (dc?.botToken as string | undefined)?.trim() || undefined;
 }
 const policyRef = { engine: createPolicyEngine(config.policy) };
 const policyEngine = createDelegatingPolicyEngine(() => policyRef.engine);
@@ -212,6 +213,7 @@ void (async () => {
       logger: msgLog,
       config: configRef.current,
       botToken: resolvedDiscordBotToken(),
+      noticeResolver: daemonNotice,
       onMessageReactionAdd:
         hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
           ? (ev) =>
@@ -280,10 +282,11 @@ void (async () => {
       discord: dm,
       deps: defaultDiscordAssistantDeps,
     });
+    registerPlatform("discord", discordPlatform);
     const subagentExt = {
       runSessionModelTurn: discordPlatform.runSessionModelTurn,
       subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
-      registerDiscordThreadBinding: dm.registerDiscordThreadBinding,
+      registerPlatformThreadBinding: dm.registerPlatformThreadBinding,
       announceBoundSubagentSessionEnded: discordPlatform.announceBoundSubagentSessionEnded,
     };
     setSubagentRuntimeExtension(subagentExt);
@@ -312,8 +315,8 @@ void (async () => {
         expired_killed: subRecon.expiredKilled,
       });
     }
-    rt.shutdown.registerDrain("discord", async () => {
-      await discordPlatform.stop();
+    rt.shutdown.registerDrain("platforms", async () => {
+      await stopAllPlatforms();
       setSubagentRuntimeExtension(undefined);
       messageToolContextRef.current = undefined;
     });

@@ -1,4 +1,3 @@
-import type { DiscordMessagingRuntime } from "@shoggoth/messaging";
 import type { SessionModelTurnDelivery } from "../messaging/session-model-turn-delivery";
 import type { SessionAgentTurnResult } from "../sessions/session-agent-turn";
 
@@ -6,7 +5,7 @@ import type { SessionAgentTurnResult } from "../sessions/session-agent-turn";
 export type BoundSubagentSessionEndReason = "ttl_expired" | "killed";
 
 /**
- * Filled from `index.ts` after Discord platform starts. Control-plane subagent ops consult this ref.
+ * Filled from `index.ts` after a platform starts. Control-plane subagent ops consult this ref.
  */
 export type SubagentRuntimeExtension = {
   readonly runSessionModelTurn: (input: {
@@ -16,9 +15,13 @@ export type SubagentRuntimeExtension = {
     readonly delivery: SessionModelTurnDelivery;
   }) => Promise<SessionAgentTurnResult>;
   readonly subscribeSubagentSession: (sessionId: string) => () => void;
-  readonly registerDiscordThreadBinding: DiscordMessagingRuntime["registerDiscordThreadBinding"];
+  /** Register a platform thread ↔ session binding. Returns an idempotent unregister function. */
+  readonly registerPlatformThreadBinding: (
+    threadChannelId: string,
+    sessionId: string,
+  ) => () => void;
   /**
-   * Best-effort: post a short status line in the bound Discord thread before bindings are cleared.
+   * Best-effort: post a short status line in the bound platform thread before bindings are cleared.
    * Implementations should read session/thread ids synchronously; network I/O may continue async.
    */
   readonly announceBoundSubagentSessionEnded?: (input: {

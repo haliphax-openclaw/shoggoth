@@ -1,0 +1,31 @@
+// Step 2: Discord-specific files from packages/messaging/src/discord/
+export * from "./adapter";
+export * from "./bot-user";
+export * from "./bridge";
+export * from "./gateway-client";
+export * from "./gateway-payload";
+export * from "./message-tool";
+export * from "./messaging-urn-policy";
+export * from "./rest-transport";
+export * from "./transport";
+
+// Step 3: Discord-specific code from packages/messaging/src/
+export * from "./outbound";
+export * from "./streaming";
+export * from "./capabilities";
+export * from "./register";
+
+// Step 4: Discord-specific daemon code
+export * from "./platform";
+export * from "./errors";
+export * from "./bootstrap";
+export * from "./hitl/notifier";
+export * from "./hitl/reaction-handler";
+export * from "./hitl/reaction-wiring";
+export * from "./hitl/notice-registry";
+
+// Step 5: Discord config resolution
+export * from "./config";
+
+// Step 6: Discord health probe
+export * from "./probe";

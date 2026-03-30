@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { discordCapabilityDescriptor } from "@shoggoth/messaging";
+import { discordCapabilityDescriptor } from "@shoggoth/platform-discord";
 import { buildSessionSystemContext } from "../../src/sessions/session-system-prompt";
 
 describe("buildSessionSystemContext", () => {

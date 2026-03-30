@@ -166,7 +166,7 @@ function mapSessionListRow(row: SessionRow) {
     context_segment_id: row.contextSegmentId,
     parent_session_id: row.parentSessionId ?? null,
     subagent_mode: row.subagentMode ?? null,
-    subagent_discord_thread_id: row.subagentDiscordThreadId ?? null,
+    subagent_platform_thread_id: row.subagentPlatformThreadId ?? null,
     subagent_expires_at_ms: row.subagentExpiresAtMs ?? null,
     light_context: row.lightContext,
   };
@@ -763,10 +763,10 @@ export async function handleIntegrationControlOp(
       assertAgentMayUseSubagentSpawn(principal, parentSessionId, sessions);
       const prompt = requireString(pl, "prompt");
       const modeRaw = requireString(pl, "mode");
-      if (modeRaw !== "one_shot" && modeRaw !== "bound_discord_thread") {
+      if (modeRaw !== "one_shot" && modeRaw !== "bound_thread") {
         throw new IntegrationOpError(
           "ERR_INVALID_PAYLOAD",
-          "payload.mode must be one_shot or bound_discord_thread",
+          "payload.mode must be one_shot or bound_thread",
         );
       }
       const parent = sessions.getById(parentSessionId);
@@ -795,7 +795,7 @@ export async function handleIntegrationControlOp(
         sessions.update(childId, {
           parentSessionId,
           subagentMode: "one_shot",
-          subagentDiscordThreadId: null,
+          subagentPlatformThreadId: null,
           subagentExpiresAtMs: null,
         });
         const turn = await ext.runSessionModelTurn({
@@ -818,12 +818,12 @@ export async function handleIntegrationControlOp(
           failover: turn.failoverMeta ?? null,
         };
       }
-      const discordThreadId = requireString(pl, "discord_thread_id");
+      const platformThreadId = requireString(pl, "platform_thread_id");
       const lifetimeMs = optionalFinitePositiveInt(pl, "lifetime_ms") ?? SUBAGENT_DEFAULT_BOUND_LIFETIME_MS;
-      const discordUserIdRaw = pl.discord_user_id;
-      const discordUserId =
-        typeof discordUserIdRaw === "string" && discordUserIdRaw.trim()
-          ? discordUserIdRaw.trim()
+      const platformUserIdRaw = pl.platform_user_id;
+      const platformUserId =
+        typeof platformUserIdRaw === "string" && platformUserIdRaw.trim()
+          ? platformUserIdRaw.trim()
           : "discord:subagent";
       const replyToMessageId =
         typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
@@ -833,10 +833,10 @@ export async function handleIntegrationControlOp(
       sessions.update(childId, {
         parentSessionId,
         subagentMode: "bound",
-        subagentDiscordThreadId: discordThreadId,
+        subagentPlatformThreadId: platformThreadId,
         subagentExpiresAtMs: expiresAt,
       });
-      const unregisterThread = ext.registerDiscordThreadBinding(discordThreadId, childId);
+      const unregisterThread = ext.registerPlatformThreadBinding(platformThreadId, childId);
       const unsubscribeBus = ext.subscribeSubagentSession(childId);
       let ttlTimer: ReturnType<typeof setTimeout> | undefined;
       const clearTtl = () => {
@@ -860,11 +860,11 @@ export async function handleIntegrationControlOp(
         userMetadata: {
           subagent_bound: true,
           parent_session_id: parentSessionId,
-          discord_thread_id: discordThreadId,
+          platform_thread_id: platformThreadId,
         },
         delivery: {
           kind: "messaging_surface",
-          userId: discordUserId,
+          userId: platformUserId,
           replyToMessageId,
         },
       });
@@ -874,14 +874,14 @@ export async function handleIntegrationControlOp(
         outcome: "ok",
         argsRedactedJson: JSON.stringify({
           parent_session_id: parentSessionId,
-          discord_thread_id: discordThreadId,
+          platform_thread_id: platformThreadId,
           expires_at_ms: expiresAt,
         }),
       });
       return {
         session_id: childId,
-        mode: "bound_discord_thread",
-        discord_thread_id: discordThreadId,
+        mode: "bound_thread",
+        platform_thread_id: platformThreadId,
         expires_at_ms: expiresAt,
         first_reply: turn.latestAssistantText,
         failover: turn.failoverMeta ?? null,
@@ -973,7 +973,7 @@ export async function handleIntegrationControlOp(
           status: row.status,
           parent_session_id: row.parentSessionId ?? null,
           subagent_mode: row.subagentMode ?? null,
-          subagent_discord_thread_id: row.subagentDiscordThreadId ?? null,
+          subagent_platform_thread_id: row.subagentPlatformThreadId ?? null,
           subagent_expires_at_ms: row.subagentExpiresAtMs ?? null,
           workspace_path: row.workspacePath,
           context_segment_id: row.contextSegmentId,
@@ -1012,10 +1012,10 @@ export async function handleIntegrationControlOp(
           "one_shot subagents cannot receive session_send",
         );
       }
-      const discordUserIdRaw = pl.discord_user_id;
-      const discordUserId =
-        typeof discordUserIdRaw === "string" && discordUserIdRaw.trim()
-          ? discordUserIdRaw.trim()
+      const platformUserIdRaw = pl.platform_user_id;
+      const platformUserId =
+        typeof platformUserIdRaw === "string" && platformUserIdRaw.trim()
+          ? platformUserIdRaw.trim()
           : "discord:subagent";
       const replyToMessageId =
         typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
@@ -1025,7 +1025,7 @@ export async function handleIntegrationControlOp(
         ? ({ kind: "internal" } as const)
         : ({
             kind: "messaging_surface",
-            userId: discordUserId,
+            userId: platformUserId,
             replyToMessageId,
           } as const);
       const turn = await ext.runSessionModelTurn({
@@ -1077,10 +1077,10 @@ export async function handleIntegrationControlOp(
       if (row.subagentMode === "one_shot") {
         throw new IntegrationOpError("ERR_SUBAGENT_ONE_SHOT", "one_shot subagents cannot be steered");
       }
-      const discordUserIdRaw = pl.discord_user_id;
-      const discordUserId =
-        typeof discordUserIdRaw === "string" && discordUserIdRaw.trim()
-          ? discordUserIdRaw.trim()
+      const platformUserIdRaw = pl.platform_user_id;
+      const platformUserId =
+        typeof platformUserIdRaw === "string" && platformUserIdRaw.trim()
+          ? platformUserIdRaw.trim()
           : "discord:subagent";
       const replyToMessageId =
         typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
@@ -1091,7 +1091,7 @@ export async function handleIntegrationControlOp(
           ? ({ kind: "internal" } as const)
           : ({
               kind: "messaging_surface",
-              userId: discordUserId,
+              userId: platformUserId,
               replyToMessageId,
             } as const);
       const turn = await ext.runSessionModelTurn({
@@ -1170,7 +1170,7 @@ export async function handleIntegrationControlOp(
         targetRow &&
         targetRow.status !== "terminated" &&
         targetRow.subagentMode === "bound" &&
-        Boolean(targetRow.subagentDiscordThreadId?.trim());
+        Boolean(targetRow.subagentPlatformThreadId?.trim());
       terminateBoundSubagentSession(
         sessionManager,
         sessionId,
