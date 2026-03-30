@@ -1,5 +1,5 @@
 import { parseNamespacedMcpTool } from "@shoggoth/mcp-integration";
-import { DEFAULT_HITL_CONFIG, type HitlRiskTier } from "@shoggoth/shared";
+import { DEFAULT_HITL_CONFIG, normalizeHitlToolKeys, normalizeToolName, type HitlRiskTier } from "@shoggoth/shared";
 
 export const DEFAULT_TOOL_RISK: Readonly<Record<string, HitlRiskTier>> = DEFAULT_HITL_CONFIG.toolRisk;
 
@@ -12,10 +12,11 @@ export function classifyToolRisk(
   toolName: string,
   toolRiskOverlay: Readonly<Record<string, HitlRiskTier>>,
 ): HitlRiskTier {
-  const map: Record<string, HitlRiskTier> = { ...DEFAULT_TOOL_RISK, ...toolRiskOverlay };
-  const direct = map[toolName];
+  const map: Record<string, HitlRiskTier> = { ...DEFAULT_TOOL_RISK, ...normalizeHitlToolKeys(toolRiskOverlay) };
+  const canonical = normalizeToolName(toolName);
+  const direct = map[canonical];
   if (direct !== undefined) return direct;
-  const parsed = parseNamespacedMcpTool(toolName);
+  const parsed = parseNamespacedMcpTool(canonical);
   if (parsed) {
     const byOriginal = map[parsed.toolName];
     if (byOriginal !== undefined) return byOriginal;
