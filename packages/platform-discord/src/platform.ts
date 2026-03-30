@@ -547,7 +547,41 @@ export async function startDiscordPlatform(
       return turnResult;
     }
 
-    return await executeTurn(undefined);
+    // Internal delivery (e.g. one-shot subagents): resolve parent session's channel for HITL notices
+    let internalAfterHitlQueued: ((row: PendingActionRow) => void | Promise<void>) | undefined;
+    if (sessionRow.parentSessionId && hitlReplyInSession) {
+      const parentRow = sessions.getById(sessionRow.parentSessionId);
+      const parentChannelId = parentRow
+        ? opts.discord.resolveOutboundChannelIdForSession?.(parentRow.id)
+        : undefined;
+      if (parentChannelId) {
+        const ownerUserId = resolveDiscordOwnerUserId(configForOwnerGate());
+        internalAfterHitlQueued = async (row: PendingActionRow) => {
+          const ref = await opts.discord.outbound.sendDiscord(
+            createOutboundMessage({
+              id: randomUUID(),
+              sessionId: sid,
+              userId: ownerUserId ?? "system",
+              createdAt: new Date().toISOString(),
+              body: sliceDiscordPlatformMessageBody(buildHitlQueuedNoticeLines(row).join("\n")),
+              extensions: {},
+            }),
+          );
+          if (opts.hitlDiscordNoticeRegistry) {
+            await registerDiscordHitlNoticeAndAddReactions({
+              transport: opts.discord.discordRestTransport,
+              channelId: ref.channelId,
+              messageId: ref.messageId,
+              row,
+              registry: opts.hitlDiscordNoticeRegistry,
+              logger: opts.logger,
+            });
+          }
+        };
+      }
+    }
+
+    return await executeTurn(internalAfterHitlQueued);
   }
 
   function subscribeSubagentSession(sessionId: string): () => void {
