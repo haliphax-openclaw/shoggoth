@@ -64,6 +64,8 @@ export interface BuildSessionSystemContextInput {
   };
   /** Optional state database for session stats lookup. */
   readonly stateDb?: Database.Database;
+  /** Current transcript messages for estimating this turn's token usage. */
+  readonly transcriptMessages?: readonly { role: string; content: string | null }[];
 }
 
 function isPathInsideResolvedRoot(rootReal: string, resolvedTarget: string): boolean {
@@ -320,24 +322,50 @@ function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
 }
 
+/** Approximate token count: ~4 chars per token (cl100k_base heuristic). */
+function estimateTokens(text: string | null): number {
+  return text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
+}
+
 function buildSessionStatsSection(
   stateDb: Database.Database | undefined,
   sessionId: string | undefined,
+  transcriptMessages?: readonly { role: string; content: string | null }[],
+  assembledPromptLength?: number,
 ): string | undefined {
   if (!stateDb || !sessionId) return undefined;
   const stats = getSessionStats(stateDb, sessionId);
   if (!stats) return undefined;
 
-  const totalTokens = stats.inputTokens + stats.outputTokens;
+  // If transcript messages are available, estimate current-turn context tokens.
+  // Otherwise fall back to cumulative historical token count from the database.
+  let tokenDisplay: string;
+  let tokenCount: number;
+
+  if (transcriptMessages && transcriptMessages.length > 0) {
+    let transcriptTokens = 0;
+    for (const msg of transcriptMessages) {
+      transcriptTokens += estimateTokens(msg.role) + estimateTokens(msg.content);
+    }
+    const systemPromptTokens = assembledPromptLength
+      ? Math.ceil(assembledPromptLength / 4)
+      : 0;
+    tokenCount = transcriptTokens + systemPromptTokens;
+    tokenDisplay = `~${formatNumber(tokenCount)}`;
+  } else {
+    tokenCount = stats.inputTokens + stats.outputTokens;
+    tokenDisplay = formatNumber(tokenCount);
+  }
+
   let contextWindowSuffix = "";
   if (stats.contextWindowTokens != null) {
-    const pct = ((totalTokens / stats.contextWindowTokens) * 100).toFixed(1);
+    const pct = ((tokenCount / stats.contextWindowTokens) * 100).toFixed(1);
     contextWindowSuffix = ` / ${formatNumber(stats.contextWindowTokens)} (${pct}%)`;
   }
 
   return [
-    "## Session Stats",
-    `Tokens used: ${formatNumber(totalTokens)}${contextWindowSuffix} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
+    "## Session Stats\n",
+    `Tokens used: ${tokenDisplay}${contextWindowSuffix} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
   ].join("\n");
 }
 
@@ -383,7 +411,7 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
 
       const payloadBytes = Buffer.byteLength(body, "utf8");
       totalPayloadBytes += payloadBytes;
-      fileBlocks.push(`--- workspace: ${name} ---\n\n${body}`);
+      fileBlocks.push(`--- workspace: ${name} ---\n\n${body}\n`);
     }
   }
 
@@ -394,7 +422,8 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
     buildWorkspaceSection(resolvedRoot, input.sandbox) +
     (buildMemoryConfigHint(input.config, input.sessionId) ?? "");
 
-  const core = joinSections([
+  // Build core sections without stats first so we can estimate prompt length for token calculation.
+  const coreSansStats = joinSections([
     buildIdentitySection(input.channel),
     buildShoggothCliAndDocsSection(),
     buildToolingSection(toolNames),
@@ -419,8 +448,16 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
       ),
       toolCount,
     }),
-    buildSessionStatsSection(input.stateDb, input.sessionId),
   ]);
+
+  const statsSection = buildSessionStatsSection(
+    input.stateDb,
+    input.sessionId,
+    input.transcriptMessages,
+    coreSansStats.length,
+  );
+
+  const core = statsSection ? `${coreSansStats}\n\n${statsSection}` : coreSansStats;
 
   return appendEnvSystemPrompt(core, env);
 }

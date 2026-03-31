@@ -146,6 +146,16 @@ try {
   toolNames,
   sandbox: { runtimeUid: 1000, runtimeGid: 1000 },
   stateDb: db,
+  transcriptMessages: [
+    { role: "system", content: "You are a helpful assistant running inside Shoggoth." },
+    { role: "user", content: "Hello, can you help me with a coding question about TypeScript generics?" },
+    { role: "assistant", content: "Of course! TypeScript generics are a powerful feature that lets you write reusable, type-safe code. They allow you to create components that work with a variety of types rather than a single one. What specifically would you like to know?" },
+    { role: "user", content: "How do I constrain a generic type parameter to only accept objects with a specific property?" },
+    { role: "assistant", content: "You can use the `extends` keyword to constrain generic types. For example:\n\n```typescript\nfunction getProperty<T extends { name: string }>(obj: T): string {\n  return obj.name;\n}\n```\n\nThis ensures that `T` must have a `name` property of type `string`. You can also use interfaces:\n\n```typescript\ninterface HasId {\n  id: number;\n}\n\nfunction findById<T extends HasId>(items: T[], id: number): T | undefined {\n  return items.find(item => item.id === id);\n}\n```" },
+    { role: "user", content: "That makes sense. Can I use multiple constraints?" },
+    { role: "assistant", content: "Yes! You can intersect multiple constraints using `&`:\n\n```typescript\ninterface HasName { name: string; }\ninterface HasAge { age: number; }\n\nfunction greet<T extends HasName & HasAge>(person: T): string {\n  return `Hello ${person.name}, you are ${person.age} years old.`;\n}\n```\n\nYou can also use conditional types and mapped types for more advanced constraint patterns." },
+    { role: "user", content: "What about constraining a generic to be one of several specific types?" },
+  ],
 });
 
   console.log(systemPrompt);
