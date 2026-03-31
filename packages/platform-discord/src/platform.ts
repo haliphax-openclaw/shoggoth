@@ -408,6 +408,10 @@ export async function startDiscordPlatform(
               toolNames: mcpCtx.toolsOpenAi.map((t) => t.function.name),
               sandbox: { runtimeUid: session.runtimeUid, runtimeGid: session.runtimeGid },
               stateDb: opts.db,
+              transcriptMessages: (opts.db.prepare(
+                `SELECT role, content FROM transcript_messages
+                 WHERE session_id = ? AND context_segment_id = ? ORDER BY seq`,
+              ).all(session.id, session.contextSegmentId) as { role: string; content: string | null }[]),
             }),
             env,
             config: opts.config,
@@ -517,6 +521,10 @@ export async function startDiscordPlatform(
           toolNames: mcpCtx.toolsOpenAi.map((t) => t.function.name),
           sandbox: { runtimeUid: sessionRow.runtimeUid, runtimeGid: sessionRow.runtimeGid },
           stateDb: opts.db,
+          transcriptMessages: (opts.db.prepare(
+            `SELECT role, content FROM transcript_messages
+             WHERE session_id = ? AND context_segment_id = ? ORDER BY seq`,
+          ).all(sessionRow.id, sessionRow.contextSegmentId) as { role: string; content: string | null }[]),
         }),
         env,
         config: opts.config,
