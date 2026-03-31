@@ -12,7 +12,7 @@ export type PolicyCheckInput = {
 
 export type PolicyDecision = { allow: true } | { allow: false; reason: string };
 
-const EMPTY_RULES: ShoggothToolRules = { allow: [], deny: [] };
+const EMPTY_RULES: ShoggothToolRules = { allow: [], deny: [], review: [] };
 
 /** Ops the wire layer recognizes; unknown names stay `ERR_UNKNOWN_OP` before policy. */
 export const DEFINED_CONTROL_OPS = [
@@ -93,13 +93,22 @@ function matchesDeny(resource: string, deny: readonly string[]): boolean {
   return matchesRule(resource, deny);
 }
 
+function matchesReview(resource: string, review: readonly string[] | undefined): boolean {
+  if (!review || review.length === 0) return false;
+  return matchesRule(resource, review);
+}
+
 /**
  * Default-deny: allowed only if an allow rule matches and no deny rule matches.
+ * Evaluation order: deny → review → allow → default_deny.
  * `*` in allow permits any resource not explicitly denied; `*` in deny blocks all.
  */
 export function evaluateRules(resource: string, rules: ShoggothToolRules): PolicyDecision {
   if (matchesDeny(resource, rules.deny)) {
     return { allow: false, reason: "explicit_deny" };
+  }
+  if (matchesReview(resource, rules.review)) {
+    return { allow: false, reason: "requires_review" };
   }
   if (matchesAllow(resource, rules.allow)) {
     return { allow: true };

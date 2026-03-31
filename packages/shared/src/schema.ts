@@ -195,6 +195,7 @@ export const shoggothToolRulesSchema = z
   .object({
     allow: z.array(z.string()),
     deny: z.array(z.string()),
+    review: z.array(z.string()).default([]),
   })
   .strict();
 
@@ -259,8 +260,9 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
     controlOps: {
       allow: ["*"],
       deny: [],
+      review: [],
     },
-    tools: { allow: ["*"], deny: [] },
+    tools: { allow: ["*"], deny: [], review: [] },
   },
   agent: {
     controlOps: {
@@ -280,8 +282,9 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
         "session_kill",
       ],
       deny: [],
+      review: [],
     },
-    tools: { allow: ["*"], deny: [] },
+    tools: { allow: ["*"], deny: [], review: [] },
   },
   auditRedaction: {
     jsonPaths: ["password", "token", "apiKey", "api_key", "authorization", "secret"],

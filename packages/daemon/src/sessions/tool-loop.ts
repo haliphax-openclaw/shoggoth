@@ -189,7 +189,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           decision,
         });
 
-        if (!decision.allow) {
+        const requiresReview = !decision.allow && decision.reason === "requires_review";
+
+        if (!decision.allow && !requiresReview) {
+          options.toolRuns.markFailed(options.runId, `policy_denied:${decision.reason}`);
+          throw new Error(decision.reason);
+        }
+
+        if (requiresReview && !options.hitl) {
+          // No HITL configured — treat requires_review as a block
           options.toolRuns.markFailed(options.runId, `policy_denied:${decision.reason}`);
           throw new Error(decision.reason);
         }
@@ -200,8 +208,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           const tier = classifyToolRisk(compoundResource, h.config.toolRisk);
           const bypass = effectiveBypassUpTo(h.principalRoles, h.config.roleBypassUpTo);
           if (
-            requiresHumanApproval(tier, bypass) &&
-            !h.autoApprove?.shouldAutoApprove(options.sessionId, compoundResource)
+            requiresReview ||
+            (requiresHumanApproval(tier, bypass) &&
+            !h.autoApprove?.shouldAutoApprove(options.sessionId, compoundResource))
           ) {
             const pendingId = h.newPendingId();
             const expiresAtIso = new Date(

@@ -131,6 +131,64 @@ describe("policy engine", () => {
   });
 });
 
+describe("evaluateRules – review list", () => {
+  it("review match returns requires_review even when allow matches", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:bash", { allow: ["exec:*"], deny: [], review: ["exec:bash"] }),
+      { allow: false, reason: "requires_review" },
+    );
+  });
+
+  it("non-review resource still auto-approved", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:curl", { allow: ["exec:*"], deny: [], review: ["exec:bash"] }),
+      { allow: true },
+    );
+  });
+
+  it("deny wins over review", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:bash", { allow: ["exec:*"], deny: ["exec:bash"], review: ["exec:bash"] }),
+      { allow: false, reason: "explicit_deny" },
+    );
+  });
+
+  it("review without allow still returns requires_review", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:bash", { allow: [], deny: [], review: ["exec:bash"] }),
+      { allow: false, reason: "requires_review" },
+    );
+  });
+
+  it("empty review list is backward compatible (allow works)", () => {
+    assert.deepStrictEqual(
+      evaluateRules("read", { allow: ["read"], deny: [], review: [] }),
+      { allow: true },
+    );
+  });
+
+  it("missing review field is backward compatible (allow works)", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec", { allow: ["exec"], deny: [] }),
+      { allow: true },
+    );
+  });
+
+  it("review with wildcard matches all sub-resources", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:curl", { allow: ["exec:*"], deny: [], review: ["exec:*"] }),
+      { allow: false, reason: "requires_review" },
+    );
+  });
+
+  it("bare tool in review matches sub-resources", () => {
+    assert.deepStrictEqual(
+      evaluateRules("exec:curl", { allow: ["exec:*"], deny: [], review: ["exec"] }),
+      { allow: false, reason: "requires_review" },
+    );
+  });
+});
+
 describe("redactToolArgsJson", () => {
   it("redacts dot paths", () => {
     const out = redactToolArgsJson(
