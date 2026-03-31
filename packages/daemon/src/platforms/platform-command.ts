@@ -42,10 +42,6 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
       ...(opts.force === "true" ? { force: true } : {}),
     },
   }),
-  stats: (opts) => ({
-    op: "session_stats",
-    payload: opts.session_id ? { session_id: opts.session_id } : {},
-  }),
   status: (opts) => ({
     op: "session_context_status",
     payload: opts.session_id ? { session_id: opts.session_id } : {},

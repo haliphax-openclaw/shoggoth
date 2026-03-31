@@ -1202,28 +1202,6 @@ export async function handleIntegrationControlOp(
       return { sessions: rows.map(mapSessionListRow) };
     }
 
-    case "session_stats": {
-      if (principal.kind !== "operator" && principal.kind !== "agent") {
-        throw new IntegrationOpError(
-          "ERR_FORBIDDEN",
-          "session_stats requires operator or agent principal",
-        );
-      }
-      if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_stats requires state database");
-      }
-      const pl = payloadObject(req);
-      const sessionId = requireString(pl, "session_id");
-      if (principal.kind === "agent" && sessionId !== principal.sessionId) {
-        throw new IntegrationOpError(
-          "ERR_FORBIDDEN",
-          "agent may only session_stats own session",
-        );
-      }
-      const stats = getSessionStats(ctx.stateDb, sessionId);
-      return { stats: stats ?? null };
-    }
-
     case "session_context_status": {
       if (principal.kind !== "operator" && principal.kind !== "agent") {
         throw new IntegrationOpError(

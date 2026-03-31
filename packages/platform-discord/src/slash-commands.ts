@@ -44,13 +44,6 @@ const GLOBAL_SLASH_COMMANDS = [
     ],
   },
   {
-    name: "stats",
-    description: "Show session statistics (tokens, turns, compactions)",
-    options: [
-      { name: "session_id", type: 3, description: "Session URN", required: false },
-    ],
-  },
-  {
     name: "status",
     description: "Show current session status (provider, model, tokens, turns, compactions)",
     options: [
@@ -224,47 +217,22 @@ async function handleInteraction(
     return;
   }
 
-  if (controlOp.op === "session_stats") {
-    try {
-      const res = await deps.invokeControlOp(controlOp.op, controlOp.payload);
-      let content: string;
-      if (res.ok && res.result) {
-        const s = res.result as Record<string, unknown>;
-        if (s.stats === null) {
-          content = "No stats available for this session yet.";
-        } else {
-          const stats = (s.stats ?? s) as Record<string, unknown>;
-          const lines = [
-            `📊 **Session Stats**`,
-            `Turns: ${stats.turnCount ?? 0}`,
-            `Tokens: ${stats.inputTokens ?? 0} in / ${stats.outputTokens ?? 0} out`,
-            stats.contextWindowTokens ? `Context window: ${stats.contextWindowTokens} tokens` : null,
-            `Transcript messages: ${stats.transcriptMessageCount ?? 0}`,
-            `Compactions: ${stats.compactionCount ?? 0}`,
-            stats.firstTurnAt ? `First turn: ${stats.firstTurnAt}` : null,
-            stats.lastTurnAt ? `Last turn: ${stats.lastTurnAt}` : null,
-          ].filter(Boolean);
-          content = lines.join("\n");
-        }
-      } else {
-        content = `⚠️ Failed to get stats: ${res.error ?? "unknown error"}`;
-      }
-      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
-        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-        data: { content },
-      });
-    } catch (err) {
-      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
-        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-        data: { content: `⚠️ Stats failed: ${String(err)}` },
-      });
-    }
-    return;
-  }
-
   if (controlOp.op === "session_context_new" || controlOp.op === "session_context_reset" || controlOp.op === "session_compact") {
     try {
-      const res = await deps.invokeControlOp(controlOp.op, controlOp.payload);
+      // Resolve session_id from channel if not explicitly provided
+      const payload = { ...controlOp.payload };
+      if (!payload.session_id && deps.resolveSessionForChannel) {
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
+        if (resolved) payload.session_id = resolved;
+      }
+      if (!payload.session_id) {
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: { content: "⚠️ No session bound to this channel. Provide a session_id." },
+        });
+        return;
+      }
+      const res = await deps.invokeControlOp(controlOp.op, payload);
       const content = res.ok
         ? `✅ \`${controlOp.op}\` completed.`
         : `⚠️ \`${controlOp.op}\` failed: ${res.error ?? "unknown error"}`;
