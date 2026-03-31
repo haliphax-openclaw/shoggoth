@@ -6,5 +6,3 @@ dist/
 docker-compose.override.yml
 node_modules/
 Release/
-tests/.env.readiness.local
-tests/.generated/

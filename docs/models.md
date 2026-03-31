@@ -70,8 +70,6 @@ When `models.failoverChain` is absent or empty, `createFailoverClientFromModelsC
 
 Provider id is fixed as `env-default`. **Priority rule:** Anthropic (if `ANTHROPIC_BASE_URL` is set) → Gemini (if `GEMINI_API_KEY` is set) → OpenAI (default).
 
-**Readiness:** `tests/scripts/load-openclaw-env.mjs` sets `ANTHROPIC_*` when OpenClaw’s chosen provider has `api: "anthropic-messages"`, and `tests/docker-compose.readiness.yml` passes those variables into the container. Use `SHOGGOTH_READINESS_PROVIDER` to pick a specific `models.providers.<id>` entry.
-
 ## Failover and degraded mode
 
 `@shoggoth/models` exposes `createFailoverModelClient`. On each `complete` call it:
@@ -94,7 +92,7 @@ Controls **transcript compaction** (summarize the middle, keep system prefix + r
 
 **Automatic compaction:** `shouldAutoCompact(messages, policy)` is intended to be called from the session / tool loop before model calls when the in-memory transcript crosses the threshold.
 
-**Operator-driven compaction:** use the CLI (below) or call `compactSessionTranscript` / `runSessionCompact` with `force: true` to summarize even when under the threshold (still subject to “must have a compressible middle” rules in `compactTranscriptIfNeeded`).
+**Operator-driven compaction:** use the CLI (below) or call `compactSessionTranscript` / `runSessionCompact` with `force: true` to summarize even when under the threshold (still subject to "must have a compressible middle" rules in `compactTranscriptIfNeeded`).
 
 Compaction issues a model request with a fixed system prompt asking for a concise summary; the result is stored as an assistant message prefixed with `[Compacted context]`.
 
@@ -114,6 +112,6 @@ npm run cli -- session compact <sessionId> [--force]
 
 ## Related packages
 
-- `@shoggoth/shared` — Zod schema: `shoggothModelsConfigSchema`.
-- `@shoggoth/models` — `createOpenAICompatibleProvider`, `createAnthropicMessagesProvider`, `createGeminiProvider`, `createFailoverModelClient`, `createFailoverClientFromModelsConfig`, `resolveCompactionPolicyFromModelsConfig`, compaction helpers.
-- `@shoggoth/daemon` — `compactSessionTranscript`, SQLite load/replace helpers in `transcript-compact`.
+- `@shoggoth/shared` - Zod schema: `shoggothModelsConfigSchema`.
+- `@shoggoth/models` - `createOpenAICompatibleProvider`, `createAnthropicMessagesProvider`, `createGeminiProvider`, `createFailoverModelClient`, `createFailoverClientFromModelsConfig`, `resolveCompactionPolicyFromModelsConfig`, compaction helpers.
+- `@shoggoth/daemon` - `compactSessionTranscript`, SQLite load/replace helpers in `transcript-compact`.

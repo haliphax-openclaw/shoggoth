@@ -269,7 +269,6 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
       allow: [
         "agent_ping",
         "acpx_bind_get",
-        "canvas_authorize",
         "subagent_spawn",
         "session_compact",
         "session_context_status",

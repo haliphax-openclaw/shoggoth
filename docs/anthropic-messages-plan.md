@@ -1,13 +1,12 @@
 # Anthropic Messages API support (reference)
 
-This document summarizes how **Anthropic Messages** is integrated in `@shoggoth/models` and how it lines up with config, environment, and readiness tooling.
+This document summarizes how **Anthropic Messages** is integrated in `@shoggoth/models` and how it lines up with config and environment.
 
 ## Goals (delivered)
 
 - **`ModelProvider`** implementation: `complete` and `completeWithTools`, wired through **`createFailoverModelClient`** / **`createFailoverToolCallingClient`**.
 - **Non-streaming** and **streaming** requests; streaming uses **`onTextDelta`** consistent with the OpenAI-compatible provider path.
 - **`models.providers`** entries with `kind: "anthropic-messages"` and **`from-config.ts`** plumbing.
-- **Readiness:** `tests/scripts/load-openclaw-env.mjs` exports `ANTHROPIC_*` when OpenClaw’s selected provider uses `api: "anthropic-messages"`. Override which provider block is read with **`SHOGGOTH_READINESS_PROVIDER`**, or force **`models.providers.lan`** with **`SHOGGOTH_READINESS_USE_LAN=1`**.
 
 ## Transport
 

@@ -15,8 +15,6 @@ import {
   resolveEffectiveModelsConfig,
 } from "@shoggoth/shared";
 import {
-  authorizeCanvasAction,
-  type CanvasAuthzAction,
   createAcpxBinding,
   SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV,
   SHOGGOTH_CONTROL_SOCKET_ENV,
@@ -65,12 +63,6 @@ export class IntegrationOpError extends Error {
     this.name = "IntegrationOpError";
   }
 }
-
-const CANVAS_ACTIONS: ReadonlySet<string> = new Set([
-  "canvas.present",
-  "canvas.push",
-  "canvas.navigate",
-]);
 
 export type IntegrationAuditRecorder = (
   row: Pick<AppendAuditRowInput, "action" | "resource" | "outcome" | "argsRedactedJson">,
@@ -311,7 +303,7 @@ function requireAcpxRuntime(ctx: IntegrationOpsContext): {
 }
 
 /**
- * Control-plane handlers for ACPX workspace bindings, managed acpx processes, and canvas authorization.
+ * Control-plane handlers for ACPX workspace bindings and managed acpx processes.
  */
 export async function handleIntegrationControlOp(
   req: WireRequest,
@@ -721,33 +713,6 @@ export async function handleIntegrationControlOp(
         cleared_session_auto_approve: clearedSessionAutoApprove,
         cleared_agent_auto_approve_agents: clearedAgentAutoApproveAgents,
       };
-    }
-
-    case "canvas_authorize": {
-      const pl = payloadObject(req);
-      const resourceSessionId = requireString(pl, "resource_session_id");
-      const actionRaw = requireString(pl, "action");
-      if (!CANVAS_ACTIONS.has(actionRaw)) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.action must be a canvas authz action");
-      }
-      const action = actionRaw as CanvasAuthzAction;
-
-      if (principal.kind === "operator") {
-        return authorizeCanvasAction({
-          principalKind: "operator",
-          action,
-          resourceSessionId,
-        });
-      }
-      if (principal.kind === "agent") {
-        return authorizeCanvasAction({
-          principalKind: "agent",
-          agentSessionId: principal.sessionId,
-          action,
-          resourceSessionId,
-        });
-      }
-      throw new IntegrationOpError("ERR_FORBIDDEN", "canvas_authorize unsupported for this principal");
     }
 
     case "mcp_http_cancel_request": {

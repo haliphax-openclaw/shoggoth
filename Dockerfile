@@ -39,8 +39,6 @@ COPY scripts ./scripts
 COPY templates/agent-workspace /app/templates/agent-workspace
 COPY migrations /app/migrations
 COPY docs /app/docs
-# Readiness compose exec smoke scripts (tests/readiness-compose.test.mjs); avoid bind-mounting ./tests (daemon path mismatch on some hosts).
-COPY tests/scripts /app/tests/scripts
 COPY docker/entrypoint.sh /usr/local/bin/shoggoth-entrypoint.sh
 COPY docker/shoggoth-wrapper.sh /usr/local/bin/shoggoth
 RUN chmod 0755 /usr/local/bin/shoggoth-entrypoint.sh /usr/local/bin/shoggoth

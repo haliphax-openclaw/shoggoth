@@ -29,12 +29,6 @@ export const SHOGGOTH_SESSION_URN_TAIL_SEGMENT_RE = /^[A-Za-z0-9._-]{1,128}$/;
  */
 export const SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID = "00000000-0000-4000-8000-000000000001";
 
-/** Readiness compose: guild channel session (shared agent workspace `readiness`). */
-export const SHOGGOTH_READINESS_GUILD_SESSION_UUID = "f0000001-0000-4000-8000-000000000001";
-
-/** Readiness compose: DM session (same agent workspace as guild). */
-export const SHOGGOTH_READINESS_DM_SESSION_UUID = "f0000001-0000-4000-8000-000000000002";
-
 export function assertValidAgentId(agentId: string): void {
   const t = agentId.trim();
   if (!t) throw new Error("agentId must be non-empty");
@@ -161,18 +155,4 @@ export function defaultPrimarySessionUrnForAgent(
   return formatAgentSessionUrn(agentId, platform, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
 }
 
-/** Default readiness stack: guild route session URN (`agent:<agentId>:<platform>:<guild uuid>`). */
-export function readinessGuildSessionUrn(
-  agentId: string = "readiness",
-  platform: string = "discord",
-): string {
-  return formatAgentSessionUrn(agentId, platform, SHOGGOTH_READINESS_GUILD_SESSION_UUID);
-}
 
-/** Default readiness stack: DM route session URN (same agent workspace as {@link readinessGuildSessionUrn}). */
-export function readinessDmSessionUrn(
-  agentId: string = "readiness",
-  platform: string = "discord",
-): string {
-  return formatAgentSessionUrn(agentId, platform, SHOGGOTH_READINESS_DM_SESSION_UUID);
-}

@@ -9,7 +9,6 @@ import {
   parseAgentSessionUrn,
   resolveAgentWorkspacePath,
   SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
-  SHOGGOTH_READINESS_GUILD_SESSION_UUID,
 } from "../src/session-urn";
 
 describe("session-urn", () => {

@@ -1,4 +1,4 @@
-# Release checklist — Shoggoth
+# Release checklist - Shoggoth
 
 Use before tagging or shipping a new image.
 
@@ -17,4 +17,4 @@ Use before tagging or shipping a new image.
 
 ## Dependency: sessions and tool loop
 
-- Session manager / tool loop should be stable before treating this checklist as complete for a “v1” cut; MCP/ACP integration (canvas authz, acpx lifecycle) may add further release steps.
+- Session manager / tool loop should be stable before treating this checklist as complete for a "v1" cut; MCP/ACP integration (acpx lifecycle) may add further release steps.

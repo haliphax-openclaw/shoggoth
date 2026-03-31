@@ -71,7 +71,7 @@ function modelProvidersById(
 
 /**
  * Single-hop provider from environment when `models.failoverChain` is not set.
- * Prefers Anthropic when `ANTHROPIC_BASE_URL` is set (readiness / compose); otherwise OpenAI-compatible.
+ * Prefers Anthropic when `ANTHROPIC_BASE_URL` is set; otherwise OpenAI-compatible.
  */
 function singleHopFromEnv(
   env: NodeJS.ProcessEnv,

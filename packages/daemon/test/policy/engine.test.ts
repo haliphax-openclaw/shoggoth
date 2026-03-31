@@ -119,7 +119,6 @@ describe("policy engine", () => {
 
   it("isDefinedControlOp", () => {
     assert.equal(isDefinedControlOp("ping"), true);
-    assert.equal(isDefinedControlOp("canvas_authorize"), true);
     assert.equal(isDefinedControlOp("mcp_http_cancel_request"), true);
     assert.equal(isDefinedControlOp("session_context_new"), true);
     assert.equal(isDefinedControlOp("session_context_reset"), true);

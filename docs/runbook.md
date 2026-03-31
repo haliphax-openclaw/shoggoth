@@ -8,7 +8,7 @@ GitHub Actions runs two jobs (see `.github/workflows/ci.yml`):
 
 | Job | Purpose |
 |-----|---------|
-| **unit** | `ubuntu-latest` VM: full `npm test` (workspace `*.test.ts` / `*.test.mjs`). **SHOGGOTH-READY:** `tests/readiness-static.test.mjs` (always) plus `tests/readiness-compose.test.mjs`, which **builds the image and runs Docker Compose** when the runner has Docker + Compose v2 (`SKIP_SHOGGOTH_READINESS=1` skips the compose suite). Uses `docker-compose.yml` + `tests/docker-compose.readiness.yml` only (optional `SHOGGOTH_EXTRA_COMPOSE_FILE` for local fragments). **DAC** cases in `@shoggoth/os-exec` **skip** without root / uid **901** spawn (normal on unprivileged hosts). |
+| **unit** | `ubuntu-latest` VM: full `npm test` (workspace `*.test.ts` / `*.test.mjs`). **DAC** cases in `@shoggoth/os-exec` **skip** without root / uid **901** spawn (normal on unprivileged hosts). |
 | **agent-uid-isolation** | `node:22-bookworm` **container as root**, with passwd entries for uid **900** (`shoggoth`) and **901** (`agent`). Sets `SHOGGOTH_CI_STRICT_AGENT_TESTS=1` so skipped DAC tests **fail the job** if isolation cannot run. |
 
 Locally, match the strict job with:

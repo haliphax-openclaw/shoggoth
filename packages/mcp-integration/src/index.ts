@@ -11,13 +11,6 @@ export {
 } from "./aggregate";
 export { toMcpToolsListPayload, type McpToolsListPayload } from "./advertise";
 export {
-  authorizeCanvasAction,
-  type CanvasAuthzAction,
-  type CanvasAuthzDecision,
-  type CanvasAuthzInput,
-  type CanvasPrincipalKind,
-} from "./canvas-authz";
-export {
   createAcpxBinding,
   findBindingForAcpxWorkspace,
   SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV,

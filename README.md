@@ -34,7 +34,7 @@ Users: **`shoggoth`** (daemon), **`agent`** (worker pool UID 901) — see `Docke
 - Unknown keys are rejected (strict schema).
 - Optional **`retention`** block: inbound media age/size and transcript age / per-session message cap. Operator scheduling: `shoggoth retention run`.
 - Optional **`models`** block: OpenAI-compatible providers, ordered failover chain, transcript compaction policy. See [docs/models.md](./docs/models.md).
-- **Canvas / A2UI:** authorize present/push against the daemon before mutating UI; see [docs/canvas.md](./docs/canvas.md).
+- **Canvas / A2UI:** future concern; authorize present/push against the daemon before mutating UI.
 
 ## Secrets and SOPS (operators)
 

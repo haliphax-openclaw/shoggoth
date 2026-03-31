@@ -8,7 +8,7 @@ The daemon uses `@shoggoth/messaging` for the internal message model, capability
 |----------|---------|
 | `DISCORD_BOT_TOKEN` | Bot token from the Discord application (same value as in the developer portal). Used for Gateway `IDENTIFY` and REST `Authorization: Bot …`. **Do not commit**; inject via Compose secret or env. If unset, the daemon uses layered config `discord.botToken` (see below). When both are set, **env wins**. |
 
-Alternatively, set **`discord.botToken`** in a layered JSON config fragment (same string as the portal token). The readiness **discord** health probe uses the same resolution order. `shoggoth config show` prints the effective config — **redact** tokens if you share output.
+Alternatively, set **`discord.botToken`** in a layered JSON config fragment (same string as the portal token). `shoggoth config show` prints the effective config — **redact** tokens if you share output.
 
 ## Routing (inbound + outbound)
 

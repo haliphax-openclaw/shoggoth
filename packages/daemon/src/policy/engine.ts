@@ -27,7 +27,6 @@ export const DEFINED_CONTROL_OPS = [
   "acpx_agent_start",
   "acpx_agent_stop",
   "acpx_agent_list",
-  "canvas_authorize",
   "hitl_pending_list",
   "hitl_pending_get",
   "hitl_pending_approve",

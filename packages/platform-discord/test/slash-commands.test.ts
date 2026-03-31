@@ -199,8 +199,11 @@ describe("registerDiscordSlashCommands", () => {
     assert.strictEqual(calls[0]!.method, "registerGlobalCommands");
     const [appId, commands] = calls[0]!.args as [string, Array<Record<string, unknown>>];
     assert.strictEqual(appId, "app-123");
-    assert.strictEqual(commands.length, 1);
-    assert.strictEqual(commands[0]!.name, "abort");
-    assert.ok(Array.isArray(commands[0]!.options));
+    assert.strictEqual(commands.length, 5);
+    assert.ok(commands.some((c) => c.name === "abort"));
+    assert.ok(commands.some((c) => c.name === "new"));
+    assert.ok(commands.some((c) => c.name === "reset"));
+    assert.ok(commands.some((c) => c.name === "compact"));
+    assert.ok(commands.some((c) => c.name === "status"));
   });
 });
