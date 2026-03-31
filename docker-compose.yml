@@ -16,8 +16,11 @@ services:
       - shoggoth-workspaces:/var/lib/shoggoth/workspaces
       - shoggoth-operator:/var/lib/shoggoth/operator
       - shoggoth-media:/var/lib/shoggoth/media/inbound
-      # Effective config is baked into the image under /etc/shoggoth/config.d (see Dockerfile). Override locally:
-      #   -v "$PWD/config/example-overlay:/etc/shoggoth/config.d:ro"
+      # Config is loaded recursively from /etc/shoggoth/config.d in full-path alphabetical order.
+      # Base config (operator-managed, read-only):
+      #   -v "$PWD/config:/etc/shoggoth/config.d/base:ro"
+      # Dynamic config (agent-writable at runtime):
+      #   -v "shoggoth-dynamic-config:/etc/shoggoth/config.d/dynamic"
     # Root here is required so entrypoint can chown/chmod volume roots, then drop to shoggoth (UID 900) with setpriv
     # so SETUID/SETGID caps survive. Builtins spawn agent children as UID/GID 901.
     cap_add:

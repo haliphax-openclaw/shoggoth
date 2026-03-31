@@ -10,22 +10,29 @@ import {
   type ShoggothConfig,
 } from "./schema";
 
-function listJsonFilesSorted(dir: string): string[] {
-  const names = readdirSync(dir).filter((n) => {
-    if (!n.endsWith(".json")) return false;
+function listJsonFilesRecursive(dir: string): string[] {
+  const results: string[] = [];
+  const entries = readdirSync(dir);
+  for (const name of entries) {
+    const full = join(dir, name);
     try {
-      return statSync(join(dir, n)).isFile();
+      const s = statSync(full);
+      if (s.isDirectory()) {
+        results.push(...listJsonFilesRecursive(full));
+      } else if (s.isFile() && name.endsWith(".json")) {
+        results.push(full);
+      }
     } catch {
-      return false;
+      continue;
     }
-  });
-  names.sort((a, b) => a.localeCompare(b, "en"));
-  return names.map((n) => join(dir, n));
+  }
+  results.sort((a, b) => a.localeCompare(b, "en"));
+  return results;
 }
 
 /**
- * Load configuration: built-in defaults, then each `*.json` in `configDir` merged in
- * ascending filename order (e.g. `00-base.json` before `10-local.json`).
+ * Load configuration: built-in defaults, then each `*.json` found recursively under `configDir`,
+ * merged in ascending full-path order (e.g. `base/00-main.json` before `dynamic/90-agent.json`).
  */
 export function loadLayeredConfig(configDir: string): ShoggothConfig {
   let merged: Record<string, unknown> = { ...defaultConfig(configDir) };
@@ -38,7 +45,7 @@ export function loadLayeredConfig(configDir: string): ShoggothConfig {
   }
 
   if (stat?.isDirectory()) {
-    for (const file of listJsonFilesSorted(configDir)) {
+    for (const file of listJsonFilesRecursive(configDir)) {
       const raw = readFileSync(file, "utf8");
       let parsed: unknown;
       try {

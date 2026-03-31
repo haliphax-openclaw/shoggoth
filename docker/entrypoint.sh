@@ -20,6 +20,8 @@ fix_dir() {
   chmod 0750 /etc/shoggoth/config.d
 ) 2>/dev/null || true
 
+# Config directory; bind mounts should go in subfolders
+fix_dir /etc/shoggoth/config.d 0700 shoggoth shoggoth
 fix_dir /var/lib/shoggoth/state 0700 shoggoth shoggoth
 # Workspaces root: setgid (2…) so new session dirs inherit group `agent`; agent UID 901 matches group perms.
 fix_dir /var/lib/shoggoth/workspaces 2770 shoggoth agent
