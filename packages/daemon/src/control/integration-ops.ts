@@ -26,7 +26,7 @@ import type { AcpxProcessSupervisor } from "../acpx/acpx-process-supervisor";
 import { AcpxSupervisorError } from "../acpx/acpx-process-supervisor";
 import type { AcpxBindingStore } from "../acpx/sqlite-acpx-bindings";
 import { SessionManagerError, type SessionManager } from "../sessions/session-manager";
-import type { SessionRow, SessionStore } from "../sessions/session-store";
+import type { SessionRow, SessionStore, SessionSortBy } from "../sessions/session-store";
 import { resolveSessionTargetFromCliArg } from "./resolve-session-cli-target";
 import {
   applySessionContextSegmentNew,
@@ -47,6 +47,7 @@ import { requestSessionTurnAbort } from "../sessions/session-turn-abort";
 import { disposeSubagentRuntime, rememberSubagentHandles } from "../subagent/subagent-disposables";
 import { subagentRuntimeExtensionRef } from "../subagent/subagent-extension-ref";
 import { terminateBoundSubagentSession } from "../subagent/subagent-kill";
+import { extractLatestTranscriptAssistantText } from "../sessions/transcript-to-chat";
 
 export class IntegrationOpError extends Error {
   constructor(
@@ -170,6 +171,8 @@ function mapSessionListRow(row: SessionRow) {
     subagent_platform_thread_id: row.subagentPlatformThreadId ?? null,
     subagent_expires_at_ms: row.subagentExpiresAtMs ?? null,
     light_context: row.lightContext,
+    created_at: row.createdAt || null,
+    updated_at: row.updatedAt || null,
   };
 }
 
@@ -779,6 +782,15 @@ export async function handleIntegrationControlOp(
       }
       const modelOptions = optionalRecordObject(pl, "model_options");
       const modelSelection = mergeSubagentSpawnModelSelection(parent.modelSelection, modelOptions);
+
+      // Optional response delivery routing (defaults: respondTo = parent, internal = true).
+      const respondToRaw = pl.respond_to;
+      const respondTo =
+        typeof respondToRaw === "string" && respondToRaw.trim()
+          ? respondToRaw.trim()
+          : parentSessionId;
+      const internalDelivery = pl.internal !== false; // default true
+
       let childId: string;
       try {
         ({ sessionId: childId } = sessionManager.spawn({
@@ -802,7 +814,12 @@ export async function handleIntegrationControlOp(
         const turn = await ext.runSessionModelTurn({
           sessionId: childId,
           userContent: prompt,
-          userMetadata: { subagent_one_shot: true, parent_session_id: parentSessionId },
+          userMetadata: {
+            subagent_one_shot: true,
+            parent_session_id: parentSessionId,
+            respond_to: respondTo,
+            internal: internalDelivery,
+          },
           delivery: { kind: "internal" },
         });
         terminateBoundSubagentSession(sessionManager, childId);
@@ -816,6 +833,8 @@ export async function handleIntegrationControlOp(
           session_id: childId,
           mode: "one_shot",
           reply: turn.latestAssistantText,
+          respond_to: respondTo,
+          internal: internalDelivery,
           failover: turn.failoverMeta ?? null,
         };
       }
@@ -862,6 +881,8 @@ export async function handleIntegrationControlOp(
           subagent_bound: true,
           parent_session_id: parentSessionId,
           platform_thread_id: platformThreadId,
+          respond_to: respondTo,
+          internal: internalDelivery,
         },
         delivery: {
           kind: "messaging_surface",
@@ -884,8 +905,184 @@ export async function handleIntegrationControlOp(
         mode: "bound_thread",
         platform_thread_id: platformThreadId,
         expires_at_ms: expiresAt,
+        respond_to: respondTo,
+        internal: internalDelivery,
         first_reply: turn.latestAssistantText,
         failover: turn.failoverMeta ?? null,
+      };
+    }
+
+    case "subagent_wait": {
+      if (principal.kind !== "operator" && principal.kind !== "agent") {
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "subagent_wait requires operator or agent principal",
+        );
+      }
+      if (principal.kind === "agent") {
+        assertAgentSpawnSubagentsAllowed(principal, ctx.config);
+      }
+      const { sessions } = requireSubagentRuntime(ctx);
+      const pl = payloadObject(req);
+      const sessionIds = optionalStringArray(pl, "session_ids");
+      if (!sessionIds || sessionIds.length === 0) {
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.session_ids must be a non-empty array of strings",
+        );
+      }
+      const timeoutMs = optionalFinitePositiveInt(pl, "timeout_ms") ?? 300_000;
+      const modeRaw = pl.mode;
+      const mode =
+        modeRaw === "any" ? "any" : "all"; // default "all"
+      const includeResults = pl.include_results === true;
+      const maxCharsEach = optionalFinitePositiveInt(pl, "max_chars") ?? 4000;
+
+      // Validate that agent can only wait on its own direct children.
+      if (principal.kind === "agent") {
+        for (const sid of sessionIds) {
+          const row = sessions.getById(sid);
+          if (row && row.parentSessionId !== principal.sessionId) {
+            throw new IntegrationOpError(
+              "ERR_FORBIDDEN",
+              `agent may only wait on direct child subagents (${sid})`,
+            );
+          }
+        }
+      }
+
+      const POLL_INTERVAL_MS = 500;
+      const deadline = Date.now() + timeoutMs;
+
+      /** Check whether a session counts as "completed" (terminated, or not found). */
+      const resolveSessionStatus = (
+        sid: string,
+      ): { sessionId: string; status: string; exitReason: string } | null => {
+        const row = sessions.getById(sid);
+        if (!row) {
+          return { sessionId: sid, status: "done", exitReason: "not_found" };
+        }
+        if (row.status === "terminated") {
+          return { sessionId: sid, status: "done", exitReason: "natural" };
+        }
+        return null; // still running
+      };
+
+      const completed: { sessionId: string; status: string; exitReason: string; result?: string; truncated?: boolean }[] = [];
+      const remaining = new Set(sessionIds);
+
+      // Check for already-completed sessions first.
+      for (const sid of sessionIds) {
+        const resolved = resolveSessionStatus(sid);
+        if (resolved) {
+          if (includeResults) {
+            const row = sessions.getById(sid);
+            if (row && ctx.stateDb) {
+              const text = extractLatestTranscriptAssistantText(ctx.stateDb, sid, row.contextSegmentId) ?? "";
+              const truncated = text.length > maxCharsEach;
+              Object.assign(resolved, {
+                result: truncated ? text.slice(0, maxCharsEach) : text,
+                truncated,
+              });
+            } else {
+              Object.assign(resolved, { result: "", truncated: false });
+            }
+          }
+          completed.push(resolved);
+          remaining.delete(sid);
+        }
+      }
+
+      // If mode=any and we already have one, or mode=all and all done, return immediately.
+      if (
+        remaining.size === 0 ||
+        (mode === "any" && completed.length > 0)
+      ) {
+        return {
+          completed,
+          pending: [...remaining].map((sid) => ({ sessionId: sid, status: "running" })),
+          timedOut: false,
+        };
+      }
+
+      // Poll loop — yield execution between checks.
+      while (Date.now() < deadline) {
+        await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        for (const sid of [...remaining]) {
+          const resolved = resolveSessionStatus(sid);
+          if (resolved) {
+            if (includeResults) {
+              const row = sessions.getById(sid);
+              if (row && ctx.stateDb) {
+                const text = extractLatestTranscriptAssistantText(ctx.stateDb, sid, row.contextSegmentId) ?? "";
+                const truncated = text.length > maxCharsEach;
+                Object.assign(resolved, {
+                  result: truncated ? text.slice(0, maxCharsEach) : text,
+                  truncated,
+                });
+              } else {
+                Object.assign(resolved, { result: "", truncated: false });
+              }
+            }
+            completed.push(resolved);
+            remaining.delete(sid);
+          }
+        }
+        if (remaining.size === 0 || (mode === "any" && completed.length > 0)) {
+          break;
+        }
+      }
+
+      return {
+        completed,
+        pending: [...remaining].map((sid) => ({ sessionId: sid, status: "running" })),
+        timedOut: remaining.size > 0,
+      };
+    }
+
+    case "subagent_result": {
+      if (principal.kind !== "operator" && principal.kind !== "agent") {
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "subagent_result requires operator or agent principal",
+        );
+      }
+      if (principal.kind === "agent") {
+        assertAgentSpawnSubagentsAllowed(principal, ctx.config);
+      }
+      const { sessions } = requireSubagentRuntime(ctx);
+      const pl = payloadObject(req);
+      const sessionId = requireString(pl, "session_id");
+      const maxChars = optionalFinitePositiveInt(pl, "max_chars") ?? 8000;
+
+      // Agent can only read results from direct children.
+      if (principal.kind === "agent") {
+        const row = sessions.getById(sessionId);
+        if (row && row.parentSessionId !== principal.sessionId) {
+          throw new IntegrationOpError(
+            "ERR_FORBIDDEN",
+            "agent may only read results from direct child subagents",
+          );
+        }
+      }
+
+      const row = sessions.getById(sessionId);
+      if (!row) {
+        return { sessionId, status: "not_found", result: null, truncated: false };
+      }
+      if (row.status !== "terminated") {
+        return { sessionId, status: "running", result: null, truncated: false };
+      }
+      if (!ctx.stateDb) {
+        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "subagent_result requires state database");
+      }
+      const text = extractLatestTranscriptAssistantText(ctx.stateDb, sessionId, row.contextSegmentId) ?? "";
+      const truncated = text.length > maxChars;
+      return {
+        sessionId,
+        status: "done",
+        result: truncated ? text.slice(0, maxChars) : text,
+        truncated,
       };
     }
 
@@ -909,6 +1106,26 @@ export async function handleIntegrationControlOp(
           ? agentFilterRaw.trim()
           : undefined;
 
+      // --- New sort / filter / limit parameters ---
+      const VALID_SORT_BY = new Set(["created", "lastActivity", "name"]);
+      const sortByRaw = pl.sort_by;
+      const sortBy: SessionSortBy | undefined =
+        typeof sortByRaw === "string" && VALID_SORT_BY.has(sortByRaw)
+          ? (sortByRaw as SessionSortBy)
+          : undefined;
+
+      const sortOrderRaw = pl.sort_order;
+      const sortOrder: "asc" | "desc" | undefined =
+        sortOrderRaw === "asc" || sortOrderRaw === "desc" ? sortOrderRaw : undefined;
+
+      const activeSinceRaw = pl.active_since;
+      const activeSince =
+        typeof activeSinceRaw === "string" && activeSinceRaw.trim()
+          ? activeSinceRaw.trim()
+          : undefined;
+
+      const limit = optionalFinitePositiveInt(pl, "limit");
+
       if (principal.kind === "agent") {
         const callerAgentId = parseAgentSessionUrn(principal.sessionId)?.agentId;
         if (!callerAgentId) {
@@ -923,7 +1140,14 @@ export async function handleIntegrationControlOp(
             "agent may only list sessions for own agent id",
           );
         }
-        const rows = ctx.sessions.list({ status, agentId: callerAgentId });
+        const rows = ctx.sessions.list({
+          status,
+          agentId: callerAgentId,
+          sortBy,
+          sortOrder,
+          activeSince,
+          limit,
+        });
         return { sessions: rows.map(mapSessionListRow) };
       }
 
@@ -935,7 +1159,14 @@ export async function handleIntegrationControlOp(
           throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.agent: ${msg}`);
         }
       }
-      const rows = ctx.sessions.list({ status, agentId: agentFilter });
+      const rows = ctx.sessions.list({
+        status,
+        agentId: agentFilter,
+        sortBy,
+        sortOrder,
+        activeSince,
+        limit,
+      });
       return { sessions: rows.map(mapSessionListRow) };
     }
 

@@ -8,6 +8,12 @@ export interface SkillRecord {
   readonly absolutePath: string;
   /** Effective enablement: frontmatter + config disabledIds. */
   readonly enabled: boolean;
+  /** Optional freeform tags for search/filter (lowercase, alphanumeric with hyphens). */
+  readonly tags: readonly string[];
+  /** Optional broad grouping (e.g. "utilities", "dev-tools", "integrations"). */
+  readonly category: string | null;
+  /** Optional one-line description for search matching. */
+  readonly description: string | null;
 }
 
 function walkMarkdownFiles(dir: string, out: string[]): void {
@@ -25,6 +31,24 @@ function walkMarkdownFiles(dir: string, out: string[]): void {
       out.push(p);
     }
   }
+}
+
+/**
+ * Parses a YAML-ish inline array string like `[foo, bar, baz]` into a
+ * lowercase string array.  Returns `[]` for missing or malformed input.
+ */
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  // Strip surrounding brackets if present: [a, b, c] → a, b, c
+  const inner = trimmed.startsWith("[") && trimmed.endsWith("]")
+    ? trimmed.slice(1, -1)
+    : trimmed;
+  if (!inner.trim()) return [];
+  return inner
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0);
 }
 
 function pathSlugId(root: string, filePath: string): string {
@@ -76,11 +100,19 @@ export function scanSkillDirectories(
       (fields["title"] ?? fields["name"] ?? "").trim() || id;
     const fileEnabled = parseBoolField(fields["enabled"], true);
     const configOk = !disabledIds.has(id);
+    const tags = parseTags(fields["tags"]);
+    const categoryRaw = fields["category"]?.trim().toLowerCase();
+    const category = categoryRaw && categoryRaw.length > 0 ? categoryRaw : null;
+    const descRaw = fields["description"]?.trim();
+    const description = descRaw && descRaw.length > 0 ? descRaw : null;
     records.push({
       id,
       title,
       absolutePath,
       enabled: fileEnabled && configOk,
+      tags,
+      category,
+      description,
     });
   }
   return records;

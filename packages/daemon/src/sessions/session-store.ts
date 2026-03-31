@@ -23,6 +23,10 @@ export interface SessionRow {
   readonly subagentMode: SubagentMode | undefined;
   readonly subagentPlatformThreadId: string | undefined;
   readonly subagentExpiresAtMs: number | undefined;
+  /** ISO 8601 datetime string from the DB `created_at` column. */
+  readonly createdAt: string;
+  /** ISO 8601 datetime string from the DB `updated_at` column (tracks last activity). */
+  readonly updatedAt: string;
 }
 
 export interface CreateSessionInput {
@@ -67,6 +71,8 @@ function rowToSession(r: {
   subagent_mode?: string | null;
   subagent_platform_thread_id?: string | null;
   subagent_expires_at_ms?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }): SessionRow {
   let model: unknown = undefined;
   if (r.model_selection_json) {
@@ -107,7 +113,26 @@ function rowToSession(r: {
     subagentPlatformThreadId: r.subagent_platform_thread_id?.trim() || undefined,
     subagentExpiresAtMs:
       typeof exp === "number" && Number.isFinite(exp) ? Math.trunc(exp) : undefined,
+    createdAt: r.created_at ?? "",
+    updatedAt: r.updated_at ?? "",
   };
+}
+
+/** Sort field for `list()`. Maps to DB columns: created → created_at, lastActivity → updated_at, name → id. */
+export type SessionSortBy = "created" | "lastActivity" | "name";
+
+export interface SessionListFilter {
+  readonly status?: SessionStatus;
+  readonly parentSessionId?: string;
+  readonly agentId?: string;
+  /** Sort field (default: "created"). */
+  readonly sortBy?: SessionSortBy;
+  /** Sort direction (default: "desc"). */
+  readonly sortOrder?: "asc" | "desc";
+  /** Inclusive lower bound on last activity (ISO 8601 datetime). Excludes sessions with updated_at before this. */
+  readonly activeSince?: string;
+  /** Maximum number of sessions to return (applied after sort). */
+  readonly limit?: number;
 }
 
 export interface SessionStore {
@@ -115,7 +140,7 @@ export interface SessionStore {
   getById(id: string): SessionRow | undefined;
   update(id: string, patch: UpdateSessionInput): void;
   delete(id: string): void;
-  list(filter?: { status?: SessionStatus; parentSessionId?: string; agentId?: string }): SessionRow[];
+  list(filter?: SessionListFilter): SessionRow[];
 }
 
 /** Current `context_segment_id` for model transcript scoping. */
@@ -148,7 +173,8 @@ export function createSessionStore(db: Database.Database): SessionStore {
   const selectOne = db.prepare(`
     SELECT id, agent_profile_id, workspace_path, status, context_segment_id, model_selection_json,
            light_context, prompt_stack_json, runtime_uid, runtime_gid,
-           parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms
+           parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms,
+           created_at, updated_at
     FROM sessions WHERE id = @id
   `);
 
@@ -266,65 +292,72 @@ export function createSessionStore(db: Database.Database): SessionStore {
       type R = Parameters<typeof rowToSession>[0];
       const cols = `id, agent_profile_id, workspace_path, status, context_segment_id, model_selection_json,
                  light_context, prompt_stack_json, runtime_uid, runtime_gid,
-                 parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms`;
+                 parent_session_id, subagent_mode, subagent_platform_thread_id, subagent_expires_at_ms,
+                 created_at, updated_at`;
+
+      // --- Map sortBy to DB column ---
+      const sortByMap: Record<string, string> = {
+        created: "created_at",
+        lastActivity: "updated_at",
+        name: "id",
+      };
+      const sortCol = sortByMap[filter?.sortBy ?? "created"] ?? "created_at";
+      const sortDir = filter?.sortOrder === "asc" ? "ASC" : "DESC";
+
+      // --- parentSessionId is a special-case filter (used by subagent inspect) ---
       if (filter?.parentSessionId !== undefined) {
-        const rows = db
-          .prepare(
-            `
-          SELECT ${cols}
-          FROM sessions WHERE parent_session_id = @parent ORDER BY id
-        `,
-          )
-          .all({ parent: filter.parentSessionId }) as R[];
+        const clauses: string[] = ["parent_session_id = @parent"];
+        const params: Record<string, unknown> = { parent: filter.parentSessionId };
+        if (filter.activeSince) {
+          clauses.push("updated_at >= @activeSince");
+          params.activeSince = filter.activeSince;
+        }
+        let sql = `SELECT ${cols} FROM sessions WHERE ${clauses.join(" AND ")} ORDER BY ${sortCol} ${sortDir}`;
+        if (filter.limit !== undefined) {
+          sql += " LIMIT @limit";
+          params.limit = filter.limit;
+        }
+        const rows = db.prepare(sql).all(params) as R[];
         return rows.map(rowToSession);
       }
-      const status = filter?.status;
+
+      // --- Build WHERE clauses ---
+      const clauses: string[] = [];
+      const params: Record<string, unknown> = {};
+
+      if (filter?.status !== undefined) {
+        clauses.push("status = @status");
+        params.status = filter.status;
+      }
+      if (filter?.activeSince) {
+        clauses.push("updated_at >= @activeSince");
+        params.activeSince = filter.activeSince;
+      }
+
+      const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+      let sql = `SELECT ${cols} FROM sessions ${where} ORDER BY ${sortCol} ${sortDir}`;
+
+      // When agentId is set, limit must be applied after JS-side URN filtering (below),
+      // so only add SQL LIMIT when there is no agentId filter.
       const agentId = filter?.agentId?.trim();
+      if (filter?.limit !== undefined && !agentId) {
+        sql += " LIMIT @limit";
+        params.limit = filter.limit;
+      }
+
+      const rows = db.prepare(sql).all(params) as R[];
+      let results = rows.map(rowToSession);
+
+      // --- agentId filtering is done in JS (URN parsing, same as before) ---
       if (agentId) {
         assertValidAgentId(agentId);
-        const rows = (
-          status !== undefined
-            ? db
-                .prepare(
-                  `
-          SELECT ${cols}
-          FROM sessions WHERE status = @status ORDER BY id
-        `,
-                )
-                .all({ status })
-            : db
-                .prepare(
-                  `
-          SELECT ${cols}
-          FROM sessions ORDER BY id
-        `,
-                )
-                .all()
-        ) as R[];
-        return rows
-          .map(rowToSession)
-          .filter((r) => parseAgentSessionUrn(r.id)?.agentId === agentId);
+        results = results.filter((r) => parseAgentSessionUrn(r.id)?.agentId === agentId);
+        if (filter?.limit !== undefined) {
+          results = results.slice(0, filter.limit);
+        }
       }
-      if (status !== undefined) {
-        const rows = db
-          .prepare(
-            `
-          SELECT ${cols}
-          FROM sessions WHERE status = @status ORDER BY id
-        `,
-          )
-          .all({ status }) as R[];
-        return rows.map(rowToSession);
-      }
-      const rows = db
-        .prepare(
-          `
-        SELECT ${cols}
-        FROM sessions ORDER BY id
-      `,
-        )
-        .all() as R[];
-      return rows.map(rowToSession);
+
+      return results;
     },
   };
 }

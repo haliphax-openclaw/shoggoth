@@ -60,6 +60,10 @@ export function discordCapabilityDescriptor(): MessagingAdapterCapabilities {
       threadCreate: true,
       threadDelete: true,
       messageGet: true,
+      react: true,
+      reactions: true,
+      search: true,
+      attachmentDownload: true,
     },
     features: [MESSAGING_FEATURE.TYPING_NOTIFICATION, MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE],
     parameterSchemas: {

@@ -186,36 +186,153 @@ export async function executeSessionAgentTurn(
               return { resultJson: JSON.stringify({ error: `session ${sessionIdFilter} does not belong to agent ${requestedAgentId}` }) };
             }
           }
-          const stmt = input.db.prepare(
-            sessionIdFilter
-              ? `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id
-                 FROM transcript_messages
-                 WHERE session_id = @session_id AND seq > @offset
-                 ORDER BY seq ASC LIMIT @limit`
-              : `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id
-                 FROM transcript_messages
-                 WHERE session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)
-                   AND seq > @offset
-                 ORDER BY session_id, seq ASC LIMIT @limit`,
-          );
-          const params: Record<string, unknown> = { offset, limit };
+
+          // --- Role filter ---
+          const roleRaw = args.role;
+          let roleFilter: string[] | undefined;
+          if (typeof roleRaw === "string" && roleRaw.trim()) {
+            roleFilter = [roleRaw.trim()];
+          } else if (Array.isArray(roleRaw) && roleRaw.length > 0 && roleRaw.every((r: unknown) => typeof r === "string")) {
+            roleFilter = roleRaw as string[];
+          }
+          // Empty array means no filter (all roles)
+
+          // --- Search parameters (mutually exclusive) ---
+          const queryStr = typeof args.query === "string" && args.query.trim() ? args.query.trim() : undefined;
+          const queryRegexStr = typeof args.queryRegex === "string" && args.queryRegex.trim() ? args.queryRegex.trim() : undefined;
+          if (queryStr && queryRegexStr) {
+            return { resultJson: JSON.stringify({ error: "query and queryRegex are mutually exclusive; provide only one" }) };
+          }
+          // Validate regex early to avoid runtime crashes
+          let compiledRegex: RegExp | undefined;
+          if (queryRegexStr) {
+            try {
+              compiledRegex = new RegExp(queryRegexStr, "i");
+            } catch (e) {
+              return { resultJson: JSON.stringify({ error: `invalid queryRegex pattern: ${String(e)}` }) };
+            }
+          }
+
+          // --- Metadata parameters ---
+          const metadataOnly = args.metadataOnly === true;
+          const includeMetadata = metadataOnly || args.includeMetadata === true;
+
+          // Build SQL query with optional role filter and substring search.
+          // Regex and limit/offset on filtered results are applied in JS for correctness
+          // (offset/limit apply to the *filtered* result set, not the raw SQL rows).
+          const whereClauses: string[] = [];
+          const params: Record<string, unknown> = {};
+
           if (sessionIdFilter) {
+            whereClauses.push("session_id = @session_id");
             params.session_id = sessionIdFilter;
           } else {
+            whereClauses.push("session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)");
             params.agent_pattern = `agent:${requestedAgentId}:%`;
           }
-          const rows = stmt.all(params) as {
+
+          // Role filter in SQL for efficiency
+          if (roleFilter && roleFilter.length > 0) {
+            const rolePlaceholders = roleFilter.map((_, i) => `@role_${i}`);
+            whereClauses.push(`role IN (${rolePlaceholders.join(", ")})`);
+            roleFilter.forEach((r, i) => { params[`role_${i}`] = r; });
+          }
+
+          // Substring search in SQL (SQLite LIKE is case-insensitive for ASCII)
+          if (queryStr) {
+            whereClauses.push("content LIKE @query_like");
+            params.query_like = `%${queryStr}%`;
+          }
+
+          // When regex or query filtering is active, we fetch a larger batch from SQL
+          // and apply JS-side filtering + pagination. When no JS-side filter is needed,
+          // we can use SQL offset/limit directly.
+          const needsJsFilter = Boolean(compiledRegex);
+
+          let sql: string;
+          if (needsJsFilter) {
+            // Fetch more rows than needed; JS will filter and paginate
+            sql = `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id, created_at
+                   FROM transcript_messages
+                   WHERE ${whereClauses.join(" AND ")}
+                   ORDER BY ${sessionIdFilter ? "seq" : "session_id, seq"} ASC`;
+          } else {
+            whereClauses.push("seq > @offset");
+            params.offset = offset;
+            params.limit = limit;
+            sql = `SELECT seq, role, content, tool_call_id, tool_calls_json, metadata_json, session_id, created_at
+                   FROM transcript_messages
+                   WHERE ${whereClauses.join(" AND ")}
+                   ORDER BY ${sessionIdFilter ? "seq" : "session_id, seq"} ASC
+                   LIMIT @limit`;
+          }
+
+          const stmt = input.db.prepare(sql);
+          type RawRow = {
             seq: number; role: string; content: string | null;
-            tool_call_id: string | null; tool_calls_json: string | null; metadata_json: string | null; session_id: string;
-          }[];
-          const messages = rows.map((r) => ({
-            session_id: r.session_id,
-            seq: r.seq,
-            role: r.role,
-            content: r.content,
-            ...(r.tool_call_id ? { tool_call_id: r.tool_call_id } : {}),
-            ...(r.tool_calls_json ? { tool_calls: JSON.parse(r.tool_calls_json) } : {}),
-          }));
+            tool_call_id: string | null; tool_calls_json: string | null;
+            metadata_json: string | null; session_id: string; created_at: string | null;
+          };
+          let rows = stmt.all(params) as RawRow[];
+
+          // JS-side regex filter + pagination when needed
+          if (compiledRegex) {
+            rows = rows.filter((r) => r.content != null && compiledRegex!.test(r.content));
+            // Apply offset/limit to the filtered set
+            const startIdx = rows.findIndex((r) => r.seq > offset);
+            if (startIdx === -1) {
+              rows = [];
+            } else {
+              rows = rows.slice(startIdx, startIdx + limit);
+            }
+          }
+
+          /** Approximate token count: ~4 chars per token (cl100k_base heuristic). */
+          const estimateTokens = (text: string | null): number =>
+            text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
+
+          // Track absolute index across the full transcript for metadata
+          let indexMap: Map<string, number> | undefined;
+          if (includeMetadata) {
+            // Build a seq-to-index map for the rows we're returning.
+            // Index is the absolute 0-based position within the session's transcript.
+            // We compute it by counting rows with seq <= current seq per session.
+            indexMap = new Map();
+            const sessionIds = [...new Set(rows.map((r) => r.session_id))];
+            for (const sid of sessionIds) {
+              const countStmt = input.db.prepare(
+                `SELECT seq, ROW_NUMBER() OVER (ORDER BY seq ASC) - 1 AS idx
+                 FROM transcript_messages WHERE session_id = @sid ORDER BY seq ASC`,
+              );
+              const indexRows = countStmt.all({ sid }) as { seq: number; idx: number }[];
+              for (const ir of indexRows) {
+                indexMap.set(`${sid}:${ir.seq}`, ir.idx);
+              }
+            }
+          }
+
+          const messages = rows.map((r) => {
+            const base: Record<string, unknown> = {
+              session_id: r.session_id,
+              seq: r.seq,
+              role: r.role,
+            };
+            // Include content unless metadataOnly
+            if (!metadataOnly) {
+              base.content = r.content;
+              if (r.tool_call_id) base.tool_call_id = r.tool_call_id;
+              if (r.tool_calls_json) base.tool_calls = JSON.parse(r.tool_calls_json);
+            }
+            // Include _meta when requested
+            if (includeMetadata) {
+              base._meta = {
+                timestamp: r.created_at ?? null,
+                tokenCount: estimateTokens(r.content),
+                index: indexMap?.get(`${r.session_id}:${r.seq}`) ?? null,
+              };
+            }
+            return base;
+          });
           return { resultJson: JSON.stringify({ messages, count: messages.length }) };
         }
         if (originalName === "subagent" || originalName.startsWith("session.")) {
@@ -244,6 +361,11 @@ export async function executeSessionAgentTurn(
                 prompt,
                 mode: "one_shot",
               };
+              const respondTo = args.respond_to;
+              if (typeof respondTo === "string" && respondTo.trim()) {
+                payload.respond_to = respondTo.trim();
+              }
+              if (args.internal === false) payload.internal = false;
             } else if (action === "spawn_bound") {
               const prompt = String(args.prompt ?? "").trim();
               const threadId = String(args.thread_id ?? "").trim();
@@ -265,6 +387,11 @@ export async function executeSessionAgentTurn(
               if (typeof lt === "number" && Number.isFinite(lt) && lt > 0) {
                 payload.lifetime_ms = Math.trunc(lt);
               }
+              const respondTo = args.respond_to;
+              if (typeof respondTo === "string" && respondTo.trim()) {
+                payload.respond_to = respondTo.trim();
+              }
+              if (args.internal === false) payload.internal = false;
             } else if (action === "inspect") {
               op = "session_inspect";
               payload = { session_id: input.sessionId };
@@ -296,6 +423,41 @@ export async function executeSessionAgentTurn(
               }
               op = "session_kill";
               payload = { session_id: sid };
+            } else if (action === "wait") {
+              const sessionIds = args.session_ids;
+              if (
+                !Array.isArray(sessionIds) ||
+                sessionIds.length === 0 ||
+                !sessionIds.every((x: unknown) => typeof x === "string")
+              ) {
+                return {
+                  resultJson: JSON.stringify({ error: "session_ids must be a non-empty array of strings" }),
+                };
+              }
+              op = "subagent_wait";
+              payload = { session_ids: sessionIds };
+              const tm = args.timeout_ms;
+              if (typeof tm === "number" && Number.isFinite(tm) && tm > 0) {
+                payload.timeout_ms = Math.trunc(tm);
+              }
+              const md = args.mode;
+              if (md === "any" || md === "all") payload.mode = md;
+              if (args.include_results === true) payload.include_results = true;
+              const mc = args.max_chars;
+              if (typeof mc === "number" && Number.isFinite(mc) && mc > 0) {
+                payload.max_chars = Math.trunc(mc);
+              }
+            } else if (action === "result") {
+              const sid = String(args.session_id ?? "").trim();
+              if (!sid) {
+                return { resultJson: JSON.stringify({ error: "session_id required" }) };
+              }
+              op = "subagent_result";
+              payload = { session_id: sid };
+              const mc = args.max_chars;
+              if (typeof mc === "number" && Number.isFinite(mc) && mc > 0) {
+                payload.max_chars = Math.trunc(mc);
+              }
             } else {
               return {
                 resultJson: JSON.stringify({ error: `unknown subagent action: ${action}` }),

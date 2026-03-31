@@ -278,6 +278,66 @@ export function createDiscordRestTransport(options: DiscordRestTransportOptions)
       }
     },
 
+    async deleteMessageReaction(channelId, messageId, emoji) {
+      const enc = encodeURIComponent(emoji);
+      const res = await discordFetchWithRateLimitRetry(
+        () =>
+          discordFetch(
+            `/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${enc}/@me`,
+            { method: "DELETE" },
+          ),
+        "createMessageReaction",
+      );
+      if (!res.ok && res.status !== 204) {
+        const bodyText = await res.text();
+        throw new Error(`Discord REST deleteMessageReaction ${res.status}: ${bodyText}`);
+      }
+    },
+
+    async getMessageReactions(channelId, messageId, emoji) {
+      const enc = encodeURIComponent(emoji);
+      const res = await discordFetchWithRateLimitRetry(
+        () =>
+          discordFetch(
+            `/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${enc}`,
+            { method: "GET" },
+          ),
+        "getMessage",
+      );
+      const j = (await res.json()) as unknown;
+      if (!Array.isArray(j)) {
+        throw new Error("Discord REST getMessageReactions: expected JSON array");
+      }
+      return j as Record<string, unknown>[];
+    },
+
+    async searchMessages(guildId, query) {
+      const params = new URLSearchParams();
+      if (query.content) params.set("content", query.content);
+      if (query.author_id) {
+        const ids = Array.isArray(query.author_id) ? query.author_id : [query.author_id];
+        for (const id of ids) params.append("author_id", id);
+      }
+      if (query.channel_id) {
+        const ids = Array.isArray(query.channel_id) ? query.channel_id : [query.channel_id];
+        for (const id of ids) params.append("channel_id", id);
+      }
+      if (query.min_id) params.set("min_id", query.min_id);
+      if (query.max_id) params.set("max_id", query.max_id);
+      if (query.limit !== undefined) params.set("limit", String(Math.min(25, Math.max(1, Math.trunc(query.limit)))));
+      const q = params.toString();
+      const path = `/guilds/${encodeURIComponent(guildId)}/messages/search${q ? `?${q}` : ""}`;
+      const res = await discordFetchWithRateLimitRetry(
+        () => discordFetch(path, { method: "GET" }),
+        "getMessage",
+      );
+      const j = (await res.json()) as { messages?: unknown[][]; total_results?: number };
+      return {
+        messages: (Array.isArray(j.messages) ? j.messages : []) as Record<string, unknown>[][],
+        total_results: typeof j.total_results === "number" ? j.total_results : 0,
+      };
+    },
+
     async triggerTypingIndicator(channelId) {
       const res = await discordFetchWithRateLimitRetry(
         () =>

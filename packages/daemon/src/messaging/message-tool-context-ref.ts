@@ -18,5 +18,9 @@ export function messageToolSliceFromCapabilities(c: MessagingAdapterCapabilities
     threadDelete: x.threadDelete,
     replies: x.replies,
     messageGet: x.messageGet,
+    react: x.react,
+    reactions: x.reactions,
+    search: x.search,
+    attachmentDownload: x.attachmentDownload,
   };
 }

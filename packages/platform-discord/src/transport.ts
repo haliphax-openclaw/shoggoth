@@ -26,6 +26,16 @@ export interface DiscordChannelMessagesQuery {
   readonly around?: string;
 }
 
+/** Query for GET `/guilds/{id}/messages/search`. */
+export interface DiscordSearchQuery {
+  readonly content?: string;
+  readonly author_id?: string | readonly string[];
+  readonly channel_id?: string | readonly string[];
+  readonly min_id?: string;
+  readonly max_id?: string;
+  readonly limit?: number;
+}
+
 export interface DiscordRestTransport {
   /** POST `/users/@me/channels` — returns the DM channel id for `createMessage`. */
   openDmChannel(recipientUserId: string): Promise<string>;
@@ -64,6 +74,29 @@ export interface DiscordRestTransport {
    * passed raw and URL-encoded (e.g. `✅`). Custom emojis use `name:id`.
    */
   createMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+  /**
+   * DELETE `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me` — remove the bot's
+   * own reaction. Unicode `emoji` is URL-encoded; custom emojis use `name:id`.
+   */
+  deleteMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+  /**
+   * GET `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}` — returns users who
+   * reacted with this emoji. When `emoji` is omitted by the caller, the message-tool layer
+   * fetches the full message and aggregates from its `reactions` array.
+   */
+  getMessageReactions(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<readonly Record<string, unknown>[]>;
+  /**
+   * GET `/guilds/{guild.id}/messages/search` or channel-scoped search.
+   * Discord search supports `content`, `author_id`, `channel_id`, `min_id`, `max_id`, etc.
+   */
+  searchMessages(
+    guildId: string,
+    query: DiscordSearchQuery,
+  ): Promise<{ readonly messages: readonly Record<string, unknown>[][]; readonly total_results: number }>;
   /** POST `/channels/{channel.id}/typing` — lasts ~10s; renew for long model turns. */
   triggerTypingIndicator(channelId: string): Promise<void>;
   /** POST `/interactions/{id}/{token}/callback` — respond to a slash command interaction. */

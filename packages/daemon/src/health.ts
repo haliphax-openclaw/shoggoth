@@ -160,16 +160,17 @@ function resolveModelProbeUrl(normalizedBase: string): string {
   return u.href;
 }
 
-async function fetchModelEndpoint(probeUrl: string): Promise<Response> {
+async function fetchModelEndpoint(probeUrl: string, extraHeaders?: Record<string, string>): Promise<Response> {
   const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
-  let res = await fetch(probeUrl, { method: "HEAD", signal, redirect: "manual" });
+  const headers = { ...extraHeaders };
+  let res = await fetch(probeUrl, { method: "HEAD", signal, redirect: "manual", headers });
   if (res.status === 405) {
     const signal2 = AbortSignal.timeout(PROBE_TIMEOUT_MS);
     res = await fetch(probeUrl, {
       method: "GET",
       signal: signal2,
       redirect: "manual",
-      headers: { Accept: "*/*" },
+      headers: { Accept: "*/*", ...extraHeaders },
     });
   }
   return res;
@@ -228,9 +229,21 @@ export function createDiscordProbe(options: {
   };
 }
 
-/** Model API base URL reachability (HEAD, GET on 405). */
+/** Build auth headers for model probe based on provider type. */
+function buildModelProbeAuthHeaders(
+  normalizedBase: string,
+  apiKey: string,
+): Record<string, string> {
+  if (isAnthropicModelProbeBase(normalizedBase)) {
+    return { "x-api-key": apiKey };
+  }
+  return { Authorization: `Bearer ${apiKey}` };
+}
+
+/** Model API base URL reachability (HEAD, GET on 405). Optionally authenticates with an API key. */
 export function createModelEndpointProbe(options: {
   getBaseUrl: () => string | undefined;
+  getApiKey?: () => string | undefined;
 }): DependencyProbe {
   return {
     name: "model",
@@ -240,8 +253,9 @@ export function createModelEndpointProbe(options: {
         return { name: "model", status: "skipped", detail: "not configured" };
       }
       let probeUrl: string;
+      let normalized: string;
       try {
-        const normalized = normalizeModelBaseUrl(raw);
+        normalized = normalizeModelBaseUrl(raw);
         if (!normalized) {
           return { name: "model", status: "skipped", detail: "not configured" };
         }
@@ -254,15 +268,19 @@ export function createModelEndpointProbe(options: {
         };
       }
       try {
-        const res = await fetchModelEndpoint(probeUrl);
+        const apiKey = options.getApiKey?.()?.trim();
+        const authHeaders = apiKey ? buildModelProbeAuthHeaders(normalized, apiKey) : {};
+        const res = await fetchModelEndpoint(probeUrl, authHeaders);
         if (res.status >= 200 && res.status < 400) {
           return { name: "model", status: "pass", detail: detailFromModelResponse(res) };
         }
         if (res.status === 401) {
           return {
             name: "model",
-            status: "warn",
-            detail: "reachable but unauthorized (HTTP 401); API key may be missing or invalid",
+            status: apiKey ? "fail" : "warn",
+            detail: apiKey
+              ? "API key rejected (HTTP 401)"
+              : "reachable but unauthorized (HTTP 401); API key may be missing or invalid",
           };
         }
         return {

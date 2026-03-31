@@ -30,6 +30,48 @@ const execArgs = {
       items: { type: "string" },
       description: "Argv for exec; argv[0] is the binary",
     },
+    timeout: {
+      type: "integer",
+      description: "Maximum milliseconds before the process is killed. Omit for no timeout.",
+      minimum: 0,
+    },
+    stdin: {
+      type: "string",
+      description: "String to write to the process stdin before closing it.",
+    },
+    workdir: {
+      type: "string",
+      description: "Working directory for the command. Defaults to workspace root.",
+    },
+    env: {
+      type: "object",
+      additionalProperties: true,
+      description: "Environment variable overrides (string values, merged with existing env).",
+    },
+    splitStreams: {
+      type: "boolean",
+      description: "When true, return stdout and stderr as separate fields instead of combined output.",
+    },
+    maxOutput: {
+      type: "integer",
+      description: "Maximum bytes of output to capture. Excess is truncated per the truncation strategy.",
+      minimum: 0,
+    },
+    truncation: {
+      type: "string",
+      enum: ["head", "tail", "both"],
+      description: "Truncation strategy when output exceeds maxOutput. Default: tail.",
+    },
+    background: {
+      type: "boolean",
+      description: "When true, start the process in the background immediately and return a session handle.",
+    },
+    yieldMs: {
+      type: "integer",
+      description:
+        "Wait up to this many milliseconds for the process to finish. If still running, background it and return a handle. Mutually exclusive with background (background wins). 0 is equivalent to background: true.",
+      minimum: 0,
+    },
   },
   required: ["argv"],
 } as const;
@@ -58,13 +100,13 @@ const memoryIngestArgs = {
 const subagentToolArgs = {
   type: "object",
   description:
-    "Subagent spawn, inspect, steer, abort, and kill. Allowed only when spawnSubagents is true (top-level and/or agents.list.<id>.spawnSubagents). Top-level sessions only for spawn; steer/kill target direct child subagents; abort may target own session or a direct child.",
+    "Subagent spawn, inspect, steer, abort, kill, wait, and result. Allowed only when spawnSubagents is true (top-level and/or agents.list.<id>.spawnSubagents). Top-level sessions only for spawn; steer/kill target direct child subagents; abort may target own session or a direct child. wait blocks until one or more subagents complete; result retrieves the final output of a completed subagent.",
   properties: {
     action: {
       type: "string",
-      enum: ["spawn_one_shot", "spawn_bound", "inspect", "steer", "abort", "kill"],
+      enum: ["spawn_one_shot", "spawn_bound", "inspect", "steer", "abort", "kill", "wait", "result"],
       description:
-        "spawn_one_shot / spawn_bound / inspect / steer / abort / kill — use fields below as required for each action.",
+        "spawn_one_shot / spawn_bound / inspect / steer / abort / kill / wait / result — use fields below as required for each action.",
     },
     prompt: {
       type: "string",
@@ -81,7 +123,37 @@ const subagentToolArgs = {
     session_id: {
       type: "string",
       description:
-        "steer, abort, kill: target session URN (child subagent for steer and kill; own session or child for abort)",
+        "steer, abort, kill, result: target session URN (child subagent for steer and kill; own session or child for abort; completed child for result)",
+    },
+    session_ids: {
+      type: "array",
+      items: { type: "string" },
+      description: "wait: one or more subagent session IDs to wait on",
+    },
+    timeout_ms: {
+      type: "integer",
+      description: "wait: max wait time in ms before returning with timeout status (default 300000)",
+    },
+    mode: {
+      type: "string",
+      enum: ["all", "any"],
+      description: "wait: 'all' waits for every ID, 'any' returns on first completion (default 'all')",
+    },
+    include_results: {
+      type: "boolean",
+      description: "wait: when true, embed each completed agent's final output in the response (default false)",
+    },
+    max_chars: {
+      type: "integer",
+      description: "result: truncate output to this many characters (default 8000). wait+include_results: per-agent limit (default 4000)",
+    },
+    respond_to: {
+      type: "string",
+      description: "spawn_one_shot, spawn_bound: session ID where the subagent's completion result should be delivered (default: spawning session)",
+    },
+    internal: {
+      type: "boolean",
+      description: "spawn_one_shot, spawn_bound: if true (default), deliver response as internal session message; if false, surface to the respondTo session's message platform binding",
     },
     delivery: {
       type: "string",
@@ -104,6 +176,27 @@ const sessionListArgs = {
       description:
         "Optional agent id filter (operator only). Agents may omit or must match their own agent id.",
     },
+    sort_by: {
+      type: "string",
+      enum: ["created", "lastActivity", "name"],
+      description:
+        "Field to sort results by. 'created' sorts by creation time, 'lastActivity' by last update, 'name' by session id. Default: 'created'.",
+    },
+    sort_order: {
+      type: "string",
+      enum: ["asc", "desc"],
+      description: "Sort direction. Default: 'desc'.",
+    },
+    active_since: {
+      type: "string",
+      description:
+        "ISO 8601 datetime. Only return sessions whose last activity is at or after this timestamp (inclusive lower bound).",
+    },
+    limit: {
+      type: "integer",
+      description: "Maximum number of sessions to return (applied after sort). Must be a positive integer.",
+      minimum: 1,
+    },
   },
 } as const;
 
@@ -124,6 +217,42 @@ const sessionSendArgs = {
     reply_to_message_id: { type: "string", description: "When not silent, optional reply reference" },
   },
   required: ["message"],
+} as const;
+
+const pollArgs = {
+  type: "object",
+  description:
+    "Check the status and output of a background process by PID. Returns current status, exit code (if finished), and captured output. Only tracks processes started via exec with background or yieldMs.",
+  properties: {
+    pid: {
+      type: "integer",
+      description: "Process ID of the background process to check",
+    },
+    timeout: {
+      type: "integer",
+      description:
+        "Maximum milliseconds to wait for the process to finish before returning current status. 0 returns immediately (default).",
+      minimum: 0,
+    },
+    streams: {
+      type: "boolean",
+      description:
+        "When true, return stdout and stderr as separate fields instead of combined output",
+    },
+    tail: {
+      type: "integer",
+      description:
+        "Return only the last N lines of output. Useful for long-running processes where only recent output matters.",
+      minimum: 1,
+    },
+    since: {
+      type: "integer",
+      description:
+        "Return only output captured after this byte offset. Enables incremental reads across multiple polls.",
+      minimum: 0,
+    },
+  },
+  required: ["pid"],
 } as const;
 
 const skillsToolArgs = {
@@ -154,6 +283,17 @@ const sessionQueryArgs = {
     agent_id: { type: "string", description: "Filter by agent id (defaults to calling agent's own id; must be in allowed list)" },
     limit: { type: "integer", description: "Max messages to return (default 50, max 200)", minimum: 1, maximum: 200 },
     offset: { type: "integer", description: "Pagination offset (seq cursor; messages with seq > offset are returned)", minimum: 0 },
+    role: {
+      oneOf: [
+        { type: "string", enum: ["user", "assistant", "system", "tool"] },
+        { type: "array", items: { type: "string", enum: ["user", "assistant", "system", "tool"] } },
+      ],
+      description: "Filter to messages matching the given role(s). Accepts a single role string or an array. Empty array means no filter (all roles).",
+    },
+    query: { type: "string", description: "Case-insensitive substring search across message content. Only messages containing the query string are returned. Mutually exclusive with queryRegex." },
+    queryRegex: { type: "string", description: "Regex pattern to match against message content. Mutually exclusive with query." },
+    includeMetadata: { type: "boolean", description: "When true, each returned message includes _meta with timestamp (ISO 8601), tokenCount (approximate), and index (absolute position). Default false." },
+    metadataOnly: { type: "boolean", description: "When true, return only role and _meta (no content). Implies includeMetadata. Useful for session size analysis without consuming context. Default false." },
   },
 } as const;
 
@@ -214,6 +354,12 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
         description:
           "Read-only query of session transcript messages. Returns messages with seq, role, and content. Agents can only query their own sessions unless allowed via sessionQuery config.",
         inputSchema: sessionQueryArgs,
+      },
+      {
+        name: "poll",
+        description:
+          "Check the status and captured output of a background process by PID. Combines status check and output retrieval in a single call. Only tracks processes started via exec with background or yieldMs.",
+        inputSchema: pollArgs,
       },
       {
         name: "skills",

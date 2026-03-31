@@ -172,4 +172,183 @@ describe("session.query tool handler", { concurrency: false }, () => {
     assert.equal(toolResult.messages.length, 1);
     assert.equal(toolResult.messages[0].content, "how are you");
   });
+
+  // -----------------------------------------------------------------------
+  // Role filter tests
+  // -----------------------------------------------------------------------
+
+  it("filters by single role string", async () => {
+    const { toolResult } = await runWithToolArgs({ role: "user" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    // Seeded: 2 user messages + 1 "query test" user message from the turn itself
+    assert.ok(toolResult.messages.length >= 2);
+    for (const m of toolResult.messages) {
+      assert.equal(m.role, "user");
+    }
+  });
+
+  it("filters by role array", async () => {
+    const { toolResult } = await runWithToolArgs({ role: ["assistant"] });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.ok(toolResult.messages.length >= 1);
+    for (const m of toolResult.messages) {
+      assert.equal(m.role, "assistant");
+    }
+  });
+
+  it("treats empty role array as no filter (returns all roles)", async () => {
+    const { toolResult } = await runWithToolArgs({ role: [] });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    const roles = new Set(toolResult.messages.map((m: { role: string }) => m.role));
+    // Should have at least user and assistant from seeded data
+    assert.ok(roles.has("user"));
+    assert.ok(roles.has("assistant"));
+  });
+
+  it("filters by multiple roles", async () => {
+    const { toolResult } = await runWithToolArgs({ role: ["user", "assistant"] });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    for (const m of toolResult.messages) {
+      assert.ok(m.role === "user" || m.role === "assistant", `unexpected role: ${m.role}`);
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Substring search (query) tests
+  // -----------------------------------------------------------------------
+
+  it("filters by query substring (case-insensitive)", async () => {
+    const { toolResult } = await runWithToolArgs({ query: "hello" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages.length, 1);
+    assert.equal(toolResult.messages[0].content, "hello");
+  });
+
+  it("query returns no results when no match", async () => {
+    const { toolResult } = await runWithToolArgs({ query: "nonexistent_xyz" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages.length, 0);
+  });
+
+  it("combines role filter with query", async () => {
+    // "hi there" is from assistant; searching "hi" should match it but not user messages
+    const { toolResult } = await runWithToolArgs({ query: "hi", role: "assistant" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages.length, 1);
+    assert.equal(toolResult.messages[0].content, "hi there");
+    assert.equal(toolResult.messages[0].role, "assistant");
+  });
+
+  // -----------------------------------------------------------------------
+  // Regex search (queryRegex) tests
+  // -----------------------------------------------------------------------
+
+  it("filters by queryRegex", async () => {
+    // Match messages containing "h.llo" (hello)
+    const { toolResult } = await runWithToolArgs({ queryRegex: "h.llo" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.ok(toolResult.messages.length >= 1);
+    assert.ok(toolResult.messages.some((m: { content: string }) => m.content === "hello"));
+  });
+
+  it("rejects both query and queryRegex together", async () => {
+    const { toolResult } = await runWithToolArgs({ query: "hello", queryRegex: "h.*" });
+    assert.ok(toolResult);
+    assert.ok(toolResult.error);
+    assert.ok(toolResult.error.includes("mutually exclusive"));
+  });
+
+  it("rejects invalid queryRegex pattern", async () => {
+    const { toolResult } = await runWithToolArgs({ queryRegex: "[invalid" });
+    assert.ok(toolResult);
+    assert.ok(toolResult.error);
+    assert.ok(toolResult.error.includes("invalid queryRegex"));
+  });
+
+  it("queryRegex respects offset and limit on filtered results", async () => {
+    // Regex matching "h" should match "hello", "hi there", "how are you"
+    // With offset=1 (skip seq 1), limit=1, should get "hi there" (seq 2)
+    const { toolResult } = await runWithToolArgs({ queryRegex: "^h", offset: 1, limit: 1 });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages.length, 1);
+    assert.equal(toolResult.messages[0].content, "hi there");
+  });
+
+  // -----------------------------------------------------------------------
+  // Metadata tests (includeMetadata / metadataOnly)
+  // -----------------------------------------------------------------------
+
+  it("includes _meta when includeMetadata is true", async () => {
+    const { toolResult } = await runWithToolArgs({ includeMetadata: true, limit: 3 });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    for (const m of toolResult.messages) {
+      assert.ok(m._meta, "expected _meta on message");
+      assert.ok(typeof m._meta.timestamp === "string" || m._meta.timestamp === null);
+      assert.ok(typeof m._meta.tokenCount === "number");
+      assert.ok(m._meta.tokenCount >= 0);
+      assert.ok(typeof m._meta.index === "number" || m._meta.index === null);
+    }
+    // First message should have index 0
+    assert.equal(toolResult.messages[0]._meta.index, 0);
+  });
+
+  it("does not include _meta by default", async () => {
+    const { toolResult } = await runWithToolArgs({ limit: 1 });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages[0]._meta, undefined);
+  });
+
+  it("metadataOnly omits content and implies includeMetadata", async () => {
+    const { toolResult } = await runWithToolArgs({ metadataOnly: true, limit: 3 });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    for (const m of toolResult.messages) {
+      // content should be omitted entirely
+      assert.ok(!("content" in m), "content should not be present in metadataOnly mode");
+      // _meta should be present
+      assert.ok(m._meta, "expected _meta on message");
+      assert.ok(typeof m._meta.tokenCount === "number");
+    }
+  });
+
+  it("metadataOnly still respects role filter", async () => {
+    const { toolResult } = await runWithToolArgs({ metadataOnly: true, role: "assistant" });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    for (const m of toolResult.messages) {
+      assert.equal(m.role, "assistant");
+      assert.ok(!("content" in m));
+      assert.ok(m._meta);
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Combined filter test
+  // -----------------------------------------------------------------------
+
+  it("combines role, query, and includeMetadata", async () => {
+    const { toolResult } = await runWithToolArgs({
+      role: "user",
+      query: "how",
+      includeMetadata: true,
+    });
+    assert.ok(toolResult);
+    assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
+    assert.equal(toolResult.messages.length, 1);
+    assert.equal(toolResult.messages[0].role, "user");
+    assert.equal(toolResult.messages[0].content, "how are you");
+    assert.ok(toolResult.messages[0]._meta);
+    assert.ok(typeof toolResult.messages[0]._meta.timestamp === "string");
+  });
 });

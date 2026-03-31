@@ -4,5 +4,43 @@ export {
   resolvePathForRead,
   resolvePathForWrite,
 } from "./workspace-path";
-export { runAsUser, type RunAsUserOptions, type RunAsUserResult } from "./subprocess";
-export { toolRead, toolWrite, toolExec, type AgentCredentials } from "./tools";
+export {
+  runAsUser,
+  spawnAsUser,
+  readHandleOutput,
+  type RunAsUserOptions,
+  type RunAsUserResult,
+  type BackgroundHandle,
+} from "./subprocess";
+export {
+  toolRead,
+  toolWrite,
+  toolExec,
+  toolReadExtended,
+  toolExecExtended,
+  getExecSession,
+  listExecSessions,
+  removeExecSession,
+  type AgentCredentials,
+  type ReadExtendedOptions,
+  type ReadExtendedResult,
+  type ReadSingleResult,
+  type ReadMultiResult,
+  type StatSingleResult,
+  type StatMultiResult,
+  type FileStat,
+  type ExecExtendedOptions,
+  type ExecExtendedResult,
+  type ExecForegroundResult,
+  type ExecBackgroundResult,
+  type TruncationMode,
+} from "./tools";
+export {
+  toolPoll,
+  type PollOptions,
+  type PollResult,
+  type PollCombinedResult,
+  type PollSplitResult,
+  type PollError,
+  type PollResponse,
+} from "./poll";

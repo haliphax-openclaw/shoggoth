@@ -13,6 +13,10 @@ export interface MessageToolPlatformSlice {
   readonly threadDelete: boolean;
   readonly replies: boolean;
   readonly messageGet: boolean;
+  readonly react: boolean;
+  readonly reactions: boolean;
+  readonly search: boolean;
+  readonly attachmentDownload: boolean;
 }
 
 /**
@@ -29,13 +33,17 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
   if (slice.messageDelete) actions.push("delete");
   if (slice.threadCreate) actions.push("create_thread");
   if (slice.threadDelete) actions.push("delete_thread");
+  if (slice.react) actions.push("react");
+  if (slice.reactions) actions.push("reactions");
+  if (slice.search) actions.push("search");
+  if (slice.attachmentDownload) actions.push("attachment-download");
 
   const properties: Record<string, JsonSchemaLike> = {
     action: {
       type: "string",
       enum: actions,
       description:
-        "get: read message(s) — use message_id alone for one message; or limit (default 10) for latest messages in the channel; or anchor_message_id + list_direction (before|after|around) for messages relative to that id (Discord). post/edit/delete/create_thread/delete_thread as documented in other fields. Normal assistant replies use platform transport, not this tool.",
+        "get: read message(s). post/edit/delete/create_thread/delete_thread: message CRUD. react: add/remove emoji reaction. reactions: read reactions on a message. search: filtered message fetch by keyword/author/time. attachment-download: download a file attachment. Only actions supported by the current platform appear in action's enum.",
     },
     content: {
       type: "string",
@@ -44,7 +52,7 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     message_id: {
       type: "string",
       description:
-        "get: fetch this message only (single-message mode). edit/delete: target message. create_thread: message to branch from.",
+        "get: fetch this message only (single-message mode). edit/delete: target message. create_thread: message to branch from. react/reactions: target message. attachment-download: message containing the attachment.",
     },
     name: {
       type: "string",
@@ -60,7 +68,7 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     properties.channel_id = {
       type: "string",
       description:
-        "get only: Discord channel or thread snowflake; defaults to this session’s bound outbound channel when omitted.",
+        "get only: Discord channel or thread snowflake; defaults to this session's bound outbound channel when omitted.",
     };
     properties.limit = {
       type: "integer",
@@ -78,7 +86,7 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
       type: "string",
       enum: ["before", "after", "around"],
       description:
-        "get: required when anchor_message_id is set — before = older than anchor, after = newer, around = centered on anchor.",
+        "get: required when anchor_message_id is set - before = older than anchor, after = newer, around = centered on anchor.",
     };
   }
 
@@ -110,10 +118,88 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     };
   }
 
+  // --- Reactions ---
+  if (slice.react || slice.reactions) {
+    properties.emoji = {
+      type: "string",
+      description:
+        "react: emoji to add/remove (Unicode or platform shortcode, e.g. ✅ or <:custom:123>). reactions: optional filter to a specific emoji.",
+    };
+  }
+  if (slice.react) {
+    properties.remove = {
+      type: "boolean",
+      description: "react only: if true, remove the reaction instead of adding it. Default false.",
+    };
+  }
+
+  // --- Search ---
+  if (slice.search) {
+    properties.query = {
+      type: "string",
+      description: "search: free-text keyword search.",
+    };
+    properties.author_id = {
+      type: "string",
+      description: "search: filter to messages from a specific user id.",
+    };
+    properties.author_ids = {
+      type: "array",
+      items: { type: "string" },
+      description: "search: filter to messages from any of these user ids.",
+    };
+    properties.before = {
+      type: "string",
+      description: "search: only messages before this message id or ISO timestamp.",
+    };
+    properties.after = {
+      type: "string",
+      description: "search: only messages after this message id or ISO timestamp.",
+    };
+    properties.from_me = {
+      type: "boolean",
+      description: "search: filter to messages sent by the bot/agent itself (requires author_id).",
+    };
+    properties.channel_ids = {
+      type: "array",
+      items: { type: "string" },
+      description: "search: search across multiple channels. Defaults to the bound channel.",
+    };
+    // Extend limit description for search (max 25 for Discord search)
+    if (!properties.limit) {
+      properties.limit = {
+        type: "integer",
+        minimum: 1,
+        maximum: 25,
+        description: "search: max results to return (default 25).",
+      };
+    }
+  }
+
+  // --- Attachment Download ---
+  if (slice.attachmentDownload) {
+    properties.filename = {
+      type: "string",
+      description:
+        "attachment-download: specific filename to download when the message has multiple attachments.",
+    };
+    properties.index = {
+      type: "integer",
+      minimum: 0,
+      description:
+        "attachment-download: 0-based attachment index. Defaults to 0 if filename is not specified.",
+    };
+    properties.path = {
+      type: "string",
+      description:
+        "attachment-download: local path to save the file to. Defaults to the workspace downloads directory.",
+    };
+  }
+
   return {
     name: "message",
     description:
-      "Messaging surface control for this session’s bound channel: read messages (get), post (optional attachments / reply), edit or delete messages, create or delete threads. Only actions supported by the current platform appear in action’s enum. Regular assistant replies are delivered by the platform and do not use this tool.",
+      "Messaging surface control for this session's bound channel: read messages (get), post (optional attachments / reply), edit or delete messages, create or delete threads, add/remove reactions (react), read reactions (reactions), search messages by keyword/author/time (search), download file attachments (attachment-download). Only actions supported by the current platform appear in action's enum. Regular assistant replies are delivered by the platform and do not use this tool.",
     inputSchema: {
       type: "object",
       properties,

@@ -73,4 +73,80 @@ enabled: false
     const skills = scanSkillDirectories([root], new Set());
     assert.strictEqual(skills[0]!.enabled, false);
   });
+
+  test("parses tags from frontmatter bracket syntax", () => {
+    const root = mkdtempSync(join(tmpdir(), "sh-skills-"));
+    writeFileSync(
+      join(root, "tagged.md"),
+      `---
+id: tagged
+title: Tagged Skill
+tags: [api, Forecast, location]
+---
+`,
+    );
+    const skills = scanSkillDirectories([root], new Set());
+    assert.strictEqual(skills.length, 1);
+    assert.deepStrictEqual(skills[0]!.tags, ["api", "forecast", "location"]);
+  });
+
+  test("parses category from frontmatter", () => {
+    const root = mkdtempSync(join(tmpdir(), "sh-skills-"));
+    writeFileSync(
+      join(root, "cat.md"),
+      `---
+id: categorized
+title: Cat Skill
+category: Dev-Tools
+---
+`,
+    );
+    const skills = scanSkillDirectories([root], new Set());
+    assert.strictEqual(skills[0]!.category, "dev-tools");
+  });
+
+  test("parses description from frontmatter", () => {
+    const root = mkdtempSync(join(tmpdir(), "sh-skills-"));
+    writeFileSync(
+      join(root, "desc.md"),
+      `---
+id: described
+title: Described Skill
+description: A skill that does things
+---
+`,
+    );
+    const skills = scanSkillDirectories([root], new Set());
+    assert.strictEqual(skills[0]!.description, "A skill that does things");
+  });
+
+  test("defaults tags to empty array, category and description to null", () => {
+    const root = mkdtempSync(join(tmpdir(), "sh-skills-"));
+    writeFileSync(
+      join(root, "bare.md"),
+      `---
+id: bare
+title: Bare
+---
+`,
+    );
+    const skills = scanSkillDirectories([root], new Set());
+    assert.deepStrictEqual(skills[0]!.tags, []);
+    assert.strictEqual(skills[0]!.category, null);
+    assert.strictEqual(skills[0]!.description, null);
+  });
+
+  test("parses comma-separated tags without brackets", () => {
+    const root = mkdtempSync(join(tmpdir(), "sh-skills-"));
+    writeFileSync(
+      join(root, "nb.md"),
+      `---
+id: no-brackets
+tags: alpha, beta, gamma
+---
+`,
+    );
+    const skills = scanSkillDirectories([root], new Set());
+    assert.deepStrictEqual(skills[0]!.tags, ["alpha", "beta", "gamma"]);
+  });
 });

@@ -1,10 +1,31 @@
 import type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
 import type { DiscordCreateMessageBody, DiscordMessageUploadFile, DiscordRestTransport } from "./transport";
 
+/** Result of downloading an attachment to the local filesystem. */
+export interface AttachmentDownloadResult {
+  readonly ok: true;
+  readonly path: string;
+  readonly filename: string;
+  readonly mimeType: string | undefined;
+  readonly size: number;
+  readonly totalAttachments: number;
+}
+
 export interface DiscordMessageToolDeps {
   readonly capabilities: MessagingAdapterCapabilities;
   readonly transport: DiscordRestTransport;
   readonly sessionToChannel: (sessionId: string) => string | undefined;
+  /**
+   * Resolve the guild (server) id for a channel. Required for guild-scoped search.
+   * Returns `undefined` for DM channels or when the mapping is unavailable.
+   */
+  readonly sessionToGuild?: (sessionId: string) => string | undefined;
+  /**
+   * Download a file from a URL to a local path. The message-tool layer resolves
+   * attachment URLs from the Discord API; this callback handles the actual HTTP fetch
+   * and file write. Returns the number of bytes written.
+   */
+  readonly downloadFile?: (url: string, destPath: string) => Promise<number>;
 }
 
 function str(v: unknown, field: string): string {
@@ -57,6 +78,22 @@ function clampGetLimit(v: unknown): number {
     return Math.min(100, Math.max(1, Math.trunc(v)));
   }
   return 10;
+}
+
+function clampSearchLimit(v: unknown): number {
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return Math.min(25, Math.max(1, Math.trunc(v)));
+  }
+  return 25;
+}
+
+/** Strip path separators and dangerous sequences from an attachment filename. */
+function sanitizeFilename(raw: string): string {
+  return raw
+    .replace(/\.\./g, "_")
+    .replace(/[/\\]/g, "_")
+    .replace(/[\x00-\x1f]/g, "")
+    .trim() || "attachment";
 }
 
 function decodeBase64File(
@@ -266,6 +303,232 @@ export async function executeDiscordMessageToolAction(
       const threadId = str(args.thread_id, "thread_id");
       await t.deleteChannel(threadId);
       return { ok: true, thread_id: threadId };
+    }
+
+    // -----------------------------------------------------------------------
+    // react — add or remove an emoji reaction on a message
+    // -----------------------------------------------------------------------
+    if (a === "react") {
+      if (!x.react) {
+        return { ok: false, error: "react not supported on this platform" };
+      }
+      const messageId = str(args.message_id, "message_id");
+      const emoji = str(args.emoji, "emoji");
+      const remove = args.remove === true;
+
+      if (remove) {
+        await t.deleteMessageReaction(channelId, messageId, emoji);
+      } else {
+        await t.createMessageReaction(channelId, messageId, emoji);
+      }
+      return { ok: true, message_id: messageId, channel_id: channelId, emoji, removed: remove };
+    }
+
+    // -----------------------------------------------------------------------
+    // reactions — read reactions on a message
+    // -----------------------------------------------------------------------
+    if (a === "reactions") {
+      if (!x.reactions) {
+        return { ok: false, error: "reactions not supported on this platform" };
+      }
+      const messageId = str(args.message_id, "message_id");
+      const emojiFilter = optStr(args.emoji);
+
+      if (emojiFilter) {
+        // Fetch users who reacted with a specific emoji
+        const users = await t.getMessageReactions(channelId, messageId, emojiFilter);
+        const summarized = users.map((u) => ({
+          id: typeof u.id === "string" ? u.id : undefined,
+          username: typeof u.username === "string" ? u.username : undefined,
+          bot: typeof u.bot === "boolean" ? u.bot : undefined,
+        }));
+        return {
+          ok: true,
+          message_id: messageId,
+          channel_id: channelId,
+          reactions: [{ emoji: emojiFilter, count: summarized.length, users: summarized }],
+        };
+      }
+
+      // No emoji filter — fetch the message and return its reactions summary
+      const raw = await t.getMessage(channelId, messageId);
+      const rawReactions = Array.isArray(raw.reactions) ? raw.reactions : [];
+      const reactions = rawReactions.map((r: Record<string, unknown>) => {
+        const emojiObj = r.emoji as Record<string, unknown> | undefined;
+        const name = emojiObj && typeof emojiObj.name === "string" ? emojiObj.name : "?";
+        const emojiId = emojiObj && typeof emojiObj.id === "string" ? emojiObj.id : undefined;
+        return {
+          emoji: emojiId ? `${name}:${emojiId}` : name,
+          count: typeof r.count === "number" ? r.count : 0,
+          me: typeof r.me === "boolean" ? r.me : false,
+        };
+      });
+      return { ok: true, message_id: messageId, channel_id: channelId, reactions };
+    }
+
+    // -----------------------------------------------------------------------
+    // search — filtered message fetch by keyword, author, time range
+    // -----------------------------------------------------------------------
+    if (a === "search") {
+      if (!x.search) {
+        return { ok: false, error: "search not supported on this platform" };
+      }
+      const guildId = deps.sessionToGuild?.(sid);
+      if (!guildId) {
+        return { ok: false, error: "search requires a guild context; not available for DM sessions" };
+      }
+
+      const query = optStr(args.query);
+      const authorId = optStr(args.author_id);
+      const authorIdsRaw = args.author_ids;
+      const before = optStr(args.before);
+      const after = optStr(args.after);
+      const fromMe = args.from_me;
+      const limit = clampSearchLimit(args.limit);
+      const channelIdsRaw = args.channel_ids;
+
+      // Build author list: single author_id and/or author_ids array
+      let authorIds: string[] | undefined;
+      if (authorId || (Array.isArray(authorIdsRaw) && authorIdsRaw.length > 0)) {
+        authorIds = [];
+        if (authorId) authorIds.push(authorId);
+        if (Array.isArray(authorIdsRaw)) {
+          for (const id of authorIdsRaw) {
+            if (typeof id === "string" && id.trim()) authorIds.push(id.trim());
+          }
+        }
+      }
+
+      // from_me: resolve bot's own author id if the transport exposes it
+      // For now, from_me is a hint — the caller should pass the bot's user id via author_id
+      if (fromMe === true && !authorIds) {
+        return {
+          ok: false,
+          error: "from_me requires the bot's own user id; pass it via author_id instead",
+        };
+      }
+
+      // Channel filter: default to the bound channel if none specified
+      let channelIds: string[] | undefined;
+      if (Array.isArray(channelIdsRaw) && channelIdsRaw.length > 0) {
+        channelIds = channelIdsRaw
+          .filter((c: unknown) => typeof c === "string" && c.trim())
+          .map((c: unknown) => (c as string).trim());
+      } else {
+        channelIds = [channelId];
+      }
+
+      const searchResult = await t.searchMessages(guildId, {
+        content: query,
+        author_id: authorIds && authorIds.length === 1 ? authorIds[0] : authorIds,
+        channel_id: channelIds.length === 1 ? channelIds[0] : channelIds,
+        min_id: after,
+        max_id: before,
+        limit,
+      });
+
+      // Discord search returns messages as arrays-of-arrays (context groups).
+      // Flatten and summarize to match the `get` response format.
+      const messages = searchResult.messages
+        .map((group) => (group.length > 0 ? group[0]! : undefined))
+        .filter((m): m is Record<string, unknown> => m !== undefined)
+        .map(summarizeDiscordApiMessage);
+
+      return {
+        ok: true,
+        channel_id: channelId,
+        total_results: searchResult.total_results,
+        messages,
+      };
+    }
+
+    // -----------------------------------------------------------------------
+    // attachment-download — download a file attachment from a message
+    // -----------------------------------------------------------------------
+    if (a === "attachment-download") {
+      if (!x.attachmentDownload) {
+        return { ok: false, error: "attachment-download not supported on this platform" };
+      }
+      if (!deps.downloadFile) {
+        return { ok: false, error: "attachment download not configured (no downloadFile handler)" };
+      }
+
+      const messageId = str(args.message_id, "message_id");
+      const filenameFilter = optStr(args.filename);
+      const indexRaw = args.index;
+      const destPath = optStr(args.path);
+
+      // Fetch the message to get attachment metadata
+      const raw = await t.getMessage(channelId, messageId);
+      const rawAttachments = Array.isArray(raw.attachments) ? raw.attachments : [];
+      if (rawAttachments.length === 0) {
+        return { ok: false, error: "message has no attachments", message_id: messageId };
+      }
+
+      // Resolve which attachment to download
+      let attachment: Record<string, unknown> | undefined;
+      if (filenameFilter) {
+        attachment = rawAttachments.find(
+          (a: Record<string, unknown>) => typeof a.filename === "string" && a.filename === filenameFilter,
+        );
+        if (!attachment) {
+          const available = rawAttachments
+            .map((a: Record<string, unknown>) => a.filename)
+            .filter((f: unknown) => typeof f === "string");
+          return {
+            ok: false,
+            error: `attachment "${filenameFilter}" not found`,
+            available_filenames: available,
+            total_attachments: rawAttachments.length,
+          };
+        }
+      } else {
+        const idx = typeof indexRaw === "number" && Number.isFinite(indexRaw) ? Math.trunc(indexRaw) : 0;
+        if (idx < 0 || idx >= rawAttachments.length) {
+          return {
+            ok: false,
+            error: `attachment index ${idx} out of range (0..${rawAttachments.length - 1})`,
+            total_attachments: rawAttachments.length,
+          };
+        }
+        attachment = rawAttachments[idx] as Record<string, unknown>;
+      }
+
+      const url = typeof attachment!.url === "string" ? attachment!.url : undefined;
+      if (!url) {
+        return { ok: false, error: "attachment has no URL" };
+      }
+
+      const filename = typeof attachment!.filename === "string" ? attachment!.filename : "attachment";
+      const contentType =
+        typeof attachment!.content_type === "string" ? attachment!.content_type : undefined;
+      const sizeBytes =
+        typeof attachment!.size === "number" ? attachment!.size : undefined;
+
+      // Enforce max download size (25 MB)
+      const maxSize = 25 * 1024 * 1024;
+      if (sizeBytes !== undefined && sizeBytes > maxSize) {
+        return {
+          ok: false,
+          error: `attachment too large (${sizeBytes} bytes, max ${maxSize})`,
+          filename,
+          size: sizeBytes,
+        };
+      }
+
+      // Sanitize filename to prevent path traversal
+      const safeName = sanitizeFilename(filename);
+      const finalPath = destPath ?? safeName;
+
+      const bytesWritten = await deps.downloadFile(url, finalPath);
+      return {
+        ok: true,
+        path: finalPath,
+        filename: safeName,
+        mimeType: contentType,
+        size: bytesWritten,
+        totalAttachments: rawAttachments.length,
+      } satisfies AttachmentDownloadResult;
     }
 
     return { ok: false, error: `unknown action: ${a}` };

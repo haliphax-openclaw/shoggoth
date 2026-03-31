@@ -306,6 +306,16 @@ void (async () => {
             capabilities: dm.capabilities,
             transport: dm.discordRestTransport,
             sessionToChannel: (sid) => dm.resolveOutboundChannelIdForSession?.(sid),
+            downloadFile: async (url, destPath) => {
+              const res = await fetch(url);
+              if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
+              const buf = Buffer.from(await res.arrayBuffer());
+              const { writeFile, mkdir } = await import("node:fs/promises");
+              const { dirname } = await import("node:path");
+              await mkdir(dirname(destPath), { recursive: true });
+              await writeFile(destPath, buf);
+              return buf.byteLength;
+            },
           },
           sessionId,
           args,
@@ -400,6 +410,13 @@ rt.health.register(createDiscordProbe({ getToken: resolvedDiscordBotToken }));
 rt.health.register(
   createModelEndpointProbe({
     getBaseUrl: () => resolveModelHealthProbeBaseUrl(configRef.current),
+    getApiKey: () => {
+      const anthropic = process.env.ANTHROPIC_API_KEY?.trim();
+      if (anthropic && process.env.ANTHROPIC_BASE_URL?.trim()) return anthropic;
+      const openai = process.env.OPENAI_API_KEY?.trim();
+      if (openai) return openai;
+      return undefined;
+    },
   }),
 );
 

@@ -29,6 +29,14 @@ export interface ExtensionFlags {
   readonly threadDelete: boolean;
   /** Agent `message` tool: read message(s) via platform API (e.g. Discord GET message / channel messages). */
   readonly messageGet: boolean;
+  /** Agent `message` tool: add/remove emoji reactions on messages. */
+  readonly react: boolean;
+  /** Agent `message` tool: read reactions on a message. */
+  readonly reactions: boolean;
+  /** Agent `message` tool: search/filter messages by keyword, author, time range. */
+  readonly search: boolean;
+  /** Agent `message` tool: download file attachments from messages. */
+  readonly attachmentDownload: boolean;
 }
 
 /** Well-known {@link MessagingAdapterCapabilities.features} ids (extensible string union at runtime). */
