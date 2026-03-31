@@ -10,7 +10,7 @@ import {
   type MemoryHit,
 } from "./memory-index";
 import {
-  resolveMemoryEmbeddingApiKeyEnv,
+  resolveMemoryEmbeddingApiKey,
   resolveMemoryEmbeddingBaseUrl,
   resolveMemoryEmbeddingModelId,
 } from "./memory-embeddings-resolve";
@@ -63,8 +63,7 @@ async function syncMemoryEmbeddingsAfterIngest(input: {
   if (!memory.embeddings.enabled || absoluteRoots.length === 0) return;
 
   const modelId = resolveMemoryEmbeddingModelId(memory);
-  const keyEnv = resolveMemoryEmbeddingApiKeyEnv(memory);
-  const apiKey = env[keyEnv];
+  const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
   const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
 
   const all = db
@@ -171,8 +170,7 @@ export async function runMemoryBuiltin(input: {
     let embeddingsHealthy = false;
     if (memory.embeddings.enabled) {
       try {
-        const keyEnv = resolveMemoryEmbeddingApiKeyEnv(memory);
-        const apiKey = env[keyEnv];
+        const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
         const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
         queryEmbedding = await fetchOpenAiCompatibleTextEmbedding({
           baseUrl,

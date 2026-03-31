@@ -28,7 +28,7 @@ function modelProvidersById(
   const byId = new Map<string, ModelProvider>();
   for (const p of providers ?? []) {
     if (p.kind === "openai-compatible") {
-      const apiKey = p.apiKeyEnv ? env[p.apiKeyEnv] : undefined;
+      const apiKey = p.apiKey ?? (p.apiKeyEnv ? env[p.apiKeyEnv] : undefined);
       byId.set(
         p.id,
         createOpenAICompatibleProvider({
@@ -39,7 +39,7 @@ function modelProvidersById(
         }),
       );
     } else if (p.kind === "anthropic-messages") {
-      const apiKey = p.apiKeyEnv ? env[p.apiKeyEnv] : undefined;
+      const apiKey = p.apiKey ?? (p.apiKeyEnv ? env[p.apiKeyEnv] : undefined);
       byId.set(
         p.id,
         createAnthropicMessagesProvider({

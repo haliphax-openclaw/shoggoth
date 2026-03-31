@@ -40,6 +40,7 @@ import { startControlPlane } from "./control/control-plane";
 import { createLogger } from "./logging";
 import { createDelegatingPolicyEngine, createPolicyEngine } from "./policy/engine";
 import { bootstrapPlugins } from "./plugins/bootstrap";
+import { bootstrapMainSession } from "./bootstrap-main-session";
 import { createDaemonRuntime } from "./runtime";
 import { createToolRunStore } from "./sessions/tool-run-store";
 import {
@@ -82,12 +83,12 @@ const config = loadLayeredConfig(configDir);
 
 const configRef = { current: config };
 
-/** Env `DISCORD_BOT_TOKEN` overrides layered `discord.botToken` (hot-reload picks up config changes). */
+/** Env `DISCORD_BOT_TOKEN` overrides layered `discord.token` (hot-reload picks up config changes). */
 function resolvedDiscordBotToken(): string | undefined {
   const fromEnv = process.env.DISCORD_BOT_TOKEN?.trim();
   if (fromEnv) return fromEnv;
   const dc = resolvePlatformConfig(configRef.current, "discord");
-  return (dc?.botToken as string | undefined)?.trim() || undefined;
+  return (dc?.token as string | undefined)?.trim() || undefined;
 }
 const policyRef = { engine: createPolicyEngine(config.policy) };
 const policyEngine = createDelegatingPolicyEngine(() => policyRef.engine);
@@ -147,6 +148,13 @@ void (async () => {
     const db = openStateDb(config.stateDbPath);
     migrate(db, defaultMigrationsDir());
     stateDb = db;
+
+    bootstrapMainSession({
+      db,
+      config,
+      logger: rt.logger.child({ subsystem: "bootstrap" }),
+    });
+
     hitlStack = createHitlPendingResolutionStack(db);
   } catch (e) {
     rt.logger.warn("state database unavailable; control plane uses ephemeral agent tokens", {

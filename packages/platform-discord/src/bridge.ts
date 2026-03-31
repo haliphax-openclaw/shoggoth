@@ -110,7 +110,7 @@ export interface StartDiscordMessagingOptions {
   readonly allowBotMessages?: boolean;
   /**
    * When set, routes that use the reserved default-primary session UUID must match
-   * `resolvedAgentId` / `defaultSessionPlatform` (same contract as `bootstrap-main-session.mjs`).
+   * `resolvedAgentId` / `defaultSessionPlatform` (same contract as `bootstrapMainSession` in the daemon).
    */
   readonly routeGuard?: DiscordMessagingRouteGuard;
   /** Operator Discord user snowflake; marks inbound `extensions.discord.isOwner` (metadata / approver context). */
@@ -160,7 +160,7 @@ export interface DiscordMessagingRuntime {
 }
 
 /**
- * When a bot token (`DISCORD_BOT_TOKEN` env, or layered `discord.botToken` — env wins) and
+ * When a bot token (`DISCORD_BOT_TOKEN` env, or layered `discord.token` — env wins) and
  * `SHOGGOTH_DISCORD_ROUTES` are set, connects the Gateway, maps inbound messages to sessions,
  * delivers on the agent-to-agent bus, and wires REST outbound + streaming helpers.
  */

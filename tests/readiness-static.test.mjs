@@ -56,8 +56,8 @@ describe("SHOGGOTH-READY §1 Deployment and trust (documentation)", () => {
     assert.match(yml, /Avoid `\$\{VAR:-\}`/);
   });
 
-  it("bootstrap-main-session creates workspace memory dir for agent memory tools", () => {
-    const src = readDoc("scripts/bootstrap-main-session.mjs");
+  it("bootstrapMainSession creates workspace memory dir for agent memory tools", () => {
+    const src = readDoc("packages/daemon/src/bootstrap-main-session.ts");
     assert.match(src, /join\(dir,\s*["']memory["']\)/);
     assert.match(src, /mkdirSync/);
   });

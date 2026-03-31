@@ -6,6 +6,7 @@ const shoggothOpenAiCompatibleProviderSchema = z
     id: z.string().min(1),
     kind: z.literal("openai-compatible"),
     baseUrl: z.string().min(1),
+    apiKey: z.string().min(1).optional(),
     apiKeyEnv: z.string().min(1).optional(),
   })
   .strict();
@@ -16,6 +17,7 @@ const shoggothAnthropicMessagesProviderSchema = z
     kind: z.literal("anthropic-messages"),
     /** API origin (or URL whose origin is used); POST `{origin}/v1/messages`. */
     baseUrl: z.string().min(1),
+    apiKey: z.string().min(1).optional(),
     apiKeyEnv: z.string().min(1).optional(),
     anthropicVersion: z.string().min(1).optional(),
     /** Default `x-api-key`; `bearer` sets `Authorization: Bearer`. */
@@ -137,6 +139,8 @@ export const shoggothMemoryEmbeddingsConfigSchema = z
     modelId: z.string().min(1).optional(),
     /** OpenAI-compatible API origin; normalized to `/v1`. Merged into `SHOGGOTH_MEMORY_OPENAI_BASE_URL` when unset. */
     openaiBaseUrl: z.string().min(1).optional(),
+    /** Bare API key value. Takes precedence over `apiKeyEnv`. */
+    apiKey: z.string().min(1).optional(),
     /** Env var holding the API key (default `OPENAI_API_KEY`). */
     apiKeyEnv: z.string().min(1).optional(),
   })

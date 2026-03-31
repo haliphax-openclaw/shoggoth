@@ -202,7 +202,7 @@ export async function startDiscordPlatform(
     if (!session) {
       opts.logger.warn("discord.platform.no_session", {
         sessionId: msg.sessionId,
-        hint: "no SQLite session row for this route; run scripts/bootstrap-main-session.mjs inside the container (or your session bootstrap) after empty state",
+        hint: "no SQLite session row for this route; the daemon auto-bootstraps the main agent session on startup — check config and restart",
       });
       return;
     }

@@ -11,6 +11,13 @@ export function resolveMemoryEmbeddingApiKeyEnv(memory: ShoggothMemoryConfig): s
   return memory.embeddings.apiKeyEnv?.trim() || "OPENAI_API_KEY";
 }
 
+/** Bare `apiKey` wins; otherwise look up `apiKeyEnv` (default `OPENAI_API_KEY`) from env. */
+export function resolveMemoryEmbeddingApiKey(memory: ShoggothMemoryConfig, env: NodeJS.ProcessEnv): string | undefined {
+  const bare = (memory.embeddings as { apiKey?: string }).apiKey?.trim();
+  if (bare) return bare;
+  return env[resolveMemoryEmbeddingApiKeyEnv(memory)];
+}
+
 /**
  * Base URL with `/v1` suffix for OpenAI-compatible embeddings.
  * Precedence: `SHOGGOTH_MEMORY_OPENAI_BASE_URL`, `memory.embeddings.openaiBaseUrl`,

@@ -7,7 +7,7 @@ import { parseDiscordRoutesWithMeta, type DiscordSessionRoute } from "./bridge";
 // ---------------------------------------------------------------------------
 
 const discordExtensionSchema = z.object({
-  botToken: z.string().optional(),
+  token: z.string().optional(),
   ownerUserId: z.string().optional(),
   intents: z.number().optional(),
   allowBotMessages: z.boolean().optional(),
