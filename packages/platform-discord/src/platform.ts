@@ -39,6 +39,7 @@ import {
 import type { HitlNotifier, PendingActionRow, Logger, HitlAutoApproveGate } from "./daemon-types";
 import { daemonNotice } from "./notices";
 import type { DiscordMessagingRuntime } from "./bridge";
+import type { DiscordStreamHandle } from "./streaming";
 import { mergeOrchestratorEnv, resolveDiscordOwnerUserId } from "./config";
 import { registerDiscordHitlNoticeAndAddReactions } from "./hitl/reaction-wiring";
 import type { HitlDiscordNoticeRegistry } from "./hitl/notice-registry";
@@ -322,16 +323,28 @@ export async function startDiscordPlatform(
         : {}),
     };
 
+    // If streaming is enabled, post the placeholder ("…") BEFORE starting the
+    // typing indicator. Discord cancels typing when a bot posts a message, so
+    // posting the placeholder inside withAgentTypingWhile would kill the indicator.
+    let preStartedStreamHandle: DiscordStreamHandle | undefined;
+    if (streamingOutbound) {
+      try {
+        preStartedStreamHandle = await streamingOutbound.start();
+      } catch (e) {
+        opts.logger.warn("discord.platform.stream_start_failed", { err: String(e) });
+      }
+    }
+
     await withAgentTypingWhile(opts.discord, msg.sessionId, async () => {
       await runInboundSessionTurn({
         logger: opts.logger,
         logContext: { sessionId: msg.sessionId },
         mcpLifecycle,
         streaming:
-          streamingOutbound !== undefined
+          preStartedStreamHandle !== undefined
             ? {
                 minIntervalMs: streamMinMs,
-                start: () => streamingOutbound.start(),
+                start: () => Promise.resolve(preStartedStreamHandle!),
                 onStartFailed: (errMsg) => {
                   opts.logger.warn("discord.platform.stream_start_failed", { err: errMsg });
                 },
