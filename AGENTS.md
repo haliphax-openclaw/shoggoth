@@ -4,6 +4,27 @@
 
 This is Shoggoth, an agent orchestration platform that is Docker-first with a strict permission boundary between the system (`root`, UID/GID `0`), the orchestrator daemon (`shoggoth`, UID/GID `900`) and agents (`agent`, UID/GID `901`).
 
+## Plan Ahead
+
+Significant or complex changes to the codebase should be planned first. Plan documents consisting of implementation/execution phases should be placed in the `plans/` folder in a date-stamped subfolder grouping them by plan. The primary plan document should be named `README.md`.
+
+Example:
+
+- `plans/2026-01-01_initial-implementation/` - plan folder
+  - `README.md` - primary plan document
+  - `phase-1-diagram.jpg` - related asset (diagram)
+  - `phase-2-schema.json` - related asset (JSON schema)
+  - `phase-3-spec.md` - complementary plan document
+
+When all of the phases of a plan have been implemented, that plan's grouping folder should be moved to `plans/done/`.
+
+Example: `plans/2025-01-01_initial-implementation/` -> `plans/done/2025-01-01_initial_implementation/`
+
+### Plan Guidelines
+
+- Break plans into chunked phases so they are easier to delegate to subagents
+- Binary plan assets (images, etc.) should be kept small when possible to avoid bloating the git repository size
+
 ## Tests Before Code
 
 Contributions to this codebase must use red/green TDD.
