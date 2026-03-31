@@ -28,6 +28,7 @@ export interface OpenAICompatibleProviderOptions {
   readonly baseUrl: string;
   readonly apiKey?: string;
   readonly fetchImpl?: FetchLike;
+
 }
 
 function trimSlash(u: string): string {

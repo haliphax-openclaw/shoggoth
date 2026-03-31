@@ -1,5 +1,6 @@
 import { access, constants } from "node:fs/promises";
 import { dirname } from "node:path";
+import { setModelMetadataFromProvider, getOpenAIKnownContextWindow } from "./model-metadata";
 
 export type HealthStatus = "pass" | "fail" | "warn" | "skipped";
 
@@ -257,6 +258,144 @@ function buildModelProbeAuthHeaders(
     return { "x-api-key": apiKey };
   }
   return { Authorization: `Bearer ${apiKey}` };
+}
+
+/**
+ * Fetch model metadata from the Gemini models API.
+ * Returns inputTokenLimit/outputTokenLimit on success, undefined on failure.
+ */
+export async function fetchGeminiModelMetadata(
+  baseUrl: string,
+  apiVersion: string,
+  model: string,
+  apiKey: string,
+): Promise<{ inputTokenLimit?: number; outputTokenLimit?: number } | undefined> {
+  try {
+    const origin = baseUrl.replace(/\/+$/, "");
+    const url = `${origin}/${apiVersion}/models/${model}?key=${encodeURIComponent(apiKey)}`;
+    const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
+    const res = await fetch(url, { method: "GET", signal, headers: { Accept: "application/json" } });
+    if (!res.ok) return undefined;
+    const json = (await res.json()) as {
+      inputTokenLimit?: number;
+      outputTokenLimit?: number;
+    };
+    return {
+      inputTokenLimit: typeof json.inputTokenLimit === "number" ? json.inputTokenLimit : undefined,
+      outputTokenLimit: typeof json.outputTokenLimit === "number" ? json.outputTokenLimit : undefined,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * For each Gemini provider in the failover chain, fetch model metadata and update the metadata store.
+ * Call after the initial health check passes for the model endpoint.
+ */
+export async function fetchGeminiMetadataForProviders(
+  providers: ReadonlyArray<{ id: string; kind: string; baseUrl?: string; apiKey?: string; apiKeyEnv?: string; apiVersion?: string }>,
+  failoverChain: ReadonlyArray<{ providerId: string; model: string }>,
+  env: NodeJS.ProcessEnv,
+  logger: { warn(msg: string, meta?: Record<string, unknown>): void },
+): Promise<void> {
+  const geminiProviders = new Map(
+    providers
+      .filter((p) => p.kind === "gemini")
+      .map((p) => [p.id, p]),
+  );
+
+  for (const hop of failoverChain) {
+    const provider = geminiProviders.get(hop.providerId);
+    if (!provider) continue;
+
+    const apiKey = provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined);
+    if (!apiKey) continue;
+
+    const baseUrl = provider.baseUrl ?? "https://generativelanguage.googleapis.com";
+    const apiVersion = provider.apiVersion ?? "v1beta";
+
+    const meta = await fetchGeminiModelMetadata(baseUrl, apiVersion, hop.model, apiKey);
+    if (meta?.inputTokenLimit != null) {
+      const warning = setModelMetadataFromProvider(hop.providerId, hop.model, meta.inputTokenLimit);
+      if (warning) logger.warn(warning);
+    }
+  }
+}
+
+/**
+ * Fetch model metadata from an OpenAI-compatible `/v1/models/{model}` endpoint.
+ * Some providers (Ollama, vLLM, LiteLLM) return context window info; the official
+ * OpenAI API does not. Falls back to a static lookup table of known OpenAI models.
+ */
+export async function fetchOpenAIModelMetadata(
+  baseUrl: string,
+  model: string,
+  apiKey: string,
+): Promise<{ contextWindow?: number } | undefined> {
+  try {
+    const origin = baseUrl.replace(/\/+$/, "");
+    // baseUrl for openai-compatible providers already includes /v1
+    const url = `${origin}/models/${encodeURIComponent(model)}`;
+    const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const res = await fetch(url, { method: "GET", signal, headers });
+    if (res.ok) {
+      const json = (await res.json()) as Record<string, unknown>;
+      // Various OpenAI-compatible providers use different field names:
+      // - context_length (Ollama)
+      // - max_model_len (vLLM)
+      // - context_window (LiteLLM)
+      // - max_context_length
+      for (const field of ["context_length", "max_model_len", "context_window", "max_context_length"]) {
+        const val = json[field];
+        if (typeof val === "number" && val > 0) {
+          return { contextWindow: val };
+        }
+      }
+    }
+  } catch {
+    // API call failed — fall through to static lookup.
+  }
+
+  // Fall back to known OpenAI model context windows.
+  const known = getOpenAIKnownContextWindow(model);
+  if (known != null) return { contextWindow: known };
+
+  return undefined;
+}
+
+/**
+ * For each OpenAI-compatible provider in the failover chain, fetch model metadata
+ * and update the metadata store. Call after the initial health check passes.
+ */
+export async function fetchOpenAIMetadataForProviders(
+  providers: ReadonlyArray<{ id: string; kind: string; baseUrl?: string; apiKey?: string; apiKeyEnv?: string }>,
+  failoverChain: ReadonlyArray<{ providerId: string; model: string }>,
+  env: NodeJS.ProcessEnv,
+  logger: { warn(msg: string, meta?: Record<string, unknown>): void },
+): Promise<void> {
+  const openaiProviders = new Map(
+    providers
+      .filter((p) => p.kind === "openai-compatible")
+      .map((p) => [p.id, p]),
+  );
+
+  for (const hop of failoverChain) {
+    const provider = openaiProviders.get(hop.providerId);
+    if (!provider) continue;
+
+    const apiKey = provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined) ?? "";
+    const baseUrl = provider.baseUrl;
+    if (!baseUrl) continue;
+
+    const meta = await fetchOpenAIModelMetadata(baseUrl, hop.model, apiKey);
+    if (meta?.contextWindow != null) {
+      const warning = setModelMetadataFromProvider(hop.providerId, hop.model, meta.contextWindow);
+      if (warning) logger.warn(warning);
+    }
+  }
 }
 
 /** Model API base URL reachability (HEAD, GET on 405). Optionally authenticates with an API key. */

@@ -47,6 +47,7 @@ import {
 import { messageToolContextRef } from "../messaging/message-tool-context-ref";
 import { recordAgentTurn } from "./session-stats-store";
 import { checkContextWindowMismatch } from "./context-window-mismatch";
+import { getModelContextWindowTokens } from "../model-metadata";
 
 export interface ExecuteSessionAgentTurnInput {
   readonly db: Database.Database;
@@ -709,6 +710,13 @@ export async function executeSessionAgentTurn(
 
   // --- Session stats: record completed agent turn ---
   const accumulatedUsage = model.getAccumulatedUsage();
+
+  // Fall back to metadata store for context window if provider didn't report it
+  let contextWindowTokens = accumulatedUsage?.contextWindowTokens;
+  if (contextWindowTokens == null && failoverMeta) {
+    contextWindowTokens = getModelContextWindowTokens(failoverMeta.usedProviderId, failoverMeta.usedModel ?? "");
+  }
+
   const transcriptMessageCount = (
     input.db
       .prepare(
@@ -721,7 +729,7 @@ export async function executeSessionAgentTurn(
   recordAgentTurn(input.db, input.sessionId, {
     inputTokens: accumulatedUsage?.inputTokens ?? 0,
     outputTokens: accumulatedUsage?.outputTokens ?? 0,
-    contextWindowTokens: accumulatedUsage?.contextWindowTokens,
+    contextWindowTokens,
     transcriptMessageCount,
   });
 
@@ -730,7 +738,7 @@ export async function executeSessionAgentTurn(
     checkContextWindowMismatch({
       providerId: failoverMeta.usedProviderId,
       configContextWindow: undefined, // TODO: extract from model config when available
-      providerContextWindow: accumulatedUsage?.contextWindowTokens,
+      providerContextWindow: contextWindowTokens,
       sessionId: input.sessionId,
       logger: {
         warn: (msg, fields) => {

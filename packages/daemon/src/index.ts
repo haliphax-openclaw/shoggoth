@@ -34,7 +34,14 @@ import {
   createSqliteProbe,
   createDiscordProbe,
   createModelEndpointProbe,
+  fetchGeminiMetadataForProviders,
+  fetchOpenAIMetadataForProviders,
 } from "./health";
+import {
+  initModelMetadataFromConfig,
+  registerAnthropicDefaultsForProviders,
+  registerOpenAIDefaultsForProviders,
+} from "./model-metadata";
 import { startConfigHotReload } from "./config-hot-reload";
 import {
   isConfigHotReloadEnabled,
@@ -104,6 +111,17 @@ const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
 const config = loadLayeredConfig(configDir);
 
 const configRef = { current: config };
+
+// Initialize model metadata store from config and register known defaults.
+if (config.models?.failoverChain) {
+  initModelMetadataFromConfig(config.models.failoverChain);
+}
+if (config.models?.providers) {
+  registerAnthropicDefaultsForProviders(config.models.providers);
+}
+if (config.models?.providers && config.models?.failoverChain) {
+  registerOpenAIDefaultsForProviders(config.models.providers, config.models.failoverChain);
+}
 
 /** Env `DISCORD_BOT_TOKEN` overrides layered `discord.token` (hot-reload picks up config changes). */
 function resolvedDiscordBotToken(): string | undefined {
@@ -529,6 +547,23 @@ void rt.getHealth().then((h) => {
     ready: h.ready,
     checks: h.checks,
   });
+
+  // Fetch Gemini model metadata after a successful model health check.
+  const modelPassed = modelChecks.some((c) => c.status === "pass");
+  if (modelPassed && config.models?.providers && config.models?.failoverChain) {
+    void fetchGeminiMetadataForProviders(
+      config.models.providers,
+      config.models.failoverChain,
+      process.env,
+      rt.logger,
+    );
+    void fetchOpenAIMetadataForProviders(
+      config.models.providers,
+      config.models.failoverChain,
+      process.env,
+      rt.logger,
+    );
+  }
 });
 
 void rt.shutdown.finished.then(() => {
