@@ -1234,7 +1234,10 @@ export async function handleIntegrationControlOp(
       if (!ctx.stateDb) {
         throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_context_status requires state database");
       }
-      const { sessions: sessionsStore } = requireSubagentRuntime(ctx);
+      if (!ctx.sessions) {
+        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_context_status requires session store");
+      }
+      const sessionsStore = ctx.sessions;
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
       if (principal.kind === "agent" && sessionId !== principal.sessionId) {
