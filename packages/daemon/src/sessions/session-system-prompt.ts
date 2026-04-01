@@ -347,9 +347,6 @@ function buildSessionStatsSection(
   const stats = getSessionStats(stateDb, sessionId);
   if (!stats) return undefined;
 
-  // Base: cumulative actual token usage from the DB (current segment).
-  const cumulativeTokens = stats.inputTokens + stats.outputTokens;
-
   // Current context window fill: system prompt + transcript (what the model sees this turn).
   let contextFill = 0;
   if (assembledPromptLength) {
@@ -363,7 +360,7 @@ function buildSessionStatsSection(
 
   const tokenDisplay = contextFill > 0
     ? `~${formatNumber(contextFill)}`
-    : formatNumber(cumulativeTokens);
+    : "N/A";
 
   let contextWindowSuffix = "";
   if (stats.contextWindowTokens != null && contextFill > 0) {
@@ -373,7 +370,7 @@ function buildSessionStatsSection(
 
   return [
     "## Session Stats\n",
-    `Context: ${tokenDisplay}${contextWindowSuffix} · Total: ${formatNumber(cumulativeTokens)} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
+    `Context: ${tokenDisplay}${contextWindowSuffix} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
   ].join("\n");
 }
 
