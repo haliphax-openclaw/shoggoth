@@ -1,24 +1,24 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  handleFanOutToolCall,
-  type FanOutToolArgs,
-  type FanOutToolHandlerDeps,
+  handleWorkflowToolCall,
+  type WorkflowToolArgs,
+  type WorkflowToolHandlerDeps,
 } from "../src/tool-handler.js";
-import type { FanOutServer } from "../src/server.js";
+import type { WorkflowServer } from "../src/server.js";
 import type { ControlPlane } from "../src/control.js";
 import type { TaskList } from "../src/types.js";
 
 // --- Mocks ---
 
-function mockServer(overrides: Partial<FanOutServer> = {}): FanOutServer {
+function mockServer(overrides: Partial<WorkflowServer> = {}): WorkflowServer {
   return {
     start: async () => "wf-123",
     resume: async () => [],
     get: () => undefined,
     stopAll: async () => {},
     ...overrides,
-  } as unknown as FanOutServer;
+  } as unknown as WorkflowServer;
 }
 
 function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): ControlPlane {
@@ -36,11 +36,11 @@ function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): Con
   } as unknown as ControlPlane;
 }
 
-function makeDeps(overrides: Partial<FanOutToolHandlerDeps> = {}): FanOutToolHandlerDeps {
+function makeDeps(overrides: Partial<WorkflowToolHandlerDeps> = {}): WorkflowToolHandlerDeps {
   return {
     server: mockServer(),
     controlPlane: mockControlPlane(),
-    stateDir: "/tmp/fan-out-test",
+    stateDir: "/tmp/workflow-test",
     currentDepth: 0,
     maxDepth: 2,
     ...overrides,
@@ -54,7 +54,7 @@ const sampleTasks = [
 
 // --- Tests ---
 
-describe("handleFanOutToolCall", () => {
+describe("handleWorkflowToolCall", () => {
   describe("start", () => {
     it("calls server.start and returns workflow_id", async () => {
       let captured: unknown;
@@ -65,7 +65,7 @@ describe("handleFanOutToolCall", () => {
         },
       });
       const deps = makeDeps({ server });
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "start",
         name: "my-workflow",
         tasks: sampleTasks,
@@ -79,33 +79,33 @@ describe("handleFanOutToolCall", () => {
     });
 
     it("returns error when tasks is missing", async () => {
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "start",
         graph: "1>2",
         reply_to: "session:parent",
-      } as FanOutToolArgs, makeDeps());
+      } as WorkflowToolArgs, makeDeps());
 
       assert.equal(result.ok, false);
       assert.match(result.error!, /tasks/);
     });
 
     it("returns error when graph is missing", async () => {
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "start",
         tasks: sampleTasks,
         reply_to: "session:parent",
-      } as FanOutToolArgs, makeDeps());
+      } as WorkflowToolArgs, makeDeps());
 
       assert.equal(result.ok, false);
       assert.match(result.error!, /graph/);
     });
 
     it("returns error when reply_to is missing", async () => {
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "start",
         tasks: sampleTasks,
         graph: "1>2",
-      } as FanOutToolArgs, makeDeps());
+      } as WorkflowToolArgs, makeDeps());
 
       assert.equal(result.ok, false);
       assert.match(result.error!, /reply_to/);
@@ -120,7 +120,7 @@ describe("handleFanOutToolCall", () => {
         },
       });
       const deps = makeDeps({ server });
-      await handleFanOutToolCall({
+      await handleWorkflowToolCall({
         action: "start",
         tasks: [
           { id: 1, prompt: "test", failure_notification: { kind: "notify-target", target_id: "agent:foo" } },
@@ -143,7 +143,7 @@ describe("handleFanOutToolCall", () => {
         },
       });
       const deps = makeDeps({ server });
-      await handleFanOutToolCall({
+      await handleWorkflowToolCall({
         action: "start",
         tasks: sampleTasks,
         graph: "1>2",
@@ -160,14 +160,14 @@ describe("handleFanOutToolCall", () => {
     it("calls controlPlane.abort with workflow_id", async () => {
       let abortedId: string | undefined;
       const cp = mockControlPlane({ abort: async (id: string) => { abortedId = id; } });
-      const result = await handleFanOutToolCall({ action: "abort", workflow_id: "wf-1" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "abort", workflow_id: "wf-1" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.equal(abortedId, "wf-1");
     });
 
     it("returns error when workflow_id is missing", async () => {
-      const result = await handleFanOutToolCall({ action: "abort" } as FanOutToolArgs, makeDeps());
+      const result = await handleWorkflowToolCall({ action: "abort" } as WorkflowToolArgs, makeDeps());
       assert.equal(result.ok, false);
       assert.match(result.error!, /workflow_id/);
     });
@@ -177,7 +177,7 @@ describe("handleFanOutToolCall", () => {
     it("calls controlPlane.pause", async () => {
       let pausedId: string | undefined;
       const cp = mockControlPlane({ pause: async (id: string) => { pausedId = id; } });
-      const result = await handleFanOutToolCall({ action: "pause", workflow_id: "wf-2" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "pause", workflow_id: "wf-2" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.equal(pausedId, "wf-2");
@@ -188,7 +188,7 @@ describe("handleFanOutToolCall", () => {
     it("calls controlPlane.resume", async () => {
       let resumedId: string | undefined;
       const cp = mockControlPlane({ resume: async (id: string) => { resumedId = id; } });
-      const result = await handleFanOutToolCall({ action: "resume", workflow_id: "wf-3" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "resume", workflow_id: "wf-3" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.equal(resumedId, "wf-3");
@@ -197,7 +197,7 @@ describe("handleFanOutToolCall", () => {
 
   describe("status", () => {
     it("returns workflow data", async () => {
-      const result = await handleFanOutToolCall({ action: "status", workflow_id: "wf-4" }, makeDeps());
+      const result = await handleWorkflowToolCall({ action: "status", workflow_id: "wf-4" }, makeDeps());
       assert.equal(result.ok, true);
       assert.ok(result.data);
     });
@@ -206,7 +206,7 @@ describe("handleFanOutToolCall", () => {
   describe("list", () => {
     it("returns workflow summaries", async () => {
       const cp = mockControlPlane({ list: async () => [{ id: "wf-1", name: "test", statusCounts: {}, createdAt: 0 }] });
-      const result = await handleFanOutToolCall({ action: "list" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "list" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.equal((result.data as unknown[]).length, 1);
@@ -215,7 +215,7 @@ describe("handleFanOutToolCall", () => {
     it("passes agent_chain_id filter", async () => {
       let capturedChain: string | undefined;
       const cp = mockControlPlane({ list: async (chain?: string) => { capturedChain = chain; return []; } });
-      await handleFanOutToolCall({ action: "list", agent_chain_id: "agent:dev" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      await handleWorkflowToolCall({ action: "list", agent_chain_id: "agent:dev" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(capturedChain, "agent:dev");
     });
@@ -225,7 +225,7 @@ describe("handleFanOutToolCall", () => {
     it("calls controlPlane.post", async () => {
       let postedId: string | undefined;
       const cp = mockControlPlane({ post: async (id: string) => { postedId = id; } });
-      const result = await handleFanOutToolCall({ action: "post", workflow_id: "wf-5" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "post", workflow_id: "wf-5" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.equal(postedId, "wf-5");
@@ -238,7 +238,7 @@ describe("handleFanOutToolCall", () => {
       const cp = mockControlPlane({
         edit: async (wfId: string, taskId: number, updates: unknown) => { capturedArgs = { wfId, taskId, updates }; },
       });
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "edit",
         workflow_id: "wf-6",
         task_id: 3,
@@ -255,7 +255,7 @@ describe("handleFanOutToolCall", () => {
     });
 
     it("returns error when task_id is missing", async () => {
-      const result = await handleFanOutToolCall({ action: "edit", workflow_id: "wf-6" } as FanOutToolArgs, makeDeps());
+      const result = await handleWorkflowToolCall({ action: "edit", workflow_id: "wf-6" } as WorkflowToolArgs, makeDeps());
       assert.equal(result.ok, false);
       assert.match(result.error!, /task_id/);
     });
@@ -267,7 +267,7 @@ describe("handleFanOutToolCall", () => {
       const cp = mockControlPlane({
         retry: async (wfId: string, taskId: number, cascade?: boolean) => { capturedArgs = { wfId, taskId, cascade }; },
       });
-      const result = await handleFanOutToolCall({
+      const result = await handleWorkflowToolCall({
         action: "retry",
         workflow_id: "wf-7",
         task_id: 2,
@@ -283,7 +283,7 @@ describe("handleFanOutToolCall", () => {
   describe("retention", () => {
     it("calls controlPlane.retention and returns summary", async () => {
       const cp = mockControlPlane({ retention: async () => ({ prunedIds: ["old-1"], prunedCount: 1 }) });
-      const result = await handleFanOutToolCall({ action: "retention" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
+      const result = await handleWorkflowToolCall({ action: "retention" }, makeDeps({ controlPlane: cp as unknown as ControlPlane }));
 
       assert.equal(result.ok, true);
       assert.deepEqual((result.data as Record<string, unknown>).prunedCount, 1);
@@ -292,7 +292,7 @@ describe("handleFanOutToolCall", () => {
 
   describe("unknown action", () => {
     it("returns error for unknown action", async () => {
-      const result = await handleFanOutToolCall({ action: "explode" } as unknown as FanOutToolArgs, makeDeps());
+      const result = await handleWorkflowToolCall({ action: "explode" } as unknown as WorkflowToolArgs, makeDeps());
       assert.equal(result.ok, false);
       assert.match(result.error!, /Unknown action/);
     });

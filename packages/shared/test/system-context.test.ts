@@ -11,15 +11,15 @@ import {
 describe("renderSystemContextEnvelope", () => {
   it("produces correct format with kind, summary, and data", () => {
     const ctx: SystemContext = {
-      kind: "fan_out.complete",
-      summary: "Fan-out workflow completed.",
+      kind: "workflow.complete",
+      summary: "Workflow completed.",
       data: { workflow_id: "abc-123", success: true },
     };
     const result = renderSystemContextEnvelope(ctx);
     const expected = [
       "--- BEGIN TRUSTED SYSTEM CONTEXT ---",
-      "[fan_out.complete]",
-      "Fan-out workflow completed.",
+      "[workflow.complete]",
+      "Workflow completed.",
       "",
       JSON.stringify({ workflow_id: "abc-123", success: true }, null, 2),
       "--- END TRUSTED SYSTEM CONTEXT ---",
@@ -44,16 +44,16 @@ describe("renderSystemContextEnvelope", () => {
 
   it("includes guidance between summary and data", () => {
     const ctx: SystemContext = {
-      kind: "fan_out.task",
-      summary: "You are executing a fan-out task.",
+      kind: "workflow.task",
+      summary: "You are executing a workflow task.",
       guidance: "Execute the task and return your result.",
       data: { task_id: "t1" },
     };
     const result = renderSystemContextEnvelope(ctx);
     const expected = [
       "--- BEGIN TRUSTED SYSTEM CONTEXT ---",
-      "[fan_out.task]",
-      "You are executing a fan-out task.",
+      "[workflow.task]",
+      "You are executing a workflow task.",
       "",
       "Execute the task and return your result.",
       "",
@@ -65,14 +65,14 @@ describe("renderSystemContextEnvelope", () => {
 
   it("includes guidance without data", () => {
     const ctx: SystemContext = {
-      kind: "fan_out.complete",
+      kind: "workflow.complete",
       summary: "Workflow done.",
       guidance: "Surface the outcome to the user.",
     };
     const result = renderSystemContextEnvelope(ctx);
     const expected = [
       "--- BEGIN TRUSTED SYSTEM CONTEXT ---",
-      "[fan_out.complete]",
+      "[workflow.complete]",
       "Workflow done.",
       "",
       "Surface the outcome to the user.",

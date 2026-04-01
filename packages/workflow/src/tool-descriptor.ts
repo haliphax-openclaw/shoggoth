@@ -1,11 +1,11 @@
 /** Shape-compatible with McpToolDescriptor without requiring the dependency. */
-export interface FanOutToolDescriptor {
+export interface WorkflowToolDescriptor {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
 }
 
-const fanOutToolArgs = {
+const workflowToolArgs = {
   type: "object",
   properties: {
     action: {
@@ -130,11 +130,11 @@ const fanOutToolArgs = {
   required: ["action"],
 } as const;
 
-export function buildFanOutToolDescriptor(): FanOutToolDescriptor {
+export function buildWorkflowToolDescriptor(): WorkflowToolDescriptor {
   return {
-    name: "fan_out",
+    name: "workflow",
     description:
       "Orchestrate parallel and sequential subagent workflows. Break work into tasks with a dependency graph, track progress with live status messages, and control execution with pause/resume/retry/abort.",
-    inputSchema: fanOutToolArgs,
+    inputSchema: workflowToolArgs,
   };
 }

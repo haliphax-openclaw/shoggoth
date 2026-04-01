@@ -738,9 +738,9 @@ export async function executeSessionAgentTurn(
           }
           return { resultJson: JSON.stringify({ error: `unknown procman action: ${action}` }) };
         }
-        if (originalName === "fan_out") {
-          const { executeFanOutToolCall } = await import("../fan-out-singleton.js");
-          const result = await executeFanOutToolCall(args as unknown as Parameters<typeof executeFanOutToolCall>[0], { currentDepth: 0, maxDepth: 2 });
+        if (originalName === "workflow") {
+          const { executeWorkflowToolCall } = await import("../workflow-singleton.js");
+          const result = await executeWorkflowToolCall(args as unknown as Parameters<typeof executeWorkflowToolCall>[0], { currentDepth: 0, maxDepth: 2 });
           return { resultJson: JSON.stringify(result) };
         }
         return { resultJson: JSON.stringify({ error: `unknown builtin: ${originalName}` }) };

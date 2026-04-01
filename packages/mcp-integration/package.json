@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@shoggoth/procman": "*",
-    "@shoggoth/fan-out": "*"
+    "@shoggoth/workflow": "*"
   },
   "devDependencies": {
     "tsx": "^4.19.3",

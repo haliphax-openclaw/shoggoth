@@ -52,7 +52,7 @@ export {
 } from "./orchestrator.js";
 
 // Server (procman integration)
-export { FanOutServer, type FanOutServerOptions } from "./server.js";
+export { WorkflowServer, type WorkflowServerOptions } from "./server.js";
 
 // Duration formatting
 export { formatDuration } from "./format.js";
@@ -77,12 +77,12 @@ export {
 } from "./retention.js";
 
 // Tool descriptor & handler
-export { buildFanOutToolDescriptor, type FanOutToolDescriptor } from "./tool-descriptor.js";
+export { buildWorkflowToolDescriptor, type WorkflowToolDescriptor } from "./tool-descriptor.js";
 export {
-  handleFanOutToolCall,
-  type FanOutToolArgs,
-  type FanOutToolResult,
-  type FanOutToolHandlerDeps,
+  handleWorkflowToolCall,
+  type WorkflowToolArgs,
+  type WorkflowToolResult,
+  type WorkflowToolHandlerDeps,
 } from "./tool-handler.js";
 
 // Hardening

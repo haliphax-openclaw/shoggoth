@@ -105,14 +105,14 @@ import {
   messageToolFinalizer,
   subagentToolStripFinalizer,
 } from "./sessions/session-mcp-tool-context";
-import { initFanOut } from "./fan-out-singleton";
+import { initWorkflow } from "./workflow-singleton";
 import {
   createDaemonSpawnAdapter,
   createDaemonPollAdapter,
   createDaemonKillAdapter,
   createDaemonMessageAdapter,
   type CompletionMap,
-} from "./fan-out-adapters";
+} from "./workflow-adapters";
 import { createSessionManager } from "./sessions/session-manager";
 import { createSqliteAgentTokenStore } from "./auth/sqlite-agent-tokens";
 import {
@@ -429,15 +429,15 @@ void (async () => {
     await procman.stopAll();
   });
 
-  // --- Fan-out tool: init server, resume incomplete workflows, register shutdown ---
+  // --- Workflow tool: init server, resume incomplete workflows, register shutdown ---
   // Adapters use lazy refs because the Discord platform (and thus sessionManager,
   // runSessionModelTurn, messageToolContextRef) are initialized later in this file.
-  const fanOutStateDir = resolve(config.stateDbPath, "..", "fan-out-state");
+  const workflowStateDir = resolve(config.stateDbPath, "..", "workflow-state");
   try {
-    const fanOutSessions = createSessionStore(db);
-    const fanOutSessionManager = createSessionManager({
+    const workflowSessions = createSessionStore(db);
+    const workflowSessionManager = createSessionManager({
       db,
-      sessions: fanOutSessions,
+      sessions: workflowSessions,
       agentTokens: createSqliteAgentTokenStore(db),
       workspacesRoot: config.workspacesRoot,
       agentId: resolveShoggothAgentId(config),
@@ -445,8 +445,8 @@ void (async () => {
     });
 
     const spawner = createDaemonSpawnAdapter({
-      sessionManager: fanOutSessionManager,
-      sessions: fanOutSessions,
+      sessionManager: workflowSessionManager,
+      sessions: workflowSessions,
       runSessionModelTurn: (input) => {
         const ext = subagentRuntimeExtensionRef.current;
         if (!ext) throw new Error("subagent runtime not available (platform not started)");
@@ -458,33 +458,33 @@ void (async () => {
     });
 
     const poller = createDaemonPollAdapter({
-      sessions: fanOutSessions,
+      sessions: workflowSessions,
       completionMap: spawner.completionMap,
     });
 
     const killer = createDaemonKillAdapter({
-      sessionManager: fanOutSessionManager,
+      sessionManager: workflowSessionManager,
       requestTurnAbort: (id) => requestSessionTurnAbort(id),
     });
 
-    const fanOut = initFanOut({
-      stateDir: fanOutStateDir,
+    const workflow = initWorkflow({
+      stateDir: workflowStateDir,
       spawner,
       poller,
       notifier: {
         async notify(workflowId, success, context) {
-          rt.logger.info("fan-out workflow completed", { workflowId, success, replyTo: context?.replyTo ?? null });
+          rt.logger.info("workflow completed", { workflowId, success, replyTo: context?.replyTo ?? null });
           try {
             const sessionId = context?.replyTo;
-            if (!sessionId) { rt.logger.warn("fan-out notify: no replyTo in context"); return; }
+            if (!sessionId) { rt.logger.warn("workflow notify: no replyTo in context"); return; }
 
             const ext = subagentRuntimeExtensionRef.current;
-            if (!ext) { rt.logger.warn("fan-out notify: subagent runtime not available"); return; }
+            if (!ext) { rt.logger.warn("workflow notify: subagent runtime not available"); return; }
 
             const status = success ? "✅ completed successfully" : "❌ completed with failures";
-            const message = `**Fan-out workflow ${status}:** \`${workflowId}\``;
+            const message = `**Workflow ${status}:** \`${workflowId}\``;
 
-            rt.logger.debug("fan-out notify: delivering to session", { sessionId });
+            rt.logger.debug("workflow notify: delivering to session", { sessionId });
             const parsed = parseAgentSessionUrn(sessionId);
             const delivery = (() => {
               if (parsed?.platform === "discord") {
@@ -495,22 +495,22 @@ void (async () => {
               }
               return { kind: "internal" as const };
             })();
-            rt.logger.debug("fan-out notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
+            rt.logger.debug("workflow notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
             await ext.runSessionModelTurn({
               sessionId,
               userContent: message,
-              userMetadata: { fan_out_notify: true, workflow_id: workflowId, success },
+              userMetadata: { workflow_notify: true, workflow_id: workflowId, success },
               systemContext: {
-                kind: "fan_out.complete",
-                summary: `Fan-out workflow completed ${success ? "successfully" : "with failures"}.`,
+                kind: "workflow.complete",
+                summary: `Workflow completed ${success ? "successfully" : "with failures"}.`,
                 guidance: "The user can already see task statuses, durations, total duration, and workflow completion in the automated status post. Surface any meaningful information beyond that, or simply acknowledge completion in your own voice.",
                 data: { workflow_id: workflowId, success },
               },
               delivery,
             });
-            rt.logger.debug("fan-out notify: delivered");
+            rt.logger.debug("workflow notify: delivered");
           } catch (e) {
-            rt.logger.warn("fan-out completion notification failed", { workflowId, err: String(e) });
+            rt.logger.warn("workflow completion notification failed", { workflowId, err: String(e) });
           }
         },
       },
@@ -526,7 +526,7 @@ void (async () => {
       createNotificationAdapter: (replyToSessionId: string) => ({
         async sendNotification(target: string, message: string): Promise<void> {
           const ext = subagentRuntimeExtensionRef.current;
-          if (!ext) { rt.logger.warn("fan-out task notification: subagent runtime not available"); return; }
+          if (!ext) { rt.logger.warn("workflow task notification: subagent runtime not available"); return; }
           const parsed = parseAgentSessionUrn(target);
           const delivery = (() => {
             if (parsed?.platform === "discord") {
@@ -539,31 +539,31 @@ void (async () => {
             await ext.runSessionModelTurn({
               sessionId: target,
               userContent: message,
-              userMetadata: { fan_out_task_failed: true },
+              userMetadata: { workflow_task_failed: true },
               systemContext: {
-                kind: "fan_out.task_failed",
+                kind: "workflow.task_failed",
                 summary: message,
-                guidance: "A task in a running fan-out workflow has failed. Assess whether this requires intervention, a retry, or can be ignored. The user can see the failure in the status post — only surface this if you have actionable context to add.",
+                guidance: "A task in a running workflow has failed. Assess whether this requires intervention, a retry, or can be ignored. The user can see the failure in the status post — only surface this if you have actionable context to add.",
               },
               delivery,
             });
           } catch (e) {
-            rt.logger.warn("fan-out task failure notification failed", { target, err: String(e) });
+            rt.logger.warn("workflow task failure notification failed", { target, err: String(e) });
           }
         },
       }),
     });
 
-    const resumed = await fanOut.server.resume();
+    const resumed = await workflow.server.resume();
     if (resumed.length > 0) {
-      rt.logger.info("fan-out resumed incomplete workflows", { count: resumed.length, ids: resumed });
+      rt.logger.info("workflow resumed incomplete workflows", { count: resumed.length, ids: resumed });
     }
 
-    rt.shutdown.registerDrain("fan-out", async () => {
-      await fanOut.server.stopAll();
+    rt.shutdown.registerDrain("workflow", async () => {
+      await workflow.server.stopAll();
     });
   } catch (e) {
-    rt.logger.warn("fan-out server failed to initialize", { err: String(e) });
+    rt.logger.warn("workflow server failed to initialize", { err: String(e) });
   }
 
   const dm = discordMessaging;

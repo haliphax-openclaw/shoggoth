@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@shoggoth/procman": "*",
-    "@shoggoth/fan-out": "*",
+    "@shoggoth/workflow": "*",
     "@shoggoth/mcp-integration": "*",
     "@shoggoth/messaging": "*",
     "@shoggoth/platform-discord": "*",

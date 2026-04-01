@@ -11,9 +11,9 @@ import {
 import type { StatusManager } from "./status-manager.js";
 import { listIncompleteWorkflows } from "./state.js";
 
-const PROCESS_ID = "fan-out-orchestrator";
+const PROCESS_ID = "workflow-orchestrator";
 
-export interface FanOutServerOptions {
+export interface WorkflowServerOptions {
   stateDir: string;
   spawner: SpawnAdapter;
   poller: PollAdapter;
@@ -25,18 +25,18 @@ export interface FanOutServerOptions {
 }
 
 /**
- * Fan-out server — registers the orchestrator as a managed concept
+ * Workflow server — registers the orchestrator as a managed concept
  * within the procman ecosystem and provides the high-level `start` entry point.
  *
  * Note: The orchestrator itself is not a child process; it runs in-process
  * using timers. The server acts as the lifecycle wrapper that procman
  * can track, and handles workflow resume on startup.
  */
-export class FanOutServer {
-  private readonly opts: FanOutServerOptions;
+export class WorkflowServer {
+  private readonly opts: WorkflowServerOptions;
   private readonly orchestrators = new Map<string, Orchestrator>();
 
-  constructor(opts: FanOutServerOptions) {
+  constructor(opts: WorkflowServerOptions) {
     this.opts = opts;
   }
 
@@ -64,7 +64,7 @@ export class FanOutServer {
     return resumed;
   }
 
-  /** Start a new fan-out workflow. Returns the workflow ID. */
+  /** Start a new workflow. Returns the workflow ID. */
   async start(
     tasks: TaskDef[],
     graphDsl: string,

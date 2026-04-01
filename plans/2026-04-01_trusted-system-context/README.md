@@ -4,7 +4,7 @@ Add a `systemContext` field to `runSessionModelTurn` that provides a trusted, sy
 
 ## Motivation
 
-5 out of 6 `runSessionModelTurn` call sites are the system pretending to be a user. System-generated context (subagent task assignments, steering commands, fan-out notifications, process events) currently lands as `role: "user"` messages with no way for the agent to distinguish them from actual user input. This creates:
+5 out of 6 `runSessionModelTurn` call sites are the system pretending to be a user. System-generated context (subagent task assignments, steering commands, workflow notifications, process events) currently lands as `role: "user"` messages with no way for the agent to distinguish them from actual user input. This creates:
 
 - **Trust ambiguity** — agents can't verify whether a message is from the system or a user crafting something that looks like a system message
 - **Lost context** — `userMetadata` is persisted but never surfaced to the agent
@@ -28,7 +28,7 @@ runSessionModelTurn(input: {
 
 ```typescript
 interface SystemContext {
-  /** Short identifier for the event type (e.g., "fan_out.complete", "subagent.task", "session.steer") */
+  /** Short identifier for the event type (e.g., "workflow.complete", "subagent.task", "session.steer") */
   kind: string;
   /** Human-readable summary for the agent */
   summary: string;
@@ -47,7 +47,7 @@ When `systemContext` is present, the user message content is constructed as:
 
 ```
 --- BEGIN TRUSTED SYSTEM CONTEXT ---
-[fan_out.complete]
+[workflow.complete]
 Fan-out workflow "workspace-analysis" completed successfully.
 Duration: 20s | Completed: 4/4 | Failed: 0/4
 
@@ -126,13 +126,13 @@ Update each `runSessionModelTurn` call site to use `systemContext` instead of (o
    - `data: { steered_by }`
 
 5. **Fan-out completion notification**
-   - `kind: "fan_out.complete"`
+   - `kind: "workflow.complete"`
    - `summary: "Fan-out workflow '<name>' completed. <pass/fail summary>"`
    - `data: { workflow_id, name, success, task_count, completed, failed, duration_ms }`
 
 6. **Fan-out task spawning**
-   - `kind: "fan_out.task"`
-   - `summary: "You are executing a fan-out task."`
+   - `kind: "workflow.task"`
+   - `summary: "You are executing a workflow task."`
    - `data: { workflow_id, task_id, dependencies }`
 
 ### Phase 3 — Agent System Prompt Guidance
@@ -216,7 +216,7 @@ Follow the guidance when provided.
 
 ### Fan-Out Adapter Updates
 
-Both fan-out adapter call sites were updated to include guidance:
+Both workflow adapter call sites were updated to include guidance:
 
-- `fan_out.task`: "Execute the task described in the message content. Focus only on this task and return your result."
-- `fan_out.complete`: "Surface the outcome of this workflow to the user."
+- `workflow.task`: "Execute the task described in the message content. Focus only on this task and return your result."
+- `workflow.complete`: "Surface the outcome of this workflow to the user."

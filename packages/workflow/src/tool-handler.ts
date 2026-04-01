@@ -1,5 +1,5 @@
 import type { TaskDef, FailureBehavior, FailureNotification } from "./types.js";
-import type { FanOutServer } from "./server.js";
+import type { WorkflowServer } from "./server.js";
 import type { ControlPlane } from "./control.js";
 import type { OrchestratorOptions } from "./orchestrator.js";
 
@@ -14,7 +14,7 @@ interface TaskInput {
   runtime_limit_ms?: number;
 }
 
-export interface FanOutToolArgs {
+export interface WorkflowToolArgs {
   action: "start" | "abort" | "pause" | "resume" | "status" | "list" | "post" | "edit" | "retry" | "retention" | "wait";
   // start
   name?: string;
@@ -38,14 +38,14 @@ export interface FanOutToolArgs {
   timeout_ms?: number;
 }
 
-export interface FanOutToolResult {
+export interface WorkflowToolResult {
   ok: boolean;
   data?: unknown;
   error?: string;
 }
 
-export interface FanOutToolHandlerDeps {
-  server: FanOutServer;
+export interface WorkflowToolHandlerDeps {
+  server: WorkflowServer;
   controlPlane: ControlPlane;
   stateDir: string;
   /** Current spawn depth of the calling session. */
@@ -93,10 +93,10 @@ function serializeGraph(graph: Map<number, Set<number>>): Record<string, number[
 
 // --- Handler ---
 
-export async function handleFanOutToolCall(
-  args: FanOutToolArgs,
-  deps: FanOutToolHandlerDeps,
-): Promise<FanOutToolResult> {
+export async function handleWorkflowToolCall(
+  args: WorkflowToolArgs,
+  deps: WorkflowToolHandlerDeps,
+): Promise<WorkflowToolResult> {
   try {
     switch (args.action) {
       case "start": {

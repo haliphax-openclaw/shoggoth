@@ -11,17 +11,17 @@ import assert from "node:assert/strict";
 
 // We test via the tool handler since that's the entry point agents use.
 import {
-  handleFanOutToolCall,
-  type FanOutToolArgs,
-  type FanOutToolHandlerDeps,
+  handleWorkflowToolCall,
+  type WorkflowToolArgs,
+  type WorkflowToolHandlerDeps,
 } from "../src/tool-handler.js";
-import type { FanOutServer } from "../src/server.js";
+import type { WorkflowServer } from "../src/server.js";
 import type { ControlPlane } from "../src/control.js";
 import type { TaskList, DependencyGraph } from "../src/types.js";
 
 // --- Mocks ---
 
-function mockServer(overrides: Partial<FanOutServer> = {}): FanOutServer {
+function mockServer(overrides: Partial<WorkflowServer> = {}): WorkflowServer {
   return {
     start: async () => "wf-123",
     resume: async () => [],
@@ -29,7 +29,7 @@ function mockServer(overrides: Partial<FanOutServer> = {}): FanOutServer {
     getOrchestrators: () => new Map(),
     stopAll: async () => {},
     ...overrides,
-  } as unknown as FanOutServer;
+  } as unknown as WorkflowServer;
 }
 
 function makeWorkflow(overrides: Partial<TaskList> = {}): TaskList {
@@ -69,11 +69,11 @@ function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): Con
   } as unknown as ControlPlane;
 }
 
-function makeDeps(overrides: Partial<FanOutToolHandlerDeps> = {}): FanOutToolHandlerDeps {
+function makeDeps(overrides: Partial<WorkflowToolHandlerDeps> = {}): WorkflowToolHandlerDeps {
   return {
     server: mockServer(),
     controlPlane: mockControlPlane(),
-    stateDir: "/tmp/fan-out-test",
+    stateDir: "/tmp/workflow-test",
     currentDepth: 0,
     maxDepth: 2,
     ...overrides,
@@ -92,7 +92,7 @@ describe("name passthrough", () => {
       },
     });
     const deps = makeDeps({ server });
-    await handleFanOutToolCall({
+    await handleWorkflowToolCall({
       action: "start",
       name: "my-cool-workflow",
       tasks: [{ id: 1, prompt: "do stuff" }],
@@ -112,7 +112,7 @@ describe("name passthrough", () => {
       },
     });
     const deps = makeDeps({ server });
-    await handleFanOutToolCall({
+    await handleWorkflowToolCall({
       action: "start",
       tasks: [{ id: 1, prompt: "do stuff" }],
       graph: "",
@@ -131,7 +131,7 @@ describe("graph serialization in status", () => {
       status: async () => makeWorkflow(),
     });
     const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    const result = await handleFanOutToolCall({ action: "status", workflow_id: "wf-test" }, deps);
+    const result = await handleWorkflowToolCall({ action: "status", workflow_id: "wf-test" }, deps);
 
     assert.equal(result.ok, true);
     const data = result.data as Record<string, unknown>;
@@ -154,7 +154,7 @@ describe("wait action", () => {
       wait: async () => makeWorkflow(),
     });
     const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    const result = await handleFanOutToolCall({
+    const result = await handleWorkflowToolCall({
       action: "wait" as "start", // cast since we're adding it
       workflow_id: "wf-test",
     }, deps);
@@ -163,9 +163,9 @@ describe("wait action", () => {
   });
 
   it("returns error when workflow_id is missing", async () => {
-    const result = await handleFanOutToolCall({
+    const result = await handleWorkflowToolCall({
       action: "wait" as "start",
-    } as FanOutToolArgs, makeDeps());
+    } as WorkflowToolArgs, makeDeps());
 
     assert.equal(result.ok, false);
     assert.match(result.error!, /workflow_id/);
@@ -180,11 +180,11 @@ describe("wait action", () => {
       },
     });
     const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    await handleFanOutToolCall({
+    await handleWorkflowToolCall({
       action: "wait" as "start",
       workflow_id: "wf-test",
       timeout_ms: 30000,
-    } as FanOutToolArgs & { timeout_ms: number }, deps);
+    } as WorkflowToolArgs & { timeout_ms: number }, deps);
 
     assert.equal(capturedTimeout, 30000);
   });

@@ -9,7 +9,7 @@ import {
   type DaemonPollAdapterDeps,
   type DaemonKillAdapterDeps,
   type DaemonMessageAdapterDeps,
-} from "../src/fan-out-adapters.js";
+} from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal fakes for daemon internals

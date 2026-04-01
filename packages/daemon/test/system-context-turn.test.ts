@@ -141,7 +141,7 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
 
   it("the systemContext is stored on the transcript entry", async () => {
     const ctx: SystemContext = {
-      kind: "fan_out.complete",
+      kind: "workflow.complete",
       summary: "Fan-out done.",
       data: { workflow_id: "wf-1" },
     };

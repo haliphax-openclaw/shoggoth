@@ -1,29 +1,29 @@
 // ---------------------------------------------------------------------------
-// Singleton FanOutServer + ControlPlane for the daemon
+// Singleton WorkflowServer + ControlPlane for the daemon
 // ---------------------------------------------------------------------------
 
 import { mkdirSync } from "node:fs";
 import {
-  FanOutServer,
+  WorkflowServer,
   ControlPlane,
   StatusManager,
-  handleFanOutToolCall,
-  type FanOutToolArgs,
-  type FanOutToolResult,
+  handleWorkflowToolCall,
+  type WorkflowToolArgs,
+  type WorkflowToolResult,
   type SpawnAdapter,
   type PollAdapter,
   type NotifyAdapter,
   type NotificationAdapter,
   type KillAdapter,
   type MessageAdapter,
-} from "@shoggoth/fan-out";
+} from "@shoggoth/workflow";
 
-let server: FanOutServer | undefined;
+let server: WorkflowServer | undefined;
 let controlPlane: ControlPlane | undefined;
 let stateDir: string | undefined;
 
-export interface FanOutSingletonOptions {
-  /** Base directory for fan-out workflow state files. */
+export interface WorkflowSingletonOptions {
+  /** Base directory for workflow state files. */
   stateDir: string;
   spawner: SpawnAdapter;
   poller: PollAdapter;
@@ -35,8 +35,8 @@ export interface FanOutSingletonOptions {
   createNotificationAdapter?: (sessionId: string) => NotificationAdapter;
 }
 
-/** Initialize the fan-out singleton. Call once at daemon startup. */
-export function initFanOut(opts: FanOutSingletonOptions): { server: FanOutServer; controlPlane: ControlPlane } {
+/** Initialize the workflow singleton. Call once at daemon startup. */
+export function initWorkflow(opts: WorkflowSingletonOptions): { server: WorkflowServer; controlPlane: ControlPlane } {
   if (server && controlPlane) return { server, controlPlane };
 
   stateDir = opts.stateDir;
@@ -46,7 +46,7 @@ export function initFanOut(opts: FanOutSingletonOptions): { server: FanOutServer
     ? (sessionId: string) => new StatusManager(opts.createMessageAdapter!(sessionId))
     : undefined;
 
-  server = new FanOutServer({
+  server = new WorkflowServer({
     stateDir,
     spawner: opts.spawner,
     poller: opts.poller,
@@ -64,26 +64,26 @@ export function initFanOut(opts: FanOutSingletonOptions): { server: FanOutServer
   return { server, controlPlane };
 }
 
-/** Get the fan-out server, or undefined if not initialized. */
-export function getFanOutServer(): FanOutServer | undefined {
+/** Get the workflow server, or undefined if not initialized. */
+export function getWorkflowServer(): WorkflowServer | undefined {
   return server;
 }
 
-/** Get the fan-out control plane, or undefined if not initialized. */
-export function getFanOutControlPlane(): ControlPlane | undefined {
+/** Get the workflow control plane, or undefined if not initialized. */
+export function getWorkflowControlPlane(): ControlPlane | undefined {
   return controlPlane;
 }
 
-/** Execute a fan_out tool call. Returns structured result. */
-export async function executeFanOutToolCall(
-  args: FanOutToolArgs,
+/** Execute a workflow tool call. Returns structured result. */
+export async function executeWorkflowToolCall(
+  args: WorkflowToolArgs,
   sessionContext: { currentDepth: number; maxDepth: number },
-): Promise<FanOutToolResult> {
+): Promise<WorkflowToolResult> {
   if (!server || !controlPlane || !stateDir) {
-    return { ok: false, error: "fan-out server not initialized" };
+    return { ok: false, error: "workflow server not initialized" };
   }
 
-  return handleFanOutToolCall(args, {
+  return handleWorkflowToolCall(args, {
     server,
     controlPlane,
     stateDir,

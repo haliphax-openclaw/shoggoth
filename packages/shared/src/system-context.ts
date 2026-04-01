@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 
 export interface SystemContext {
-  /** Short identifier for the event type (e.g., "fan_out.complete", "subagent.task", "session.steer") */
+  /** Short identifier for the event type (e.g., "workflow.complete", "subagent.task", "session.steer") */
   kind: string;
   /** Human-readable summary for the agent */
   summary: string;

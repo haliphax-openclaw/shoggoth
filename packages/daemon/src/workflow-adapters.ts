@@ -1,8 +1,8 @@
 /**
- * Real daemon adapters for the fan-out orchestrator.
+ * Real daemon adapters for the workflow orchestrator.
  *
  * Each adapter wraps daemon internals (session manager, session store, messaging)
- * behind the fan-out package's dependency-injection interfaces.
+ * behind the workflow package's dependency-injection interfaces.
  */
 
 import type {
@@ -13,7 +13,7 @@ import type {
   KillAdapter,
   MessageAdapter,
   NotifyAdapter,
-} from "@shoggoth/fan-out";
+} from "@shoggoth/workflow";
 import type { SessionManager } from "./sessions/session-manager.js";
 import type { SessionStore, SessionRow } from "./sessions/session-store.js";
 
@@ -73,15 +73,15 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
         sessionId: childId,
         userContent: req.prompt,
         userMetadata: {
-          fan_out_task_id: req.taskId,
+          workflow_task_id: req.taskId,
           subagent_one_shot: true,
           parent_session_id: parentSessionId,
           respond_to: req.replyTo,
           internal: true,
         },
         systemContext: {
-          kind: "fan_out.task",
-          summary: "You are executing a fan-out task.",
+          kind: "workflow.task",
+          summary: "You are executing a workflow task.",
           guidance: "Execute the task described in the message content. Focus only on this task and return your result.",
           data: { workflow_id: req.workflowId ?? null, task_id: req.taskId },
         },
@@ -171,7 +171,7 @@ export interface DaemonMessageAdapterDeps {
 }
 
 function log(level: string, msg: string, fields: Record<string, unknown> = {}): void {
-  const entry = JSON.stringify({ ts: new Date().toISOString(), level, msg, component: "fan-out-msg", ...fields });
+  const entry = JSON.stringify({ ts: new Date().toISOString(), level, msg, component: "workflow-msg", ...fields });
   process.stderr.write(entry + "\n");
 }
 
@@ -237,10 +237,10 @@ export function createDaemonMessageAdapter(deps: DaemonMessageAdapterDeps): Mess
 }
 
 // ---------------------------------------------------------------------------
-// NotifyAdapter (fan-out completion notification)
+// NotifyAdapter (workflow completion notification)
 // ---------------------------------------------------------------------------
 
-export interface FanOutNotifierDeps {
+export interface WorkflowNotifierDeps {
   /** Lazy getter — the runtime extension may not be available at construction time. */
   readonly getRunSessionModelTurn: () =>
     | ((input: {
@@ -256,38 +256,38 @@ export interface FanOutNotifierDeps {
   readonly logger: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void; debug: (...args: unknown[]) => void };
 }
 
-export function createFanOutNotifier(deps: FanOutNotifierDeps): NotifyAdapter {
+export function createWorkflowNotifier(deps: WorkflowNotifierDeps): NotifyAdapter {
   return {
     async notify(workflowId: string, success: boolean, context?: { replyTo: string }): Promise<void> {
-      deps.logger.info("fan-out workflow completed", { workflowId, success, replyTo: context?.replyTo ?? null });
+      deps.logger.info("workflow completed", { workflowId, success, replyTo: context?.replyTo ?? null });
       try {
         const sessionId = context?.replyTo;
-        if (!sessionId) { deps.logger.warn("fan-out notify: no replyTo in context"); return; }
+        if (!sessionId) { deps.logger.warn("workflow notify: no replyTo in context"); return; }
 
         const runTurn = deps.getRunSessionModelTurn();
-        if (!runTurn) { deps.logger.warn("fan-out notify: subagent runtime not available"); return; }
+        if (!runTurn) { deps.logger.warn("workflow notify: subagent runtime not available"); return; }
 
         const status = success ? "✅ completed successfully" : "❌ completed with failures";
-        const message = `**Fan-out workflow ${status}:** \`${workflowId}\``;
+        const message = `**Workflow ${status}:** \`${workflowId}\``;
 
-        deps.logger.debug("fan-out notify: delivering to session", { sessionId });
+        deps.logger.debug("workflow notify: delivering to session", { sessionId });
         const delivery = deps.resolveDelivery?.(sessionId) ?? { kind: "internal" };
-        deps.logger.debug("fan-out notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
+        deps.logger.debug("workflow notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
         await runTurn({
           sessionId,
           userContent: message,
-          userMetadata: { fan_out_notify: true, workflow_id: workflowId, success },
+          userMetadata: { workflow_notify: true, workflow_id: workflowId, success },
           systemContext: {
-            kind: "fan_out.complete",
-            summary: `Fan-out workflow completed ${success ? "successfully" : "with failures"}.`,
+            kind: "workflow.complete",
+            summary: `Workflow completed ${success ? "successfully" : "with failures"}.`,
             guidance: "The user can already see task statuses, durations, total duration, and workflow completion in the automated status post. Surface any meaningful information beyond that, or simply acknowledge completion in your own voice.",
             data: { workflow_id: workflowId, success },
           },
           delivery,
         });
-        deps.logger.debug("fan-out notify: delivered");
+        deps.logger.debug("workflow notify: delivered");
       } catch (e) {
-        deps.logger.warn("fan-out completion notification failed", { workflowId, err: String(e) });
+        deps.logger.warn("workflow completion notification failed", { workflowId, err: String(e) });
       }
     },
   };

@@ -1,12 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildFanOutToolDescriptor } from "../src/tool-descriptor.js";
+import { buildWorkflowToolDescriptor } from "../src/tool-descriptor.js";
 
-describe("buildFanOutToolDescriptor", () => {
-  const descriptor = buildFanOutToolDescriptor();
+describe("buildWorkflowToolDescriptor", () => {
+  const descriptor = buildWorkflowToolDescriptor();
 
-  it("returns a descriptor with name fan_out", () => {
-    assert.equal(descriptor.name, "fan_out");
+  it("returns a descriptor with name workflow", () => {
+    assert.equal(descriptor.name, "workflow");
   });
 
   it("has a non-empty description", () => {

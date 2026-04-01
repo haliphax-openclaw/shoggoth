@@ -33,9 +33,9 @@ import { HealthRegistry } from "../src/health.js";
 import { ShutdownCoordinator } from "../src/shutdown.js";
 import {
   createDaemonSpawnAdapter,
-  createFanOutNotifier,
+  createWorkflowNotifier,
   type DaemonSpawnAdapterDeps,
-} from "../src/fan-out-adapters.js";
+} from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -377,13 +377,13 @@ describe("systemContext adoption: session_steer", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. Fan-out completion notification — systemContext
+// 5. Workflow completion notification — systemContext
 // ---------------------------------------------------------------------------
 
-describe("systemContext adoption: fan-out completion notification", () => {
-  it("passes systemContext with kind 'fan_out.complete' on success", async () => {
+describe("systemContext adoption: workflow completion notification", () => {
+  it("passes systemContext with kind 'workflow.complete' on success", async () => {
     const captured = capturingRunSessionModelTurn();
-    const notifier = createFanOutNotifier({
+    const notifier = createWorkflowNotifier({
       getRunSessionModelTurn: () => captured.fn,
       logger: { info: () => {}, warn: () => {}, debug: () => {} },
     });
@@ -393,7 +393,7 @@ describe("systemContext adoption: fan-out completion notification", () => {
     assert.equal(captured.calls.length, 1);
     const sc = captured.calls[0].systemContext;
     assert.ok(sc, "systemContext must be present");
-    assert.equal(sc.kind, "fan_out.complete");
+    assert.equal(sc.kind, "workflow.complete");
     assert.ok(sc.summary.length > 0, "summary must be non-empty");
     assert.ok(sc.summary.includes("successfully"), "summary should mention success");
     assert.ok(sc.data, "data must be present");
@@ -401,9 +401,9 @@ describe("systemContext adoption: fan-out completion notification", () => {
     assert.equal(sc.data!.success, true);
   });
 
-  it("passes systemContext with kind 'fan_out.complete' on failure", async () => {
+  it("passes systemContext with kind 'workflow.complete' on failure", async () => {
     const captured = capturingRunSessionModelTurn();
-    const notifier = createFanOutNotifier({
+    const notifier = createWorkflowNotifier({
       getRunSessionModelTurn: () => captured.fn,
       logger: { info: () => {}, warn: () => {}, debug: () => {} },
     });
@@ -413,7 +413,7 @@ describe("systemContext adoption: fan-out completion notification", () => {
     assert.equal(captured.calls.length, 1);
     const sc = captured.calls[0].systemContext;
     assert.ok(sc, "systemContext must be present");
-    assert.equal(sc.kind, "fan_out.complete");
+    assert.equal(sc.kind, "workflow.complete");
     assert.ok(sc.summary.includes("failures"), "summary should mention failures");
     assert.equal(sc.data!.workflow_id, "wf-456");
     assert.equal(sc.data!.success, false);
@@ -421,11 +421,11 @@ describe("systemContext adoption: fan-out completion notification", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6. Fan-out task spawning — systemContext
+// 6. Workflow task spawning — systemContext
 // ---------------------------------------------------------------------------
 
-describe("systemContext adoption: fan-out task spawning", () => {
-  it("passes systemContext with kind 'fan_out.task' and task data", async () => {
+describe("systemContext adoption: workflow task spawning", () => {
+  it("passes systemContext with kind 'workflow.task' and task data", async () => {
     const captured = capturingRunSessionModelTurn();
     const sessions = {
       update: () => {},
@@ -459,7 +459,7 @@ describe("systemContext adoption: fan-out task spawning", () => {
     assert.equal(captured.calls.length, 1);
     const sc = captured.calls[0].systemContext;
     assert.ok(sc, "systemContext must be present");
-    assert.equal(sc.kind, "fan_out.task");
+    assert.equal(sc.kind, "workflow.task");
     assert.ok(sc.summary.length > 0, "summary must be non-empty");
     assert.ok(sc.data, "data must be present");
     assert.equal(sc.data!.task_id, 42);

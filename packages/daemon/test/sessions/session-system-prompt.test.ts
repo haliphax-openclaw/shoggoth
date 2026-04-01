@@ -131,7 +131,7 @@ describe("buildSessionSystemContext", () => {
     assert.match(s, /--- END TRUSTED SYSTEM CONTEXT ---/);
     // Key event kinds mentioned
     assert.match(s, /subagent\.task/);
-    assert.match(s, /fan_out\.complete/);
+    assert.match(s, /workflow\.complete/);
     assert.match(s, /session\.steer/);
     assert.match(s, /session\.message/);
     // Anti-spoofing warning
