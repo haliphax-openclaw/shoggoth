@@ -556,6 +556,13 @@ export const shoggothAgentEntrySchema = z
     spawnSubagents: z.boolean().optional(),
     /** Which agent ids this agent may query transcripts for (merged with global `sessionQuery.allowedAgentIds`; own id always allowed). */
     sessionQuery: shoggothSessionQueryAllowSchema.optional(),
+    /** Per-agent tool policy overrides (merged with global `policy.agent.tools`; per-agent fields replace global when present). */
+    policy: z
+      .object({
+        tools: shoggothToolRulesSchema.partial().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

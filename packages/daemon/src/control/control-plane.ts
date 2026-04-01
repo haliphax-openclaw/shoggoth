@@ -374,7 +374,7 @@ export async function startControlPlane(opts: ControlPlaneOptions): Promise<Cont
     ? createSqliteAgentTokenStore(stateDb)
     : new MemoryAgentTokenStore();
   const operatorTokenSecret = readOperatorTokenSecret(config);
-  const engine = policyEngineOpt ?? createPolicyEngine(config.policy);
+  const engine = policyEngineOpt ?? createPolicyEngine(config.policy, config.agents);
   const socketPath = config.socketPath;
   const mode = config.controlSocketMode ?? 0o600;
 

@@ -79,7 +79,7 @@ export function startConfigHotReload(options: StartConfigHotReloadOptions): () =
       });
       return;
     }
-    policyRef.engine = createPolicyEngine(next.policy);
+    policyRef.engine = createPolicyEngine(next.policy, next.agents);
     hitlRef.value = { ...DEFAULT_HITL_CONFIG, ...next.hitl };
     configRef.current = next;
     logger.info("config hot-reload applied", { slices: ["policy", "hitl"] });

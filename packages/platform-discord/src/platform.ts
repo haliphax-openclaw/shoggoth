@@ -165,7 +165,7 @@ export async function startDiscordPlatform(
       hitlDiscordNoticeRegistry: opts.hitlDiscordNoticeRegistry,
     });
 
-  const engine = opts.policyEngine ?? createPolicyEngine(opts.config.policy);
+  const engine = opts.policyEngine ?? createPolicyEngine(opts.config.policy, opts.config.agents);
   const getHitlConfig = (): ShoggothConfig["hitl"] =>
     opts.hitlConfigRef
       ? opts.hitlConfigRef.value

@@ -149,7 +149,7 @@ function resolvedDiscordBotToken(): string | undefined {
   const dc = resolvePlatformConfig(configRef.current, "discord");
   return (dc?.token as string | undefined)?.trim() || undefined;
 }
-const policyRef = { engine: createPolicyEngine(config.policy) };
+const policyRef = { engine: createPolicyEngine(config.policy, config.agents) };
 const policyEngine = createDelegatingPolicyEngine(() => policyRef.engine);
 const hitlRef = { value: { ...DEFAULT_HITL_CONFIG, ...config.hitl } };
 
@@ -229,6 +229,7 @@ void (async () => {
     hitlAutoApproveGate = createPersistingHitlAutoApproveGate({
       db: stateDb,
       configDirectory: configRef.current.configDirectory,
+      dynamicConfigDirectory: configRef.current.dynamicConfigDirectory,
       configRef,
       hitlRef,
       logger: rt.logger.child({ subsystem: "hitl-auto-approve" }),
@@ -249,6 +250,7 @@ void (async () => {
         hitlStack && stateDb && hitlAutoApproveGate
           ? {
               configDirectory: configRef.current.configDirectory,
+              dynamicConfigDirectory: configRef.current.dynamicConfigDirectory,
               configRef,
               hitlRef,
               autoApproveGate: hitlAutoApproveGate,

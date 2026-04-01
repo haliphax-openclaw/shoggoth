@@ -1,5 +1,6 @@
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
-import type { ShoggothPolicyConfig, ShoggothToolRules } from "@shoggoth/shared";
+import type { ShoggothAgentsConfig, ShoggothPolicyConfig, ShoggothToolRules } from "@shoggoth/shared";
+import { resolveAgentIdFromSessionId } from "@shoggoth/shared";
 
 export type PolicyAction = "control.invoke" | "tool.invoke";
 
@@ -121,7 +122,23 @@ export type PolicyEngine = {
   readonly config: ShoggothPolicyConfig;
 };
 
-export function createPolicyEngine(config: ShoggothPolicyConfig): PolicyEngine {
+/**
+ * Merge global tool rules with optional per-agent partial overrides.
+ * Per-agent fields replace the corresponding global field when present.
+ */
+export function resolveEffectiveToolRules(
+  global: ShoggothToolRules,
+  perAgent: Partial<ShoggothToolRules> | undefined,
+): ShoggothToolRules {
+  if (!perAgent) return global;
+  return {
+    allow: perAgent.allow ?? global.allow,
+    deny: perAgent.deny ?? global.deny,
+    review: perAgent.review ?? global.review,
+  };
+}
+
+export function createPolicyEngine(config: ShoggothPolicyConfig, agents?: ShoggothAgentsConfig): PolicyEngine {
   return {
     config,
     check(input: PolicyCheckInput): PolicyDecision {
@@ -146,7 +163,10 @@ export function createPolicyEngine(config: ShoggothPolicyConfig): PolicyEngine {
           return evaluateRules(resource, config.agent.controlOps);
         }
         if (action === "tool.invoke") {
-          return evaluateRules(resource, config.agent.tools);
+          const agentId = resolveAgentIdFromSessionId(principal.sessionId);
+          const perAgent = agentId ? agents?.list?.[agentId]?.policy?.tools : undefined;
+          const effective = resolveEffectiveToolRules(config.agent.tools, perAgent);
+          return evaluateRules(resource, effective);
         }
         return { allow: false, reason: "unknown_action" };
       }
