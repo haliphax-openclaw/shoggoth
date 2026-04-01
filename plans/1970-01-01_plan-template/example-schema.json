@@ -1,0 +1,9 @@
+{
+  "name": "example-schema",
+  "description": "An example JSON asset referenced by the plan. Plans can include supporting files like schemas, config samples, API specs, or test fixtures alongside the README.",
+  "fields": {
+    "id": { "type": "integer", "description": "Unique identifier." },
+    "name": { "type": "string", "description": "Human-readable name." },
+    "enabled": { "type": "boolean", "default": true }
+  }
+}
