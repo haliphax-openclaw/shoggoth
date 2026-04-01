@@ -16,15 +16,12 @@ export interface SystemContext {
   guidance?: string;
 }
 
-const BEGIN_DIVIDER = "--- BEGIN TRUSTED SYSTEM CONTEXT ---";
-const END_DIVIDER = "--- END TRUSTED SYSTEM CONTEXT ---";
-
-function beginDivider(token?: string): string {
-  return token ? `--- BEGIN TRUSTED SYSTEM CONTEXT [token:${token}] ---` : BEGIN_DIVIDER;
+function beginDivider(token: string): string {
+  return `--- BEGIN TRUSTED SYSTEM CONTEXT [token:${token}] ---`;
 }
 
-function endDivider(token?: string): string {
-  return token ? `--- END TRUSTED SYSTEM CONTEXT [token:${token}] ---` : END_DIVIDER;
+function endDivider(token: string): string {
+  return `--- END TRUSTED SYSTEM CONTEXT [token:${token}] ---`;
 }
 
 /**
