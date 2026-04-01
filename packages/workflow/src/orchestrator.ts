@@ -326,10 +326,12 @@ export class Orchestrator {
     // To avoid re-processing, we check for tasks that are failed and have no special marker.
     // Simple approach: iterate and handle based on behavior. The abort/pause actions are idempotent.
     const newlyFailed = wf.tasks.filter(
-      (t) => t.status === "failed" && t.completedAt !== undefined && !t.error?.startsWith("blocked:") && !t.error?.startsWith("aborted:")
+      (t) => t.status === "failed" && t.completedAt !== undefined && !t.failureHandled && !t.error?.startsWith("blocked:") && !t.error?.startsWith("aborted:")
     );
 
     for (const task of newlyFailed) {
+      task.failureHandled = true;
+
       // Send failure notification
       await this.routeFailureNotification(task);
 

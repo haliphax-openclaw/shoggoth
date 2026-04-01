@@ -33,6 +33,8 @@ export interface TaskState {
   error?: string;
   startedAt?: number;
   completedAt?: number;
+  /** Set after failure behavior has been processed to prevent re-handling on subsequent ticks. */
+  failureHandled?: boolean;
 }
 
 // Parsed dependency graph: task ID → set of dependency task IDs

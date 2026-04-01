@@ -367,12 +367,13 @@ export class ControlPlane {
     return summary;
   }
 
-  private resetTask(task: { status: TaskStatus; error?: string; output?: string; startedAt?: number; completedAt?: number; sessionKey?: string }): void {
+  private resetTask(task: { status: TaskStatus; error?: string; output?: string; startedAt?: number; completedAt?: number; sessionKey?: string; failureHandled?: boolean }): void {
     task.status = "pending";
     task.error = undefined;
     task.output = undefined;
     task.startedAt = undefined;
     task.completedAt = undefined;
     task.sessionKey = undefined;
+    task.failureHandled = undefined;
   }
 }
