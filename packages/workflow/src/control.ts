@@ -131,8 +131,9 @@ export class ControlPlane {
     orch.stopPolling();
     orch.setCompleted(true);
 
-    // Update status message
+    // Post summary and update status message
     if (this.statusManager) {
+      await this.statusManager.postSummary(wf);
       await this.statusManager.updateStatus(wf);
     }
 
