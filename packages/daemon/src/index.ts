@@ -136,8 +136,15 @@ if (config.dynamicConfigDirectory) {
   const resolvedConfig = resolve(config.configDirectory);
   const resolvedDynamic = resolve(config.dynamicConfigDirectory);
   if (!resolvedDynamic.startsWith(resolvedConfig + "/") && resolvedDynamic !== resolvedConfig) {
-    console.error(
-      `FATAL: dynamicConfigDirectory (${resolvedDynamic}) must be below configDirectory (${resolvedConfig})`,
+    process.stderr.write(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: "fatal",
+        msg: "dynamicConfigDirectory must be below configDirectory",
+        component: "shoggoth-daemon",
+        resolvedDynamic,
+        resolvedConfig,
+      }) + "\n",
     );
     process.exit(1);
   }
