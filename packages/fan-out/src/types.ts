@@ -17,6 +17,8 @@ export type FailureNotification =
 export interface TaskDef {
   id: number;
   prompt: string;
+  /** Optional display title for status/summary posts (max 60 chars). Falls back to truncated prompt. */
+  title?: string;
   failureBehavior: FailureBehavior;
   failureNotification: FailureNotification;
   runtimeLimitMs?: number;

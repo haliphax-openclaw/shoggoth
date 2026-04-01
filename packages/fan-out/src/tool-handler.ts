@@ -8,6 +8,7 @@ import type { OrchestratorOptions } from "./orchestrator.js";
 interface TaskInput {
   id: number;
   prompt: string;
+  title?: string;
   failure_behavior?: "abort" | "pause" | "continue";
   failure_notification?: "silent" | { kind: "notify-parent" } | { kind: "notify-target"; target_id: string };
   runtime_limit_ms?: number;
@@ -74,6 +75,7 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
   return inputs.map((t) => ({
     id: t.id,
     prompt: t.prompt,
+    ...(t.title ? { title: t.title.slice(0, 60) } : {}),
     failureBehavior: (t.failure_behavior ?? "continue") as FailureBehavior,
     failureNotification: normalizeFailureNotification(t.failure_notification),
     runtimeLimitMs: t.runtime_limit_ms,

@@ -26,6 +26,7 @@ const fanOutToolArgs = {
         properties: {
           id: { type: "integer", description: "Unique task number (1-based)." },
           prompt: { type: "string", description: "Task prompt. May contain {{task:N:output}} or {{task:N:success}} templates." },
+          title: { type: "string", description: "Optional display title for status/summary posts (max 60 chars). Falls back to truncated prompt.", maxLength: 60 },
           failure_behavior: {
             type: "string",
             enum: ["abort", "pause", "continue"],

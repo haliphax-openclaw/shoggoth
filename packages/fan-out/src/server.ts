@@ -5,6 +5,7 @@ import {
   type SpawnAdapter,
   type PollAdapter,
   type NotifyAdapter,
+  type NotificationAdapter,
   type OrchestratorOptions,
 } from "./orchestrator.js";
 import type { StatusManager } from "./status-manager.js";
@@ -19,6 +20,8 @@ export interface FanOutServerOptions {
   notifier: NotifyAdapter;
   /** Factory to create a per-workflow StatusManager bound to the calling session. */
   createStatusManager?: (sessionId: string) => StatusManager;
+  /** Factory to create a per-workflow NotificationAdapter for task failure delivery. */
+  createNotificationAdapter?: (sessionId: string) => NotificationAdapter;
 }
 
 /**
@@ -67,7 +70,7 @@ export class FanOutServer {
     graphDsl: string,
     opts: OrchestratorOptions,
   ): Promise<string> {
-    const orch = new Orchestrator(this.opts.spawner, this.opts.poller, this.opts.notifier, this.opts.createStatusManager?.(opts.replyTo));
+    const orch = new Orchestrator(this.opts.spawner, this.opts.poller, this.opts.notifier, this.opts.createStatusManager?.(opts.replyTo), this.opts.createNotificationAdapter?.(opts.replyTo));
     const wfId = await orch.start(tasks, graphDsl, opts);
     orch.startPolling();
     this.orchestrators.set(wfId, orch);

@@ -523,6 +523,35 @@ void (async () => {
         },
         sessionId,
       }),
+      createNotificationAdapter: (replyToSessionId: string) => ({
+        async sendNotification(target: string, message: string): Promise<void> {
+          const ext = subagentRuntimeExtensionRef.current;
+          if (!ext) { rt.logger.warn("fan-out task notification: subagent runtime not available"); return; }
+          const parsed = parseAgentSessionUrn(target);
+          const delivery = (() => {
+            if (parsed?.platform === "discord") {
+              const ownerUserId = resolveDiscordOwnerUserId(configRef.current);
+              if (ownerUserId) return { kind: "messaging_surface" as const, userId: ownerUserId };
+            }
+            return { kind: "internal" as const };
+          })();
+          try {
+            await ext.runSessionModelTurn({
+              sessionId: target,
+              userContent: message,
+              userMetadata: { fan_out_task_failed: true },
+              systemContext: {
+                kind: "fan_out.task_failed",
+                summary: message,
+                guidance: "A task in a running fan-out workflow has failed. Assess whether this requires intervention, a retry, or can be ignored. The user can see the failure in the status post — only surface this if you have actionable context to add.",
+              },
+              delivery,
+            });
+          } catch (e) {
+            rt.logger.warn("fan-out task failure notification failed", { target, err: String(e) });
+          }
+        },
+      }),
     });
 
     const resumed = await fanOut.server.resume();

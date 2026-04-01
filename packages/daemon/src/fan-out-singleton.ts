@@ -13,6 +13,7 @@ import {
   type SpawnAdapter,
   type PollAdapter,
   type NotifyAdapter,
+  type NotificationAdapter,
   type KillAdapter,
   type MessageAdapter,
 } from "@shoggoth/fan-out";
@@ -30,6 +31,8 @@ export interface FanOutSingletonOptions {
   killer: KillAdapter;
   /** Factory to create a per-workflow MessageAdapter bound to a specific session. */
   createMessageAdapter?: (sessionId: string) => MessageAdapter;
+  /** Factory to create a per-workflow NotificationAdapter for task failure delivery. */
+  createNotificationAdapter?: (sessionId: string) => NotificationAdapter;
 }
 
 /** Initialize the fan-out singleton. Call once at daemon startup. */
@@ -49,6 +52,7 @@ export function initFanOut(opts: FanOutSingletonOptions): { server: FanOutServer
     poller: opts.poller,
     notifier: opts.notifier,
     createStatusManager,
+    createNotificationAdapter: opts.createNotificationAdapter,
   });
 
   controlPlane = new ControlPlane({

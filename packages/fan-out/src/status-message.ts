@@ -9,6 +9,12 @@ const STATUS_EMOJI: Record<TaskState["status"], string> = {
   failed: "❌",
 };
 
+function taskDisplayName(task: TaskState): string {
+  if (task.taskDef.title) return task.taskDef.title;
+  const prompt = task.taskDef.prompt;
+  return prompt.length > 57 ? prompt.slice(0, 57) + "…" : prompt;
+}
+
 function taskDuration(task: TaskState, now?: number): string | null {
   if (task.startedAt == null) return null;
   const end = task.completedAt ?? now ?? Date.now();
@@ -21,7 +27,7 @@ function formatTaskLine(task: TaskState, deps: Set<number>, now?: number): strin
   const depStr = deps.size > 0 ? ` [${[...deps].sort((a, b) => a - b).join(",")}]` : "";
   const dur = taskDuration(task, now);
   const durStr = dur != null ? ` (${dur})` : "";
-  return `${emoji} ${id}${depStr} - ${task.taskDef.prompt}${durStr}`;
+  return `${emoji} ${id}${depStr} - ${taskDisplayName(task)}${durStr}`;
 }
 
 /**
@@ -60,7 +66,7 @@ export function formatSummaryMessage(wf: TaskList): string {
     for (const t of failed) {
       const dur = taskDuration(t);
       const durStr = dur != null ? ` (${dur})` : "";
-      lines.push(`- ${t.taskDef.id} - ${t.taskDef.prompt}${durStr}`);
+      lines.push(`- ${t.taskDef.id} - ${taskDisplayName(t)}${durStr}`);
     }
   }
 
