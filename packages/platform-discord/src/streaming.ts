@@ -1,5 +1,6 @@
 import type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
 import type { DiscordRestTransport } from "./transport";
+import { splitDiscordMessage } from "./split-message";
 
 const DEFAULT_DISCORD_MAX_CONTENT = 2000;
 
@@ -17,11 +18,6 @@ export interface DiscordStreamHandle {
 
 export interface DiscordStreamingOutbound {
   start(): Promise<DiscordStreamHandle>;
-}
-
-function truncate(s: string, max: number): string {
-  if (s.length <= max) return s;
-  return s.slice(0, max);
 }
 
 export function createDiscordStreamingOutbound(
@@ -50,8 +46,13 @@ export function createDiscordStreamingOutbound(
       return {
         messageId,
         async setFullContent(text: string): Promise<void> {
-          const content = truncate(text, maxContentLength);
-          await transport.editMessage(channelId, messageId, { content });
+          const chunks = splitDiscordMessage(text, maxContentLength);
+          // Edit the original streaming message with the first chunk.
+          await transport.editMessage(channelId, messageId, { content: chunks[0] });
+          // Send remaining chunks as new messages.
+          for (let i = 1; i < chunks.length; i++) {
+            await transport.createMessage(channelId, { content: chunks[i] });
+          }
         },
       };
     },

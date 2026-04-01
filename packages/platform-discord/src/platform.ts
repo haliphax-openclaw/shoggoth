@@ -48,6 +48,8 @@ import {
   formatDiscordPlatformErrorUserText,
   sliceDiscordPlatformMessageBody,
 } from "./errors";
+import { splitDiscordMessage } from "./split-message";
+import { formatAttachmentMetadata } from "./attachment-metadata";
 
 /** Discord typing indicator lasts ~10s; renew while the model formulates a reply. */
 const DISCORD_TYPING_RENEWAL_MS = 8000;
@@ -282,7 +284,13 @@ export async function startDiscordPlatform(
       return;
     }
 
-    await runDiscordInboundModelTurn(msg, session, msg.body, {});
+    let userContent = msg.body;
+    const attachments = msg.extensions.attachments;
+    if (attachments && attachments.length > 0) {
+      userContent = `${userContent}\n\n${formatAttachmentMetadata(attachments)}`;
+    }
+
+    await runDiscordInboundModelTurn(msg, session, userContent, {});
   }
 
   async function runDiscordInboundModelTurn(
@@ -360,16 +368,19 @@ export async function startDiscordPlatform(
           opts.logger.warn("discord.platform.turn_failed", { err: String(e), sessionId: msg.sessionId });
         },
         sendAssistantBody: async (body) => {
-          await opts.discord.outbound.sendDiscord(
-            createOutboundMessage({
-              id: randomUUID(),
-              sessionId: msg.sessionId,
-              userId: msg.userId,
-              createdAt: new Date().toISOString(),
-              body,
-              extensions: { replyToMessageId: msg.id },
-            }),
-          );
+          const chunks = splitDiscordMessage(body);
+          for (let i = 0; i < chunks.length; i++) {
+            await opts.discord.outbound.sendDiscord(
+              createOutboundMessage({
+                id: randomUUID(),
+                sessionId: msg.sessionId,
+                userId: msg.userId,
+                createdAt: new Date().toISOString(),
+                body: chunks[i],
+                extensions: i === 0 ? { replyToMessageId: msg.id } : {},
+              }),
+            );
+          }
         },
         sendErrorBody: async (body) => {
           try {
@@ -551,21 +562,21 @@ export async function startDiscordPlatform(
       await withAgentTypingWhile(opts.discord, sid, async () => {
         turnResult = await executeTurn(buildAfterHitlQueued(delivery));
         const cfg = opts.configRef?.current ?? opts.config;
-        const body = sliceDiscordPlatformMessageBody(
-          `${formatDiscordPlatformDegradedPrefix(turnResult.failoverMeta)}${formatAgentIdentityPrefix(cfg, sid)}${turnResult.latestAssistantText}${formatDiscordPlatformModelTagFooter(env, turnResult.failoverMeta)}`,
-        );
-        await opts.discord.outbound.sendDiscord(
-          createOutboundMessage({
-            id: randomUUID(),
-            sessionId: sid,
-            userId: delivery.userId,
-            createdAt: new Date().toISOString(),
-            body,
-            extensions: {
-              replyToMessageId: delivery.replyToMessageId,
-            },
-          }),
-        );
+        const fullBody =
+          `${formatDiscordPlatformDegradedPrefix(turnResult.failoverMeta)}${formatAgentIdentityPrefix(cfg, sid)}${turnResult.latestAssistantText}${formatDiscordPlatformModelTagFooter(env, turnResult.failoverMeta)}`;
+        const chunks = splitDiscordMessage(fullBody);
+        for (let i = 0; i < chunks.length; i++) {
+          await opts.discord.outbound.sendDiscord(
+            createOutboundMessage({
+              id: randomUUID(),
+              sessionId: sid,
+              userId: delivery.userId,
+              createdAt: new Date().toISOString(),
+              body: chunks[i],
+              extensions: i === 0 ? { replyToMessageId: delivery.replyToMessageId } : {},
+            }),
+          );
+        }
       });
       return turnResult;
     }
