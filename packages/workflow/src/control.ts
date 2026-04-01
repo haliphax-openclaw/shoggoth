@@ -106,10 +106,10 @@ export class ControlPlane {
     const wf = orch.getWorkflowStatus();
     if (!wf) throw new Error(`Workflow not found: ${workflowId}`);
 
-    // Kill all in-progress sessions
+    // Kill all sessions (in-progress, completed, and failed)
     for (const task of wf.tasks) {
-      if (task.status === "in_progress" && task.sessionKey) {
-        await this.killer.kill(task.sessionKey);
+      if (task.sessionKey) {
+        await this.killer.kill(task.sessionKey).catch(() => {});
       }
     }
 

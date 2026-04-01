@@ -283,10 +283,16 @@ export class Orchestrator {
         task.status = "done";
         task.output = result.output;
         task.completedAt = Date.now();
+        if (this.killer && task.sessionKey) {
+          await this.killer.kill(task.sessionKey).catch(() => {});
+        }
       } else if (result.status === "failed") {
         task.status = "failed";
         task.error = result.error;
         task.completedAt = Date.now();
+        if (this.killer && task.sessionKey) {
+          await this.killer.kill(task.sessionKey).catch(() => {});
+        }
       }
       // "running" → no change
     }
@@ -477,6 +483,15 @@ export class Orchestrator {
     if (allTerminal && !this.completed) {
       this.completed = true;
       this.stopPolling();
+
+      // Clean up any remaining subagent sessions
+      if (this.killer) {
+        for (const task of wf.tasks) {
+          if (task.sessionKey) {
+            await this.killer.kill(task.sessionKey).catch(() => {});
+          }
+        }
+      }
 
       // Post summary before notifying
       if (this.statusManager) {
