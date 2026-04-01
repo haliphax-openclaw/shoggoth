@@ -386,6 +386,12 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
           "Request a configuration change. The fragment is validated against the config schema and written to the daemon's dynamic config directory.",
         inputSchema: configRequestArgs,
       },
+      {
+        name: "config.show",
+        description:
+          "Show the current daemon configuration (sensitive fields are redacted).",
+        inputSchema: { type: "object" as const, properties: {} },
+      },
       buildWorkflowToolDescriptor() as McpToolDescriptor,
     ],
   };

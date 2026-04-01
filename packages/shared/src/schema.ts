@@ -282,6 +282,7 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
         "session_abort",
         "session_kill",
         "config_request",
+        "config_show",
       ],
       deny: [],
       review: [],

@@ -695,6 +695,23 @@ export async function executeSessionAgentTurn(
             throw e;
           }
         }
+        if (originalName === "config.show") {
+          const inv = getAgentIntegrationInvoker();
+          if (!inv) {
+            return { resultJson: JSON.stringify({ error: "config_show_unavailable" }) };
+          }
+          try {
+            const result = await inv(input.sessionId, "config_show", {});
+            return { resultJson: JSON.stringify(result) };
+          } catch (e) {
+            if (e instanceof IntegrationOpError) {
+              return {
+                resultJson: JSON.stringify({ ok: false, code: e.code, message: e.message }),
+              };
+            }
+            throw e;
+          }
+        }
         if (originalName === "procman") {
           const action = String(args.action ?? "").trim();
           const pm = getProcessManager();
