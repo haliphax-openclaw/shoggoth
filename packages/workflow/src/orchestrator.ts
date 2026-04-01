@@ -204,9 +204,12 @@ export class Orchestrator {
     // Persist state
     saveWorkflow(this.opts.stateDir, this.workflow);
 
-    // Update status message
+    // Update status message (skip when paused with no in-progress tasks)
     if (this.statusManager) {
-      await this.statusManager.updateStatus(this.workflow);
+      const hasInProgress = wf.tasks.some((t) => t.status === "in_progress");
+      if (!this.paused || hasInProgress) {
+        await this.statusManager.updateStatus(this.workflow);
+      }
     }
 
     // Check for completion
