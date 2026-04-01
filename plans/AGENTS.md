@@ -17,6 +17,8 @@ plans/
 
 ## Frontmatter
 
+> This section describes the YAML frontmatter properties used in plan documents. Do not include a "Frontmatter" section in actual plans — just include the YAML block at the top of the README.
+
 Every plan README must include YAML frontmatter:
 
 ```yaml
