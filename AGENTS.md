@@ -12,6 +12,10 @@ Significant or complex changes to the codebase should be planned first. See [`pl
 
 Contributions to this codebase must use red/green TDD.
 
+## Commit Early, Commit Often
+
+Commits should be small and focused, representing a single unit of work. They also provide a convenient rollback point if changes turn out to break things in unexpected ways.
+
 ## It's Okay to Break Things
 
 This is pre-release software, and the only user is the developer. Backward compatibility, maintaining call site structure, etc. are a waste of effort and should be skipped.
