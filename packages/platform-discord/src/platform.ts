@@ -29,6 +29,7 @@ import {
   buildSessionSystemContext,
   createSessionMcpRuntime,
   defaultPlatformAssistantDeps,
+  SessionTurnLock,
   type HitlPendingStack,
   type PolicyEngine,
   type HitlConfigRef,
@@ -180,6 +181,7 @@ export async function startDiscordPlatform(
   const loopImpl = assistantDeps.runToolLoopImpl;
   const createToolClient = assistantDeps.createToolCallingClient;
 
+  const turnLock = new SessionTurnLock();
   const chainTail = new Map<string, Promise<void>>();
   const subagentBusUnsubs: (() => void)[] = [];
 
@@ -301,6 +303,8 @@ export async function startDiscordPlatform(
     userContent: string,
     extraUserMetadata: Record<string, unknown>,
   ): Promise<void> {
+    const release = await turnLock.acquire(msg.sessionId);
+    try {
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
     const streamEnabled = env.SHOGGOTH_DISCORD_STREAM === "1";
     const streamingOutbound = streamEnabled ? opts.discord.streamingForSession(msg.sessionId) : undefined;
@@ -472,6 +476,9 @@ export async function startDiscordPlatform(
         },
       });
     });
+    } finally {
+      release();
+    }
   }
 
   async function runSessionModelTurn(input: {
@@ -486,6 +493,8 @@ export async function startDiscordPlatform(
     if (!sessionRow || sessionRow.status === "terminated") {
       throw new Error(`session not available: ${sid}`);
     }
+    const release = await turnLock.acquire(sid);
+    try {
     const mcpCtx = await mcpRuntime.resolveContext(sid);
     const userMetadata = input.userMetadata ?? {};
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
@@ -620,6 +629,9 @@ export async function startDiscordPlatform(
     }
 
     return await executeTurn(internalAfterHitlQueued);
+    } finally {
+      release();
+    }
   }
 
   function subscribeSubagentSession(sessionId: string): () => void {

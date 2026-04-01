@@ -158,6 +158,7 @@ export {
   type ExecuteSessionAgentTurnInput,
   type SessionAgentTurnResult,
 } from "./sessions/session-agent-turn";
+export { SessionTurnLock } from "./sessions/session-turn-lock";
 export {
   runInboundSessionTurn,
   createCoalescingStreamPusher,
