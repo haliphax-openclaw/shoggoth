@@ -348,32 +348,32 @@ function buildSessionStatsSection(
   if (!stats) return undefined;
 
   // Base: cumulative actual token usage from the DB (current segment).
-  let tokenCount = stats.inputTokens + stats.outputTokens;
-  let tokenDisplay: string;
+  const cumulativeTokens = stats.inputTokens + stats.outputTokens;
 
-  if (transcriptMessages && transcriptMessages.length > 0) {
-    // Add estimated tokens for the system prompt and current user message
-    // (not yet recorded in the DB since this turn hasn't completed).
-    const systemPromptTokens = assembledPromptLength
-      ? Math.ceil(assembledPromptLength / 4)
-      : 0;
-    const lastUserMsg = [...transcriptMessages].reverse().find(m => m.role === "user");
-    const currentMsgTokens = lastUserMsg ? estimateTokens(lastUserMsg.content) : 0;
-    tokenCount += systemPromptTokens + currentMsgTokens;
-    tokenDisplay = `~${formatNumber(tokenCount)}`;
-  } else {
-    tokenDisplay = formatNumber(tokenCount);
+  // Current context window fill: system prompt + transcript (what the model sees this turn).
+  let contextFill = 0;
+  if (assembledPromptLength) {
+    contextFill += Math.ceil(assembledPromptLength / 4);
+  }
+  if (transcriptMessages) {
+    for (const m of transcriptMessages) {
+      contextFill += estimateTokens(m.content);
+    }
   }
 
+  const tokenDisplay = contextFill > 0
+    ? `~${formatNumber(contextFill)}`
+    : formatNumber(cumulativeTokens);
+
   let contextWindowSuffix = "";
-  if (stats.contextWindowTokens != null) {
-    const pct = ((tokenCount / stats.contextWindowTokens) * 100).toFixed(1);
+  if (stats.contextWindowTokens != null && contextFill > 0) {
+    const pct = ((contextFill / stats.contextWindowTokens) * 100).toFixed(1);
     contextWindowSuffix = ` / ${formatNumber(stats.contextWindowTokens)} (${pct}%)`;
   }
 
   return [
     "## Session Stats\n",
-    `Tokens used: ${tokenDisplay}${contextWindowSuffix} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
+    `Context: ${tokenDisplay}${contextWindowSuffix} · Total: ${formatNumber(cumulativeTokens)} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
   ].join("\n");
 }
 
