@@ -301,6 +301,25 @@ function buildSilentRepliesSection(input: {
   return daemonPrompt("system-silent-replies-default");
 }
 
+function buildReactionGuidanceSection(): string {
+  return [
+    "## Reaction Turns",
+    "",
+    "Some turns are triggered by operator reactions on your messages (emoji). These are lightweight turns with reduced transcript context.",
+    "When you receive a reaction-triggered turn, respond concisely to the reaction. The event context describes what was reacted and on which message.",
+    "You can present choices to the operator using a reaction legend block:",
+    "",
+    "```",
+    "React to choose:",
+    "1\uFE0F\u20E3 Option one",
+    "2\uFE0F\u20E3 Option two",
+    "3\uFE0F\u20E3 Option three",
+    "```",
+    "",
+    "The operator picks an option by reacting with the corresponding emoji.",
+  ].join("\n");
+}
+
 function buildRuntimeSection(input: {
   readonly sessionId: string | undefined;
   readonly contextSegmentId: string | undefined;
@@ -435,6 +454,7 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
       messagingCapabilities: input.messagingCapabilities,
       channel: input.channel,
     }),
+    buildReactionGuidanceSection(),
     buildRuntimeSection({
       sessionId: input.sessionId,
       contextSegmentId: input.contextSegmentId,

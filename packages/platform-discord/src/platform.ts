@@ -140,6 +140,13 @@ export interface DiscordPlatformHandle {
     readonly sessionId: string;
     readonly reason: "ttl_expired" | "killed";
   }) => void;
+  readonly handleReactionPassthrough: (ev: {
+    readonly sessionId: string;
+    readonly messageContent: string;
+    readonly messageTimestamp: number;
+    readonly emoji: string;
+    readonly userId: string;
+  }) => Promise<void>;
 }
 
 export async function startDiscordPlatform(
@@ -674,6 +681,83 @@ export async function startDiscordPlatform(
       });
   }
 
+  function parseReactionLegendInline(content: string): { emoji: string; label: string }[] | null {
+    const lines = content.split('\n');
+    let startIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^react to choose:/i.test(lines[i].trim())) { startIdx = i + 1; break; }
+    }
+    if (startIdx < 0) return null;
+    const entries: { emoji: string; label: string }[] = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) break;
+      const spaceIdx = line.indexOf(' ');
+      if (spaceIdx < 1) continue;
+      entries.push({ emoji: line.slice(0, spaceIdx), label: line.slice(spaceIdx + 1).trim() });
+    }
+    return entries.length > 0 ? entries : null;
+  }
+
+  async function handleReactionPassthrough(ev: {
+    readonly sessionId: string;
+    readonly messageContent: string;
+    readonly messageTimestamp: number;
+    readonly emoji: string;
+    readonly userId: string;
+  }): Promise<void> {
+    const cfg = opts.configRef?.current ?? opts.config;
+    const agentId = parseAgentSessionUrn(ev.sessionId)?.agentId;
+    const agentReactions = agentId ? cfg.agents?.list?.[agentId]?.reactions : undefined;
+    const globalPassthrough = (agentReactions?.globalPassthrough ?? (cfg as any).reactions?.globalPassthrough ?? ['\uD83D\uDC4D', '\uD83D\uDC4E', '\u2705', '\u274C']) as string[];
+    const maxAgeMinutes = (agentReactions?.maxAgeMinutes ?? (cfg as any).reactions?.maxAgeMinutes ?? 30) as number;
+
+    const nowMs = Date.now();
+    const ageMs = nowMs - ev.messageTimestamp;
+    if (ageMs > maxAgeMinutes * 60 * 1000) {
+      opts.logger.debug('reaction.passthrough.too_old', { sessionId: ev.sessionId, ageMs });
+      return;
+    }
+
+    const legend = parseReactionLegendInline(ev.messageContent);
+    let eventContext: string;
+
+    if (legend) {
+      const match = legend.find(e => e.emoji === ev.emoji);
+      if (!match) {
+        opts.logger.debug('reaction.passthrough.legend_no_match', { sessionId: ev.sessionId, emoji: ev.emoji });
+        return;
+      }
+      const truncated = ev.messageContent.length > 500 ? ev.messageContent.slice(0, 500) + '\u2026' : ev.messageContent;
+      const legendLines = legend.map(e =>
+        e.emoji === ev.emoji ? `${e.emoji} ${e.label} \u2190 selected` : `${e.emoji} ${e.label}`
+      );
+      eventContext = [
+        `Operator reacted ${ev.emoji} to your message with reaction legend:`,
+        ...legendLines,
+        '',
+        `Original message: "${truncated}"`,
+      ].join('\n');
+    } else {
+      if (!globalPassthrough.includes(ev.emoji)) {
+        opts.logger.debug('reaction.passthrough.not_global', { sessionId: ev.sessionId, emoji: ev.emoji });
+        return;
+      }
+      const truncated = ev.messageContent.length > 500 ? ev.messageContent.slice(0, 500) + '\u2026' : ev.messageContent;
+      eventContext = `Operator reacted ${ev.emoji} to your message: "${truncated}"`;
+    }
+
+    try {
+      await runSessionModelTurn({
+        sessionId: ev.sessionId,
+        userContent: eventContext,
+        systemContext: { kind: 'reaction', summary: `Reaction ${ev.emoji} passthrough` },
+        delivery: { kind: 'messaging_surface', userId: ev.userId },
+      });
+    } catch (e) {
+      opts.logger.warn('reaction.passthrough.turn_failed', { err: String(e), sessionId: ev.sessionId });
+    }
+  }
   return {
     stop: async () => {
       for (const u of unsubs) u();
@@ -687,5 +771,6 @@ export async function startDiscordPlatform(
     runSessionModelTurn,
     subscribeSubagentSession,
     announcePersistentSubagentSessionEnded,
+    handleReactionPassthrough,
   };
 }

@@ -78,6 +78,11 @@ export interface ExecuteSessionAgentTurnInput {
     readonly streamModel: boolean;
     readonly onModelTextDelta?: (displayText: string) => void | Promise<void>;
   };
+  /** When set, this is a minimal context turn — truncate transcript to tail messages. */
+  readonly minimalContext?: {
+    readonly tailMessages: number;
+    readonly eventContext: string;
+  };
 }
 
 export interface SessionAgentTurnResult {
@@ -126,21 +131,33 @@ export async function executeSessionAgentTurn(
     ? wrapWithSystemContext(sanitizedUserContent, input.systemContext, sessionToken ?? (() => { throw new Error("systemContextToken is required when systemContext is provided"); })())
     : sanitizedUserContent;
 
-  input.transcript.append({
-    sessionId: input.sessionId,
-    contextSegmentId: ctxSeg,
-    role: "user",
-    content: effectiveContent,
-    metadata: input.userMetadata ?? {},
-    systemContext: input.systemContext,
-  });
+  if (!input.minimalContext) {
+    input.transcript.append({
+      sessionId: input.sessionId,
+      contextSegmentId: ctxSeg,
+      role: "user",
+      content: effectiveContent,
+      metadata: input.userMetadata ?? {},
+      systemContext: input.systemContext,
+    });
+  }
 
   const history = loadSessionTranscriptAsModelChat(input.db, input.sessionId, ctxSeg);
+  let effectiveHistory: ChatMessage[];
+  if (input.minimalContext) {
+    const tail = input.minimalContext.tailMessages > 0
+      ? history.slice(-input.minimalContext.tailMessages)
+      : [];
+    const eventMessage: ChatMessage = { role: "user", content: input.minimalContext.eventContext };
+    effectiveHistory = [...tail, eventMessage];
+  } else {
+    effectiveHistory = history;
+  }
   const system: ChatMessage = {
     role: "system",
     content: effectiveSystemPrompt,
   };
-  const initialMessages: ChatMessage[] = [system, ...history];
+  const initialMessages: ChatMessage[] = [system, ...effectiveHistory];
 
   log.debug("resolving mcp context", { sessionId: input.sessionId });
   const mcpCtx = await input.resolveMcpContext(input.sessionId);

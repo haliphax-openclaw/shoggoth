@@ -128,6 +128,12 @@ export const shoggothRetentionConfigSchema = z
 
 export type ShoggothRetentionConfig = z.infer<typeof shoggothRetentionConfigSchema>;
 
+export const shoggothReactionsConfigSchema = z.object({
+  globalPassthrough: z.array(z.string().min(1)).optional(),
+  maxAgeMinutes: z.number().int().positive().optional(),
+}).strict();
+export type ShoggothReactionsConfig = z.infer<typeof shoggothReactionsConfigSchema>;
+
 export const hitlRiskTierSchema = z.enum(["safe", "caution", "critical", "never"]);
 
 export type HitlRiskTier = z.infer<typeof hitlRiskTierSchema>;
@@ -294,6 +300,13 @@ export const DEFAULT_MEMORY_CONFIG: ShoggothMemoryConfig = {
   embeddings: { enabled: false },
 };
 
+export const DEFAULT_REACTIONS_CONFIG = {
+  globalPassthrough: ["👍", "👎", "✅", "❌"],
+  maxAgeMinutes: 30,
+} as const;
+
+export const DEFAULT_MINIMAL_CONTEXT_TAIL_MESSAGES = 2;
+
 export const shoggothPluginEntrySchema = z
   .object({
     id: z.string().min(1).optional(),
@@ -453,6 +466,9 @@ export const shoggothRuntimeConfigSchema = z
     ollamaHost: z.string().min(1).optional(),
     /** When true, suppress the platform-surfaced context window mismatch notice (stderr log still fires). */
     suppressContextWindowMismatchNotice: z.boolean().optional(),
+    minimalContext: z.object({
+      transcriptTailMessages: z.number().int().nonnegative().optional(),
+    }).strict().optional(),
     turnQueue: z
       .object({
         starvationThreshold: z.number().int().positive().optional(),
@@ -576,6 +592,7 @@ export const shoggothAgentEntrySchema = z
       })
       .strict()
       .optional(),
+    reactions: shoggothReactionsConfigSchema.partial().optional(),
   })
   .strict();
 
@@ -683,6 +700,7 @@ export const shoggothConfigFragmentSchema = z
       .optional(),
     plugins: z.array(shoggothPluginEntrySchema).optional(),
     retention: shoggothRetentionConfigSchema.optional(),
+    reactions: shoggothReactionsConfigSchema.partial().optional(),
     mcp: shoggothMcpConfigSchema.optional(),
     acpx: shoggothAcpxConfigSchema.partial().optional(),
     /** Generic platforms bag — each key is a platform id with common fields validated by core. */
@@ -735,6 +753,7 @@ export const shoggothConfigSchema = z
     skills: shoggothSkillsConfigSchema,
     plugins: z.array(shoggothPluginEntrySchema),
     retention: shoggothRetentionConfigSchema.optional(),
+    reactions: shoggothReactionsConfigSchema.optional(),
     mcp: shoggothMcpConfigSchema,
     acpx: shoggothAcpxConfigSchema.optional(),
     /** Generic platforms bag — each key is a platform id with common fields validated by core. */
