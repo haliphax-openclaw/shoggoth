@@ -26,7 +26,7 @@ describe("buildWorkflowToolDescriptor", () => {
     const actions = props.action.enum!;
     assert.deepEqual(actions, [
       "start", "abort", "pause", "resume", "status",
-      "list", "post", "edit", "retry", "retention", "wait",
+      "list", "post", "edit", "retry", "retention",
     ]);
   });
 

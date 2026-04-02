@@ -15,7 +15,7 @@ interface TaskInput {
 }
 
 export interface WorkflowToolArgs {
-  action: "start" | "abort" | "pause" | "resume" | "status" | "list" | "post" | "edit" | "retry" | "retention" | "wait";
+  action: "start" | "abort" | "pause" | "resume" | "status" | "list" | "post" | "edit" | "retry" | "retention";
   // start
   name?: string;
   tasks?: TaskInput[];
@@ -35,8 +35,6 @@ export interface WorkflowToolArgs {
   cascade?: boolean;
   // list
   agent_chain_id?: string;
-  // wait
-  timeout_ms?: number;
 }
 
 export interface WorkflowToolResult {
@@ -182,12 +180,6 @@ export async function handleWorkflowToolCall(
       case "retention": {
         const summary = await deps.controlPlane.retention();
         return { ok: true, data: summary };
-      }
-
-      case "wait": {
-        const wfId = requireField(args.workflow_id, "workflow_id");
-        const wf = await deps.controlPlane.wait(wfId, args.timeout_ms);
-        return { ok: true, data: { ...wf, graph: serializeGraph(wf.graph) } };
       }
 
       default:

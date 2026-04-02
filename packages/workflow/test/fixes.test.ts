@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
  * Tests for the four fixes/features:
  * 1. Name passthrough (bug)
  * 2. Graph serialization (bug)
- * 3. wait action (feature)
+ * 3. status action returns serialized graph
  * 4. Completion notification (feature — tested at daemon adapter level)
  */
 
@@ -64,7 +64,6 @@ function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): Con
     edit: async () => {},
     retry: async () => {},
     retention: async () => ({ prunedIds: [], prunedCount: 0 }),
-    wait: async () => makeWorkflow(),
     ...overrides,
   } as unknown as ControlPlane;
 }
@@ -143,49 +142,5 @@ describe("graph serialization in status", () => {
     assert.deepEqual(graph["1"], []);
     assert.deepEqual(graph["2"], [1]);
     assert.deepEqual(graph["3"], [1, 2]);
-  });
-});
-
-// --- Feature: wait action ---
-
-describe("wait action", () => {
-  it("returns completed workflow when all tasks are terminal", async () => {
-    const cp = mockControlPlane({
-      wait: async () => makeWorkflow(),
-    });
-    const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    const result = await handleWorkflowToolCall({
-      action: "wait" as "start", // cast since we're adding it
-      workflow_id: "wf-test",
-    }, deps);
-
-    assert.equal(result.ok, true);
-  });
-
-  it("returns error when workflow_id is missing", async () => {
-    const result = await handleWorkflowToolCall({
-      action: "wait" as "start",
-    } as WorkflowToolArgs, makeDeps());
-
-    assert.equal(result.ok, false);
-    assert.match(result.error!, /workflow_id/);
-  });
-
-  it("passes timeout_ms to control plane wait", async () => {
-    let capturedTimeout: number | undefined;
-    const cp = mockControlPlane({
-      wait: async (_wfId: string, timeoutMs?: number) => {
-        capturedTimeout = timeoutMs;
-        return makeWorkflow();
-      },
-    });
-    const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    await handleWorkflowToolCall({
-      action: "wait" as "start",
-      workflow_id: "wf-test",
-      timeout_ms: 30000,
-    } as WorkflowToolArgs & { timeout_ms: number }, deps);
-
-    assert.equal(capturedTimeout, 30000);
   });
 });

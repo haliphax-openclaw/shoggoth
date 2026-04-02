@@ -10,9 +10,9 @@ const workflowToolArgs = {
   properties: {
     action: {
       type: "string",
-      enum: ["start", "abort", "pause", "resume", "status", "list", "post", "edit", "retry", "retention", "wait"],
+      enum: ["start", "abort", "pause", "resume", "status", "list", "post", "edit", "retry", "retention"],
       description:
-        "start: kick off a new workflow. abort/pause/resume: control a running workflow. status: get task states. list: list workflows. post: repost status message. edit: modify a non-in-progress task. retry: redrive a failed task. retention: prune old workflows. wait: block until workflow completes.",
+        "start: kick off a new workflow. abort/pause/resume: control a running workflow. status: get task states. list: list workflows. post: repost status message. edit: modify a non-in-progress task. retry: redrive a failed task. retention: prune old workflows.",
     },
     // --- start ---
     name: {
@@ -125,12 +125,6 @@ const workflowToolArgs = {
       type: "string",
       description: "list: filter by agent chain ID. Defaults to calling agent's chain.",
     },
-    // --- wait ---
-    timeout_ms: {
-      type: "integer",
-      description: "wait: max time to wait in ms. Default: 600000 (10 min).",
-      minimum: 1000,
-    },
   },
   required: ["action"],
 } as const;
@@ -139,7 +133,7 @@ export function buildWorkflowToolDescriptor(): WorkflowToolDescriptor {
   return {
     name: "workflow",
     description:
-      "Orchestrate parallel and sequential subagent workflows. Break work into tasks with a dependency graph, track progress with live status messages, and control execution with pause/resume/retry/abort.",
+      "Orchestrate parallel and sequential subagent workflows. Break work into tasks with a dependency graph, track progress with live status messages, and control execution with pause/resume/retry/abort. You will be notified on workflow completion or failure — do not block your turn waiting for results. Use 'status' for a point-in-time snapshot if needed.",
     inputSchema: workflowToolArgs,
   };
 }
