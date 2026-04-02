@@ -612,6 +612,8 @@ void (async () => {
     reactionPassthroughRef.current = (ev) => {
       const botId = reactionBotUserIdRef.current;
       if (botId && ev.userId === botId) return; // ignore self-reactions
+      const owner = resolveDiscordOwnerUserId(configRef.current)?.trim();
+      if (!owner || ev.userId !== owner) return; // operator-only
       // Resolve session from channel
       const sessionId = dm.resolveOutboundChannelIdForSession
         ? (() => {
