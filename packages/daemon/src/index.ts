@@ -237,6 +237,7 @@ void (async () => {
   let hitlDiscordNoticeRegistry: HitlDiscordNoticeRegistry | undefined;
   let hitlAutoApproveGate: HitlAutoApproveGate | undefined;
   const reactionBotUserIdRef = { current: undefined as string | undefined };
+  const reactionPassthroughRef: { current: ((ev: import("@shoggoth/platform-discord").DiscordReactionAddEvent) => void) | undefined } = { current: undefined };
   if (hitlStack && stateDb) {
     hitlDiscordNoticeRegistry = createHitlDiscordNoticeRegistry();
     hitlAutoApproveGate = createPersistingHitlAutoApproveGate({
@@ -352,7 +353,7 @@ void (async () => {
       }),
       onMessageReactionAdd:
         hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
-          ? (ev) =>
+          ? (ev) => {
               handleDiscordHitlReactionAdd({
                 ev,
                 pending: hitlStack.pending,
@@ -361,8 +362,10 @@ void (async () => {
                 ownerUserId: resolveDiscordOwnerUserId(configRef.current),
                 botUserIdRef: reactionBotUserIdRef,
                 logger: getLogger("discord-reactions"),
-              })
-          : undefined,
+              });
+              reactionPassthroughRef.current?.(ev);
+            }
+          : (ev) => { reactionPassthroughRef.current?.(ev); },
       reactionBotUserIdRef,
     });
     if (discordMessaging) {
@@ -603,6 +606,52 @@ void (async () => {
       deps: defaultPlatformAssistantDeps,
     });
     registerPlatform("discord", discordPlatform);
+
+    // Wire reaction passthrough: resolve raw Discord events into the processed format.
+    const passthroughLogger = getLogger("reaction-passthrough");
+    reactionPassthroughRef.current = (ev) => {
+      const botId = reactionBotUserIdRef.current;
+      if (botId && ev.userId === botId) return; // ignore self-reactions
+      // Resolve session from channel
+      const sessionId = dm.resolveOutboundChannelIdForSession
+        ? (() => {
+            // Reverse lookup: find session whose outbound channel matches the event channel
+            for (const r of dm.routes) {
+              if (r.channelId === ev.channelId) return r.sessionId;
+            }
+            return undefined;
+          })()
+        : undefined;
+      if (!sessionId) {
+        passthroughLogger.debug("reaction.passthrough.no_session", { channelId: ev.channelId });
+        return;
+      }
+      // Format emoji string
+      const emojiStr = ev.emoji.id ? `<:${ev.emoji.name ?? "_"}:${ev.emoji.id}>` : (ev.emoji.name ?? "");
+      if (!emojiStr) return;
+      // Fetch message content and check if it's from the bot
+      void (async () => {
+        try {
+          const msg = await dm.discordRestTransport.getMessage(ev.channelId, ev.messageId);
+          const authorId = (msg.author as Record<string, unknown> | undefined)?.id;
+          if (typeof authorId !== "string" || authorId !== botId) {
+            passthroughLogger.debug("reaction.passthrough.not_bot_message", { messageId: ev.messageId });
+            return;
+          }
+          const content = typeof msg.content === "string" ? msg.content : "";
+          const timestamp = typeof msg.timestamp === "string" ? new Date(msg.timestamp).getTime() : Date.now();
+          await discordPlatform.handleReactionPassthrough({
+            sessionId,
+            messageContent: content,
+            messageTimestamp: timestamp,
+            emoji: emojiStr,
+            userId: ev.userId,
+          });
+        } catch (e) {
+          passthroughLogger.warn("reaction.passthrough.fetch_failed", { err: String(e), messageId: ev.messageId });
+        }
+      })();
+    };
     const subagentExt = {
       runSessionModelTurn: discordPlatform.runSessionModelTurn,
       subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
