@@ -453,6 +453,12 @@ export const shoggothRuntimeConfigSchema = z
     ollamaHost: z.string().min(1).optional(),
     /** When true, suppress the platform-surfaced context window mismatch notice (stderr log still fires). */
     suppressContextWindowMismatchNotice: z.boolean().optional(),
+    turnQueue: z
+      .object({
+        starvationThreshold: z.number().int().positive().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

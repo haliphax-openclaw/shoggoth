@@ -29,7 +29,8 @@ import {
   buildSessionSystemContext,
   createSessionMcpRuntime,
   defaultPlatformAssistantDeps,
-  SessionTurnLock,
+  getTurnQueue,
+  type TieredTurnQueue,
   type HitlPendingStack,
   type PolicyEngine,
   type HitlConfigRef,
@@ -180,7 +181,7 @@ export async function startDiscordPlatform(
   const loopImpl = assistantDeps.runToolLoopImpl;
   const createToolClient = assistantDeps.createToolCallingClient;
 
-  const turnLock = new SessionTurnLock();
+  const turnQueue: TieredTurnQueue = getTurnQueue();
   const chainTail = new Map<string, Promise<void>>();
   const subagentBusUnsubs: (() => void)[] = [];
 
@@ -302,8 +303,7 @@ export async function startDiscordPlatform(
     userContent: string,
     extraUserMetadata: Record<string, unknown>,
   ): Promise<void> {
-    const release = await turnLock.acquire(msg.sessionId);
-    try {
+    await turnQueue.enqueue(msg.sessionId, "user", "user message", async () => {
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
     const streamEnabled = env.SHOGGOTH_DISCORD_STREAM === "1";
     const streamingOutbound = streamEnabled ? opts.discord.streamingForSession(msg.sessionId) : undefined;
@@ -475,9 +475,7 @@ export async function startDiscordPlatform(
         },
       });
     });
-    } finally {
-      release();
-    }
+    });
   }
 
   async function runSessionModelTurn(input: {
@@ -492,9 +490,9 @@ export async function startDiscordPlatform(
     if (!sessionRow || sessionRow.status === "terminated") {
       throw new Error(`session not available: ${sid}`);
     }
-    const release = await turnLock.acquire(sid);
-    try {
-    opts.logger.debug("platform.turn_lock_acquired", { sessionId: sid });
+    let turnResult!: SessionAgentTurnResult;
+    await turnQueue.enqueue(sid, "system", input.systemContext?.kind ?? "system", async () => {
+    opts.logger.debug("platform.turn_queue_acquired", { sessionId: sid });
     opts.logger.debug("platform.mcp_context_resolving", { sessionId: sid });
     const mcpCtx = await mcpRuntime.resolveContext(sid);
     opts.logger.debug("platform.mcp_context_resolved", { sessionId: sid, toolCount: mcpCtx.toolsLoop.length });
@@ -573,7 +571,6 @@ export async function startDiscordPlatform(
 
     if (input.delivery.kind === "messaging_surface") {
       const delivery = input.delivery;
-      let turnResult!: SessionAgentTurnResult;
       await withAgentTypingWhile(opts.discord, sid, async () => {
         turnResult = await executeTurn(buildAfterHitlQueued(delivery));
         const cfg = opts.configRef?.current ?? opts.config;
@@ -593,7 +590,7 @@ export async function startDiscordPlatform(
           );
         }
       });
-      return turnResult;
+      return;
     }
 
     // Internal delivery (e.g. one-shot subagents): resolve parent session's channel for HITL notices
@@ -631,10 +628,9 @@ export async function startDiscordPlatform(
     }
 
     opts.logger.debug("platform.executeTurn_calling", { sessionId: sid, delivery: input.delivery.kind });
-    return await executeTurn(internalAfterHitlQueued);
-    } finally {
-      release();
-    }
+    turnResult = await executeTurn(internalAfterHitlQueued);
+    });
+    return turnResult;
   }
 
   function subscribeSubagentSession(sessionId: string): () => void {
