@@ -107,10 +107,10 @@ export async function executeSessionAgentTurn(
   const log = getLogger("session-agent-turn");
   log.debug("executeSessionAgentTurn entered", { sessionId: input.sessionId });
 
-  // Drain any buffered system context entries and prepend to the system prompt.
+  // Drain any buffered system context entries and append to the system prompt.
   const buffered = drainSystemContext(input.sessionId);
   const effectiveSystemPrompt = buffered.length > 0
-    ? buffered.join("\n") + "\n\n" + input.systemPrompt
+    ? input.systemPrompt + "\n\n" + buffered.join("\n")
     : input.systemPrompt;
 
   const loopImpl = input.loopImpl ?? runToolLoop;
