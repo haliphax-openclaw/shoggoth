@@ -18,6 +18,18 @@ async function execHandler(
   if (!Array.isArray(argv) || argv.some((x) => typeof x !== "string")) {
     return { resultJson: JSON.stringify({ error: "exec requires string argv[]" }) };
   }
+  try {
+    return await execHandlerInner(argv as string[], args, ctx);
+  } catch (e) {
+    return { resultJson: JSON.stringify({ error: String(e) }) };
+  }
+}
+
+async function execHandlerInner(
+  argv: string[],
+  args: Record<string, unknown>,
+  ctx: BuiltinToolContext,
+): Promise<{ resultJson: string }> {
   // Check if any extended params are present
   const hasExtended = args.timeout !== undefined || args.stdin !== undefined ||
     args.workdir !== undefined || args.env !== undefined ||
