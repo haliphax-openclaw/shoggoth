@@ -104,6 +104,7 @@ registerAllBuiltinHandlers(builtinRegistry);
 export async function executeSessionAgentTurn(
   input: ExecuteSessionAgentTurnInput,
 ): Promise<SessionAgentTurnResult> {
+  log.debug("executeSessionAgentTurn entered", { sessionId: input.sessionId });
   const loopImpl = input.loopImpl ?? runToolLoop;
   const ctxSeg = input.session.contextSegmentId.trim();
   if (!ctxSeg) {
