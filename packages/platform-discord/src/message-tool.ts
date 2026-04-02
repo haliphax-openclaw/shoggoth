@@ -330,6 +330,53 @@ export async function executeDiscordMessageToolAction(
     }
 
     // -----------------------------------------------------------------------
+    // choice — post a reaction-based choice prompt with seeded emoji
+    // -----------------------------------------------------------------------
+    if (a === "choice") {
+      if (!x.react) {
+        return { ok: false, error: "choice not supported on this platform" };
+      }
+      const choicesRaw = args.choices;
+      if (!Array.isArray(choicesRaw) || choicesRaw.length === 0) {
+        return { ok: false, error: "choices must be a non-empty array of { emoji, label }" };
+      }
+      const choices: { emoji: string; label: string }[] = [];
+      for (const c of choicesRaw) {
+        if (c === null || typeof c !== "object" || Array.isArray(c)) {
+          return { ok: false, error: "each choice must be an object with emoji and label" };
+        }
+        const o = c as Record<string, unknown>;
+        const emoji = typeof o.emoji === "string" ? o.emoji.trim() : "";
+        const label = typeof o.label === "string" ? o.label.trim() : "";
+        if (!emoji || !label) {
+          return { ok: false, error: "each choice requires non-empty emoji and label" };
+        }
+        choices.push({ emoji, label });
+      }
+
+      const preamble = typeof args.content === "string" ? args.content.trim() : "";
+      const legendLines = choices.map((c) => `${c.emoji} ${c.label}`);
+      const body = [
+        ...(preamble ? [preamble, ""] : []),
+        "React to choose:",
+        ...legendLines,
+      ].join("\n");
+
+      const { id } = await t.createMessage(channelId, { content: body });
+
+      // Seed reactions in order so the operator can just click.
+      for (const c of choices) {
+        try {
+          await t.createMessageReaction(channelId, id, c.emoji);
+        } catch {
+          // Best-effort; custom emoji may fail if not available in the guild.
+        }
+      }
+
+      return { ok: true, message_id: id, channel_id: channelId, choices: choices.length };
+    }
+
+    // -----------------------------------------------------------------------
     // reactions — read reactions on a message
     // -----------------------------------------------------------------------
     if (a === "reactions") {

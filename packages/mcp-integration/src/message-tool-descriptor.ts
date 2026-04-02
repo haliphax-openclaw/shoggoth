@@ -34,6 +34,7 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
   if (slice.threadCreate) actions.push("create_thread");
   if (slice.threadDelete) actions.push("delete_thread");
   if (slice.react) actions.push("react");
+  if (slice.react) actions.push("choice");
   if (slice.reactions) actions.push("reactions");
   if (slice.search) actions.push("search");
   if (slice.attachmentDownload) actions.push("attachment-download");
@@ -43,11 +44,11 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
       type: "string",
       enum: actions,
       description:
-        "get: read message(s). post/edit/delete/create_thread/delete_thread: message CRUD. react: add/remove emoji reaction. reactions: read reactions on a message. search: filtered message fetch by keyword/author/time. attachment-download: download a file attachment. Only actions supported by the current platform appear in action's enum.",
+        "get: read message(s). post/edit/delete/create_thread/delete_thread: message CRUD. react: add/remove emoji reaction. choice: post a reaction-based choice prompt with seeded emoji. reactions: read reactions on a message. search: filtered message fetch by keyword/author/time. attachment-download: download a file attachment. Only actions supported by the current platform appear in action's enum.",
     },
     content: {
       type: "string",
-      description: "post: message body (may be empty if attachments present). edit: replacement text.",
+      description: "post/choice: message body (preamble text before the choice legend for choice action). edit: replacement text.",
     },
     message_id: {
       type: "string",
@@ -130,6 +131,18 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     properties.remove = {
       type: "boolean",
       description: "react only: if true, remove the reaction instead of adding it. Default false.",
+    };
+    properties.choices = {
+      type: "array",
+      description: "choice only: array of emoji + label pairs for the reaction choice prompt.",
+      items: {
+        type: "object",
+        properties: {
+          emoji: { type: "string", description: "Emoji for this choice (Unicode or platform shortcode)." },
+          label: { type: "string", description: "Label text for this choice." },
+        },
+        required: ["emoji", "label"],
+      },
     };
   }
 
