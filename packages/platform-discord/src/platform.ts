@@ -310,7 +310,10 @@ export async function startDiscordPlatform(
     userContent: string,
     extraUserMetadata: Record<string, unknown>,
   ): Promise<void> {
-    await turnQueue.enqueue(msg.sessionId, "user", "user message", async () => {
+    // Fire-and-forget: push to the turn queue (synchronous) and return immediately.
+    // The turn queue handles serialization; awaiting here would block dispatchChained
+    // and prevent subsequent messages from being enqueued.
+    void turnQueue.enqueue(msg.sessionId, "user", "user message", async () => {
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
     const streamEnabled = env.SHOGGOTH_DISCORD_STREAM === "1";
     const streamingOutbound = streamEnabled ? opts.discord.streamingForSession(msg.sessionId) : undefined;
@@ -481,6 +484,8 @@ export async function startDiscordPlatform(
         },
       });
     });
+    }).catch((e) => {
+      opts.logger.warn("discord.platform.user_turn_failed", { err: String(e), sessionId: msg.sessionId });
     });
   }
 
