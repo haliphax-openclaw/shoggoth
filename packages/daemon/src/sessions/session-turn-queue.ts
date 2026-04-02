@@ -81,6 +81,7 @@ export class TieredTurnQueue {
       } else {
         sq.normal.push(entry);
       }
+      this.log("turn_queue.enqueued", sessionId, `priority=${priority} label=${label} id=${entry.id} running=${sq.running} high=${sq.high.length} normal=${sq.normal.length}`);
       this.pump(sessionId);
     });
   }
@@ -184,18 +185,25 @@ export class TieredTurnQueue {
 
   private pump(sessionId: string): void {
     const sq = this.sessions.get(sessionId);
-    if (!sq || sq.running) return;
+    if (!sq || sq.running) {
+      if (sq?.running) {
+        this.log("turn_queue.pump_blocked", sessionId, `already running, high=${sq.high.length} normal=${sq.normal.length}`);
+      }
+      return;
+    }
     const next = this.pickNext(sq);
     if (!next) {
       this.cleanup(sessionId, sq);
       return;
     }
     sq.running = true;
+    this.log("turn_queue.turn_start", sessionId, `priority=${next.priority} label=${next.label} id=${next.id}`);
     next
       .execute()
       .then(() => next.resolve())
       .catch((err) => next.reject(err))
       .finally(() => {
+        this.log("turn_queue.turn_end", sessionId, `priority=${next.priority} label=${next.label} id=${next.id}`);
         sq.running = false;
         this.pump(sessionId);
       });
@@ -239,5 +247,10 @@ export class TieredTurnQueue {
     if (!sq.running && sq.high.length === 0 && sq.normal.length === 0) {
       this.sessions.delete(sessionId);
     }
+  }
+
+  private log(msg: string, sessionId: string, detail: string): void {
+    const ts = new Date().toISOString();
+    console.log(JSON.stringify({ ts, level: "debug", msg, component: "turn-queue", sessionId, detail }));
   }
 }
