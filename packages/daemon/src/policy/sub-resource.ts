@@ -22,8 +22,15 @@ export type SubResourceExtractorRegistry = Map<string, SubResourceExtractor>;
  *   ""                                → "unknown"
  */
 export function execSubResourceExtractor(args: Record<string, unknown>): string {
-  const cmd = String(args.command ?? "").trim();
-  const firstToken = cmd.split(/\s+/)[0] ?? "";
+  let firstToken = "";
+  if (Array.isArray(args.argv) && args.argv.length > 0) {
+    // exec handler uses argv: string[]
+    firstToken = String(args.argv[0]).trim();
+  } else {
+    // fallback: command string (e.g. extended exec)
+    const cmd = String(args.command ?? "").trim();
+    firstToken = cmd.split(/\s+/)[0] ?? "";
+  }
   const slash = firstToken.lastIndexOf("/");
   return (slash >= 0 ? firstToken.slice(slash + 1) : firstToken) || "unknown";
 }
