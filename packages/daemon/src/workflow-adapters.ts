@@ -99,9 +99,11 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
       turnPromise
         .then((result) => {
           completionMap.set(childId, { ok: true, output: result.latestAssistantText });
+          log.debug("task turn completed", { sessionId: childId, taskId: req.taskId, outputLen: result.latestAssistantText?.length ?? 0 });
         })
         .catch((err) => {
           completionMap.set(childId, { ok: false, error: String(err) });
+          log.error("task turn failed", { sessionId: childId, taskId: req.taskId, error: String(err) });
         });
 
       return childId;
