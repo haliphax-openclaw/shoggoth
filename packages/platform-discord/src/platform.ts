@@ -630,6 +630,7 @@ export async function startDiscordPlatform(
       }
     }
 
+    opts.logger.debug("platform.executeTurn_calling", { sessionId: sid, delivery: input.delivery.kind });
     return await executeTurn(internalAfterHitlQueued);
     } finally {
       release();
