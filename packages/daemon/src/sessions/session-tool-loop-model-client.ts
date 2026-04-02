@@ -37,9 +37,14 @@ export function createSessionToolLoopModelClient(input: {
   readonly streamModel?: boolean;
   /**
    * Receives **display** text: prior model reply rounds in this tool loop (if any) plus the
-   * current stream’s accumulated model content. Only invoked when `streamModel` is true.
+   * current stream's accumulated model content. Only invoked when `streamModel` is true.
    */
   readonly onModelTextDelta?: (displayText: string) => void | Promise<void>;
+  /**
+   * Fires after each `complete()` call with the per-call token delta (not accumulated totals).
+   * Use for incremental stats persistence so mid-turn queries see up-to-date numbers.
+   */
+  readonly onUsageDelta?: (delta: ModelUsage) => void;
 }): SessionToolLoopModelClient {
   let messages: ChatMessage[] = [...input.initialMessages];
   let banner: SessionToolLoopFailoverState | undefined;
@@ -102,6 +107,11 @@ export function createSessionToolLoopModelClient(input: {
         if (out.usage.contextWindowTokens != null) {
           lastContextWindowTokens = out.usage.contextWindowTokens;
         }
+        input.onUsageDelta?.({
+          inputTokens: out.usage.inputTokens,
+          outputTokens: out.usage.outputTokens,
+          ...(out.usage.contextWindowTokens != null ? { contextWindowTokens: out.usage.contextWindowTokens } : {}),
+        });
       }
 
       if (out.toolCalls.length > 0) {

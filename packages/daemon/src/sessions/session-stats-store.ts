@@ -199,6 +199,56 @@ export function buildFormattedStats(
   };
 }
 
+/** Increment input/output token totals (and optionally context_window_tokens) without touching turn_count. */
+export function incrementTokenUsage(
+  db: Database.Database,
+  sessionId: string,
+  input: { inputTokens: number; outputTokens: number; contextWindowTokens?: number },
+): void {
+  db.prepare(
+    `INSERT INTO session_stats (session_id, input_tokens, output_tokens, context_window_tokens, updated_at)
+     VALUES (@sessionId, @inputTokens, @outputTokens, @contextWindowTokens, datetime('now'))
+     ON CONFLICT(session_id) DO UPDATE SET
+       input_tokens = input_tokens + @inputTokens,
+       output_tokens = output_tokens + @outputTokens,
+       context_window_tokens = COALESCE(@contextWindowTokens, context_window_tokens),
+       updated_at = datetime('now')`,
+  ).run({
+    sessionId,
+    inputTokens: input.inputTokens,
+    outputTokens: input.outputTokens,
+    contextWindowTokens: input.contextWindowTokens ?? null,
+  });
+}
+
+/** Set transcript_message_count to an absolute value. */
+export function updateTranscriptMessageCount(
+  db: Database.Database,
+  sessionId: string,
+  count: number,
+): void {
+  db.prepare(
+    `INSERT INTO session_stats (session_id, transcript_message_count, updated_at)
+     VALUES (@sessionId, @count, datetime('now'))
+     ON CONFLICT(session_id) DO UPDATE SET
+       transcript_message_count = @count,
+       updated_at = datetime('now')`,
+  ).run({ sessionId, count });
+}
+
+/** Increment turn_count by 1 and set last_turn_at. */
+export function incrementTurnCount(db: Database.Database, sessionId: string): void {
+  db.prepare(
+    `INSERT INTO session_stats (session_id, turn_count, first_turn_at, last_turn_at, updated_at)
+     VALUES (@sessionId, 1, datetime('now'), datetime('now'), datetime('now'))
+     ON CONFLICT(session_id) DO UPDATE SET
+       turn_count = turn_count + 1,
+       first_turn_at = COALESCE(first_turn_at, datetime('now')),
+       last_turn_at = datetime('now'),
+       updated_at = datetime('now')`,
+  ).run({ sessionId });
+}
+
 /** Update context_window_tokens for a session. */
 export function setContextWindowTokens(
   db: Database.Database,

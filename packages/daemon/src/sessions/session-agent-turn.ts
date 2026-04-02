@@ -46,7 +46,7 @@ import {
   TurnAbortedError,
 } from "./session-turn-abort";
 import { messageToolContextRef } from "../messaging/message-tool-context-ref";
-import { recordAgentTurn } from "./session-stats-store";
+import { incrementTokenUsage, updateTranscriptMessageCount, incrementTurnCount } from "./session-stats-store";
 import { checkContextWindowMismatch } from "./context-window-mismatch";
 import { getModelContextWindowTokens } from "../model-metadata";
 import { drainSystemContext, pushSystemContext } from "./system-context-buffer";
@@ -178,6 +178,9 @@ export async function executeSessionAgentTurn(
     modelInvocation,
     streamModel: Boolean(input.stream?.streamModel),
     onModelTextDelta: input.stream?.onModelTextDelta,
+    onUsageDelta: (delta) => {
+      incrementTokenUsage(input.db, input.sessionId, delta);
+    },
   });
 
   const principal: AuthenticatedPrincipal = {
@@ -270,6 +273,14 @@ export async function executeSessionAgentTurn(
         config: input.getHitlConfig(),
       },
       toolCallTimeoutMs: resolveToolCallTimeoutMs(input.config, input.sessionId),
+      onStatsUpdate: (update) => {
+        if (update.estimatedInputTokens) {
+          incrementTokenUsage(input.db, input.sessionId, { inputTokens: update.estimatedInputTokens, outputTokens: 0 });
+        }
+        if (update.transcriptMessageCount != null) {
+          updateTranscriptMessageCount(input.db, input.sessionId, update.transcriptMessageCount);
+        }
+      },
     });
   } catch (e) {
     if (e instanceof TurnAbortedError) {
@@ -299,30 +310,19 @@ export async function executeSessionAgentTurn(
     response: latestAssistantText,
   });
 
-  // --- Session stats: record completed agent turn ---
+  // --- Session stats: record completed agent turn (tokens already written incrementally) ---
   const accumulatedUsage = model.getAccumulatedUsage();
 
   // Fall back to metadata store for context window if provider didn't report it
   let contextWindowTokens = accumulatedUsage?.contextWindowTokens;
   if (contextWindowTokens == null && failoverMeta) {
     contextWindowTokens = getModelContextWindowTokens(failoverMeta.usedProviderId, failoverMeta.usedModel ?? "");
+    if (contextWindowTokens != null) {
+      incrementTokenUsage(input.db, input.sessionId, { inputTokens: 0, outputTokens: 0, contextWindowTokens });
+    }
   }
 
-  const transcriptMessageCount = (
-    input.db
-      .prepare(
-        `SELECT COUNT(*) AS cnt FROM transcript_messages
-         WHERE session_id = @sessionId AND context_segment_id = @ctxSeg`,
-      )
-      .get({ sessionId: input.sessionId, ctxSeg }) as { cnt: number }
-  ).cnt;
-
-  recordAgentTurn(input.db, input.sessionId, {
-    inputTokens: accumulatedUsage?.inputTokens ?? 0,
-    outputTokens: accumulatedUsage?.outputTokens ?? 0,
-    contextWindowTokens,
-    transcriptMessageCount,
-  });
+  incrementTurnCount(input.db, input.sessionId);
 
   // --- Context window mismatch check ---
   if (failoverMeta) {

@@ -9,6 +9,7 @@ import type { PendingActionRow, PendingActionsStore } from "../hitl/pending-acti
 import type { TranscriptStore } from "./transcript-store";
 import type { ToolRunStore } from "./tool-run-store";
 import { TurnAbortedError } from "./session-turn-abort";
+import { estimateTokens } from "./session-stats-store";
 import { getLogger } from "../logging";
 
 export { TurnAbortedError } from "./session-turn-abort";
@@ -98,6 +99,18 @@ export interface RunToolLoopOptions {
   readonly subResourceRegistry?: SubResourceExtractorRegistry;
   /** Maximum milliseconds a single tool call may run. When exceeded the call is killed and a timeout error is injected. */
   readonly toolCallTimeoutMs?: number;
+  /** Called after each model.complete() and tool execution for incremental stats updates. */
+  readonly onStatsUpdate?: (update: ToolLoopStatsUpdate) => void;
+}
+
+/** Callback payload for incremental stats updates during the tool loop. */
+export interface ToolLoopStatsUpdate {
+  /** Token delta from a single model.complete() call. */
+  readonly tokenDelta?: { inputTokens: number; outputTokens: number; contextWindowTokens?: number };
+  /** Estimated tokens from tool call argsJson / tool result resultJson to add to input tokens. */
+  readonly estimatedInputTokens?: number;
+  /** Transcript message count changed (absolute count to set). */
+  readonly transcriptMessageCount?: number;
 }
 
 const allowedNames = (tools: ReadonlyArray<{ name: string }>) => new Set(tools.map((t) => t.name));
@@ -150,6 +163,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
 
   options.toolRuns.insertRunning({ id: options.runId, sessionId: options.sessionId });
 
+  const emitStats = options.onStatsUpdate;
+  const getTranscriptCount = (): number =>
+    (options.db.prepare(
+      `SELECT COUNT(*) AS cnt FROM transcript_messages WHERE session_id = @sessionId AND context_segment_id = @ctxSeg`,
+    ).get({ sessionId: options.sessionId, ctxSeg }) as { cnt: number }).cnt;
+
   try {
     for (;;) {
       assertNotAborted(options.turnAbortSignal);
@@ -161,6 +180,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             role: "assistant",
             content: turn.content,
           });
+          emitStats?.({ transcriptMessageCount: getTranscriptCount() });
         }
         break;
       }
@@ -175,10 +195,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             argsJson: tc.argsJson,
           })),
         });
+        emitStats?.({ transcriptMessageCount: getTranscriptCount() });
       }
 
       for (const tc of turn.toolCalls) {
         log.debug("tool call received", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId, args: truncate(tc.argsJson, 200) });
+        // Estimate argsJson tokens (becomes part of next model input context)
+        emitStats?.({ estimatedInputTokens: estimateTokens(tc.argsJson) });
         assertNotAborted(options.turnAbortSignal);
         if (!names.has(tc.name)) {
           options.toolRuns.markFailed(options.runId, `unknown_tool:${tc.name}`);
@@ -326,27 +349,37 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
 
         let out: { resultJson: string };
         const timeoutMs = options.toolCallTimeoutMs;
-        if (timeoutMs != null && timeoutMs > 0) {
-          const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new ToolCallTimeoutError(compoundResource, timeoutMs)), timeoutMs);
-          });
-          try {
+        try {
+          if (timeoutMs != null && timeoutMs > 0) {
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new ToolCallTimeoutError(compoundResource, timeoutMs)), timeoutMs);
+            });
             out = await Promise.race([execPromise, timeoutPromise, abortPromise(options.turnAbortSignal)]);
-          } catch (e) {
-            if (e instanceof ToolCallTimeoutError) {
-              log.warn("tool call timed out", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, timeoutMs });
-              const errBody = JSON.stringify({ error: "tool_call_timeout", tool: compoundResource, timeoutMs });
-              options.audit.record({ phase: "execute_timeout", tool: compoundResource, toolCallId: tc.id, timeoutMs });
-              options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
-              if (options.transcript) {
-                appendTx({ role: "tool", content: errBody, toolCallId: tc.id, metadata: { tool: tc.name } });
-              }
-              continue;
-            }
-            throw e;
+          } else {
+            out = await Promise.race([execPromise, abortPromise(options.turnAbortSignal)]);
           }
-        } else {
-          out = await execPromise;
+        } catch (e) {
+          if (e instanceof TurnAbortedError) throw e;
+          if (e instanceof ToolCallTimeoutError) {
+            log.warn("tool call timed out", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, timeoutMs });
+            const errBody = JSON.stringify({ error: "tool_call_timeout", tool: compoundResource, timeoutMs });
+            options.audit.record({ phase: "execute_timeout", tool: compoundResource, toolCallId: tc.id, timeoutMs });
+            options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
+            if (options.transcript) {
+              appendTx({ role: "tool", content: errBody, toolCallId: tc.id, metadata: { tool: tc.name } });
+            }
+            continue;
+          }
+          // General tool execution error — inject back to model so it can react.
+          const errMsg = e instanceof Error ? e.message : String(e);
+          log.warn("tool call failed", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, error: errMsg });
+          const errBody = JSON.stringify({ error: "tool_call_error", tool: compoundResource, message: errMsg });
+          options.audit.record({ phase: "execute_error", tool: compoundResource, toolCallId: tc.id, error: errMsg });
+          options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
+          if (options.transcript) {
+            appendTx({ role: "tool", content: errBody, toolCallId: tc.id, metadata: { tool: tc.name } });
+          }
+          continue;
         }
         log.debug("tool call completed", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, durationMs: Date.now() - t0, success: true });
 
@@ -359,6 +392,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
 
         options.model.pushToolMessage?.({ toolCallId: tc.id, content: out.resultJson });
 
+        // Estimate resultJson tokens (becomes part of next model input context)
+        emitStats?.({ estimatedInputTokens: estimateTokens(out.resultJson) });
+
         if (options.transcript) {
           appendTx({
             role: "tool",
@@ -366,6 +402,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             toolCallId: tc.id,
             metadata: { tool: tc.name },
           });
+          emitStats?.({ transcriptMessageCount: getTranscriptCount() });
         }
       }
     }
