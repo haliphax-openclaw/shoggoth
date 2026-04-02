@@ -50,6 +50,18 @@ const GLOBAL_SLASH_COMMANDS = [
       { name: "session_id", type: 3, description: "Session URN", required: false },
     ],
   },
+  {
+    name: "queue",
+    description: "Manage the session turn queue",
+    options: [
+      { name: "action", type: 3, description: "list, remove, or clear", required: true },
+      { name: "priority", type: 3, description: "system, user, or all", required: false },
+      { name: "index", type: 4, description: "Index to remove", required: false },
+      { name: "range", type: 3, description: "Range to remove (e.g. 0-4)", required: false },
+      { name: "count", type: 4, description: "Remove first N entries", required: false },
+      { name: "session_id", type: 3, description: "Session URN", required: false },
+    ],
+  },
 ] as const;
 
 /**
@@ -200,6 +212,10 @@ async function handleInteraction(
               `Compactions: ${(fmt?.compactions ?? stats.compactionCount) ?? 0}`,
             );
           }
+          const qd = r.queueDepth as { system: number; user: number } | null;
+          if (qd) {
+            lines.push(`Queue: ${qd.system} system / ${qd.user} user`);
+          }
           content = lines.filter(Boolean).join("\n");
         }
       } else {
@@ -245,6 +261,51 @@ async function handleInteraction(
       await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
         type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
         data: { content: `⚠️ \`${controlOp.op}\` failed: ${String(err)}` },
+      });
+    }
+    return;
+  }
+
+  if (controlOp.op === "session_queue_manage") {
+    try {
+      const payload = { ...controlOp.payload };
+      if (!payload.session_id && deps.resolveSessionForChannel) {
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
+        if (resolved) payload.session_id = resolved;
+      }
+      if (!payload.session_id) {
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: { content: "⚠️ No session bound to this channel. Provide a session_id." },
+        });
+        return;
+      }
+      const res = await deps.invokeControlOp(controlOp.op, payload);
+      let content: string;
+      if (!res.ok) {
+        content = `⚠️ Queue operation failed: ${res.error ?? "unknown error"}`;
+      } else {
+        const r = res.result as Record<string, unknown>;
+        if (r.entries !== undefined) {
+          const entries = r.entries as Array<{ index: number; priority: string; label: string; enqueuedAt: number }>;
+          if (entries.length === 0) {
+            content = "Queue is empty.";
+          } else {
+            const lines = entries.map((e) => `${e.index}. [${e.priority}] ${e.label}`);
+            content = `📋 **Queue** (${entries.length} entries)\n${lines.join("\n")}`;
+          }
+        } else {
+          content = `✅ Removed ${r.removed ?? 0} entries.`;
+        }
+      }
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
+    } catch (err) {
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Queue failed: ${String(err)}` },
       });
     }
     return;

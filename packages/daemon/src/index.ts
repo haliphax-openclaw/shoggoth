@@ -108,6 +108,8 @@ import {
   subagentToolStripFinalizer,
 } from "./sessions/session-mcp-tool-context";
 import { initWorkflow } from "./workflow-singleton";
+import { TieredTurnQueue } from "./sessions/session-turn-queue";
+import { setTurnQueue } from "./sessions/session-turn-queue-singleton";
 import {
   createDaemonSpawnAdapter,
   createDaemonPollAdapter,
@@ -404,6 +406,10 @@ void (async () => {
   // --- Process Manager: init singleton, start boot-time processes, register shutdown ---
   const procman = initProcessManager();
   setProcessManager(procman);
+
+  // --- Turn Queue: init singleton ---
+  const starvationThreshold = config.runtime?.turnQueue?.starvationThreshold ?? 3;
+  setTurnQueue(new TieredTurnQueue(starvationThreshold));
 
   function processDeclarationToSpec(decl: ProcessDeclaration): ProcessSpec {
     return {

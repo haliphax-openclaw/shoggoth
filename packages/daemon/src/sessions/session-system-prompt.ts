@@ -16,6 +16,7 @@ import {
 import type Database from "better-sqlite3";
 import { daemonPrompt } from "../prompts/load-prompts";
 import { getSessionStats, estimateTokens, buildFormattedStats } from "./session-stats-store";
+import { getTurnQueue } from "./session-turn-queue-singleton";
 
 /** Max bytes read per workspace template file (UTF-8). */
 const DEFAULT_MAX_BYTES_PER_FILE = 8192;
@@ -355,9 +356,15 @@ function buildSessionStatsSection(
 
   const fmt = buildFormattedStats(stats, contextFillTokens);
 
+  let queueLine = "";
+  try {
+    const depth = getTurnQueue().getDepth(sessionId);
+    queueLine = ` · Queue: ${depth.system}S / ${depth.user}U`;
+  } catch { /* queue not initialized yet */ }
+
   return [
     "## Session Stats\n",
-    `Context: ${fmt.contextFill}${fmt.contextWindowSuffix} · Turns: ${fmt.turns} · Compactions: ${fmt.compactions} · Messages: ${fmt.messages}`,
+    `Context: ${fmt.contextFill}${fmt.contextWindowSuffix} · Turns: ${fmt.turns} · Compactions: ${fmt.compactions} · Messages: ${fmt.messages}${queueLine}`,
   ].join("\n");
 }
 

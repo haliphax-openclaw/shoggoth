@@ -22,6 +22,8 @@ import {
   migrate,
   createSessionStore,
   transcriptRowsToModelChatMessages,
+  TieredTurnQueue,
+  setTurnQueue,
 } from "@shoggoth/daemon/lib";
 import { formatDiscordPlatformErrorUserText } from "../src/errors";
 import {
@@ -238,6 +240,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
     createSessionStore(db).create({ id: "agent:test:discord:10000000-0000-4000-8000-000000000001", workspacePath: tmp });
+    setTurnQueue(new TieredTurnQueue());
   });
 
   /** Unblocks runToolLoop when a HITL row is queued (same store as Discord platform). */

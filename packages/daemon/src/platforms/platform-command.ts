@@ -46,6 +46,26 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
     op: "session_context_status",
     payload: opts.session_id ? { session_id: opts.session_id } : {},
   }),
+  queue: (opts) => {
+    const payload: Record<string, unknown> = {
+      action: opts.action ?? "list",
+      ...(opts.session_id ? { session_id: opts.session_id } : {}),
+      ...(opts.priority ? { priority: opts.priority } : {}),
+    };
+    if (opts.index !== undefined) {
+      payload.by = "index";
+      payload.index = Number(opts.index);
+    } else if (opts.range) {
+      const [s, e] = opts.range.split("-").map(Number);
+      payload.by = "range";
+      payload.start = s;
+      payload.end = e;
+    } else if (opts.count !== undefined) {
+      payload.by = "count";
+      payload.count = Number(opts.count);
+    }
+    return { op: "session_queue_manage", payload };
+  },
 };
 
 /** Translate a PlatformCommand to a control plane operation request. Returns null for unknown commands. */

@@ -60,6 +60,7 @@ import { subagentRuntimeExtensionRef } from "../subagent/subagent-extension-ref"
 import { terminatePersistentSubagentSession } from "../subagent/subagent-kill";
 import { extractLatestTranscriptAssistantText } from "../sessions/transcript-to-chat";
 import { pushSystemContext } from "../sessions/system-context-buffer";
+import { getTurnQueue } from "../sessions/session-turn-queue-singleton";
 
 export class IntegrationOpError extends Error {
   constructor(
@@ -1287,11 +1288,16 @@ export async function handleIntegrationControlOp(
           modelData = null;
         }
       }
+      let queueDepth: { system: number; user: number } | null = null;
+      try {
+        queueDepth = getTurnQueue().getDepth(sessionId);
+      } catch { /* queue not initialized */ }
       return {
         session: sessionData,
         stats: statsData ?? null,
         formattedStats: formattedStats ?? null,
         model: modelData,
+        queueDepth,
       };
     }
 
@@ -1694,6 +1700,74 @@ export async function handleIntegrationControlOp(
       const filePath = join(ctx.config.dynamicConfigDirectory, `${process.pid}.json`);
       writeFileSync(filePath, JSON.stringify(fragment, null, 2), { encoding: "utf8" });
       return { ok: true, path: filePath };
+    }
+
+    case "session_queue_manage": {
+      if (principal.kind !== "operator") {
+        throw new IntegrationOpError("ERR_FORBIDDEN", "session_queue_manage requires operator principal");
+      }
+      const pl = payloadObject(req);
+      const sessionId = requireString(pl, "session_id");
+      const action = requireString(pl, "action");
+      const priorityRaw = pl.priority;
+      const priority =
+        priorityRaw === "system" || priorityRaw === "user" ? priorityRaw : undefined;
+      const priorityOrAll = priority ?? "all";
+
+      let queue: import("../sessions/session-turn-queue").TieredTurnQueue;
+      try {
+        queue = getTurnQueue();
+      } catch {
+        throw new IntegrationOpError("ERR_QUEUE_UNAVAILABLE", "turn queue not initialized");
+      }
+
+      if (action === "list") {
+        const entries = queue.listQueued(sessionId, priority).map((e, i) => ({
+          id: e.id,
+          priority: e.priority,
+          label: e.label,
+          enqueuedAt: e.enqueuedAt,
+          index: i,
+        }));
+        return { entries };
+      }
+
+      if (action === "clear") {
+        const removed = queue.clear(sessionId, priority);
+        return { removed };
+      }
+
+      if (action === "remove") {
+        const by = pl.by;
+        if (by === "index") {
+          const idx = pl.index;
+          if (typeof idx !== "number" || !Number.isFinite(idx)) {
+            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.index must be a finite number");
+          }
+          const removed = queue.removeByRange(sessionId, priorityOrAll, idx, idx);
+          return { removed };
+        }
+        if (by === "range") {
+          const start = pl.start;
+          const end = pl.end;
+          if (typeof start !== "number" || typeof end !== "number") {
+            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.start and payload.end required");
+          }
+          const removed = queue.removeByRange(sessionId, priorityOrAll, start, end);
+          return { removed };
+        }
+        if (by === "count") {
+          const count = pl.count;
+          if (typeof count !== "number" || !Number.isFinite(count) || count < 1) {
+            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.count must be a positive number");
+          }
+          const removed = queue.removeByCount(sessionId, priorityOrAll, count);
+          return { removed };
+        }
+        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.by must be index, range, or count");
+      }
+
+      throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.action must be list, remove, or clear");
     }
 
     default:
