@@ -51,7 +51,7 @@ import {
   resolveCompactionPolicyFromModelsConfig,
 } from "@shoggoth/models";
 import { compactSessionTranscript } from "../transcript-compact";
-import { getSessionStats } from "../sessions/session-stats-store";
+import { getSessionStats, estimateCurrentContextFill, buildFormattedStats } from "../sessions/session-stats-store";
 import { dispatchMcpHttpCancelRequest } from "../mcp/mcp-http-cancel-registry";
 import { SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS } from "../subagent/subagent-constants";
 import { requestSessionTurnAbort } from "../sessions/session-turn-abort";
@@ -1256,6 +1256,13 @@ export async function handleIntegrationControlOp(
           }
         : null;
       const statsData = getSessionStats(ctx.stateDb, sessionId);
+      // Calculate current context fill from transcript
+      let contextFillTokens = 0;
+      let formattedStats: ReturnType<typeof buildFormattedStats> | null = null;
+      if (statsData && row) {
+        contextFillTokens = estimateCurrentContextFill(ctx.stateDb, sessionId, row.contextSegmentId.trim());
+        formattedStats = buildFormattedStats(statsData, contextFillTokens);
+      }
       let modelData: { providerId: string | null; model: string | null } | null = null;
       if (row) {
         try {
@@ -1283,6 +1290,7 @@ export async function handleIntegrationControlOp(
       return {
         session: sessionData,
         stats: statsData ?? null,
+        formattedStats: formattedStats ?? null,
         model: modelData,
       };
     }

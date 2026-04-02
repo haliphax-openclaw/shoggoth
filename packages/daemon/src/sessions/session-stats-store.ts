@@ -138,6 +138,67 @@ export function resetSegmentStats(db: Database.Database, sessionId: string): voi
   ).run({ sessionId });
 }
 
+/** Approximate token count: ~4 chars per token (cl100k_base heuristic). */
+export function estimateTokens(text: string | null): number {
+  return text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
+}
+
+/**
+ * Estimate current context fill for a session by summing estimated tokens
+ * across all transcript messages in the current context segment.
+ */
+export function estimateCurrentContextFill(
+  db: Database.Database,
+  sessionId: string,
+  contextSegmentId: string,
+): number {
+  const rows = db
+    .prepare(
+      `SELECT content FROM transcript_messages
+       WHERE session_id = @sessionId AND context_segment_id = @ctxSeg`,
+    )
+    .all({ sessionId, ctxSeg: contextSegmentId }) as { content: string | null }[];
+  let total = 0;
+  for (const r of rows) {
+    total += estimateTokens(r.content);
+  }
+  return total;
+}
+
+export interface FormattedSessionStats {
+  readonly contextFill: string;
+  readonly contextWindowSuffix: string;
+  readonly turns: number;
+  readonly compactions: number;
+  readonly messages: number;
+}
+
+/**
+ * Build a normalized stats summary usable by both the system prompt and /status.
+ */
+export function buildFormattedStats(
+  stats: SessionStats,
+  contextFillTokens: number,
+): FormattedSessionStats {
+  const contextFill = contextFillTokens > 0
+    ? `~${contextFillTokens.toLocaleString("en-US")}`
+    : "N/A";
+
+  let contextWindowSuffix = "";
+  if (stats.contextWindowTokens != null && contextFillTokens > 0) {
+    const pct = ((contextFillTokens / stats.contextWindowTokens) * 100).toFixed(1);
+    contextWindowSuffix = ` / ${stats.contextWindowTokens.toLocaleString("en-US")} (${pct}%)`;
+  }
+
+  return {
+    contextFill,
+    contextWindowSuffix,
+    turns: stats.turnCount,
+    compactions: stats.compactionCount,
+    messages: stats.transcriptMessageCount,
+  };
+}
+
 /** Update context_window_tokens for a session. */
 export function setContextWindowTokens(
   db: Database.Database,

@@ -15,7 +15,7 @@ import {
 } from "@shoggoth/shared";
 import type Database from "better-sqlite3";
 import { daemonPrompt } from "../prompts/load-prompts";
-import { getSessionStats } from "./session-stats-store";
+import { getSessionStats, estimateTokens, buildFormattedStats } from "./session-stats-store";
 
 /** Max bytes read per workspace template file (UTF-8). */
 const DEFAULT_MAX_BYTES_PER_FILE = 8192;
@@ -332,11 +332,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-/** Approximate token count: ~4 chars per token (cl100k_base heuristic). */
-function estimateTokens(text: string | null): number {
-  return text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
-}
-
 function buildSessionStatsSection(
   stateDb: Database.Database | undefined,
   sessionId: string | undefined,
@@ -348,29 +343,21 @@ function buildSessionStatsSection(
   if (!stats) return undefined;
 
   // Current context window fill: system prompt + transcript (what the model sees this turn).
-  let contextFill = 0;
+  let contextFillTokens = 0;
   if (assembledPromptLength) {
-    contextFill += Math.ceil(assembledPromptLength / 4);
+    contextFillTokens += Math.ceil(assembledPromptLength / 4);
   }
   if (transcriptMessages) {
     for (const m of transcriptMessages) {
-      contextFill += estimateTokens(m.content);
+      contextFillTokens += estimateTokens(m.content);
     }
   }
 
-  const tokenDisplay = contextFill > 0
-    ? `~${formatNumber(contextFill)}`
-    : "N/A";
-
-  let contextWindowSuffix = "";
-  if (stats.contextWindowTokens != null && contextFill > 0) {
-    const pct = ((contextFill / stats.contextWindowTokens) * 100).toFixed(1);
-    contextWindowSuffix = ` / ${formatNumber(stats.contextWindowTokens)} (${pct}%)`;
-  }
+  const fmt = buildFormattedStats(stats, contextFillTokens);
 
   return [
     "## Session Stats\n",
-    `Context: ${tokenDisplay}${contextWindowSuffix} · Turns: ${stats.turnCount} · Compactions: ${stats.compactionCount} · Messages: ${stats.transcriptMessageCount}`,
+    `Context: ${fmt.contextFill}${fmt.contextWindowSuffix} · Turns: ${fmt.turns} · Compactions: ${fmt.compactions} · Messages: ${fmt.messages}`,
   ].join("\n");
 }
 

@@ -187,20 +187,17 @@ async function handleInteraction(
             `Context segment: \`${session.contextSegmentId}\``,
           ];
           if (stats) {
-            const inTok = (stats.inputTokens as number) ?? 0;
-            const outTok = (stats.outputTokens as number) ?? 0;
-            const totalTok = inTok + outTok;
-            const ctxWin = stats.contextWindowTokens as number | null;
-            const tokLine = ctxWin
-              ? `Tokens: ${totalTok.toLocaleString("en-US")} / ${ctxWin.toLocaleString("en-US")} (${((totalTok / ctxWin) * 100).toFixed(1)}%) — ${inTok.toLocaleString("en-US")} in / ${outTok.toLocaleString("en-US")} out`
-              : `Tokens: ${inTok.toLocaleString("en-US")} in / ${outTok.toLocaleString("en-US")} out`;
+            const fmt = r.formattedStats as { contextFill: string; contextWindowSuffix: string; turns: number; compactions: number; messages: number } | null;
+            const contextLine = fmt
+              ? `Context: ${fmt.contextFill}${fmt.contextWindowSuffix}`
+              : `Turns: ${stats.turnCount ?? 0}`;
             lines.push(
               ``,
               `📊 **Stats**`,
-              `Turns: ${stats.turnCount ?? 0}`,
-              tokLine,
-              `Messages: ${stats.transcriptMessageCount ?? 0}`,
-              `Compactions: ${stats.compactionCount ?? 0}`,
+              contextLine,
+              fmt ? `Turns: ${fmt.turns}` : null,
+              `Messages: ${(fmt?.messages ?? stats.transcriptMessageCount) ?? 0}`,
+              `Compactions: ${(fmt?.compactions ?? stats.compactionCount) ?? 0}`,
             );
           }
           content = lines.filter(Boolean).join("\n");
