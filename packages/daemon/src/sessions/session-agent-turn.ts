@@ -133,7 +133,9 @@ export async function executeSessionAgentTurn(
   };
   const initialMessages: ChatMessage[] = [system, ...history];
 
+  log.debug("resolving mcp context", { sessionId: input.sessionId });
   const mcpCtx = await input.resolveMcpContext(input.sessionId);
+  log.debug("mcp context resolved", { sessionId: input.sessionId, toolCount: mcpCtx.toolsLoop.length });
 
   const createToolClient =
     input.createToolCallingClient ?? createFailoverToolCallingClientFromModelsConfig;
