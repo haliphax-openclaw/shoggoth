@@ -494,7 +494,10 @@ export async function startDiscordPlatform(
     }
     const release = await turnLock.acquire(sid);
     try {
+    opts.logger.debug("platform.turn_lock_acquired", { sessionId: sid });
+    opts.logger.debug("platform.mcp_context_resolving", { sessionId: sid });
     const mcpCtx = await mcpRuntime.resolveContext(sid);
+    opts.logger.debug("platform.mcp_context_resolved", { sessionId: sid, toolCount: mcpCtx.toolsLoop.length });
     const userMetadata = input.userMetadata ?? {};
     const hitlReplyInSession = env.SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION !== "0";
     const buildAfterHitlQueued = (delivery: { readonly userId: string; readonly replyToMessageId?: string }) =>
