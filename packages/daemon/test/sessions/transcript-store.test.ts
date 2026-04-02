@@ -139,4 +139,25 @@ describe("TranscriptStore", () => {
     assert.equal(messages[4]!.role, "user");
     assert.equal(messages[4]!.content, "go");
   });
+
+  it("DB-driven repair survives store recreation (simulated restart)", () => {
+    // First store instance: write assistant with tool calls, then "crash"
+    const tr1 = createTranscriptStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    tr1.append({
+      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }],
+    });
+
+    // New store instance (simulates daemon restart) — no in-memory state
+    const tr2 = createTranscriptStore(db);
+    tr2.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "after restart" });
+
+    const { messages } = tr2.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    assert.equal(messages.length, 3); // assistant + synthetic + user
+    assert.equal(messages[1]!.role, "tool");
+    assert.equal(messages[1]!.toolCallId, "tc1");
+    assert.equal(messages[1]!.content, "[Tool call aborted — no result available]");
+    assert.equal(messages[2]!.role, "user");
+  });
 });

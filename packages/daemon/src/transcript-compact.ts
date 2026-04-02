@@ -24,7 +24,7 @@ export function loadSessionTranscript(
 ): ChatMessage[] {
   const rows = db
     .prepare(
-      `SELECT role, content, tool_call_id
+      `SELECT role, content, tool_call_id, tool_calls_json
        FROM transcript_messages
        WHERE session_id = @session_id AND context_segment_id = @context_segment_id
        ORDER BY seq ASC`,
@@ -33,15 +33,24 @@ export function loadSessionTranscript(
     role: string;
     content: string | null;
     tool_call_id: string | null;
+    tool_calls_json: string | null;
   }>;
 
   return rows.map((r) => {
     const role = r.role as ChatMessage["role"];
-    return {
+    const msg: ChatMessage = {
       role,
       content: r.content ?? "",
       ...(r.tool_call_id ? { toolCallId: r.tool_call_id } : {}),
     };
+    if (r.tool_calls_json) {
+      const raw = JSON.parse(r.tool_calls_json) as Array<{ id: string; name: string; argsJson?: string; arguments?: string }>;
+      return {
+        ...msg,
+        toolCalls: raw.map((tc) => ({ id: tc.id, name: tc.name, arguments: tc.argsJson ?? tc.arguments ?? "" })),
+      };
+    }
+    return msg;
   });
 }
 
@@ -64,11 +73,14 @@ export function replaceSessionTranscript(
       .get({ session_id: sessionId }) as { m: number };
     let seq = maxRow.m + 1;
     const ins = db.prepare(
-      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, tool_call_id, metadata_json)
-       VALUES (@session_id, @context_segment_id, @seq, @role, @content, @tool_call_id, @metadata_json)`,
+      `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, tool_call_id, tool_calls_json, metadata_json)
+       VALUES (@session_id, @context_segment_id, @seq, @role, @content, @tool_call_id, @tool_calls_json, @metadata_json)`,
     );
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]!;
+      const toolCallsJson = m.toolCalls?.length
+        ? JSON.stringify(m.toolCalls.map((tc) => ({ id: tc.id, name: tc.name, argsJson: tc.arguments })))
+        : null;
       ins.run({
         session_id: sessionId,
         context_segment_id: contextSegmentId,
@@ -76,6 +88,7 @@ export function replaceSessionTranscript(
         role: m.role,
         content: m.content,
         tool_call_id: m.toolCallId ?? null,
+        tool_calls_json: toolCallsJson,
         metadata_json: null,
       });
       seq += 1;

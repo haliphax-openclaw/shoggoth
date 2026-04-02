@@ -1,8 +1,6 @@
 import type Database from "better-sqlite3";
 import { getLogger } from "../logging";
 
-const log = getLogger("transcript-store");
-
 export interface ToolCallEntry {
   readonly id: string;
   readonly name: string;
@@ -67,12 +65,13 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     WHERE session_id = @session_id AND context_segment_id = @context_segment_id
   `);
 
-  // Track pending tool call IDs per session+segment
-  const pending = new Map<string, Set<string>>();
-
-  function pendingKey(sessionId: string, segmentId: string) {
-    return `${sessionId}\0${segmentId}`;
-  }
+  const selectRecent = db.prepare(`
+    SELECT role, tool_call_id, tool_calls_json
+    FROM transcript_messages
+    WHERE session_id = @session_id AND context_segment_id = @context_segment_id
+    ORDER BY seq DESC
+    LIMIT 50
+  `);
 
   function insertRow(sessionId: string, contextSegmentId: string, role: string, content: string | null, toolCallId: string | null, toolCallsJson: string | null, metadataJson: string | null, systemContextJson: string | null): number {
     const row = nextSeq.get({ session_id: sessionId }) as { n: number };
@@ -91,29 +90,45 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     return seq;
   }
 
-  function flushOrphaned(sessionId: string, contextSegmentId: string): void {
-    const key = pendingKey(sessionId, contextSegmentId);
-    const ids = pending.get(key);
-    if (!ids || ids.size === 0) return;
-    const toolCallIds = [...ids];
-    log.info("transcript.orphaned_tool_calls_repaired", { sessionId, toolCallIds, count: toolCallIds.length });
-    for (const id of toolCallIds) {
+  function repairOrphaned(sessionId: string, contextSegmentId: string): void {
+    const rows = selectRecent.all({
+      session_id: sessionId,
+      context_segment_id: contextSegmentId,
+    }) as Array<{ role: string; tool_call_id: string | null; tool_calls_json: string | null }>;
+
+    const collectedToolResultIds = new Set<string>();
+    let expectedIds: string[] | undefined;
+
+    for (const r of rows) {
+      if (r.role === "tool" && r.tool_call_id) {
+        collectedToolResultIds.add(r.tool_call_id);
+      } else if (r.role === "assistant" && r.tool_calls_json) {
+        const calls = JSON.parse(r.tool_calls_json) as Array<{ id: string }>;
+        expectedIds = calls.map((c) => c.id);
+        break;
+      } else {
+        // Hit a non-tool, non-assistant-with-tool-calls row — no orphans possible
+        break;
+      }
+    }
+
+    if (!expectedIds) return;
+    const missing = expectedIds.filter((id) => !collectedToolResultIds.has(id));
+    if (missing.length === 0) return;
+
+    const log = getLogger("transcript-store");
+    log.info("transcript.orphaned_tool_calls_repaired", { sessionId, toolCallIds: missing, count: missing.length });
+    for (const id of missing) {
       insertRow(sessionId, contextSegmentId, "tool", "[Tool call aborted — no result available]", id, null, null, null);
     }
-    pending.delete(key);
   }
 
   return {
     append(input) {
-      const key = pendingKey(input.sessionId, input.contextSegmentId);
-
       if (input.role === "tool" && input.toolCallId) {
-        // Tool result — remove from pending
-        pending.get(key)?.delete(input.toolCallId);
-        if (pending.get(key)?.size === 0) pending.delete(key);
+        // Tool result — let it through directly
       } else {
-        // Any other message — flush orphaned tool calls first
-        flushOrphaned(input.sessionId, input.contextSegmentId);
+        repairOrphaned(input.sessionId, input.contextSegmentId);
       }
 
       const seq = insertRow(
@@ -126,12 +141,6 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         input.metadata !== undefined ? JSON.stringify(input.metadata) : null,
         input.systemContext !== undefined ? JSON.stringify(input.systemContext) : null,
       );
-
-      // If this assistant message has tool calls, track them as pending
-      if (input.role === "assistant" && input.toolCalls?.length) {
-        const ids = new Set(input.toolCalls.map((tc) => tc.id));
-        pending.set(key, ids);
-      }
 
       return { seq };
     },
