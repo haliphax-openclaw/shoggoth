@@ -1,4 +1,5 @@
 import { ModelHttpError } from "./errors";
+import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
   ChatMessage,
   ChatToolCall,
@@ -574,6 +575,12 @@ export async function consumeAnthropicMessagesStream(
   return { content, toolCalls, usage };
 }
 
+function headersToRecord(h: Headers): Record<string, string | undefined> {
+  const rec: Record<string, string | undefined> = {};
+  h.forEach((v, k) => { rec[k.toLowerCase()] = v; });
+  return rec;
+}
+
 export function createAnthropicMessagesProvider(
   options: AnthropicMessagesProviderOptions,
 ): ModelProvider {
@@ -583,6 +590,31 @@ export function createAnthropicMessagesProvider(
   const id = options.id;
   const anthropicVersion = options.anthropicVersion ?? DEFAULT_ANTHROPIC_VERSION;
   const auth: AnthropicMessagesAuthStyle = options.auth ?? "x-api-key";
+
+  async function resilientFetch(targetUrl: string, init: RequestInit): Promise<Response> {
+    try {
+      const gate = getResilienceGate();
+      return await gate.executeWithResilience(id, async () => {
+        const res = await fetchImpl(targetUrl, init);
+        try {
+          const parsed = parseRateLimitHeaders(id, headersToRecord(res.headers), "anthropic");
+          gate.getOrCreateManager(id).updateCapacity(parsed);
+        } catch { /* ignore header parse errors */ }
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new ModelHttpError(
+            res.status,
+            res.statusText || `HTTP ${res.status}`,
+            parseAnthropicErrorBody(errText),
+          );
+        }
+        return res;
+      });
+    } catch (err: unknown) {
+      if (err instanceof ModelHttpError) throw err;
+      return fetchImpl(targetUrl, init);
+    }
+  }
 
   return {
     id,
@@ -604,7 +636,7 @@ export function createAnthropicMessagesProvider(
       if (system !== undefined) body.system = system;
       applyAnthropicMessagesRequestExtensions(body, input);
 
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -696,7 +728,7 @@ export function createAnthropicMessagesProvider(
       }
       applyAnthropicMessagesRequestExtensions(body, input);
 
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),

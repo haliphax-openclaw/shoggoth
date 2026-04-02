@@ -110,6 +110,7 @@ import {
 import { initWorkflow } from "./workflow-singleton";
 import { TieredTurnQueue } from "./sessions/session-turn-queue";
 import { setTurnQueue } from "./sessions/session-turn-queue-singleton";
+import { ModelResilienceGate, setResilienceGate } from "@shoggoth/models";
 import {
   createDaemonSpawnAdapter,
   createDaemonPollAdapter,
@@ -414,6 +415,22 @@ void (async () => {
   const starvationThreshold = config.runtime?.turnQueue?.starvationThreshold ?? 2;
   const maxQueueDepth = config.runtime?.turnQueue?.maxDepth ?? 6;
   setTurnQueue(new TieredTurnQueue(starvationThreshold, maxQueueDepth));
+
+  // --- Model Resilience Gate: init singleton ---
+  {
+    const rc = config.runtime?.modelResilience;
+    const gate = new ModelResilienceGate(
+      {
+        maxRetries: rc?.maxRetries,
+        baseDelayMs: rc?.baseDelayMs,
+        maxDelayMs: rc?.maxDelayMs,
+        jitterMs: rc?.jitterMs,
+        defaultConcurrency: rc?.defaultConcurrency,
+      },
+      rc?.providers,
+    );
+    setResilienceGate(gate);
+  }
 
   function processDeclarationToSpec(decl: ProcessDeclaration): ProcessSpec {
     return {

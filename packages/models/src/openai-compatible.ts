@@ -1,4 +1,5 @@
 import { ModelHttpError } from "./errors";
+import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
   ChatMessage,
   ChatToolCall,
@@ -193,12 +194,43 @@ async function consumeOpenAIChatCompletionStream(
   };
 }
 
+function headersToRecord(h: Headers): Record<string, string | undefined> {
+  const rec: Record<string, string | undefined> = {};
+  h.forEach((v, k) => { rec[k.toLowerCase()] = v; });
+  return rec;
+}
+
 export function createOpenAICompatibleProvider(
   options: OpenAICompatibleProviderOptions,
 ): ModelProvider {
   const fetchImpl = options.fetchImpl ?? (globalThis.fetch as FetchLike);
   const base = trimSlash(options.baseUrl);
   const id = options.id;
+
+  async function resilientFetch(targetUrl: string, init: RequestInit): Promise<Response> {
+    try {
+      const gate = getResilienceGate();
+      return await gate.executeWithResilience(id, async () => {
+        const res = await fetchImpl(targetUrl, init);
+        try {
+          const parsed = parseRateLimitHeaders(id, headersToRecord(res.headers), "openai-compatible");
+          gate.getOrCreateManager(id).updateCapacity(parsed);
+        } catch { /* ignore header parse errors */ }
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new ModelHttpError(
+            res.status,
+            res.statusText || `HTTP ${res.status}`,
+            errText.slice(0, 500),
+          );
+        }
+        return res;
+      });
+    } catch (err: unknown) {
+      if (err instanceof ModelHttpError) throw err;
+      return fetchImpl(targetUrl, init);
+    }
+  }
 
   return {
     id,
@@ -221,7 +253,7 @@ export function createOpenAICompatibleProvider(
       }
       applyOpenAICompatibleRequestExtensions(body, input);
 
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -312,7 +344,7 @@ export function createOpenAICompatibleProvider(
       }
       applyOpenAICompatibleRequestExtensions(body, input);
 
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),

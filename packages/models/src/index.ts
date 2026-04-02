@@ -72,3 +72,7 @@ export {
   mergeSubagentSpawnModelSelection,
   parseModelInvocationFromUnknown,
 } from "./invocation-merge";
+
+// Resilience layer
+export type { ResilienceOptions, ProviderResilienceConfig, ErrorClassification, BackoffConfig, ParsedRateLimitHeaders } from "./resilience/index";
+export { ModelResilienceGate, setResilienceGate, getResilienceGate, classifyModelError, DEFAULT_BACKOFF_CONFIG, computeBackoffDelay, BackoffState, parseRateLimitHeaders, ProviderResilienceManager } from "./resilience/index";

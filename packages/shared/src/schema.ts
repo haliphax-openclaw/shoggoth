@@ -481,6 +481,31 @@ export const shoggothRuntimeConfigSchema = z
       .optional(),
     /** Maximum milliseconds a single tool call may run before being killed. Default 600_000 (10 min). Env override: `SHOGGOTH_TOOL_CALL_TIMEOUT_MS`. */
     toolCallTimeoutMs: z.number().int().positive().optional(),
+    /** Global and per-provider resilience settings (retry, backoff, concurrency). */
+    modelResilience: z
+      .object({
+        maxRetries: z.number().int().nonnegative().optional(),
+        baseDelayMs: z.number().int().positive().optional(),
+        maxDelayMs: z.number().int().positive().optional(),
+        jitterMs: z.number().int().nonnegative().optional(),
+        defaultConcurrency: z.number().int().positive().optional(),
+        providers: z
+          .record(
+            z.string(),
+            z
+              .object({
+                maxRetries: z.number().int().nonnegative().optional(),
+                baseDelayMs: z.number().int().positive().optional(),
+                maxDelayMs: z.number().int().positive().optional(),
+                jitterMs: z.number().int().nonnegative().optional(),
+                concurrency: z.number().int().positive().optional(),
+              })
+              .strict(),
+          )
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

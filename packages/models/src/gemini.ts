@@ -1,4 +1,5 @@
 import { ModelHttpError } from "./errors";
+import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
   ChatMessage,
   ChatToolCall,
@@ -386,11 +387,42 @@ export async function consumeGeminiStream(
 // Provider factory
 // ---------------------------------------------------------------------------
 
+function headersToRecord(h: Headers): Record<string, string | undefined> {
+  const rec: Record<string, string | undefined> = {};
+  h.forEach((v, k) => { rec[k.toLowerCase()] = v; });
+  return rec;
+}
+
 export function createGeminiProvider(options: GeminiProviderOptions): ModelProvider {
   const fetchImpl = options.fetchImpl ?? (globalThis.fetch as FetchLike);
   const baseUrl = trimSlash(options.baseUrl ?? DEFAULT_BASE_URL);
   const apiVersion = options.apiVersion ?? DEFAULT_API_VERSION;
   const id = options.id;
+
+  async function resilientFetch(targetUrl: string, init: RequestInit): Promise<Response> {
+    try {
+      const gate = getResilienceGate();
+      return await gate.executeWithResilience(id, async () => {
+        const res = await fetchImpl(targetUrl, init);
+        try {
+          const parsed = parseRateLimitHeaders(id, headersToRecord(res.headers), "gemini");
+          gate.getOrCreateManager(id).updateCapacity(parsed);
+        } catch { /* ignore header parse errors */ }
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new ModelHttpError(
+            res.status,
+            res.statusText || `HTTP ${res.status}`,
+            parseGeminiErrorBody(errText),
+          );
+        }
+        return res;
+      });
+    } catch (err: unknown) {
+      if (err instanceof ModelHttpError) throw err;
+      return fetchImpl(targetUrl, init);
+    }
+  }
 
   function buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
@@ -421,7 +453,7 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
       applyGeminiRequestExtensions(body, input);
 
       const url = endpointUrl(input.model, input.stream === true);
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -500,7 +532,7 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
       applyGeminiRequestExtensions(body, input);
 
       const url = endpointUrl(input.model, input.stream === true);
-      const res = await fetchImpl(url, {
+      const res = await resilientFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
