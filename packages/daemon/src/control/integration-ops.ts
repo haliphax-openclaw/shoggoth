@@ -5,6 +5,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import type { ShoggothConfig } from "@shoggoth/shared";
+import { getLogger } from "../logging";
 import { getProcessManager } from "../process-manager-singleton";
 import {
   agentMayInvokeSubagentSpawnByAllowlist,
@@ -824,6 +825,8 @@ export async function handleIntegrationControlOp(
           subagentPlatformThreadId: null,
           subagentExpiresAtMs: null,
         });
+        const subLog = getLogger("subagent");
+        subLog.info("subagent one_shot model turn starting", { childId, parentSessionId, promptLen: prompt.length });
         const turn = await ext.runSessionModelTurn({
           sessionId: childId,
           userContent: prompt,
@@ -840,6 +843,7 @@ export async function handleIntegrationControlOp(
           },
           delivery: { kind: "internal" },
         });
+        subLog.info("subagent one_shot model turn completed", { childId, replyLen: turn.latestAssistantText?.length ?? 0 });
         terminatePersistentSubagentSession(sessionManager, childId);
         ctx.recordIntegrationAudit({
           action: "subagent.spawn_one_shot",
