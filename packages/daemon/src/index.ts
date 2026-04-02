@@ -326,16 +326,21 @@ void (async () => {
         },
         resolveSessionForChannel: (channelId, guildId) => {
           try {
-            const routes = (configRef.current.platforms as Record<string, unknown>)?.discord as Record<string, unknown> | undefined;
-            const routesList = routes?.routes;
-            if (!Array.isArray(routesList)) return undefined;
-            for (const r of routesList) {
-              if (typeof r !== "object" || r === null) continue;
-              const route = r as { channelId?: string; sessionId?: string; guildId?: string };
-              if (route.channelId !== channelId) continue;
-              if (route.guildId !== undefined && route.guildId !== guildId) continue;
-              if (route.guildId === undefined && guildId !== undefined) continue;
-              return route.sessionId;
+            const agentsList = (configRef.current.agents as Record<string, unknown>)?.list as Record<string, unknown> | undefined;
+            if (!agentsList) return undefined;
+            for (const agentDef of Object.values(agentsList)) {
+              if (typeof agentDef !== "object" || agentDef === null) continue;
+              const discordPlatform = ((agentDef as Record<string, unknown>).platforms as Record<string, unknown>)?.discord as Record<string, unknown> | undefined;
+              const routesList = discordPlatform?.routes;
+              if (!Array.isArray(routesList)) continue;
+              for (const r of routesList) {
+                if (typeof r !== "object" || r === null) continue;
+                const route = r as { channelId?: string; sessionId?: string; guildId?: string };
+                if (route.channelId !== channelId) continue;
+                if (route.guildId !== undefined && route.guildId !== guildId) continue;
+                if (route.guildId === undefined && guildId !== undefined) continue;
+                return route.sessionId;
+              }
             }
             return undefined;
           } catch {
