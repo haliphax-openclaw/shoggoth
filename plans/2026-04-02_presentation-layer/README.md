@@ -117,7 +117,14 @@ interface PlatformCapabilities {
 - Declare capabilities: `reactions`, `threads`, `embeds`, `typing`
 - HITL reaction logic moves to presentation (uses `capabilities.reactions` when available); platform just provides the reaction transport
 
-### Phase 4: Wire up
+### Phase 4: Fix platform registration inversion
+
+- Rename `platform-discord/src/register.ts` → `platform-discord/src/urn-policy.ts`
+- Export `discordUrnPolicy` object only (remove `registerBuiltInMessagingPlatforms` side-effect function)
+- Daemon startup registers URN policies by importing policy objects from configured platforms and calling `registerMessagingPlatformUrnPolicy()` for each
+- Update all imports that reference the old `register.ts` or `registerBuiltInMessagingPlatforms`
+
+### Phase 5: Wire up
 
 - `startDiscordPlatform` creates a presentation layer instance, passes it the platform adapter
 - Inbound messages go: Discord → platform (normalize) → presentation (orchestrate) → core (execute) → presentation (format) → platform (deliver)
@@ -129,7 +136,29 @@ interface PlatformCapabilities {
 - `streaming.ts` — Discord-specific stream handle (webhook edit)
 - `hitl/reaction-wiring.ts` — Discord implementation of `capabilities.reactions` (transport for add/remove reaction)
 - `gateway-client.ts`, `transport.ts`, `outbound.ts` — pure transport
-- `bridge.ts`, `register.ts` — platform registration
+- `bridge.ts` — platform bridge
+
+## Platform Registration (layer inversion fix)
+
+`register.ts` currently owns `registerBuiltInMessagingPlatforms()`, which creates a hard coupling from daemon core → platform-discord. This is a layer inversion: the daemon must import a specific platform package just to register messaging URN policies.
+
+**Current (wrong):**
+```
+daemon/src/index.ts → import { registerBuiltInMessagingPlatforms } from "@shoggoth/platform-discord"
+                      registerBuiltInMessagingPlatforms()  // side-effect: registers Discord URN policy
+```
+
+**Target:**
+```
+platform-discord exports its URN policy object (data, not a registration function)
+daemon discovers configured platforms at startup and registers their policies
+```
+
+Changes:
+- `platform-discord/src/register.ts` → rename to `urn-policy.ts`, export the `discordUrnPolicy` object only (no registration side-effect)
+- `@shoggoth/messaging` keeps `registerMessagingPlatformUrnPolicy()` as the registration API
+- Daemon startup iterates configured platforms, imports their URN policy exports, and calls `registerMessagingPlatformUrnPolicy()` for each
+- Future platforms (Slack, IRC, API) follow the same pattern: export a policy object, daemon registers it
 
 ## What Moves to Presentation
 
@@ -158,8 +187,10 @@ interface PlatformCapabilities {
 9. `packages/platform-discord/src/errors.ts` — remove formatting, keep slicing
 10. `packages/platform-discord/src/notices.ts` — move templates to presentation
 11. `packages/platform-discord/src/hitl/notifier.ts` — use presentation formatter
-12. `packages/daemon/src/messaging/inbound-session-turn.ts` — simplify interface (presentation handles options assembly)
-13. Tests for presentation layer (formatting, orchestration)
+12. `packages/platform-discord/src/register.ts` — rename to `urn-policy.ts`, export policy object only, remove registration side-effect
+13. `packages/daemon/src/index.ts` — daemon-driven platform URN policy registration at startup
+14. `packages/daemon/src/messaging/inbound-session-turn.ts` — simplify interface (presentation handles options assembly)
+15. Tests for presentation layer (formatting, orchestration)
 
 ## Notes
 
