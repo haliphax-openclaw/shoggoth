@@ -67,4 +67,76 @@ describe("TranscriptStore", () => {
     assert.equal(p2.messages.length, 1);
     assert.equal(p2.nextCursor, undefined);
   });
+
+  it("normal flow: tool calls followed by results — no synthetic injection", () => {
+    const tr = createTranscriptStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    tr.append({
+      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }, { id: "tc2", name: "bar", argsJson: "{}" }],
+    });
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc1", content: "r1" });
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc2", content: "r2" });
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "next" });
+
+    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    assert.equal(messages.length, 4);
+    assert.equal(messages[0]!.role, "assistant");
+    assert.equal(messages[1]!.role, "tool");
+    assert.equal(messages[1]!.content, "r1");
+    assert.equal(messages[2]!.role, "tool");
+    assert.equal(messages[2]!.content, "r2");
+    assert.equal(messages[3]!.role, "user");
+  });
+
+  it("orphaned tool calls: user message triggers synthetic results", () => {
+    const tr = createTranscriptStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    tr.append({
+      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }, { id: "tc2", name: "bar", argsJson: "{}" }],
+    });
+    // No tool results — directly append user message
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "hello" });
+
+    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    assert.equal(messages.length, 4); // assistant + 2 synthetic + user
+    assert.equal(messages[0]!.role, "assistant");
+    assert.equal(messages[1]!.role, "tool");
+    assert.equal(messages[1]!.content, "[Tool call aborted — no result available]");
+    assert.ok(messages[1]!.toolCallId === "tc1" || messages[1]!.toolCallId === "tc2");
+    assert.equal(messages[2]!.role, "tool");
+    assert.equal(messages[2]!.content, "[Tool call aborted — no result available]");
+    assert.equal(messages[3]!.role, "user");
+    assert.equal(messages[3]!.content, "hello");
+    // Both tool call IDs are covered
+    const syntheticIds = new Set([messages[1]!.toolCallId, messages[2]!.toolCallId]);
+    assert.ok(syntheticIds.has("tc1"));
+    assert.ok(syntheticIds.has("tc2"));
+  });
+
+  it("partial results: only missing tool calls get synthetic results", () => {
+    const tr = createTranscriptStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    tr.append({
+      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      toolCalls: [
+        { id: "tc1", name: "a", argsJson: "{}" },
+        { id: "tc2", name: "b", argsJson: "{}" },
+        { id: "tc3", name: "c", argsJson: "{}" },
+      ],
+    });
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc1", content: "ok1" });
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc3", content: "ok3" });
+    // tc2 is missing — next user message should inject synthetic for tc2 only
+    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "go" });
+
+    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    assert.equal(messages.length, 5); // assistant + 2 real tools + 1 synthetic + user
+    assert.equal(messages[3]!.role, "tool");
+    assert.equal(messages[3]!.toolCallId, "tc2");
+    assert.equal(messages[3]!.content, "[Tool call aborted — no result available]");
+    assert.equal(messages[4]!.role, "user");
+    assert.equal(messages[4]!.content, "go");
+  });
 });

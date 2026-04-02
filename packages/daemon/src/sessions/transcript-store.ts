@@ -1,4 +1,7 @@
 import type Database from "better-sqlite3";
+import { getLogger } from "../logging";
+
+const log = getLogger("transcript-store");
 
 export interface ToolCallEntry {
   readonly id: string;
@@ -64,21 +67,72 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     WHERE session_id = @session_id AND context_segment_id = @context_segment_id
   `);
 
+  // Track pending tool call IDs per session+segment
+  const pending = new Map<string, Set<string>>();
+
+  function pendingKey(sessionId: string, segmentId: string) {
+    return `${sessionId}\0${segmentId}`;
+  }
+
+  function insertRow(sessionId: string, contextSegmentId: string, role: string, content: string | null, toolCallId: string | null, toolCallsJson: string | null, metadataJson: string | null, systemContextJson: string | null): number {
+    const row = nextSeq.get({ session_id: sessionId }) as { n: number };
+    const seq = row.n;
+    insert.run({
+      session_id: sessionId,
+      context_segment_id: contextSegmentId,
+      seq,
+      role,
+      content,
+      tool_call_id: toolCallId,
+      tool_calls_json: toolCallsJson,
+      metadata_json: metadataJson,
+      system_context_json: systemContextJson,
+    });
+    return seq;
+  }
+
+  function flushOrphaned(sessionId: string, contextSegmentId: string): void {
+    const key = pendingKey(sessionId, contextSegmentId);
+    const ids = pending.get(key);
+    if (!ids || ids.size === 0) return;
+    const toolCallIds = [...ids];
+    log.info("transcript.orphaned_tool_calls_repaired", { sessionId, toolCallIds, count: toolCallIds.length });
+    for (const id of toolCallIds) {
+      insertRow(sessionId, contextSegmentId, "tool", "[Tool call aborted — no result available]", id, null, null, null);
+    }
+    pending.delete(key);
+  }
+
   return {
     append(input) {
-      const row = nextSeq.get({ session_id: input.sessionId }) as { n: number };
-      const seq = row.n;
-      insert.run({
-        session_id: input.sessionId,
-        context_segment_id: input.contextSegmentId,
-        seq,
-        role: input.role,
-        content: input.content ?? null,
-        tool_call_id: input.toolCallId ?? null,
-        tool_calls_json: input.toolCalls?.length ? JSON.stringify(input.toolCalls) : null,
-        metadata_json: input.metadata !== undefined ? JSON.stringify(input.metadata) : null,
-        system_context_json: input.systemContext !== undefined ? JSON.stringify(input.systemContext) : null,
-      });
+      const key = pendingKey(input.sessionId, input.contextSegmentId);
+
+      if (input.role === "tool" && input.toolCallId) {
+        // Tool result — remove from pending
+        pending.get(key)?.delete(input.toolCallId);
+        if (pending.get(key)?.size === 0) pending.delete(key);
+      } else {
+        // Any other message — flush orphaned tool calls first
+        flushOrphaned(input.sessionId, input.contextSegmentId);
+      }
+
+      const seq = insertRow(
+        input.sessionId,
+        input.contextSegmentId,
+        input.role,
+        input.content ?? null,
+        input.toolCallId ?? null,
+        input.toolCalls?.length ? JSON.stringify(input.toolCalls) : null,
+        input.metadata !== undefined ? JSON.stringify(input.metadata) : null,
+        input.systemContext !== undefined ? JSON.stringify(input.systemContext) : null,
+      );
+
+      // If this assistant message has tool calls, track them as pending
+      if (input.role === "assistant" && input.toolCalls?.length) {
+        const ids = new Set(input.toolCalls.map((tc) => tc.id));
+        pending.set(key, ids);
+      }
+
       return { seq };
     },
 
