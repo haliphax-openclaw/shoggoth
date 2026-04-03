@@ -1,4 +1,17 @@
-import { describe, it, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach, vi } from "vitest";
+import { execSync as realExecSync } from "node:child_process";
+
+vi.mock("node:child_process", async () => {
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  return {
+    ...actual,
+    execSync: vi.fn((cmd: string, opts?: any) => {
+      if (cmd === "id -u agent") return "1000\n";
+      if (cmd === "id -g agent") return "1000\n";
+      return actual.execSync(cmd, opts);
+    }),
+  };
+});
 import assert from "node:assert";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
