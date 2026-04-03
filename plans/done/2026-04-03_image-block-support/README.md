@@ -1,6 +1,6 @@
 ---
 date: 2026-04-03
-completed: never
+completed: 2026-04-03
 ---
 
 # Image block support
