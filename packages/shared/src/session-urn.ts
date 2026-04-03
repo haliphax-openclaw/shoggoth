@@ -48,7 +48,9 @@ export function resolveAgentWorkspacePath(workspacesRoot: string, agentId: strin
 export type ParsedAgentSessionUrn = {
   readonly agentId: string;
   readonly platform: string;
-  /** Segments after `platform` (opaque per platform; one = top-level; two+ = subagent chain). */
+  /** Resource type segment (e.g. "channel", "subagent", "dm"). */
+  readonly resourceType: string;
+  /** Segments after `resourceType` (opaque per platform; one = top-level; two+ = subagent chain). */
   readonly uuidChain: readonly string[];
 };
 
@@ -62,37 +64,34 @@ function normalizeSessionUrnTailSegment(seg: string): string {
 }
 
 /**
- * Parses `agent:<agentId>:<platform>:<leaf>` or
- * `agent:<agentId>:<platform>:<parent leaf>:<child leaf>:…`.
+ * Parses `agent:<agentId>:<platform>:<resourceType>:<leaf>` or
+ * `agent:<agentId>:<platform>:<resourceType>:<parent leaf>:<child leaf>:…`.
  */
 export function parseAgentSessionUrn(id: string): ParsedAgentSessionUrn | null {
   const t = id.trim();
   if (!t.startsWith("agent:")) return null;
   const rest = t.slice("agent:".length);
-  const c0 = rest.indexOf(":");
-  if (c0 < 0) return null;
-  const agentId = rest.slice(0, c0);
-  const rest1 = rest.slice(c0 + 1);
-  const c1 = rest1.indexOf(":");
-  if (c1 < 0) return null;
-  const platform = rest1.slice(0, c1);
-  const tail = rest1.slice(c1 + 1);
-  if (!tail) return null;
+  // Split into segments: agentId, platform, resourceType, leaf[, childLeaf, ...]
+  const segments = rest.split(":");
+  // Minimum 4 segments: agentId, platform, resourceType, leaf
+  if (segments.length < 4) return null;
+  const [agentId, platform, resourceType, ...tailSegments] = segments;
+  if (!agentId || !platform || !resourceType || tailSegments.length < 1) return null;
   try {
     assertValidAgentId(agentId);
   } catch {
     return null;
   }
   if (!platform.trim()) return null;
-  const uuidChain = tail.split(":");
-  if (uuidChain.length < 1) return null;
-  for (const u of uuidChain) {
+  if (!isValidSessionUrnTailSegment(resourceType)) return null;
+  for (const u of tailSegments) {
     if (!isValidSessionUrnTailSegment(u)) return null;
   }
   return {
     agentId: agentId.trim(),
     platform: platform.trim(),
-    uuidChain: uuidChain.map(normalizeSessionUrnTailSegment),
+    resourceType: resourceType.trim(),
+    uuidChain: tailSegments.map(normalizeSessionUrnTailSegment),
   };
 }
 
@@ -107,30 +106,35 @@ export function isSubagentSessionUrn(id: string): boolean {
 }
 
 /**
- * For a subagent URN (`agent:<agentId>:<platform>:<parentLeaf>:<childUuid>`),
- * returns the top-level session URN (`agent:<agentId>:<platform>:<parentLeaf>`).
+ * For a subagent URN (`agent:<agentId>:<platform>:<resourceType>:<parentLeaf>:<childUuid>`),
+ * returns the top-level session URN (`agent:<agentId>:<platform>:<resourceType>:<parentLeaf>`).
  * Returns `null` when the id is not a subagent URN (already top-level or invalid).
  */
 export function resolveTopLevelSessionUrn(id: string): string | null {
   const p = parseAgentSessionUrn(id);
   if (!p || p.uuidChain.length <= 1) return null;
-  return `agent:${p.agentId}:${p.platform}:${p.uuidChain[0]}`;
+  return `agent:${p.agentId}:${p.platform}:${p.resourceType}:${p.uuidChain[0]}`;
 }
 
-export function formatAgentSessionUrn(agentId: string, platform: string, sessionLeaf: string): string {
+export function formatAgentSessionUrn(agentId: string, platform: string, resourceType: string, sessionLeaf: string): string {
   assertValidAgentId(agentId);
   const plat = platform.trim();
   if (!plat) throw new Error("platform must be non-empty");
+  const rt = resourceType.trim();
+  if (!isValidSessionUrnTailSegment(rt)) {
+    throw new Error(`resourceType must be a valid URN tail segment: ${JSON.stringify(resourceType)}`);
+  }
   const leaf = sessionLeaf.trim();
   if (!isValidSessionUrnTailSegment(leaf)) {
     throw new Error(`sessionLeaf must be a valid URN tail segment: ${JSON.stringify(sessionLeaf)}`);
   }
-  return `agent:${agentId.trim()}:${plat}:${normalizeSessionUrnTailSegment(leaf)}`;
+  return `agent:${agentId.trim()}:${plat}:${rt}:${normalizeSessionUrnTailSegment(leaf)}`;
 }
 
 /**
- * Subagent session: `agent:<agentId>:<platform>:<parent-leaf>:<new uuid>`.
+ * Subagent session: `agent:<agentId>:<platform>:<resourceType>:<parent-leaf>:<new uuid>`.
  * Parent leaf is the last segment in the parent URN chain. New segment is always a UUID.
+ * Resource type is preserved from the parent URN.
  */
 export function mintSubagentSessionUrnFromParent(parentSessionId: string, subUuid?: string): string {
   const p = parseAgentSessionUrn(parentSessionId);
@@ -139,19 +143,20 @@ export function mintSubagentSessionUrnFromParent(parentSessionId: string, subUui
   const subRaw = (subUuid ?? randomUUID()).trim();
   if (!SHOGGOTH_SESSION_UUID_RE.test(subRaw)) throw new Error("invalid subUuid");
   const sub = subRaw.toLowerCase();
-  return `agent:${p.agentId}:${p.platform}:${parentLeaf}:${sub}`;
+  return `agent:${p.agentId}:${p.platform}:${p.resourceType}:${parentLeaf}:${sub}`;
 }
 
-export function mintAgentSessionUrn(agentId: string, platform: string): string {
-  return formatAgentSessionUrn(agentId, platform, randomUUID());
+export function mintAgentSessionUrn(agentId: string, platform: string, resourceType: string): string {
+  return formatAgentSessionUrn(agentId, platform, resourceType, randomUUID());
 }
 
 /** Primary session URN for bootstrap when no platform-specific key is supplied (daemon resolves via registered per-platform URN policy). */
 export function defaultPrimarySessionUrnForAgent(
   agentId: string,
   platform: string,
+  resourceType: string,
 ): string {
-  return formatAgentSessionUrn(agentId, platform, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+  return formatAgentSessionUrn(agentId, platform, resourceType, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
 }
 
 
