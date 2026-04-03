@@ -62,7 +62,7 @@ interface FetchToolResult {
 - Request body size capped (default 10MB).
 - Response body capped and truncated (default 1MB returned to model).
 - `Authorization` and `Cookie` headers are audit-logged but not redacted in tool results (the model needs them for context). Policy can block sensitive header patterns.
-- Private/internal IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1) are blocked by default. Configurable allowlist for internal APIs.
+- Private/internal IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1) are blocked by default. Configurable via `fetch.allowPrivateIps` (boolean, default `false`) and `fetch.privateIpAllowlist` (array of CIDR ranges or hostnames) in the runtime config. When `allowPrivateIps` is `true`, all private ranges are permitted. When `false`, only entries in `privateIpAllowlist` are allowed through.
 
 **Content-Type handling:**
 - When `body` is an object and no `Content-Type` header is set, auto-set `application/json` and JSON-serialize.
