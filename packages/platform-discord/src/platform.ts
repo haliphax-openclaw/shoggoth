@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getImageBlockCodec, type ImageBlockCodec } from "@shoggoth/models";
 import type Database from "better-sqlite3";
 import {
   createOutboundMessage,
@@ -10,6 +11,7 @@ import {
   parseAgentSessionUrn,
   type ShoggothConfig,
   type SystemContext,
+  resolveEffectiveModelsConfig,
 } from "@shoggoth/shared";
 import {
   createHitlPendingResolutionStack,
@@ -279,13 +281,10 @@ export async function startDiscordPlatform(
       return;
     }
 
-    let userContent = msg.body;
+    const userContent = msg.body;
     const attachments = msg.extensions.attachments;
-    if (attachments && attachments.length > 0) {
-      userContent = `${userContent}\n\n${formatAttachmentMetadata(attachments)}`;
-    }
 
-    await runDiscordInboundModelTurn(msg, session, userContent, {});
+    await runDiscordInboundModelTurn(msg, session, userContent, {}, attachments);
   }
 
   async function runDiscordInboundModelTurn(
@@ -293,6 +292,7 @@ export async function startDiscordPlatform(
     session: NonNullable<ReturnType<typeof sessions.getById>>,
     userContent: string,
     extraUserMetadata: Record<string, unknown>,
+    attachments?: readonly import("@shoggoth/messaging").MessageAttachment[],
   ): Promise<void> {
     // Fire-and-forget: push to the turn queue (synchronous) and return immediately.
     void turnQueue.enqueue(msg.sessionId, "user", "user message", async () => {
@@ -353,6 +353,21 @@ export async function startDiscordPlatform(
         onTurnExecutionFailed: (e) => {
           opts.logger.warn("discord.platform.turn_failed", { err: String(e), sessionId: msg.sessionId });
         },
+        attachments,
+        imageBlockCodec: (() => {
+          const cfg = opts.configRef?.current ?? opts.config;
+          const mc = resolveEffectiveModelsConfig(cfg, msg.sessionId) ?? cfg.models;
+          if (!mc?.providers?.length) return undefined;
+          const chain = mc.failoverChain;
+          const kind = chain?.length
+            ? mc.providers.find((p) => p.id === chain[0].providerId)?.kind
+            : mc.providers[0]?.kind;
+          if (kind === 'openai-compatible' || kind === 'anthropic-messages' || kind === 'gemini') {
+            return getImageBlockCodec(kind);
+          }
+          return undefined;
+        })(),
+        formatAttachmentMetadata,
         buildTurn: async () => {
           const mcpCtx = await mcpRuntime.resolveContext(msg.sessionId);
           return {
