@@ -157,8 +157,9 @@ When determining the context level for a session, the following precedence appli
 The `contextLevel` parameter is accepted when spawning subagents, allowing agents and system processes to override the configured default on a case-by-case basis:
 
 ```typescript
-interface SpawnInput {
-  // ... existing fields ...
+interface SpawnSessionInput {
+  // ... existing fields (agentId, platform, resourceType, parentSessionId,
+  //     modelSelection, lightContext, etc.) ...
   /** Override the context level for this subagent session. */
   contextLevel?: "none" | "minimal" | "light" | "full";
 }
@@ -274,9 +275,10 @@ Apply tool exclusions based on context level and config overrides.
 
 Add `contextLevel` to the subagent spawn interface and wire it through session creation.
 
-- Add `contextLevel` to `SpawnInput` / `SpawnRequest`
+- Add `contextLevel` to `SpawnSessionInput` (alongside the existing `resourceType` field added since this plan was written)
 - Store resolved context level on the session row
 - Pass through to `buildSessionSystemContext` and tool filtering
+- Note: `platform-discord` now uses a consolidated `formatAssistantReply` helper and extracted `formatAdhocReactionEventContext`/`formatGlobalReactionEventContext` helpers (the inline `formatDegradedPrefix`/`formatModelTagFooter` calls no longer exist)
 
 **Files:**
 - `packages/daemon/src/sessions/session-manager.ts`
@@ -291,6 +293,7 @@ Wire context level into workflow task spawner, cron, and heartbeat.
 - Cron job spawner: per-job `contextLevel` field
 - Heartbeat: default `light`
 - Pass `contextLevel` through spawn adapters
+- Note: `createWorkflowNotifier`'s `notify` signature now accepts `{ replyTo: string; aborted?: boolean }` context and branches into success/aborted/failed paths with distinct guidance strings. Context level wiring must account for this three-way branching.
 
 **Files:**
 - `packages/daemon/src/workflow-adapters.ts`
