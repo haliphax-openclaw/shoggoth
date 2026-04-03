@@ -1,6 +1,8 @@
 import { ModelHttpError } from "./errors";
+import { geminiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
+  ChatContentPart,
   ChatMessage,
   ChatToolCall,
   ModelCompleteInput,
@@ -70,7 +72,20 @@ export function mapChatMessagesToGeminiPayload(messages: readonly ChatMessage[])
     }
 
     if (m.role === "user") {
-      contents.push({ role: "user", parts: [{ text: m.content != null ? String(m.content) : "" }] });
+      if (Array.isArray(m.content)) {
+        const parts: unknown[] = [];
+        for (const p of m.content as ChatContentPart[]) {
+          if (p.type === "text") {
+            parts.push({ text: p.text });
+          } else {
+            // ImageBlock — use Gemini codec
+            parts.push(geminiImageBlockCodec.encode(p));
+          }
+        }
+        contents.push({ role: "user", parts });
+      } else {
+        contents.push({ role: "user", parts: [{ text: m.content != null ? String(m.content) : "" }] });
+      }
       i += 1;
       continue;
     }

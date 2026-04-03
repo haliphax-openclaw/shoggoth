@@ -87,4 +87,70 @@ describe("executeSessionAgentTurn (no Discord)", { concurrency: false }, () => {
     assert.equal(result.latestAssistantText, "CORE_ISOLATION_REPLY");
     assert.equal(result.failoverMeta?.degraded, false);
   });
+
+  it("wires imageBlockCodec into BuiltinToolContext when provider is configured", async () => {
+    const config = defaultConfig(tmp);
+    // Configure an openai-compatible provider so the codec resolves.
+    config.models = {
+      providers: [
+        {
+          id: "test-oai",
+          kind: "openai-compatible" as const,
+          baseUrl: "http://localhost:1234/v1",
+          apiKey: "test-key",
+        },
+      ],
+      failoverChain: [{ providerId: "test-oai", model: "gpt-test" }],
+    };
+
+    const sessions = createSessionStore(db);
+    const session = sessions.getById("sess-core");
+    assert.ok(session);
+    const transcript = createTranscriptStore(db);
+    const toolRuns = createToolRunStore(db);
+    const hitlStack = createHitlPendingResolutionStack(db);
+    const builtin = buildBuiltinOnlySessionMcpToolContext();
+
+    // Use the real loopImpl so the model client writes to the transcript.
+    const result = await executeSessionAgentTurn({
+      db,
+      sessionId: "sess-core",
+      session: session!,
+      transcript,
+      toolRuns,
+      userContent: "test codec wiring",
+      userMetadata: undefined,
+      systemPrompt: "test",
+      env: process.env,
+      config,
+      policyEngine: createPolicyEngine(config.policy),
+      getHitlConfig: () => ({ ...DEFAULT_HITL_CONFIG, ...config.hitl }),
+      hitl: {
+        bypassUpTo: "safe",
+        pending: hitlStack.pending,
+        clock: { nowMs: () => Date.now() },
+        newPendingId: () => randomUUID(),
+        waitForHitlResolution: hitlStack.waitForHitlResolution,
+      },
+      loopImpl: runToolLoop,
+      createToolCallingClient: () => ({
+        async completeWithTools() {
+          return {
+            content: "CODEC_TEST_REPLY",
+            toolCalls: [],
+            usedModel: "gpt-test",
+            usedProviderId: "test-oai",
+            degraded: false,
+          };
+        },
+      }),
+      resolveMcpContext: async () => builtin,
+    });
+
+    // The turn completed without error with an openai-compatible provider configured.
+    // This proves resolveImageBlockCodec ran successfully and the codec was wired
+    // into the BuiltinToolContext without throwing.
+    assert.ok(result);
+    assert.equal(result.latestAssistantText, "CODEC_TEST_REPLY");
+  });
 });

@@ -492,3 +492,68 @@ describe("createAnthropicMessagesProvider", () => {
     assert.equal(out.toolCalls.length, 0);
   });
 });
+
+
+describe("mapChatMessagesToAnthropicPayload with ChatContentPart[]", () => {
+  it("serializes user message with mixed text + image content parts", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What is in this image?" },
+          { type: "image", mediaType: "image/png", base64: "iVBOR" },
+        ],
+      },
+    ];
+    const { messages: out } = mapChatMessagesToAnthropicPayload(messages);
+    const user = out[0] as { role: string; content: unknown[] };
+    assert.equal(user.role, "user");
+    assert.ok(Array.isArray(user.content));
+    assert.equal(user.content.length, 2);
+    assert.deepStrictEqual(user.content[0], { type: "text", text: "What is in this image?" });
+    assert.deepStrictEqual(user.content[1], {
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: "iVBOR" },
+    });
+  });
+
+  it("serializes user message with URL image using Anthropic URL source", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Describe" },
+          { type: "image", mediaType: "image/jpeg", url: "https://example.com/photo.jpg" },
+        ],
+      },
+    ];
+    const { messages: out } = mapChatMessagesToAnthropicPayload(messages);
+    const user = out[0] as { role: string; content: unknown[] };
+    assert.deepStrictEqual(user.content[1], {
+      type: "image",
+      source: { type: "url", url: "https://example.com/photo.jpg" },
+    });
+  });
+
+  it("assistant message with ChatContentPart[] emits text blocks only", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Here is my analysis" },
+        ],
+      },
+    ];
+    const { messages: out } = mapChatMessagesToAnthropicPayload(messages);
+    const assistant = out[0] as { role: string; content: unknown[] };
+    assert.equal(assistant.role, "assistant");
+    assert.deepStrictEqual(assistant.content[0], { type: "text", text: "Here is my analysis" });
+  });
+
+  it("plain string user content still serializes identically", () => {
+    const messages: ChatMessage[] = [{ role: "user", content: "hello" }];
+    const { messages: out } = mapChatMessagesToAnthropicPayload(messages);
+    const user = out[0] as { role: string; content: unknown };
+    assert.equal(user.content, "hello");
+  });
+});

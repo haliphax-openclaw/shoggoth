@@ -1,7 +1,10 @@
 import type { ShoggothConfig } from "@shoggoth/shared";
+import type { ChatContentPart } from "@shoggoth/models";
 import { formatAgentIdentityPrefix } from "@shoggoth/shared";
 import { ModelHttpError } from "@shoggoth/models";
 import { daemonNotice } from "./notices.js";
+import { extractOutboundImages, type OutboundImageAttachment } from "./image-outbound.js";
+import type { OutboundAttachment } from "./platform-adapter.js";
 
 // ---------------------------------------------------------------------------
 // Minimal local interface — avoids importing the full session-tool-loop types.
@@ -54,6 +57,10 @@ function modelHttpErrorToUserMessage(err: ModelHttpError): string {
     default:
       return daemonNotice("error-model-default", { status: String(err.status) });
   }
+}
+
+function imageAttachmentToOutbound(img: OutboundImageAttachment): OutboundAttachment {
+  return { filename: img.filename, contentType: img.mediaType, data: img.bytes };
 }
 
 // ---------------------------------------------------------------------------
@@ -119,4 +126,33 @@ export function formatAssistantReply(
   const identity = formatAgentIdentityPrefix(config, sessionId);
   const footer = formatModelTagFooter(env, failoverMeta);
   return `${degraded}${identity}${latestText}${footer}`;
+}
+
+// ---------------------------------------------------------------------------
+// Image-aware reply formatting
+// ---------------------------------------------------------------------------
+
+export interface FormattedReplyWithImages {
+  readonly body: string;
+  readonly attachments: OutboundAttachment[];
+}
+
+/**
+ * Format an assistant reply that may contain structured content with image
+ * blocks. Extracts images as platform attachments and formats the remaining
+ * text through the standard reply pipeline.
+ */
+export function formatAssistantReplyWithImages(
+  config: ShoggothConfig,
+  sessionId: string,
+  env: NodeJS.ProcessEnv | undefined,
+  content: string | ChatContentPart[] | null,
+  failoverMeta: FailoverMeta | undefined,
+): FormattedReplyWithImages {
+  const { textContent, imageAttachments } = extractOutboundImages(content);
+  const body = formatAssistantReply(config, sessionId, env, textContent, failoverMeta);
+  return {
+    body,
+    attachments: imageAttachments.map(imageAttachmentToOutbound),
+  };
 }

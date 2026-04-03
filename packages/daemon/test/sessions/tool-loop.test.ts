@@ -19,6 +19,7 @@ import {
 import { createHitlPendingResolutionStack } from "../../src/hitl/hitl-pending-stack";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
 import { DEFAULT_HITL_CONFIG } from "@shoggoth/shared";
+import type { ChatContentPart } from "@shoggoth/models";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), "shoggoth-loop-"));
@@ -433,6 +434,77 @@ describe("runToolLoop", () => {
     });
     assert.equal(exec.mock.calls.length, 1);
     const row = db.prepare(`SELECT status FROM tool_runs WHERE id = 'run-no-timeout'`).get() as { status: string };
+    assert.equal(row.status, "completed");
+  });
+
+  it("stores JSON-serialized contentParts as tool message content when executor returns contentParts", async () => {
+    const tr = createTranscriptStore(db);
+    const pushed: { toolCallId: string; content: string }[] = [];
+    const contentParts: ChatContentPart[] = [
+      { type: "text", text: "Here is the image" },
+      { type: "image", mediaType: "image/png", base64: "iVBORw0KGgo=" },
+    ];
+    let step = 0;
+    const model: ModelClient = {
+      async complete() {
+        step += 1;
+        if (step === 1) {
+          return {
+            content: null,
+            toolCalls: [{ id: "img1", name: "read", argsJson: '{"path":"test.png"}' }],
+          };
+        }
+        return { content: "I see the image", toolCalls: [] };
+      },
+      pushToolMessage(msg) {
+        pushed.push(msg);
+      },
+    };
+    const toolRuns = createToolRunStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    await runToolLoop({
+      db,
+      sessionId: "sess",
+      runId: "run-img",
+      principalId: "p",
+      policy: { check: () => ({ allow: true }) },
+      audit: { record: () => {} },
+      model,
+      tools: [{ name: "read" }],
+      executor: {
+        execute: async () => ({
+          resultJson: '{"path":"test.png"}',
+          contentParts,
+        }),
+      },
+      toolRuns,
+      transcript: tr,
+      contextSegmentId: seg,
+    });
+
+    // Verify the model received the JSON-serialized contentParts
+    assert.equal(pushed.length, 1);
+    const pushedContent = JSON.parse(pushed[0]!.content);
+    assert.ok(Array.isArray(pushedContent));
+    assert.equal(pushedContent.length, 2);
+    assert.equal(pushedContent[0].type, "text");
+    assert.equal(pushedContent[0].text, "Here is the image");
+    assert.equal(pushedContent[1].type, "image");
+    assert.equal(pushedContent[1].mediaType, "image/png");
+    assert.equal(pushedContent[1].base64, "iVBORw0KGgo=");
+
+    // Verify the transcript stores the JSON-serialized contentParts
+    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
+    const toolMsgs = page.messages.filter((m) => m.role === "tool");
+    assert.equal(toolMsgs.length, 1);
+    const storedContent = JSON.parse(toolMsgs[0]!.content!);
+    assert.ok(Array.isArray(storedContent));
+    assert.equal(storedContent.length, 2);
+    assert.equal(storedContent[1].type, "image");
+    assert.equal(storedContent[1].base64, "iVBORw0KGgo=");
+
+    // Run should complete
+    const row = db.prepare(`SELECT status FROM tool_runs WHERE id = 'run-img'`).get() as { status: string };
     assert.equal(row.status, "completed");
   });
 

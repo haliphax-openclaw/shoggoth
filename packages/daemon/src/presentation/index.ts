@@ -5,7 +5,9 @@ export {
   formatModelTagFooter,
   formatErrorUserText,
   formatAssistantReply,
+  formatAssistantReplyWithImages,
   type FailoverMeta,
+  type FormattedReplyWithImages,
 } from "./reply-formatter.js";
 
 export {
@@ -35,6 +37,7 @@ export type {
   PlatformCapabilities,
   StreamHandle,
   HitlNoticeData,
+  OutboundAttachment,
 } from "./platform-adapter.js";
 
 export {
@@ -57,3 +60,14 @@ export {
   formatAdhocReactionEventContext,
   type MinimalContextInput,
 } from "./minimal-context.js";
+
+export {
+  extractOutboundImages,
+  type OutboundImageAttachment,
+  type OutboundImageResult,
+} from "./image-outbound.js";
+
+export {
+  ingestAttachmentImage,
+  type ImageIngestOptions,
+} from "./image-ingest.js";

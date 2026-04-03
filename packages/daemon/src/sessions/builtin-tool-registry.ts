@@ -6,6 +6,7 @@ import type Database from "better-sqlite3";
 import type { ShoggothConfig, ShoggothMemoryConfig } from "@shoggoth/shared";
 import type { AgentCredentials } from "@shoggoth/os-exec";
 import type { ProcessManager } from "@shoggoth/procman";
+import type { ChatContentPart, ImageBlockCodec } from "@shoggoth/models";
 import type { AgentIntegrationInvoker } from "../control/integration-invoke";
 
 /**
@@ -51,12 +52,22 @@ export interface BuiltinToolContext {
    * Used by the subagent handler to reject nested spawns.
    */
   readonly isSubagentSession: boolean;
+
+  /** Image block codec for the active model provider, or undefined when unsupported. */
+  readonly imageBlockCodec?: ImageBlockCodec;
+}
+
+/** Result returned by a builtin tool handler. */
+export interface BuiltinToolResult {
+  readonly resultJson: string;
+  /** When set, the tool result uses structured content (e.g. image blocks). */
+  readonly contentParts?: ChatContentPart[];
 }
 
 export type BuiltinToolHandler = (
   args: Record<string, unknown>,
   ctx: BuiltinToolContext,
-) => Promise<{ resultJson: string }>;
+) => Promise<BuiltinToolResult>;
 
 export class BuiltinToolRegistry {
   private readonly handlers = new Map<string, BuiltinToolHandler>();
@@ -73,7 +84,7 @@ export class BuiltinToolRegistry {
     name: string,
     args: Record<string, unknown>,
     ctx: BuiltinToolContext,
-  ): Promise<{ resultJson: string }> {
+  ): Promise<BuiltinToolResult> {
     const handler = this.handlers.get(name);
     if (!handler) {
       throw new Error(`No handler registered for builtin tool: ${name}`);

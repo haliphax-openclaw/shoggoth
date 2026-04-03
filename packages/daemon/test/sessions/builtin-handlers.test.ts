@@ -240,3 +240,101 @@ describe("message handler", () => {
     assert.deepStrictEqual(capturedArgs, { action: "send", target: "#general" });
   });
 });
+
+// ---------------------------------------------------------------------------
+// fs-handlers: image read support
+// ---------------------------------------------------------------------------
+
+import { register as registerFs } from "../../src/sessions/builtin-handlers/fs-handlers";
+import { writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import type { ImageBlockCodec, ImageBlock } from "@shoggoth/models";
+
+function makeTmpWorkspace(): string {
+  const dir = join(tmpdir(), `shog-test-${randomUUID()}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+const fakeCodec: ImageBlockCodec = {
+  supportsUrl: false,
+  encode(block: ImageBlock) { return { type: "image", block }; },
+  decode() { return null; },
+};
+
+describe("fs-handlers image read", () => {
+  it("returns contentParts with image block for .png file", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      const imgBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      writeFileSync(join(ws, "test.png"), imgBytes);
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const result = await reg.execute("read", { path: "test.png" }, ctx);
+      assert.ok(result.contentParts, "should have contentParts");
+      assert.strictEqual(result.contentParts!.length, 2);
+      const imgPart = result.contentParts![0] as ImageBlock;
+      assert.strictEqual(imgPart.type, "image");
+      assert.strictEqual(imgPart.mediaType, "image/png");
+      assert.strictEqual(imgPart.base64, imgBytes.toString("base64"));
+      const textPart = result.contentParts![1] as { type: "text"; text: string };
+      assert.strictEqual(textPart.type, "text");
+      assert.ok(textPart.text.includes("test.png"));
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("returns plain text for .txt file (unchanged)", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "hello.txt"), "hello world");
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const result = await reg.execute("read", { path: "hello.txt" }, ctx);
+      assert.strictEqual(result.contentParts, undefined);
+      const parsed = JSON.parse(result.resultJson);
+      assert.strictEqual(parsed.content, "hello world");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("returns error for image without codec", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "pic.jpg"), Buffer.from([0xff, 0xd8]));
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const result = await reg.execute("read", { path: "pic.jpg" }, ctx);
+      assert.strictEqual(result.contentParts, undefined);
+      const parsed = JSON.parse(result.resultJson);
+      assert.ok(parsed.error.includes("not supported"));
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("returns error for oversized image", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      // Create a file just over 20 MB
+      const big = Buffer.alloc(20 * 1024 * 1024 + 1, 0x42);
+      writeFileSync(join(ws, "huge.png"), big);
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const result = await reg.execute("read", { path: "huge.png" }, ctx);
+      assert.strictEqual(result.contentParts, undefined);
+      const parsed = JSON.parse(result.resultJson);
+      assert.ok(parsed.error.includes("too large"));
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+});

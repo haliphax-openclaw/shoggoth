@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { ShoggothHitlConfig, HitlRiskTier } from "@shoggoth/shared";
+import type { ChatContentPart } from "@shoggoth/models";
 import { classifyToolRisk } from "../hitl/risk-classify";
 import { requiresHumanApproval } from "../hitl/approval-gate";
 import { resolveCompoundResource, type SubResourceExtractorRegistry } from "../policy/sub-resource";
@@ -41,7 +42,7 @@ export interface ToolExecutor {
     name: string;
     argsJson: string;
     toolCallId: string;
-  }): Promise<{ resultJson: string }>;
+  }): Promise<{ resultJson: string; contentParts?: ChatContentPart[] }>;
 }
 
 export interface ToolLoopPolicy {
@@ -89,7 +90,7 @@ export interface RunToolLoopOptions {
   readonly executor: ToolExecutor;
   readonly toolRuns: ToolRunStore;
   readonly transcript?: TranscriptStore;
-  /** Required when `transcript` is set; must match the session row’s `contextSegmentId`. */
+  /** Required when `transcript` is set; must match the session row's `contextSegmentId`. */
   readonly contextSegmentId?: string;
   /** When set, tools above the effective role bypass tier enqueue here instead of executing. */
   readonly hitl?: RunToolLoopHitl;
@@ -350,7 +351,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           toolCallId: tc.id,
         });
 
-        let out: { resultJson: string };
+        let out: { resultJson: string; contentParts?: ChatContentPart[] };
         const timeoutMs = options.toolCallTimeoutMs;
         try {
           if (timeoutMs != null && timeoutMs > 0) {
@@ -386,6 +387,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         }
         log.debug("tool call completed", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, durationMs: Date.now() - t0, success: true });
 
+        // When contentParts is present, serialize as JSON for transcript storage and model feedback.
+        const toolMessageContent = out.contentParts
+          ? JSON.stringify(out.contentParts)
+          : out.resultJson;
+
         options.audit.record({
           phase: "execute_done",
           tool: compoundResource,
@@ -393,15 +399,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           resultJson: out.resultJson,
         });
 
-        options.model.pushToolMessage?.({ toolCallId: tc.id, content: out.resultJson });
+        options.model.pushToolMessage?.({ toolCallId: tc.id, content: toolMessageContent });
 
         // Estimate resultJson tokens (becomes part of next model input context)
-        emitStats?.({ estimatedInputTokens: estimateTokens(out.resultJson) });
+        emitStats?.({ estimatedInputTokens: estimateTokens(toolMessageContent) });
 
         if (options.transcript) {
           appendTx({
             role: "tool",
-            content: out.resultJson,
+            content: toolMessageContent,
             toolCallId: tc.id,
             metadata: { tool: tc.name },
           });

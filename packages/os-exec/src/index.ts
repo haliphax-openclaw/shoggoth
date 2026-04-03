@@ -14,6 +14,7 @@ export {
 } from "./subprocess";
 export {
   toolRead,
+  toolReadBinary,
   toolWrite,
   type WriteOptions,
   type WriteResult,

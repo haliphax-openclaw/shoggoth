@@ -1,7 +1,23 @@
 import type Database from "better-sqlite3";
-import type { ChatMessage, ChatToolCall } from "@shoggoth/models";
+import type { ChatMessage, ChatToolCall, ChatContentPart } from "@shoggoth/models";
 import type { TranscriptMessageRow } from "./transcript-store";
 import { createTranscriptStore } from "./transcript-store";
+
+/**
+ * Detects whether a content string is a JSON-serialized `ChatContentPart[]` or a plain string.
+ * Returns the parsed array when valid, otherwise the original string.
+ */
+export function parseTranscriptContent(raw: string): string | ChatContentPart[] {
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.type === "string") {
+        return parsed as ChatContentPart[];
+      }
+    } catch { /* fall through */ }
+  }
+  return raw;
+}
 
 /** Maps durable transcript rows to OpenAI-style chat messages for the model client. */
 export function transcriptRowsToModelChatMessages(
@@ -10,7 +26,8 @@ export function transcriptRowsToModelChatMessages(
   const out: ChatMessage[] = [];
   for (const m of messages) {
     if (m.role === "user") {
-      out.push({ role: "user", content: m.content ?? "" });
+      const content = m.content ? parseTranscriptContent(m.content) : "";
+      out.push({ role: "user", content });
       continue;
     }
     if (m.role === "assistant") {
@@ -20,21 +37,24 @@ export function transcriptRowsToModelChatMessages(
           name: tc.name,
           arguments: tc.argsJson,
         }));
+        const content = m.content ? parseTranscriptContent(m.content) : m.content;
         out.push({
           role: "assistant",
-          content: m.content,
+          content,
           toolCalls,
         });
       } else {
-        out.push({ role: "assistant", content: m.content ?? "" });
+        const content = m.content ? parseTranscriptContent(m.content) : "";
+        out.push({ role: "assistant", content });
       }
       continue;
     }
     if (m.role === "tool" && m.toolCallId) {
+      const content = m.content ? parseTranscriptContent(m.content) : "";
       out.push({
         role: "tool",
         toolCallId: m.toolCallId,
-        content: m.content ?? "",
+        content,
       });
     }
   }

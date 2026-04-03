@@ -7,10 +7,36 @@ export interface ChatToolCall {
   readonly arguments: string;
 }
 
+/** Provider-agnostic image content block. At least one of base64 or url must be present. */
+export interface ImageBlock {
+  readonly type: "image";
+  /** e.g. "image/jpeg", "image/png", "image/gif", "image/webp" */
+  readonly mediaType: string;
+  /** Raw image bytes, base64-encoded (no data-URI prefix). */
+  readonly base64?: string;
+  /** Source URL for the image. */
+  readonly url?: string;
+}
+
+/** A single content part in a structured message. */
+export type ChatContentPart =
+  | { readonly type: "text"; readonly text: string }
+  | ImageBlock;
+
+/** Codec for translating between canonical ImageBlock and provider wire format. */
+export interface ImageBlockCodec {
+  /** Canonical ImageBlock → provider wire JSON content part. */
+  encode(block: ImageBlock): unknown;
+  /** Provider wire content part → canonical ImageBlock, or null if not an image part. */
+  decode(part: unknown): ImageBlock | null;
+  /** Whether this provider supports URL-based image sources. */
+  readonly supportsUrl: boolean;
+}
+
 export interface ChatMessage {
   readonly role: ChatRole;
   /** Empty string is sent when omitted for non-tool assistant turns; use null only with toolCalls. */
-  readonly content?: string | null;
+  readonly content?: string | ChatContentPart[] | null;
   readonly name?: string;
   readonly toolCallId?: string;
   readonly toolCalls?: readonly ChatToolCall[];

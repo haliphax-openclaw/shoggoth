@@ -284,3 +284,100 @@ describe("createOpenAICompatibleProvider", () => {
     assert.equal(nCalls.n, 2);
   });
 });
+
+
+describe("serializeChatMessage with ChatContentPart[]", () => {
+  it("serializes mixed text + image content parts for user message", async () => {
+    let capturedBody: string | undefined;
+    const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "I see the image" } }] }),
+        { status: 200 },
+      );
+    };
+    const p = createOpenAICompatibleProvider({
+      id: "oai",
+      baseUrl: "https://api.openai.com/v1",
+      fetchImpl,
+    });
+
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What is in this image?" },
+          { type: "image", mediaType: "image/png", base64: "iVBOR" },
+        ],
+      },
+    ];
+
+    await p.complete({ model: "gpt-4o", messages });
+    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    const content = body.messages[0]!.content as unknown[];
+    assert.ok(Array.isArray(content));
+    assert.equal(content.length, 2);
+    assert.deepStrictEqual(content[0], { type: "text", text: "What is in this image?" });
+    assert.deepStrictEqual(content[1], {
+      type: "image_url",
+      image_url: { url: "data:image/png;base64,iVBOR" },
+    });
+  });
+
+  it("serializes image with URL using image_url passthrough", async () => {
+    let capturedBody: string | undefined;
+    const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "ok" } }] }),
+        { status: 200 },
+      );
+    };
+    const p = createOpenAICompatibleProvider({
+      id: "oai",
+      baseUrl: "https://api.openai.com/v1",
+      fetchImpl,
+    });
+
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Describe" },
+          { type: "image", mediaType: "image/jpeg", url: "https://example.com/photo.jpg" },
+        ],
+      },
+    ];
+
+    await p.complete({ model: "gpt-4o", messages });
+    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    const content = body.messages[0]!.content as unknown[];
+    assert.deepStrictEqual(content[1], {
+      type: "image_url",
+      image_url: { url: "https://example.com/photo.jpg" },
+    });
+  });
+
+  it("plain string content still serializes identically", async () => {
+    let capturedBody: string | undefined;
+    const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
+      capturedBody = init?.body as string;
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "hi" } }] }),
+        { status: 200 },
+      );
+    };
+    const p = createOpenAICompatibleProvider({
+      id: "oai",
+      baseUrl: "https://api.openai.com/v1",
+      fetchImpl,
+    });
+
+    await p.complete({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "hello" }],
+    });
+    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    assert.equal(body.messages[0]!.content, "hello");
+  });
+});

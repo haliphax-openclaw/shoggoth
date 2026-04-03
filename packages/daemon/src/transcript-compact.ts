@@ -6,6 +6,7 @@ import {
   type CompactionPolicy,
   type CompactTranscriptOptions,
   type ChatMessage,
+  type ChatContentPart,
   type FailoverModelClient,
 } from "@shoggoth/models";
 import type { ShoggothModelsConfig } from "@shoggoth/shared";
@@ -97,6 +98,44 @@ export function replaceSessionTranscript(
   run();
 }
 
+/**
+ * Strip image blocks from a single message's string content for summarization.
+ * If the content is a JSON-serialized ChatContentPart[] containing image blocks,
+ * replaces them with `[image omitted]` text parts and re-serializes.
+ * Plain string content is returned unchanged.
+ */
+export function stripImageBlocksFromContent(content: string): string {
+  if (!content.startsWith("[")) return content;
+  try {
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed) || parsed.length === 0 || typeof parsed[0]?.type !== "string") {
+      return content;
+    }
+    const parts = parsed as ChatContentPart[];
+    const stripped = parts.map((part): ChatContentPart =>
+      part.type === "image"
+        ? { type: "text", text: "[image omitted]" }
+        : part,
+    );
+    return JSON.stringify(stripped);
+  } catch {
+    return content;
+  }
+}
+
+/**
+ * Return a copy of the messages with image blocks stripped from content,
+ * suitable for sending to the summarizer model during compaction.
+ */
+export function stripImageBlocksForCompaction(messages: readonly ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => {
+    if (typeof m.content !== "string" || !m.content) return { ...m };
+    const stripped = stripImageBlocksFromContent(m.content);
+    if (stripped === m.content) return { ...m };
+    return { ...m, content: stripped };
+  });
+}
+
 export async function compactSessionTranscript(
   db: Database.Database,
   sessionId: string,
@@ -113,7 +152,9 @@ export async function compactSessionTranscript(
     const base = mergeModelInvocationParams(modelsConfig, row?.modelSelection);
     modelInvocation = mergeModelInvocationOverlay(base, options?.modelInvocation);
   }
-  const result = await compactTranscriptIfNeeded(rows, policy, client, {
+  // Strip image blocks before summarization to avoid sending large base64 payloads to the summarizer.
+  const sanitizedRows = stripImageBlocksForCompaction(rows);
+  const result = await compactTranscriptIfNeeded(sanitizedRows, policy, client, {
     force: options?.force,
     modelInvocation,
   });

@@ -1,5 +1,11 @@
 import type { MessagingAdapterCapabilities, InternalMessage } from "@shoggoth/messaging";
-import type { DiscordCreateMessageBody, DiscordRestTransport } from "./transport";
+import type { DiscordCreateMessageBody, DiscordRestTransport, DiscordMessageUploadFile } from "./transport";
+
+export interface OutboundAttachmentFile {
+  readonly filename: string;
+  readonly contentType: string;
+  readonly data: Buffer;
+}
 
 export interface OutboundSenderConfig {
   readonly capabilities: MessagingAdapterCapabilities;
@@ -13,7 +19,7 @@ export interface SentMessageRef {
 }
 
 export interface OutboundSender {
-  sendDiscord(msg: InternalMessage): Promise<SentMessageRef>;
+  sendDiscord(msg: InternalMessage, opts?: { attachments?: OutboundAttachmentFile[] }): Promise<SentMessageRef>;
 }
 
 function assertExtensionsAllowed(
@@ -46,12 +52,27 @@ export function createOutboundSender(config: OutboundSenderConfig): OutboundSend
   const { capabilities, transport, sessionToChannel } = config;
 
   return {
-    async sendDiscord(msg: InternalMessage): Promise<SentMessageRef> {
+    async sendDiscord(msg: InternalMessage, opts?: { attachments?: OutboundAttachmentFile[] }): Promise<SentMessageRef> {
       assertExtensionsAllowed(capabilities, msg);
       const channelId = sessionToChannel(msg.sessionId);
       if (!channelId) {
         throw new Error(`Outbound: no Discord channel mapped for session ${msg.sessionId}`);
       }
+
+      const files = opts?.attachments;
+      if (files && files.length > 0) {
+        const uploadFiles: DiscordMessageUploadFile[] = files.map((f) => ({
+          filename: f.filename,
+          data: f.data,
+        }));
+        const res = await transport.createMessageWithFiles(
+          channelId,
+          toDiscordBody(msg),
+          uploadFiles,
+        );
+        return { channelId, messageId: res.id };
+      }
+
       const res = await transport.createMessage(channelId, toDiscordBody(msg));
       return { channelId, messageId: res.id };
     },

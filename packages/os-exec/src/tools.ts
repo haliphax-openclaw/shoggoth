@@ -151,6 +151,32 @@ export async function toolRead(
   return r.stdout;
 }
 
+/**
+ * Read a workspace-relative path as raw bytes (Buffer) using the agent UID/GID.
+ * Same DAC sandbox pattern as {@link toolRead} but base64-encodes in the child
+ * to survive the UTF-8 stdout pipe, then decodes in the parent.
+ */
+export async function toolReadBinary(
+  workspaceRoot: string,
+  userPath: string,
+  creds: AgentCredentials,
+): Promise<Buffer> {
+  const abs = resolvePathForRead(workspaceRoot, userPath);
+  const cwd = realpathSync(workspaceRoot);
+  const r = await runAsUser({
+    file: process.execPath,
+    args: ["-e", `process.stdout.write(require("fs").readFileSync(process.env.${ENV_READ}).toString("base64"));`],
+    cwd,
+    uid: creds.uid,
+    gid: creds.gid,
+    env: { [ENV_READ]: abs },
+  });
+  if (r.exitCode !== 0) {
+    throw new Error(`toolReadBinary failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`);
+  }
+  return Buffer.from(r.stdout, "base64");
+}
+
 
 // ---------------------------------------------------------------------------
 // Extended write helpers

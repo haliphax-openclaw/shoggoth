@@ -1,4 +1,6 @@
 import type { ShoggothConfig } from "@shoggoth/shared";
+import type { MessageAttachment } from "@shoggoth/messaging";
+import type { ImageBlockCodec, ChatContentPart } from "@shoggoth/models";
 import type { SessionToolLoopFailoverState } from "../sessions/session-tool-loop-model-client.js";
 import type { PlatformAdapter, StreamHandle } from "./platform-adapter.js";
 import type { InboundSessionTurnInput } from "../messaging/inbound-session-turn.js";
@@ -10,6 +12,10 @@ import {
   formatAssistantReply,
   formatErrorUserText,
 } from "./reply-formatter.js";
+import { ingestAttachmentImage } from "./image-ingest.js";
+import { getLogger } from "../logging.js";
+
+const log = getLogger("turn-orchestrator");
 
 // ---------------------------------------------------------------------------
 // Per-turn input provided by the caller
@@ -30,6 +36,23 @@ export interface OrchestrateTurnInput {
   readonly preStartedStreamHandle?: StreamHandle;
   /** Called when stream start fails (only relevant when no preStartedStreamHandle). */
   readonly onStreamStartFailed?: (message: string) => void;
+  /**
+   * Platform attachments from the inbound message. Image attachments are
+   * converted to ImageBlocks; non-image attachments use the text fallback.
+   */
+  readonly attachments?: readonly MessageAttachment[];
+  /**
+   * Codec for the active model provider. Required when `attachments` is set
+   * and image ingestion should be attempted. When omitted, all attachments
+   * fall through to the text metadata path.
+   */
+  readonly imageBlockCodec?: ImageBlockCodec;
+  /**
+   * Text fallback formatter for non-image attachments. When omitted,
+   * non-image attachments are silently ignored by the orchestrator
+   * (caller is expected to have already handled them in userContent).
+   */
+  readonly formatAttachmentMetadata?: (attachments: readonly MessageAttachment[]) => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,8 +119,25 @@ export class PresentationTurnOrchestrator {
       };
     }
 
+    // Wrap buildTurn to inject image block content from attachments.
+    const wrappedBuildTurn = async (): Promise<InboundSessionTurnInput> => {
+      const turn = await buildTurn();
+
+      const attachments = input.attachments;
+      if (!attachments || attachments.length === 0 || !input.imageBlockCodec) {
+        return turn;
+      }
+
+      return enrichTurnWithImageAttachments(
+        turn,
+        attachments,
+        input.imageBlockCodec,
+        input.formatAttachmentMetadata,
+      );
+    };
+
     await runInboundSessionTurn({
-      buildTurn,
+      buildTurn: wrappedBuildTurn,
       streaming,
       sliceDisplayText,
       formatAssistantReply: (latestText: string, failoverMeta: SessionToolLoopFailoverState | undefined) =>
@@ -110,4 +150,70 @@ export class PresentationTurnOrchestrator {
       onTurnExecutionFailed,
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Image attachment enrichment
+// ---------------------------------------------------------------------------
+
+/**
+ * Process attachments on an inbound turn: convert image attachments to
+ * ImageBlocks and leave non-image attachments as text metadata fallback.
+ * Returns a new turn input with enriched `userContent`.
+ */
+async function enrichTurnWithImageAttachments(
+  turn: InboundSessionTurnInput,
+  attachments: readonly MessageAttachment[],
+  codec: ImageBlockCodec,
+  formatFallback?: (attachments: readonly MessageAttachment[]) => string,
+): Promise<InboundSessionTurnInput> {
+  const imageBlocks: ChatContentPart[] = [];
+  const nonImageAttachments: MessageAttachment[] = [];
+
+  const results = await Promise.all(
+    attachments.map((att) =>
+      ingestAttachmentImage(att, { codec }).then(
+        (block) => ({ attachment: att, block }),
+        (err) => {
+          log.warn("turn_orchestrator.image_ingest_error", {
+            filename: att.filename,
+            err: String(err),
+          });
+          return { attachment: att, block: null };
+        },
+      ),
+    ),
+  );
+
+  for (const { attachment, block } of results) {
+    if (block) {
+      imageBlocks.push(block);
+    } else {
+      nonImageAttachments.push(attachment);
+    }
+  }
+
+  // Nothing ingested — return turn unchanged
+  if (imageBlocks.length === 0) return turn;
+
+  // Build structured content: image blocks first, then text body.
+  let textBody = turn.userContent;
+
+  // Append text metadata for non-image attachments
+  if (nonImageAttachments.length > 0 && formatFallback) {
+    textBody = `${textBody}\n\n${formatFallback(nonImageAttachments)}`;
+  }
+
+  const parts: ChatContentPart[] = [
+    ...imageBlocks,
+    { type: "text", text: textBody },
+  ];
+
+  // Serialize structured content as JSON for transcript storage.
+  // Downstream phases (transcript-to-chat, provider message mapping) detect
+  // JSON arrays and reconstruct ChatContentPart[].
+  return {
+    ...turn,
+    userContent: JSON.stringify(parts),
+  };
 }

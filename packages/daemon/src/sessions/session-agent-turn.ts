@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
-import type { ChatMessage } from "@shoggoth/models";
+import type { ChatMessage, ImageBlockCodec } from "@shoggoth/models";
 import {
   createFailoverToolCallingClientFromModelsConfig,
+  getImageBlockCodec,
   mergeModelInvocationParams,
   type CreateFailoverFromConfigOptions,
   type FailoverToolCallingClient,
 } from "@shoggoth/models";
 import type { AgentCredentials } from "@shoggoth/os-exec";
-import type { ShoggothConfig } from "@shoggoth/shared";
+import type { ShoggothConfig, ShoggothModelsConfig } from "@shoggoth/shared";
 import {
   isSubagentSessionUrn,
   resolveEffectiveMemoryForSession,
@@ -94,6 +95,33 @@ function sessionCreds(uid?: number, gid?: number): AgentCredentials {
   const u = uid ?? process.getuid?.() ?? 0;
   const g = gid ?? process.getgid?.() ?? 0;
   return { uid: u, gid: g };
+}
+
+const IMAGE_CODEC_PROVIDER_KINDS = new Set(["openai-compatible", "anthropic-messages", "gemini"]);
+
+/**
+ * Resolve the image block codec for the first provider in the models config.
+ * Returns undefined when the provider kind is not one of the three supported kinds.
+ */
+function resolveImageBlockCodec(
+  modelsConfig: ShoggothModelsConfig | undefined,
+): ImageBlockCodec | undefined {
+  if (!modelsConfig?.providers?.length) return undefined;
+  const chain = modelsConfig.failoverChain;
+  if (chain?.length) {
+    const firstProviderId = chain[0].providerId;
+    const provider = modelsConfig.providers.find((p) => p.id === firstProviderId);
+    if (provider && IMAGE_CODEC_PROVIDER_KINDS.has(provider.kind)) {
+      return getImageBlockCodec(provider.kind as "openai-compatible" | "anthropic-messages" | "gemini");
+    }
+    return undefined;
+  }
+  // No failover chain — use the first provider's kind directly.
+  const first = modelsConfig.providers[0];
+  if (first && IMAGE_CODEC_PROVIDER_KINDS.has(first.kind)) {
+    return getImageBlockCodec(first.kind as "openai-compatible" | "anthropic-messages" | "gemini");
+  }
+  return undefined;
 }
 
 // Module-level registry — handlers are stateless; all per-invocation state
@@ -200,6 +228,8 @@ export async function executeSessionAgentTurn(
   const creds = sessionCreds(input.session.runtimeUid, input.session.runtimeGid);
   const orchestratorEnv = mergeOrchestratorEnv(input.config, input.env);
 
+  const imageBlockCodec = resolveImageBlockCodec(modelsForSession);
+
   const executor = createMcpRoutingToolExecutor({
     aggregated: mcpCtx.aggregated,
     ...(mcpCtx.external ? { external: mcpCtx.external } : {}),
@@ -220,6 +250,7 @@ export async function executeSessionAgentTurn(
           memoryConfig: resolveEffectiveMemoryForSession(input.config, input.sessionId),
           runtimeOpenaiBaseUrl: input.config.runtime?.openaiBaseUrl,
           isSubagentSession: isSubagentSessionUrn(input.sessionId),
+          imageBlockCodec,
         };
         if (builtinRegistry.has(originalName)) {
           return builtinRegistry.execute(originalName, args, toolCtx);

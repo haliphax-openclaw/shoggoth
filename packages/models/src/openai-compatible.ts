@@ -1,6 +1,8 @@
 import { ModelHttpError } from "./errors";
+import { openaiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
+  ChatContentPart,
   ChatMessage,
   ChatToolCall,
   ModelCompleteInput,
@@ -48,6 +50,16 @@ function applyOpenAICompatibleRequestExtensions(
   }
 }
 
+function serializeContentParts(parts: ChatContentPart[]): unknown[] {
+  return parts.map((p) => {
+    if (p.type === "text") {
+      return { type: "text", text: p.text };
+    }
+    // ImageBlock — use OpenAI codec
+    return openaiImageBlockCodec.encode(p);
+  });
+}
+
 function serializeChatMessage(m: ChatMessage): Record<string, unknown> {
   const o: Record<string, unknown> = { role: m.role };
   if (m.name) o.name = m.name;
@@ -60,7 +72,11 @@ function serializeChatMessage(m: ChatMessage): Record<string, unknown> {
     }));
   }
   if (m.content !== undefined && m.content !== null) {
-    o.content = m.content;
+    if (Array.isArray(m.content)) {
+      o.content = serializeContentParts(m.content);
+    } else {
+      o.content = m.content;
+    }
   } else if (m.toolCalls?.length) {
     o.content = null;
   } else {

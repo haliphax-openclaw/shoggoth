@@ -33,6 +33,9 @@ export {
 export type {
   ChatMessage,
   ChatRole,
+  ChatContentPart,
+  ImageBlock,
+  ImageBlockCodec,
   ModelProvider,
   ModelCompleteInput,
   ModelCompleteOutput,
@@ -72,6 +75,12 @@ export {
   mergeSubagentSpawnModelSelection,
   parseModelInvocationFromUnknown,
 } from "./invocation-merge";
+export {
+  getImageBlockCodec,
+  openaiImageBlockCodec,
+  anthropicImageBlockCodec,
+  geminiImageBlockCodec,
+} from "./image-codec";
 
 // Resilience layer
 export type { ResilienceOptions, ProviderResilienceConfig, ErrorClassification, BackoffConfig, ParsedRateLimitHeaders } from "./resilience/index";

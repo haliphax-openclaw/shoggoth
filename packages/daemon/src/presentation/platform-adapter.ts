@@ -6,6 +6,16 @@
  */
 
 // ---------------------------------------------------------------------------
+// Outbound attachment — binary file delivered alongside a message
+// ---------------------------------------------------------------------------
+
+export interface OutboundAttachment {
+  readonly filename: string;
+  readonly contentType: string;
+  readonly data: Buffer;
+}
+
+// ---------------------------------------------------------------------------
 // Stream handle – returned by startStream for incremental message updates
 // ---------------------------------------------------------------------------
 
@@ -50,10 +60,18 @@ export interface PlatformCapabilities {
 
 export interface PlatformAdapter {
   /** Send a normal message body to the session's bound channel. */
-  sendBody(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
+  sendBody(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string; attachments?: OutboundAttachment[] },
+  ): Promise<void>;
 
   /** Send an error message to the session's bound channel. */
-  sendError(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
+  sendError(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string; attachments?: OutboundAttachment[] },
+  ): Promise<void>;
 
   /** Begin a streaming message that can be updated incrementally. */
   startStream?(sessionId: string, opts?: { replyTo?: string }): Promise<StreamHandle>;

@@ -740,3 +740,58 @@ describe("consumeGeminiStream", () => {
     );
   });
 });
+
+
+describe("mapChatMessagesToGeminiPayload with ChatContentPart[]", () => {
+  it("serializes user message with mixed text + image content parts", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What is in this image?" },
+          { type: "image", mediaType: "image/png", base64: "iVBOR" },
+        ],
+      },
+    ];
+    const { contents } = mapChatMessagesToGeminiPayload(messages);
+    const user = contents[0] as { role: string; parts: unknown[] };
+    assert.equal(user.role, "user");
+    assert.equal(user.parts.length, 2);
+    assert.deepStrictEqual(user.parts[0], { text: "What is in this image?" });
+    assert.deepStrictEqual(user.parts[1], {
+      inlineData: { mimeType: "image/png", data: "iVBOR" },
+    });
+  });
+
+  it("serializes user message with multiple images", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Compare these" },
+          { type: "image", mediaType: "image/jpeg", base64: "abc" },
+          { type: "image", mediaType: "image/webp", base64: "def" },
+        ],
+      },
+    ];
+    const { contents } = mapChatMessagesToGeminiPayload(messages);
+    const user = contents[0] as { role: string; parts: unknown[] };
+    assert.equal(user.parts.length, 3);
+    assert.deepStrictEqual(user.parts[1], {
+      inlineData: { mimeType: "image/jpeg", data: "abc" },
+    });
+    assert.deepStrictEqual(user.parts[2], {
+      inlineData: { mimeType: "image/webp", data: "def" },
+    });
+  });
+
+  it("plain string user content still serializes identically", () => {
+    const { contents } = mapChatMessagesToGeminiPayload([
+      { role: "user", content: "hello" },
+    ]);
+    assert.deepStrictEqual(contents[0], {
+      role: "user",
+      parts: [{ text: "hello" }],
+    });
+  });
+});

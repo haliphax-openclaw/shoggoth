@@ -1,6 +1,8 @@
 import { ModelHttpError } from "./errors";
+import { anthropicImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import type {
+  ChatContentPart,
   ChatMessage,
   ChatToolCall,
   ModelCompleteInput,
@@ -177,6 +179,17 @@ function mapOpenAIToolsToAnthropic(
   });
 }
 
+
+function serializeAnthropicContentParts(parts: ChatContentPart[]): unknown[] {
+  return parts.map((p) => {
+    if (p.type === "text") {
+      return { type: "text", text: p.text };
+    }
+    // ImageBlock — use Anthropic codec
+    return anthropicImageBlockCodec.encode(p);
+  });
+}
+
 /**
  * Collapse `ChatMessage` into Anthropic `system` + `messages`.
  * @throws ModelHttpError 502 on invalid tool `arguments` JSON when mapping assistant tool_calls.
@@ -219,16 +232,29 @@ export function mapChatMessagesToAnthropicPayload(
     }
 
     if (m.role === "user") {
-      out.push({ role: "user", content: m.content != null ? String(m.content) : "" });
+      if (Array.isArray(m.content)) {
+        out.push({ role: "user", content: serializeAnthropicContentParts(m.content) });
+      } else {
+        out.push({ role: "user", content: m.content != null ? String(m.content) : "" });
+      }
       i += 1;
       continue;
     }
 
     if (m.role === "assistant") {
       const blocks: unknown[] = [];
-      const hasText = m.content != null && String(m.content).length > 0;
-      if (hasText) {
-        blocks.push({ type: "text", text: String(m.content) });
+      if (Array.isArray(m.content)) {
+        for (const p of m.content) {
+          if (p.type === "text") {
+            blocks.push({ type: "text", text: p.text });
+          }
+          // assistant messages: only text blocks (no images)
+        }
+      } else {
+        const hasText = m.content != null && String(m.content).length > 0;
+        if (hasText) {
+          blocks.push({ type: "text", text: String(m.content) });
+        }
       }
       if (m.toolCalls?.length) {
         for (const tc of m.toolCalls) {

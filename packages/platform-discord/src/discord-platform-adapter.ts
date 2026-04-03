@@ -13,6 +13,7 @@ import type {
   PlatformCapabilities,
   StreamHandle,
   HitlNoticeData,
+  OutboundAttachment,
 } from "@shoggoth/daemon/lib";
 import type { DiscordMessagingRuntime } from "./bridge";
 import type { DiscordRestTransport } from "./transport";
@@ -48,9 +49,21 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
     this.capabilities = buildDiscordCapabilities(config.discord, transport);
   }
 
-  async sendBody(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void> {
+  async sendBody(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string; attachments?: OutboundAttachment[] },
+  ): Promise<void> {
+    const attachmentFiles = opts?.attachments?.map((a) => ({
+      filename: a.filename,
+      contentType: a.contentType,
+      data: a.data,
+    }));
+
     const chunks = splitDiscordMessage(body);
     for (let i = 0; i < chunks.length; i++) {
+      // Attach files only to the first chunk.
+      const chunkFiles = i === 0 ? attachmentFiles : undefined;
       await this.discord.outbound.sendDiscord(
         createOutboundMessage({
           id: randomUUID(),
@@ -60,12 +73,22 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           body: chunks[i],
           extensions: i === 0 && opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
         }),
+        chunkFiles?.length ? { attachments: chunkFiles } : undefined,
       );
     }
   }
 
-  async sendError(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void> {
+  async sendError(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string; attachments?: OutboundAttachment[] },
+  ): Promise<void> {
     try {
+      const attachmentFiles = opts?.attachments?.map((a) => ({
+        filename: a.filename,
+        contentType: a.contentType,
+        data: a.data,
+      }));
       await this.discord.outbound.sendDiscord(
         createOutboundMessage({
           id: randomUUID(),
@@ -75,6 +98,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           body: sliceDiscordPlatformMessageBody(body),
           extensions: opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
         }),
+        attachmentFiles?.length ? { attachments: attachmentFiles } : undefined,
       );
     } catch (sendErr) {
       this.logger.error("discord.adapter.error_reply_failed", { err: String(sendErr) });
