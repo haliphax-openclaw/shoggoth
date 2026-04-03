@@ -1,4 +1,5 @@
 export { loadLayeredConfig } from "./config";
+export { resolveContextLevel, validateContextLevel } from "./context-level";
 export {
   generateSystemContextToken,
   renderSystemContextEnvelope,
@@ -12,6 +13,10 @@ export {
   DEFAULT_HITL_CONFIG,
   DEFAULT_MEMORY_CONFIG,
   DEFAULT_POLICY_CONFIG,
+  CONTEXT_LEVELS,
+  contextLevelSchema,
+  contextLevelToolOverrideSchema,
+  contextLevelToolsConfigSchema,
   defaultConfig,
   hitlRiskTierSchema,
   platformCommonConfigSchema,
@@ -48,6 +53,8 @@ export {
   DEFAULT_SKILLS_CONFIG,
   DEFAULT_TOOL_CALL_TIMEOUT_MS,
   type HitlRiskTier,
+  type ContextLevel,
+  type ContextLevelToolOverride,
   type ShoggothAgentEntry,
   type ShoggothAgentModelsOverride,
   type ShoggothAgentToAgentConfig,

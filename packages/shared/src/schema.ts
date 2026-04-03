@@ -1,6 +1,36 @@
 import { z } from "zod";
 import { LAYOUT } from "./paths";
 
+// ---------------------------------------------------------------------------
+// Context Levels
+// ---------------------------------------------------------------------------
+
+export const CONTEXT_LEVELS = ["none", "minimal", "light", "full"] as const;
+
+export const contextLevelSchema = z.enum(CONTEXT_LEVELS);
+
+export type ContextLevel = z.infer<typeof contextLevelSchema>;
+
+export const contextLevelToolOverrideSchema = z
+  .object({
+    /** Additional tools to allow at this level (added to defaults). */
+    allow: z.array(z.string().min(1)).optional(),
+    /** Additional tools to exclude at this level (added to defaults). */
+    exclude: z.array(z.string().min(1)).optional(),
+  })
+  .strict();
+
+export type ContextLevelToolOverride = z.infer<typeof contextLevelToolOverrideSchema>;
+
+export const contextLevelToolsConfigSchema = z
+  .object({
+    none: contextLevelToolOverrideSchema.optional(),
+    minimal: contextLevelToolOverrideSchema.optional(),
+    light: contextLevelToolOverrideSchema.optional(),
+    full: contextLevelToolOverrideSchema.optional(),
+  })
+  .strict();
+
 const shoggothOpenAiCompatibleProviderSchema = z
   .object({
     id: z.string().min(1),
@@ -625,6 +655,10 @@ export const shoggothAgentEntrySchema = z
     reactions: shoggothReactionsConfigSchema.partial().optional(),
     /** Per-agent tool call timeout override (ms). When set, takes precedence over `runtime.toolCallTimeoutMs` for this agent's sessions. */
     toolCallTimeoutMs: z.number().int().positive().optional(),
+    /** Context level for this agent's own sessions. */
+    contextLevel: contextLevelSchema.optional(),
+    /** Context level for subagents spawned by this agent. */
+    subagentContextLevel: contextLevelSchema.optional(),
   })
   .strict();
 
@@ -634,6 +668,10 @@ export const shoggothAgentsConfigSchema = z
   .object({
     /** Map of logical agent id → per-agent overrides (key must match session URN `agent:<id>:…`). */
     list: z.record(shoggothAgentIdKeySchema, shoggothAgentEntrySchema).optional(),
+    /** Default context level for top-level agent sessions. Default: "full". */
+    contextLevel: contextLevelSchema.optional(),
+    /** Default context level for subagent sessions. Default: "light". */
+    subagentContextLevel: contextLevelSchema.optional(),
   })
   .strict();
 
@@ -753,6 +791,8 @@ export const shoggothConfigFragmentSchema = z
     /** Global session query access control: agent ids any agent may query transcripts for. */
     sessionQuery: shoggothSessionQueryConfigSchema.optional(),
     policy: shoggothPolicyFragmentSchema,
+    /** Override default tool availability per context level. */
+    contextLevelTools: contextLevelToolsConfigSchema.optional(),
     /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
     /** Daemon-writable directory for agent-requested config overrides. */
@@ -797,6 +837,8 @@ export const shoggothConfigSchema = z
     subagentSpawnAllow: shoggothSubagentSpawnAllowSchema.optional(),
     sessionQuery: shoggothSessionQueryConfigSchema.optional(),
     policy: shoggothPolicyConfigSchema,
+    /** Override default tool availability per context level. */
+    contextLevelTools: contextLevelToolsConfigSchema.optional(),
     /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
     /** Daemon-writable directory for agent-requested config overrides. */
