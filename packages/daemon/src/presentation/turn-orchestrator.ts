@@ -124,7 +124,18 @@ export class PresentationTurnOrchestrator {
       const turn = await buildTurn();
 
       const attachments = input.attachments;
-      if (!attachments || attachments.length === 0 || !input.imageBlockCodec) {
+      if (!attachments || attachments.length === 0) {
+        return turn;
+      }
+
+      // When no codec is available, fall back to text metadata for all attachments.
+      if (!input.imageBlockCodec) {
+        if (input.formatAttachmentMetadata) {
+          return {
+            ...turn,
+            userContent: turn.userContent + "\n\n" + input.formatAttachmentMetadata(attachments),
+          };
+        }
         return turn;
       }
 
