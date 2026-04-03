@@ -717,6 +717,29 @@ export const processDeclarationSchema = z
 
 export type ProcessDeclaration = z.infer<typeof processDeclarationSchema>;
 
+// ---------------------------------------------------------------------------
+// SearXNG web search
+// ---------------------------------------------------------------------------
+
+export const shoggothSearxngConfigSchema = z
+  .object({
+    /** Base URL of the SearXNG instance (e.g. "http://searxng:8080") */
+    baseUrl: z.string(),
+    /** Optional API key */
+    apiKey: z.string().optional(),
+    /** Default result count (1-20, default: 5) */
+    defaultCount: z.number().int().min(1).max(20).optional(),
+    /** Default language (ISO 639-1) */
+    defaultLanguage: z.string().optional(),
+    /** Default time range */
+    defaultTimeRange: z.enum(["day", "week", "month", "year"]).optional(),
+    /** Engine allowlist */
+    engines: z.array(z.string()).optional(),
+  })
+  .strict();
+
+export type ShoggothSearxngConfig = z.infer<typeof shoggothSearxngConfigSchema>;
+
 /** Layered JSON fragments must satisfy this shape after merge; defaults fill the rest. */
 export const shoggothConfigFragmentSchema = z
   .object({
@@ -792,6 +815,8 @@ export const shoggothConfigFragmentSchema = z
     processes: z.array(processDeclarationSchema).optional(),
     /** Daemon-writable directory for agent-requested config overrides. */
     dynamicConfigDirectory: z.string().min(1).optional(),
+    /** SearXNG web search integration. */
+    searxng: shoggothSearxngConfigSchema.optional(),
   })
   .strict();
 
@@ -838,6 +863,8 @@ export const shoggothConfigSchema = z
     processes: z.array(processDeclarationSchema).optional(),
     /** Daemon-writable directory for agent-requested config overrides. */
     dynamicConfigDirectory: z.string().min(1).optional(),
+    /** SearXNG web search integration. */
+    searxng: shoggothSearxngConfigSchema.optional(),
   })
   .strict();
 

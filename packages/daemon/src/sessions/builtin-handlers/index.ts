@@ -13,6 +13,7 @@ import { register as registerFs } from "./fs-handlers";
 import { register as registerExec } from "./exec-handler";
 import { register as registerMemory } from "./memory-handlers";
 import { register as registerWorkflow } from "./workflow-handler";
+import { register as registerWebSearch } from "./web-search-handler";
 
 /**
  * Register all builtin tool handlers on the given registry.
@@ -27,4 +28,5 @@ export function registerAllBuiltinHandlers(registry: BuiltinToolRegistry): void 
   registerExec(registry);
   registerMemory(registry);
   registerWorkflow(registry);
+  registerWebSearch(registry);
 }

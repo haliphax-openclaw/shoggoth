@@ -183,6 +183,7 @@ const DEFAULT_EXCLUSIONS_BY_LEVEL: Record<ContextLevel, ReadonlySet<string>> = {
     "builtin-session-list",
     "builtin-session-history",
     "builtin-session-spawn",
+    "builtin-web-search",
   ]),
   light: new Set(),
   full: new Set(),
@@ -261,5 +262,59 @@ export function createContextLevelToolFinalizer(
     const isSubagent = isSubagentSessionUrn(sessionId);
     const level = resolveContextLevel(config, agentId, undefined, isSubagent);
     return applyContextLevelToolFilter(ctx, level, config);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Web-search tool (SearXNG) — conditionally injected via finalizer
+// ---------------------------------------------------------------------------
+
+const WEB_SEARCH_TOOL_DESCRIPTOR: AggregatedTool = {
+  namespacedName: "builtin-web-search",
+  sourceId: "builtin",
+  originalName: "web-search",
+  name: "web-search",
+  description:
+    "Search the web using SearXNG. Returns structured results with title, URL, snippet, and source engine.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "Search query" },
+      count: { type: "number", description: "Number of results (1-20, default: 5)" },
+      categories: {
+        type: "string",
+        description: "Comma-separated categories: general, news, science, it, images",
+      },
+      language: { type: "string", description: "ISO 639-1 language code (default: en)" },
+      timeRange: {
+        type: "string",
+        enum: ["day", "week", "month", "year"],
+        description: "Filter results by time range",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+/**
+ * Creates a context finalizer that appends `builtin-web-search` when SearXNG is configured.
+ */
+export function createWebSearchToolFinalizer(
+  config: ShoggothConfig,
+): (ctx: SessionMcpToolContext, sessionId: string) => SessionMcpToolContext {
+  const enabled = Boolean(config.searxng?.baseUrl);
+  return (ctx, _sessionId) => {
+    if (!enabled) return ctx;
+    // Avoid duplicate if already present
+    if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-web-search")) return ctx;
+    const aggregated: AggregateMcpCatalogResult = {
+      tools: [...ctx.aggregated.tools, WEB_SEARCH_TOOL_DESCRIPTOR],
+    };
+    return {
+      aggregated,
+      toolsOpenAi: openAiToolsFromCatalog(aggregated),
+      toolsLoop: mcpToolsForToolLoop(aggregated),
+      external: ctx.external,
+    };
   };
 }

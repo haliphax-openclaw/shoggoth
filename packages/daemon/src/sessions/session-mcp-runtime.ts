@@ -19,6 +19,7 @@ import {
   buildMixedSessionMcpToolContext,
   buildSessionMcpToolContext,
   createContextLevelToolFinalizer,
+  createWebSearchToolFinalizer,
   type SessionMcpToolContext,
 } from "./session-mcp-tool-context";
 
@@ -75,6 +76,8 @@ export async function createSessionMcpRuntime(
 ): Promise<SessionMcpRuntime> {
   // Register context-level tool filtering finalizer (config-aware).
   registerContextFinalizer(createContextLevelToolFinalizer(opts.config));
+  // Register web-search tool finalizer (adds builtin-web-search when SearXNG is configured).
+  registerContextFinalizer(createWebSearchToolFinalizer(opts.config));
 
   const mcpServers = opts.config.mcp?.servers ?? [];
   const mcpPoolScope = opts.config.mcp?.poolScope ?? "global";
