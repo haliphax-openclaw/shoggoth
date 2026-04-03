@@ -274,7 +274,10 @@ export class Orchestrator {
 
   /** Run a single poll/orchestration cycle. Used directly in tests. */
   async tick(): Promise<void> {
-    if (!this.workflow || !this.opts || this.completed) return;
+    if (!this.workflow || !this.opts || this.completed) {
+      log.debug("tick skipped", { hasWorkflow: !!this.workflow, hasOpts: !!this.opts, completed: this.completed });
+      return;
+    }
 
     // Poll in-progress tasks (always, even when paused)
     await this.pollInProgress();
@@ -329,7 +332,10 @@ export class Orchestrator {
   startPolling(): void {
     if (!this.workflow || !this.opts) return;
     const scheduleNext = () => {
-      if (!this.workflow || !this.opts) return;
+      if (!this.workflow || !this.opts) {
+        log.warn("polling loop stopped: missing workflow or opts", { hasWorkflow: !!this.workflow, hasOpts: !!this.opts });
+        return;
+      }
       this.pollingTimer = setTimeout(async () => {
         try {
           await this.tick();
