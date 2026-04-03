@@ -1,6 +1,6 @@
 # See docs/runbook.md § CI test matrix. `npm run build` = authn native only; `npm run typecheck` is a separate step.
 # - unit: default VM; `npm test` includes SHOGGOTH-READY compose tests when Docker/Compose is available (default stack).
-# - agent-uid-isolation: container root + uids 900/901; SHOGGOTH_CI_STRICT_AGENT_TESTS enforces DAC tests.
+# - agent-uid-isolation: container root + uids 1000/900; SHOGGOTH_CI_STRICT_AGENT_TESTS enforces DAC tests.
 name: CI
 
 on:
@@ -29,12 +29,12 @@ jobs:
       image: node:22-bookworm
     steps:
       - uses: actions/checkout@v6
-      - name: create shoggoth (900) and agent (901) users to match Docker image UIDs
+      - name: create shoggoth (1000) and agent (900) users to match Docker image UIDs
         run: |
-          groupadd --system --gid 900 shoggoth
-          useradd --system --uid 900 --gid shoggoth --no-create-home shoggoth
-          groupadd --system --gid 901 agent
-          useradd --system --uid 901 --gid agent --no-create-home agent
+          groupadd --system --gid 1000 shoggoth || true
+          useradd --system --uid 1000 --gid shoggoth --no-create-home shoggoth || true
+          groupadd --system --gid 900 agent
+          useradd --system --uid 900 --gid agent --no-create-home agent
       - run: npm ci
       - run: npm run typecheck -w @shoggoth/os-exec
       - name: strict DAC + agent UID integration tests
