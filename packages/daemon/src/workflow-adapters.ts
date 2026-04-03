@@ -27,8 +27,8 @@ const log = getLogger("workflow-adapters");
 // ---------------------------------------------------------------------------
 
 export type CompletionEntry =
-  | { ok: true; output: string }
-  | { ok: false; error: string };
+  | { ok: true; output: string; completedAt: number }
+  | { ok: false; error: string; completedAt: number };
 
 export type CompletionMap = Map<string, CompletionEntry>;
 
@@ -104,11 +104,11 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
 
       turnPromise
         .then((result) => {
-          completionMap.set(childId, { ok: true, output: result.latestAssistantText });
+          completionMap.set(childId, { ok: true, output: result.latestAssistantText, completedAt: Date.now() });
           log.debug("task turn completed", { sessionId: childId, taskId: req.taskId, outputLen: result.latestAssistantText?.length ?? 0 });
         })
         .catch((err) => {
-          completionMap.set(childId, { ok: false, error: String(err) });
+          completionMap.set(childId, { ok: false, error: String(err), completedAt: Date.now() });
           log.error("task turn failed", { sessionId: childId, taskId: req.taskId, error: String(err) });
         });
 
@@ -138,9 +138,9 @@ export function createDaemonPollAdapter(deps: DaemonPollAdapterDeps): PollAdapte
       const completion = deps.completionMap.get(sessionKey);
       if (completion) {
         if (completion.ok) {
-          return { status: "done", output: completion.output };
+          return { status: "done", output: completion.output, completedAt: completion.completedAt };
         }
-        return { status: "failed", error: completion.error };
+        return { status: "failed", error: completion.error, completedAt: completion.completedAt };
       }
 
       // Fall back to session status.

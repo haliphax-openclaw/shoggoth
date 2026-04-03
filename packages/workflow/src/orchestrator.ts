@@ -24,6 +24,8 @@ export interface PollResult {
   status: "running" | "done" | "failed";
   output?: string;
   error?: string;
+  /** Actual completion timestamp (epoch ms). When absent, the orchestrator uses Date.now(). */
+  completedAt?: number;
 }
 
 export interface SpawnAdapter {
@@ -403,7 +405,7 @@ export class Orchestrator {
       if (result.status === "done") {
         task.status = "done";
         task.output = result.output;
-        task.completedAt = Date.now();
+        task.completedAt = result.completedAt ?? Date.now();
         log.debug("task completed", { workflowId: wf.id, taskId: task.taskDef.id });
         if (this.killer && task.sessionKey) {
           await this.killer.kill(task.sessionKey).catch(() => {});
@@ -411,7 +413,7 @@ export class Orchestrator {
       } else if (result.status === "failed") {
         task.status = "failed";
         task.error = result.error;
-        task.completedAt = Date.now();
+        task.completedAt = result.completedAt ?? Date.now();
         log.debug("task failed", { workflowId: wf.id, taskId: task.taskDef.id, error: result.error });
         if (this.killer && task.sessionKey) {
           await this.killer.kill(task.sessionKey).catch(() => {});
