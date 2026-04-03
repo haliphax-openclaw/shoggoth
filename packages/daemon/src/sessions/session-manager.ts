@@ -8,7 +8,10 @@ import {
   mintSubagentSessionUrnFromParent,
   parseAgentSessionUrn,
   resolveAgentWorkspacePath,
+  resolveContextLevel,
+  type ContextLevel,
   type ShoggothAgentsConfig,
+  type ShoggothConfig,
 } from "@shoggoth/shared";
 import type Database from "better-sqlite3";
 import { ensureAgentWorkspaceLayout } from "../workspaces/agent-workspace-layout";
@@ -31,6 +34,8 @@ export interface SessionManagerOptions {
   readonly agentId?: string;
   /** Agents config for resolving platform from agent bindings when `spawn` omits `platform`. */
   readonly agentsConfig?: ShoggothAgentsConfig;
+  /** Full config for resolving context level at spawn time. */
+  readonly config?: ShoggothConfig;
   /** Test hook */
   readonly mintToken?: () => string;
 }
@@ -48,6 +53,8 @@ export interface SpawnSessionInput {
   readonly parentSessionId?: string;
   readonly modelSelection?: unknown;
   readonly lightContext?: boolean;
+  /** Override the context level for this session. When omitted, resolved from config. */
+  readonly contextLevel?: ContextLevel;
 }
 
 export class SessionManagerError extends Error {
@@ -73,6 +80,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   const mintToken = options.mintToken ?? mintAgentCredentialRaw;
   const defaultAgentId = options.agentId ?? "main";
   const agentsConfig = options.agentsConfig;
+  const config = options.config;
 
   /** Resolve platform from agent's platform bindings in agentsConfig. */
   function resolveAgentPlatform(agentId: string): string | undefined {
@@ -118,6 +126,10 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
         );
       }
       const agentToken = mintToken();
+      const isSubagent = Boolean(input.parentSessionId);
+      const resolvedContextLevel = config
+        ? resolveContextLevel(config, dirAgentId, input.contextLevel, isSubagent)
+        : input.contextLevel;
       const run = options.db.transaction(() => {
         options.sessions.create({
           id,
@@ -125,6 +137,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
           status: "active",
           modelSelection: input.modelSelection,
           lightContext: input.lightContext,
+          contextLevel: resolvedContextLevel,
         });
         options.agentTokens.register(id, agentToken);
       });
