@@ -214,8 +214,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         emitStats?.({ estimatedInputTokens: estimateTokens(tc.argsJson) });
         assertNotAborted(options.turnAbortSignal);
         if (!names.has(tc.name)) {
-          options.toolRuns.markFailed(options.runId, `unknown_tool:${tc.name}`);
-          throw new Error(`unknown tool: ${tc.name}`);
+          log.warn("unknown tool called", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId });
+          const errBody = JSON.stringify({ error: "unknown_tool", tool: tc.name, message: `Unknown tool: ${tc.name}. It may not be available in this session.` });
+          options.audit.record({ phase: "unknown_tool", tool: tc.name, toolCallId: tc.id });
+          options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
+          if (options.transcript) {
+            appendTx({ role: "tool", content: errBody, toolCallId: tc.id, metadata: { tool: tc.name } });
+          }
+          continue;
         }
 
         // Resolve compound resource (e.g. exec → exec:curl) for policy/HITL checks.
