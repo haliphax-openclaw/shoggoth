@@ -85,10 +85,11 @@ import {
   createHitlDiscordNoticeRegistry,
   type HitlDiscordNoticeRegistry,
   executeDiscordMessageToolAction,
-  registerBuiltInMessagingPlatforms,
+  discordPlatformRegistration,
   createDiscordProbe,
   resolveDiscordOwnerUserId,
 } from "@shoggoth/platform-discord";
+import { registerPlatform as registerMessagingPlatform } from "@shoggoth/messaging";
 import { registerPlatform, stopAllPlatforms } from "./platforms/platform-registry";
 import { reconcilePersistentSubagents } from "./subagent/reconcile-persistent-subagents";
 import {
@@ -129,7 +130,7 @@ import { subagentRuntimeExtensionRef } from "./subagent/subagent-extension-ref";
 loadDaemonPrompts();
 loadDaemonNotices();
 setPresentationNoticeResolver(daemonNotice);
-registerBuiltInMessagingPlatforms();
+registerMessagingPlatform(discordPlatformRegistration);
 registerContextFinalizer(messageToolFinalizer);
 registerContextFinalizer(subagentToolStripFinalizer);
 

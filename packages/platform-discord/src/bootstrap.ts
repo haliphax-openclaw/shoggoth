@@ -35,7 +35,7 @@ export interface StartDaemonDiscordMessagingOptions {
 
 /**
  * Starts Discord messaging (gateway + routes + A2A bus) when enabled in config and credentials exist.
- * URN policies must already be registered ({@link registerBuiltInMessagingPlatforms}).
+ * URN policies must already be registered via {@link registerPlatform}({@link discordPlatformRegistration}).
  */
 export async function startDaemonDiscordMessaging(
   opts: StartDaemonDiscordMessagingOptions,

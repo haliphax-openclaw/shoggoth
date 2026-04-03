@@ -13,7 +13,7 @@ export * from "./transport";
 export * from "./outbound";
 export * from "./streaming";
 export * from "./capabilities";
-export * from "./register";
+export * from "./platform-registration";
 
 // Step 4: Discord-specific daemon code
 export * from "./platform";

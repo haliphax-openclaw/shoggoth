@@ -6,9 +6,12 @@ import {
   startDiscordMessagingIfConfigured,
   type DiscordBridgeLogger,
 } from "../src/bridge";
-import { registerBuiltInMessagingPlatforms } from "../src/register";
+import { registerPlatform, getPlatformRegistration } from "@shoggoth/messaging";
+import { discordPlatformRegistration } from "../src/platform-registration";
 
-registerBuiltInMessagingPlatforms();
+if (!getPlatformRegistration("discord")) {
+  registerPlatform(discordPlatformRegistration);
+}
 
 function stubLogger(): DiscordBridgeLogger {
   return {
