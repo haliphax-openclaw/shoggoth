@@ -29,7 +29,8 @@ RUN HASH=$(cat .git-meta/HEAD); \
 FROM node:22-bookworm-slim
 ARG SHOGGOTH_UID=1000
 ARG AGENT_UID=900
-RUN groupadd --system --gid ${SHOGGOTH_UID} shoggoth \
+RUN userdel node 2>/dev/null; groupdel node 2>/dev/null; \
+  groupadd --system --gid ${SHOGGOTH_UID} shoggoth \
   && useradd --system --uid ${SHOGGOTH_UID} --gid shoggoth --home-dir /var/lib/shoggoth --shell /usr/sbin/nologin shoggoth \
   && groupadd --system --gid ${AGENT_UID} agent \
   && useradd --system --uid ${AGENT_UID} --gid agent --home-dir /var/lib/shoggoth/agent-stub --shell /usr/sbin/nologin agent
