@@ -132,3 +132,4 @@ export {
 } from "./session-urn";
 export { type Logger, type LogLevel, type LogFields, createLogger, initLogger, getLogger, setRootLogger } from "./logging.js";
 export { IMAGE_MIME_TYPES, IMAGE_EXTENSION_TO_MIME, IMAGE_MIME_TO_EXTENSION } from "./image";
+export { isPrivateIp } from "./network";

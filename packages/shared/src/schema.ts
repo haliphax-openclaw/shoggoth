@@ -157,6 +157,8 @@ export const shoggothRetentionConfigSchema = z
     transcriptMessageMaxAgeDays: z.number().int().positive().optional(),
     /** Per session, keep only the newest N rows by `seq`; older rows deleted. */
     transcriptMaxMessagesPerSession: z.number().int().positive().optional(),
+    /** Per workspace, keep only the newest N kv_store entries by updated_at; oldest evicted. */
+    kvMaxEntries: z.number().int().positive().optional(),
   })
   .strict();
 

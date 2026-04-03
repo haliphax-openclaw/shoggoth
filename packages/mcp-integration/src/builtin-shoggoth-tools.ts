@@ -345,6 +345,146 @@ const showToolArgs = {
   required: ["type"],
 } as const;
 
+const lsArgs = {
+  type: "object",
+  description:
+    "List directory contents under the session workspace. Returns entries with path, type, and optional size/mtime. Supports recursive listing, glob filtering, and hidden files.",
+  properties: {
+    path: {
+      type: "string",
+      description: "Directory path (workspace-relative). Default: \".\"",
+    },
+    all: {
+      type: "boolean",
+      description: "Include entries starting with \".\". Default: false.",
+    },
+    recursive: {
+      type: "boolean",
+      description: "Recurse into subdirectories. Default: false.",
+    },
+    maxDepth: {
+      type: "integer",
+      description: "Maximum depth when recursive. Default: 5.",
+      minimum: 1,
+      maximum: 20,
+    },
+    glob: {
+      type: "string",
+      description: "Glob pattern to filter entries. Applied to relative paths.",
+    },
+    stat: {
+      type: "boolean",
+      description: "Include file metadata (size, mtime). Default: false.",
+    },
+    limit: {
+      type: "integer",
+      description: "Maximum entries to return. Default: 1000.",
+      minimum: 1,
+      maximum: 10000,
+    },
+  },
+} as const;
+
+const fetchArgs = {
+  type: "object",
+  description:
+    "Make an HTTP request. Returns status, headers, and body. Private/internal IPs are blocked by default. No redirect following by default. Response body capped at maxResponseBytes (default 1MB).",
+  properties: {
+    url: {
+      type: "string",
+      description: "Target URL. Required.",
+    },
+    method: {
+      type: "string",
+      enum: ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+      description: "HTTP method. Default: GET.",
+    },
+    headers: {
+      type: "object",
+      description: "Request headers as key-value pairs.",
+    },
+    body: {
+      description: "Request body. String or JSON object. When an object and no Content-Type is set, auto-sets application/json.",
+    },
+    binary: {
+      type: "boolean",
+      description: "When true, return response body as base64 instead of text. For binary responses. Default: false.",
+    },
+    maxResponseBytes: {
+      type: "integer",
+      description: "Maximum response body bytes to return. Default: 1048576 (1MB). Truncates with a marker.",
+      minimum: 0,
+    },
+    timeoutMs: {
+      type: "integer",
+      description: "Request timeout in ms. Default: 30000.",
+      minimum: 0,
+    },
+  },
+  required: ["url"],
+} as const;
+
+const kvArgs = {
+  type: "object",
+  description:
+    "Lightweight key-value store scoped to the workspace. Backed by the state DB. Keys max 256 chars, values max 64KB serialized.",
+  properties: {
+    action: {
+      type: "string",
+      enum: ["get", "set", "delete", "list"],
+      description: "Operation to perform.",
+    },
+    key: {
+      type: "string",
+      description: "Key name. Required for get, set, delete. Max 256 chars.",
+    },
+    value: {
+      description: "Value to store. Required for set. Any JSON-serializable value. Max 64KB when serialized.",
+    },
+    prefix: {
+      type: "string",
+      description: "Optional key prefix filter for list.",
+    },
+    limit: {
+      type: "integer",
+      description: "Max entries for list. Default: 100, max: 1000.",
+      minimum: 1,
+      maximum: 1000,
+    },
+  },
+  required: ["action"],
+} as const;
+
+const timerArgs = {
+  type: "object",
+  description:
+    "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 5s, max 30d. Per-session cap: 50 active timers.",
+  properties: {
+    action: {
+      type: "string",
+      enum: ["set", "cancel", "list"],
+      description: "Operation to perform.",
+    },
+    label: {
+      type: "string",
+      description: "Human-readable label. Required for set.",
+    },
+    at: {
+      type: "string",
+      description:
+        "When to fire. Required for set. ISO 8601 datetime or relative duration string (e.g. 2h, 30m, 90s, 1d).",
+    },
+    message: {
+      type: "string",
+      description: "Message content delivered when the timer fires. Default: the label.",
+    },
+    id: {
+      type: "string",
+      description: "Timer ID. Required for cancel.",
+    },
+  },
+  required: ["action"],
+} as const;
 /** Canonical builtin source id. */
 export const BUILTIN_SOURCE_ID = "builtin";
 
@@ -432,6 +572,30 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
         description:
           "Display images or other content blocks to the user. Use this tool when you want to surface visual content (e.g. a generated chart, a screenshot, a fetched image). Provide at least one of path, url, or base64.",
         inputSchema: showToolArgs,
+      },
+      {
+        name: "ls",
+        description:
+          "List directory contents under the session workspace. Returns entries with path, type, and optional size/mtime. Supports recursive listing, glob filtering, and hidden files.",
+        inputSchema: lsArgs,
+      },
+      {
+        name: "fetch",
+        description:
+          "Make an HTTP request. Returns status, headers, and body. Private/internal IPs are blocked by default. No redirect following by default. Response body capped at maxResponseBytes (default 1MB).",
+        inputSchema: fetchArgs,
+      },
+      {
+        name: "kv",
+        description:
+          "Lightweight key-value store scoped to the workspace. Backed by the state DB. Use for structured, machine-readable state (flags, counters, preferences). Keys max 256 chars, values max 64KB serialized.",
+        inputSchema: kvArgs,
+      },
+      {
+        name: "timer",
+        description:
+          "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 5s, max 30d. Per-session cap: 50 active timers.",
+        inputSchema: timerArgs,
       },
       buildWorkflowToolDescriptor() as McpToolDescriptor,
     ],

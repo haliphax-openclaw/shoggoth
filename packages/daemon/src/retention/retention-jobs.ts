@@ -18,7 +18,8 @@ export function retentionConfigHasRules(
     r.inboundMediaMaxAgeDays != null ||
     r.inboundMediaMaxTotalBytes != null ||
     r.transcriptMessageMaxAgeDays != null ||
-    r.transcriptMaxMessagesPerSession != null
+    r.transcriptMaxMessagesPerSession != null ||
+    r.kvMaxEntries != null
   );
 }
 
@@ -193,6 +194,22 @@ function purgeTranscriptBySessionCap(db: Database.Database, keepPerSession: numb
   return Number(info.changes);
 }
 
+function purgeKvByEntryCap(db: Database.Database, maxEntries: number): number {
+  const workspaces = db
+    .prepare("SELECT DISTINCT workspace FROM kv_store")
+    .all() as { workspace: string }[];
+  let total = 0;
+  for (const { workspace } of workspaces) {
+    const info = db.prepare(
+      `DELETE FROM kv_store WHERE workspace = ? AND key NOT IN (
+        SELECT key FROM kv_store WHERE workspace = ? ORDER BY updated_at DESC LIMIT ?
+      )`
+    ).run(workspace, workspace, maxEntries);
+    total += Number(info.changes);
+  }
+  return total;
+}
+
 interface RunRetentionJobsOptions {
   readonly correlationId?: string;
 }
@@ -278,6 +295,24 @@ export async function runRetentionJobs(
       argsRedactedJson: JSON.stringify({
         deletedRows: n,
         transcriptMaxMessagesPerSession: keep,
+      }),
+    });
+  }
+
+  if (rules.kvMaxEntries != null) {
+    const maxEntries = rules.kvMaxEntries;
+    const n = db.transaction(() => purgeKvByEntryCap(db, maxEntries))();
+    appendAuditRow(db, {
+      source: "system",
+      principalKind: "system",
+      principalId: "retention",
+      correlationId,
+      action: "retention.purge_kv_entries",
+      resource: config.stateDbPath,
+      outcome: "ok",
+      argsRedactedJson: JSON.stringify({
+        deletedRows: n,
+        kvMaxEntries: maxEntries,
       }),
     });
   }

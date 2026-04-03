@@ -15,6 +15,9 @@ import { register as registerMemory } from "./memory-handlers";
 import { register as registerWorkflow } from "./workflow-handler";
 import { register as registerWebSearch } from "./web-search-handler";
 import { register as registerShow } from "./show-handler";
+import { register as registerFetch } from "./fetch-handler";
+import { register as registerKv } from "./kv-handler";
+import { register as registerTimer } from "./timer-handler";
 
 /**
  * Register all builtin tool handlers on the given registry.
@@ -31,4 +34,7 @@ export function registerAllBuiltinHandlers(registry: BuiltinToolRegistry): void 
   registerWorkflow(registry);
   registerWebSearch(registry);
   registerShow(registry);
+  registerFetch(registry);
+  registerKv(registry);
+  registerTimer(registry);
 }

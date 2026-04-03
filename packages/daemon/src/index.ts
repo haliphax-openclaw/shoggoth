@@ -126,6 +126,8 @@ import {
   resolveShoggothAgentId,
 } from "./config/effective-runtime";
 import { subagentRuntimeExtensionRef } from "./subagent/subagent-extension-ref";
+import { TimerScheduler } from "./timers/timer-scheduler";
+import { setTimerScheduler } from "./sessions/builtin-handlers/timer-handler";
 
 loadDaemonPrompts();
 loadDaemonNotices();
@@ -411,6 +413,29 @@ void (async () => {
   stateShutdown.db = db;
   stateShutdown.toolRuns = createToolRunStore(db);
 
+  // --- Timer Scheduler: init, restore, register shutdown ---
+  const timerScheduler = new TimerScheduler(async (sessionId, message) => {
+    const ext = subagentRuntimeExtensionRef.current;
+    if (!ext) {
+      getLogger("timer-scheduler").warn("timer delivery skipped: subagent runtime not available", { sessionId });
+      return;
+    }
+    await ext.runSessionModelTurn({
+      sessionId,
+      userContent: message,
+      userMetadata: { timer_fire: true },
+      delivery: { kind: "internal" },
+    });
+  });
+  setTimerScheduler(timerScheduler);
+  try {
+    await timerScheduler.restore(db);
+  } catch (e) {
+    getLogger("daemon").warn("timer restore failed", { err: String(e) });
+  }
+  rt.shutdown.registerDrain("timer-scheduler", () => {
+    timerScheduler.shutdown();
+  });
   // --- Process Manager: init singleton, start boot-time processes, register shutdown ---
   const procman = initProcessManager();
   setProcessManager(procman);
