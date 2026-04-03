@@ -188,6 +188,7 @@ export class Orchestrator {
   private completed = false;
   private paused = false;
   private pollingTimer: ReturnType<typeof setTimeout> | null = null;
+  private statusTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     spawner: SpawnAdapter,
@@ -307,18 +308,8 @@ export class Orchestrator {
     // Persist state
     saveWorkflow(this.opts.stateDir, this.workflow);
 
-    // Update status message
-    if (this.statusManager) {
-      const allTerminal = this.workflow.tasks.every((t) => isTerminal(t.status));
-      const hasInProgress = this.workflow.tasks.some((t: { status: string }) => t.status === "in_progress");
-      // Always update on terminal transition; skip only when paused with no activity
-      if (allTerminal || hasInProgress || !this.paused) {
-        // Fire-and-forget — don't block the tick cycle on Discord API
-        this.statusManager.updateStatus(this.workflow).catch((err) => {
-          log.error("updateStatus failed", { workflowId: this.workflow?.id, error: String(err) });
-        });
-      }
-    }
+    // Status updates run on their own independent timer (see startStatusTimer).
+    // No status update here — keeps the tick cycle decoupled from Discord API latency.
 
     // Dispatch failure notifications AFTER status post is updated
     const wfId = this.workflow.id;
@@ -350,6 +341,18 @@ export class Orchestrator {
       }, this.opts.pollingIntervalMs);
     };
     scheduleNext();
+    this.startStatusTimer();
+  }
+
+  /** Start an independent timer for status post updates, decoupled from the tick cycle. */
+  private startStatusTimer(): void {
+    if (!this.statusManager || !this.workflow || !this.opts) return;
+    this.statusTimer = setInterval(() => {
+      if (!this.workflow || !this.statusManager) return;
+      this.statusManager.updateStatus(this.workflow).catch((err) => {
+        log.error("status timer updateStatus failed", { workflowId: this.workflow?.id, error: String(err) });
+      });
+    }, this.opts.pollingIntervalMs);
   }
 
   /** Stop the automatic polling loop. */
@@ -357,6 +360,10 @@ export class Orchestrator {
     if (this.pollingTimer) {
       clearTimeout(this.pollingTimer);
       this.pollingTimer = null;
+    }
+    if (this.statusTimer) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
     }
   }
 
