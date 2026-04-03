@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { ContextLevel } from "@shoggoth/shared";
 import { emitEvent, EVENT_SCOPE_GLOBAL, sessionEventScope } from "./events-queue";
 
 /** Parses `every:Ns` (e.g. `every:60s`) into seconds; returns null if unsupported. */
@@ -16,6 +17,8 @@ export interface UpsertCronJobInput {
   readonly payload?: unknown;
   readonly enabled?: boolean;
   readonly sessionId?: string | null;
+  /** Context level override for sessions spawned by this cron job. */
+  readonly contextLevel?: ContextLevel;
 }
 
 export function upsertCronJob(db: Database.Database, input: UpsertCronJobInput): void {
@@ -25,10 +28,10 @@ export function upsertCronJob(db: Database.Database, input: UpsertCronJobInput):
   db.prepare(
     `
     INSERT INTO cron_jobs (
-      id, schedule_expr, payload_json, enabled, session_id,
+      id, schedule_expr, payload_json, enabled, session_id, context_level,
       next_run_at, created_at, updated_at
     ) VALUES (
-      @id, @schedule_expr, @payload_json, @enabled, @session_id,
+      @id, @schedule_expr, @payload_json, @enabled, @session_id, @context_level,
       datetime('now'), datetime('now'), datetime('now')
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -36,6 +39,7 @@ export function upsertCronJob(db: Database.Database, input: UpsertCronJobInput):
       payload_json = excluded.payload_json,
       enabled = excluded.enabled,
       session_id = excluded.session_id,
+      context_level = excluded.context_level,
       next_run_at = datetime('now'),
       updated_at = datetime('now')
   `,
@@ -45,6 +49,7 @@ export function upsertCronJob(db: Database.Database, input: UpsertCronJobInput):
     payload_json: payloadJson,
     enabled,
     session_id: input.sessionId ?? null,
+    context_level: input.contextLevel ?? null,
   });
 }
 
@@ -54,6 +59,7 @@ export interface CronJobRow {
   readonly payload_json: string | null;
   readonly enabled: number;
   readonly session_id: string | null;
+  readonly context_level: string | null;
   readonly next_run_at: string | null;
 }
 
@@ -65,7 +71,7 @@ export function runCronTick(db: Database.Database): number {
   const jobs = db
     .prepare(
       `
-    SELECT id, schedule_expr, payload_json, enabled, session_id, next_run_at
+    SELECT id, schedule_expr, payload_json, enabled, session_id, context_level, next_run_at
     FROM cron_jobs
     WHERE enabled = 1
       AND (next_run_at IS NULL OR next_run_at <= datetime('now'))
@@ -98,7 +104,7 @@ export function runCronTick(db: Database.Database): number {
       }
     }
 
-    const envelope = { cronJobId: job.id, payload: userPayload };
+    const envelope = { cronJobId: job.id, payload: userPayload, ...(job.context_level ? { contextLevel: job.context_level } : {}) };
     const scope = job.session_id ? sessionEventScope(job.session_id) : EVENT_SCOPE_GLOBAL;
     emitEvent(db, {
       scope,

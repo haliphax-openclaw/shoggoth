@@ -14,6 +14,7 @@ import type {
   MessageAdapter,
   NotifyAdapter,
 } from "@shoggoth/workflow";
+import type { ContextLevel } from "@shoggoth/shared";
 import type { SessionManager } from "./sessions/session-manager.js";
 import type { SessionStore, SessionRow } from "./sessions/session-store.js";
 import { pushSystemContext } from "./sessions/system-context-buffer";
@@ -55,6 +56,8 @@ export interface DaemonSpawnAdapterDeps {
   readonly requestTurnAbort?: (sessionId: string) => boolean;
   /** Optional map to track completion of spawned turns. Created internally if not provided. */
   readonly completionMap?: CompletionMap;
+  /** Context level for spawned workflow task sessions. Defaults to "minimal". */
+  readonly contextLevel?: ContextLevel;
 }
 
 export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAdapter & { completionMap: CompletionMap; abortTask: (sessionKey: string) => void } {
@@ -70,6 +73,7 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
 
       const { sessionId: childId } = deps.sessionManager.spawn({
         parentSessionId,
+        contextLevel: deps.contextLevel ?? "minimal",
       });
 
       deps.sessions.update(childId, {

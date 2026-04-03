@@ -122,6 +122,7 @@ export {
   createDefaultHeartbeatHandlers,
   type HeartbeatHandler,
   type HeartbeatBatchOptions,
+  type DefaultHeartbeatHandlerOptions,
 } from "./events/heartbeat-consumer";
 export { listDeadLetterEvents, type DeadLetterEventRow } from "./events/dlq";
 export {

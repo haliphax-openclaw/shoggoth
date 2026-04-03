@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { ContextLevel } from "@shoggoth/shared";
 import { getLogger } from "../logging";
 import {
   claimPendingEvents,
@@ -76,7 +77,13 @@ export async function runHeartbeatBatch(
   return batch.length;
 }
 
-export function createDefaultHeartbeatHandlers(): Record<string, HeartbeatHandler> {
+export interface DefaultHeartbeatHandlerOptions {
+  /** Context level for heartbeat-spawned sessions. Defaults to "light". */
+  readonly heartbeatContextLevel?: ContextLevel;
+}
+
+export function createDefaultHeartbeatHandlers(options?: DefaultHeartbeatHandlerOptions): Record<string, HeartbeatHandler> {
+  const heartbeatContextLevel = options?.heartbeatContextLevel ?? "light";
   return {
     "cron.fire": (row) => {
       log.debug("cron.fire consumed", {
@@ -85,12 +92,16 @@ export function createDefaultHeartbeatHandlers(): Record<string, HeartbeatHandle
         idempotencyKey: row.idempotencyKey,
       });
       const m = /^session:(.+)$/.exec(row.scope ?? "");
-      if (m?.[1]) pushSystemContext(m[1], "Scheduled cron job invocation.");
+      if (m?.[1]) {
+        const payload = row.payload as { contextLevel?: string } | undefined;
+        const contextLevel = payload?.contextLevel ?? undefined;
+        pushSystemContext(m[1], `Scheduled cron job invocation.${contextLevel ? ` [contextLevel=${contextLevel}]` : ""}`);
+      }
     },
     "heartbeat.check": (row) => {
       log.debug("heartbeat.check consumed", { eventId: row.id, scope: row.scope });
       const m = /^session:(.+)$/.exec(row.scope ?? "");
-      if (m?.[1]) pushSystemContext(m[1], "Scheduled heartbeat check.");
+      if (m?.[1]) pushSystemContext(m[1], `Scheduled heartbeat check. [contextLevel=${heartbeatContextLevel}]`);
     },
   };
 }
