@@ -370,8 +370,10 @@ export class Orchestrator {
     for (const task of newlyFailed) {
       task.failureHandled = true;
 
-      // Send failure notification
-      await this.routeFailureNotification(task);
+      // Send failure notification (fire-and-forget — don't block the tick cycle)
+      this.routeFailureNotification(task).catch((err) => {
+        log.error("failure notification failed", { workflowId: wf.id, taskId: task.taskDef.id, error: String(err) });
+      });
 
       // Apply failure behavior
       const behavior = task.taskDef.failureBehavior;
