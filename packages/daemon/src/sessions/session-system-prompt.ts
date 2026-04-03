@@ -11,6 +11,7 @@ import {
   OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME,
   resolveEffectiveMemoryForSession,
   resolveEffectiveModelsConfig,
+  type ContextLevel,
   type ShoggothConfig,
 } from "@shoggoth/shared";
 import type Database from "better-sqlite3";
@@ -44,10 +45,25 @@ export const WORKSPACE_TEMPLATE_FILES = [
   "MEMORY.md",
 ] as const;
 
+/**
+ * Template files allowed at each context level.
+ * - `none` / `minimal`: no workspace template files
+ * - `light`: operational files only (AGENTS.md, TOOLS.md, HEARTBEAT.md)
+ * - `full`: all workspace template files
+ */
+export const TEMPLATE_FILES_BY_LEVEL: Record<ContextLevel, Set<string>> = {
+  none: new Set(),
+  minimal: new Set(),
+  light: new Set(["AGENTS.md", "TOOLS.md", "HEARTBEAT.md"]),
+  full: new Set(WORKSPACE_TEMPLATE_FILES),
+};
+
 export interface BuildSessionSystemContextInput {
   readonly workspacePath: string | undefined;
   readonly config?: ShoggothConfig;
   readonly env?: NodeJS.ProcessEnv;
+  /** Context level controlling which system prompt sections are assembled. Defaults to `"full"`. */
+  readonly contextLevel?: ContextLevel;
   /** Session id for the runtime line (e.g. platform-bound session). */
   readonly sessionId?: string;
   /** Internal context segment UUID (`sessions.context_segment_id`; `new` / `reset` commands). */
@@ -403,23 +419,40 @@ function joinSections(sections: (string | undefined)[]): string {
  * notes, runtime metadata, and optional `SHOGGOTH_SESSION_SYSTEM_PROMPT`.
  */
 export function buildSessionSystemContext(input: BuildSessionSystemContextInput): string {
+  const level: ContextLevel = input.contextLevel ?? "full";
+
+  // `none` — raw model, no Shoggoth framing at all.
+  if (level === "none") return "";
+
   const env = input.env ?? process.env;
   const root = input.workspacePath?.trim();
   const resolvedRoot = tryResolveWorkspaceRoot(root);
 
+  const atLeast = (min: ContextLevel): boolean => {
+    const order: ContextLevel[] = ["none", "minimal", "light", "full"];
+    return order.indexOf(level) >= order.indexOf(min);
+  };
+
+  // --- Operator global instructions (light+) ---
+  let operatorGlobal: string | undefined;
   let totalPayloadBytes = 0;
-  const remainingForGlobal = DEFAULT_MAX_TOTAL_TEMPLATE_BYTES - totalPayloadBytes;
-  const globalCap = Math.min(DEFAULT_MAX_BYTES_PER_FILE, remainingForGlobal);
-  const operatorGlobal = safeReadOperatorGlobalInstructions(input, env, globalCap);
-  if (operatorGlobal) {
-    totalPayloadBytes += Buffer.byteLength(operatorGlobal, "utf8");
+  if (atLeast("light")) {
+    const remainingForGlobal = DEFAULT_MAX_TOTAL_TEMPLATE_BYTES - totalPayloadBytes;
+    const globalCap = Math.min(DEFAULT_MAX_BYTES_PER_FILE, remainingForGlobal);
+    operatorGlobal = safeReadOperatorGlobalInstructions(input, env, globalCap);
+    if (operatorGlobal) {
+      totalPayloadBytes += Buffer.byteLength(operatorGlobal, "utf8");
+    }
   }
 
+  // --- Workspace template files (filtered by level) ---
+  const allowedFiles = TEMPLATE_FILES_BY_LEVEL[level];
   const fileBlocks: string[] = [];
   let soulPresent = false;
 
-  if (root) {
+  if (root && allowedFiles.size > 0) {
     for (const name of WORKSPACE_TEMPLATE_FILES) {
+      if (!allowedFiles.has(name)) continue;
       if (totalPayloadBytes >= DEFAULT_MAX_TOTAL_TEMPLATE_BYTES) break;
       const remaining = DEFAULT_MAX_TOTAL_TEMPLATE_BYTES - totalPayloadBytes;
       const perFileCap = Math.min(DEFAULT_MAX_BYTES_PER_FILE, remaining);
@@ -436,25 +469,40 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
   const toolNames = input.toolNames;
   const toolCount = toolNames?.length ?? 0;
 
-  const workspaceBody =
-    buildWorkspaceSection(resolvedRoot, input.sandbox) +
-    (buildMemoryConfigHint(input.config, input.sessionId) ?? "");
+  // --- Workspace root + memory hint (workspace root: light+, memory hint: full only) ---
+  const workspaceBody = atLeast("light")
+    ? buildWorkspaceSection(resolvedRoot, input.sandbox) +
+      (level === "full" ? (buildMemoryConfigHint(input.config, input.sessionId) ?? "") : "")
+    : undefined;
 
   // Build core sections without stats first so we can estimate prompt length for token calculation.
   const coreSansStats = joinSections([
+    // Identity: minimal+
     buildIdentitySection(input.channel),
-    buildShoggothCliAndDocsSection(),
+    // CLI & docs: light+
+    atLeast("light") ? buildShoggothCliAndDocsSection() : undefined,
+    // Tooling: minimal+
     buildToolingSection(toolNames),
+    // Safety: minimal+
     buildSafetySection(),
+    // Trusted context: minimal+
     buildTrustedSystemContextGuidance(input.systemContextToken),
+    // Workspace root: light+
     workspaceBody,
-    buildProjectContextSection(operatorGlobal, fileBlocks, soulPresent),
-    buildHeartbeatsSection(),
-    buildSilentRepliesSection({
-      messagingCapabilities: input.messagingCapabilities,
-      channel: input.channel,
-    }),
-    buildReactionGuidanceSection(),
+    // Project context (operator global + template files): light+
+    atLeast("light") ? buildProjectContextSection(operatorGlobal, fileBlocks, soulPresent) : undefined,
+    // Heartbeats: light+
+    atLeast("light") ? buildHeartbeatsSection() : undefined,
+    // Silent replies: light+
+    atLeast("light")
+      ? buildSilentRepliesSection({
+          messagingCapabilities: input.messagingCapabilities,
+          channel: input.channel,
+        })
+      : undefined,
+    // Reaction guidance: light+
+    atLeast("light") ? buildReactionGuidanceSection() : undefined,
+    // Runtime: minimal+
     buildRuntimeSection({
       sessionId: input.sessionId,
       contextSegmentId: input.contextSegmentId,
@@ -470,14 +518,19 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
     }),
   ]);
 
-  const statsSection = buildSessionStatsSection(
-    input.stateDb,
-    input.sessionId,
-    input.transcriptMessages,
-    coreSansStats.length,
-  );
+  // Stats: full only
+  const statsSection =
+    level === "full"
+      ? buildSessionStatsSection(
+          input.stateDb,
+          input.sessionId,
+          input.transcriptMessages,
+          coreSansStats.length,
+        )
+      : undefined;
 
   const core = statsSection ? `${coreSansStats}\n\n${statsSection}` : coreSansStats;
 
-  return appendEnvSystemPrompt(core, env);
+  // Env appendix: light+
+  return atLeast("light") ? appendEnvSystemPrompt(core, env) : core;
 }
