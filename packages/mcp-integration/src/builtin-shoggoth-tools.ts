@@ -345,6 +345,36 @@ const showToolArgs = {
   required: ["type"],
 } as const;
 
+const fsArgs = {
+  type: "object",
+  description:
+    "File operations: move, copy, rename, delete, stat, chmod. All paths are workspace-relative. Sandboxed to the workspace root.",
+  properties: {
+    action: {
+      type: "string",
+      enum: ["move", "copy", "delete", "stat", "chmod", "rename"],
+      description: "Operation to perform.",
+    },
+    path: {
+      type: "string",
+      description: "Source path (workspace-relative). Required for all actions.",
+    },
+    dest: {
+      type: "string",
+      description: "Destination path (workspace-relative). Required for move, copy, rename.",
+    },
+    mode: {
+      type: "string",
+      description: "File mode string (e.g. \"755\", \"644\"). Required for chmod.",
+    },
+    recursive: {
+      type: "boolean",
+      description: "When true, delete directories recursively. Default: false.",
+    },
+  },
+  required: ["action", "path"],
+} as const;
+
 const lsArgs = {
   type: "object",
   description:
@@ -572,6 +602,12 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
         description:
           "Display images or other content blocks to the user. Use this tool when you want to surface visual content (e.g. a generated chart, a screenshot, a fetched image). Provide at least one of path, url, or base64.",
         inputSchema: showToolArgs,
+      },
+      {
+        name: "fs",
+        description:
+          "File operations: move, copy, rename, delete, stat, chmod. All paths are workspace-relative. Sandboxed to the workspace root.",
+        inputSchema: fsArgs,
       },
       {
         name: "ls",
