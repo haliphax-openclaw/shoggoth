@@ -1,7 +1,7 @@
 ---
 date: 2026-04-02
-status: planned
-completed: never
+status: complete
+completed: 2026-04-03
 ---
 
 # Platform Abstraction & URN Restructure
