@@ -313,7 +313,10 @@ export class Orchestrator {
       const hasInProgress = this.workflow.tasks.some((t: { status: string }) => t.status === "in_progress");
       // Always update on terminal transition; skip only when paused with no activity
       if (allTerminal || hasInProgress || !this.paused) {
-        await this.statusManager.updateStatus(this.workflow);
+        // Fire-and-forget — don't block the tick cycle on Discord API
+        this.statusManager.updateStatus(this.workflow).catch((err) => {
+          log.error("updateStatus failed", { workflowId: this.workflow?.id, error: String(err) });
+        });
       }
     }
 
