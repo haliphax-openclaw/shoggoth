@@ -2,14 +2,11 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import {
-  MESSAGING_FEATURE,
-  messagingCapabilitiesHasFeature,
   type MessagingAdapterCapabilities,
 } from "@shoggoth/messaging";
 import {
   LAYOUT,
   OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME,
-  resolveEffectiveMemoryForSession,
   resolveEffectiveModelsConfig,
   type ContextLevel,
   type ShoggothConfig,
@@ -220,27 +217,12 @@ function formatPrimaryModelLabel(
   return `${model} (openai-compatible / env)`;
 }
 
-function buildIdentitySection(channel: string | undefined): string {
-  const channelSurface = channel ? ` over **${channel}**` : "";
-  return daemonPrompt("system-identity", { channelSurface });
-}
 
 function buildShoggothCliAndDocsSection(): string {
   return daemonPrompt("system-cli-docs", { referenceDocsDir: SHOGGOTH_REFERENCE_DOCS_DIR });
 }
 
-function buildToolingSection(toolNames: readonly string[] | undefined): string {
-  const names = toolNames?.length ? [...toolNames].sort() : [];
-  const toolListBlock =
-    names.length === 0
-      ? "*(No tool list was attached for this turn.)*"
-      : ["Tools available this turn:", ...names.map((n) => `- \`${n}\``)].join("\n");
-  return daemonPrompt("system-tooling", { toolListBlock });
-}
 
-function buildSafetySection(): string {
-  return daemonPrompt("system-safety");
-}
 
 function buildTrustedSystemContextGuidance(token?: string): string {
   let guidance = daemonPrompt("system-trusted-context");
@@ -266,18 +248,6 @@ function buildWorkspaceSection(
   return daemonPrompt("system-workspace-none", { sandboxLine });
 }
 
-function buildMemoryConfigHint(
-  config: ShoggothConfig | undefined,
-  sessionId: string | undefined,
-): string | undefined {
-  const paths =
-    config && sessionId
-      ? resolveEffectiveMemoryForSession(config, sessionId).paths
-      : config?.memory?.paths;
-  if (!paths?.length) return undefined;
-  const memoryPathLines = paths.map((p) => `- \`${p}\``).join("\n");
-  return `\n${daemonPrompt("system-memory-hint", { memoryPathLines })}`;
-}
 
 function buildProjectContextSection(
   operatorGlobal: string | undefined,
@@ -302,14 +272,6 @@ function buildHeartbeatsSection(): string {
   return daemonPrompt("system-heartbeats");
 }
 
-function buildSilentRepliesSection(input: {
-  readonly messagingCapabilities: MessagingAdapterCapabilities | undefined;
-  readonly channel: string | undefined;
-}): string {
-  if (messagingCapabilitiesHasFeature(input.messagingCapabilities, MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE)) {
-    return daemonPrompt("system-silent-replies-platform");
-  }
-  return daemonPrompt("system-silent-replies-default");
 }
 
 function buildReactionGuidanceSection(): string {
@@ -475,22 +437,15 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
   const toolNames = input.toolNames;
   const toolCount = toolNames?.length ?? 0;
 
-  // --- Workspace root + memory hint (workspace root: light+, memory hint: full only) ---
+  // --- Workspace root (light+) ---
   const workspaceBody = atLeast("light")
-    ? buildWorkspaceSection(resolvedRoot, input.sandbox) +
-      (level === "full" ? (buildMemoryConfigHint(input.config, input.sessionId) ?? "") : "")
+    ? buildWorkspaceSection(resolvedRoot, input.sandbox)
     : undefined;
 
   // Build core sections without stats first so we can estimate prompt length for token calculation.
   const coreSansStats = joinSections([
-    // Identity: minimal+
-    buildIdentitySection(input.channel),
     // CLI & docs: light+
     atLeast("light") ? buildShoggothCliAndDocsSection() : undefined,
-    // Tooling: minimal+
-    buildToolingSection(toolNames),
-    // Safety: minimal+
-    buildSafetySection(),
     // Trusted context: minimal+
     buildTrustedSystemContextGuidance(input.systemContextToken),
     // Workspace root: light+
@@ -499,13 +454,6 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
     atLeast("light") ? buildProjectContextSection(operatorGlobal, fileBlocks) : undefined,
     // Heartbeats: light+
     atLeast("light") ? buildHeartbeatsSection() : undefined,
-    // Silent replies: light+
-    atLeast("light")
-      ? buildSilentRepliesSection({
-          messagingCapabilities: input.messagingCapabilities,
-          channel: input.channel,
-        })
-      : undefined,
     // Reaction guidance: light+
     atLeast("light") ? buildReactionGuidanceSection() : undefined,
     // Runtime: minimal+

@@ -5,22 +5,15 @@ import { fileURLToPath } from "node:url";
 const PROMPTS_DIR = dirname(fileURLToPath(import.meta.url));
 
 export const REQUIRED_PROMPT_KEYS: readonly string[] = [
-  "mcp-no-client-stub",
   "session-segment-startup-new",
   "session-segment-startup-reset",
   "system-cli-docs",
   "system-env-session-appendix",
   "system-heartbeats",
-  "system-identity",
-  "system-memory-hint",
   "system-project-context-title",
   "system-project-operator-block",
   "system-project-workspace-intro",
   "system-runtime",
-  "system-safety",
-  "system-silent-replies-default",
-  "system-silent-replies-platform",
-  "system-tooling",
   "system-trusted-context",
   "system-workspace-files-heading",
   "system-workspace-none",
