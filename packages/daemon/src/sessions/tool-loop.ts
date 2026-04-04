@@ -221,6 +221,21 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         // Estimate argsJson tokens (becomes part of next model input context)
         emitStats?.({ estimatedInputTokens: estimateTokens(tc.argsJson) });
         assertNotAborted(options.turnAbortSignal);
+        // Validate tool name before anything else — malformed model output
+        // (e.g. thinking content leaking into tool call XML) produces garbage
+        // names that would poison the transcript if stored.
+        const VALID_TOOL_NAME = /^[a-zA-Z0-9_\-:.]{1,128}$/;
+        if (!VALID_TOOL_NAME.test(tc.name)) {
+          log.warn("invalid tool name", { toolName: tc.name.slice(0, 80), toolCallId: tc.id, sessionId: options.sessionId });
+          const errBody = JSON.stringify({ error: "invalid_tool_name", message: "Tool name contains invalid characters or exceeds 128 chars." });
+          options.audit.record({ phase: "invalid_tool_name", toolCallId: tc.id });
+          options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
+          if (options.transcript) {
+            appendTx({ role: "tool", content: errBody, toolCallId: tc.id, metadata: { tool: "_invalid_" } });
+          }
+          continue;
+        }
+
         if (!names.has(tc.name)) {
           log.warn("unknown tool called", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId });
           const errBody = JSON.stringify({ error: "unknown_tool", tool: tc.name, message: `Unknown tool: ${tc.name}. It may not be available in this session.` });
