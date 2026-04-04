@@ -21,6 +21,7 @@ export interface ImageBlock {
 /** A single content part in a structured message. */
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string }
+  | { readonly type: "thinking"; readonly text: string }
   | ImageBlock;
 
 /** Codec for translating between canonical ImageBlock and provider wire format. */

@@ -82,6 +82,10 @@ export {
   anthropicImageBlockCodec,
   geminiImageBlockCodec,
 } from "./image-codec";
+export {
+  extractXmlThinkingBlocks,
+  normalizeThinkingBlocks,
+} from "./thinking-normalize";
 
 // Resilience layer
 export type { ResilienceOptions, ProviderResilienceConfig, ErrorClassification, BackoffConfig, ParsedRateLimitHeaders } from "./resilience/index";
