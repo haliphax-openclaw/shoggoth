@@ -19,6 +19,18 @@ export function parseTranscriptContent(raw: string): string | ChatContentPart[] 
   return raw;
 }
 
+/**
+ * Strip thinking blocks from content parts.
+ * Returns the original content if it's a string, or filters out thinking parts if it's an array.
+ */
+function stripThinkingBlocks(content: string | ChatContentPart[]): string | ChatContentPart[] {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return content;
+  
+  const filtered = content.filter((part) => part.type !== "thinking");
+  return filtered.length > 0 ? filtered : content;
+}
+
 /** Maps durable transcript rows to OpenAI-style chat messages for the model client. */
 export function transcriptRowsToModelChatMessages(
   messages: readonly TranscriptMessageRow[],
@@ -28,6 +40,7 @@ export function transcriptRowsToModelChatMessages(
   for (const m of messages) {
     if (m.role === "user") {
       let content = m.content ? parseTranscriptContent(m.content) : "";
+      content = stripThinkingBlocks(content);
       if (m.createdAt && seenUser) {
         const ts = `[${m.createdAt}Z]`;
         if (typeof content === "string") {
@@ -47,20 +60,23 @@ export function transcriptRowsToModelChatMessages(
           name: tc.name,
           arguments: tc.argsJson,
         }));
-        const content = m.content ? parseTranscriptContent(m.content) : m.content;
+        let content = m.content ? parseTranscriptContent(m.content) : m.content;
+        content = stripThinkingBlocks(content);
         out.push({
           role: "assistant",
           content,
           toolCalls,
         });
       } else {
-        const content = m.content ? parseTranscriptContent(m.content) : "";
+        let content = m.content ? parseTranscriptContent(m.content) : "";
+        content = stripThinkingBlocks(content);
         out.push({ role: "assistant", content });
       }
       continue;
     }
     if (m.role === "tool" && m.toolCallId) {
-      const content = m.content ? parseTranscriptContent(m.content) : "";
+      let content = m.content ? parseTranscriptContent(m.content) : "";
+      content = stripThinkingBlocks(content);
       out.push({
         role: "tool",
         toolCallId: m.toolCallId,
