@@ -5,6 +5,7 @@
 import { lookup } from "node:dns/promises";
 import { isPrivateIp } from "@shoggoth/shared";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import { truncateToolOutput } from "./truncate-output";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576; // 1 MB
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -277,7 +278,7 @@ async function fetchHandler(
         status: res.status,
         statusText: res.statusText,
         headers: responseHeaders,
-        body,
+        body: truncateToolOutput(body),
         truncated,
         bodyBytes,
       }),

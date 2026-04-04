@@ -88,6 +88,74 @@ describe("executeSessionAgentTurn (no Discord)", { concurrency: false }, () => {
     assert.equal(result.failoverMeta?.degraded, false);
   });
 
+  it("proceeds normally when inline compaction fails (e.g. no real model)", async () => {
+    const config = defaultConfig(tmp);
+    // Configure a model with a tiny context window so the threshold is exceeded.
+    config.models = {
+      providers: [
+        {
+          id: "tiny",
+          kind: "openai-compatible" as const,
+          baseUrl: "http://localhost:1/v1",
+          apiKey: "fake",
+        },
+      ],
+      failoverChain: [{ providerId: "tiny", model: "m", contextWindowTokens: 100 }],
+      compaction: {
+        maxContextChars: 80_000,
+        preserveRecentMessages: 2,
+        contextWindowThresholdPercent: 1, // 1% of 100 tokens = triggers immediately
+      },
+    };
+
+    const sessions = createSessionStore(db);
+    const session = sessions.getById("sess-core");
+    assert.ok(session);
+    const transcript = createTranscriptStore(db);
+    const toolRuns = createToolRunStore(db);
+    const hitlStack = createHitlPendingResolutionStack(db);
+    const builtin = buildBuiltinOnlySessionMcpToolContext();
+
+    const result = await executeSessionAgentTurn({
+      db,
+      sessionId: "sess-core",
+      session: session!,
+      transcript,
+      toolRuns,
+      userContent: "trigger compaction test",
+      userMetadata: undefined,
+      systemPrompt: "You are a test assistant.",
+      env: process.env,
+      config,
+      policyEngine: createPolicyEngine(config.policy),
+      getHitlConfig: () => ({ ...DEFAULT_HITL_CONFIG, ...config.hitl }),
+      hitl: {
+        bypassUpTo: "safe",
+        pending: hitlStack.pending,
+        clock: { nowMs: () => Date.now() },
+        newPendingId: () => randomUUID(),
+        waitForHitlResolution: hitlStack.waitForHitlResolution,
+      },
+      loopImpl: runToolLoop,
+      createToolCallingClient: () => ({
+        async completeWithTools() {
+          return {
+            content: "COMPACTION_FALLTHROUGH",
+            toolCalls: [],
+            usedModel: "m",
+            usedProviderId: "tiny",
+            degraded: false,
+          };
+        },
+      }),
+      resolveMcpContext: async () => builtin,
+    });
+
+    // Compaction should have failed (no real model endpoint) but the turn
+    // should still complete successfully.
+    assert.equal(result.latestAssistantText, "COMPACTION_FALLTHROUGH");
+  });
+
   it("wires imageBlockCodec into BuiltinToolContext when provider is configured", async () => {
     const config = defaultConfig(tmp);
     // Configure an openai-compatible provider so the codec resolves.

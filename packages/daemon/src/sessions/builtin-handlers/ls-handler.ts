@@ -153,7 +153,7 @@ async function lsHandler(
   const maxDepth = typeof args.maxDepth === "number" ? Math.max(1, Math.min(args.maxDepth, 20)) : 5;
   const glob = typeof args.glob === "string" ? args.glob : "";
   const stat = args.stat === true;
-  const limit = typeof args.limit === "number" ? Math.max(1, Math.min(args.limit, 10_000)) : 1000;
+  const limit = typeof args.limit === "number" ? Math.max(1, Math.min(args.limit, 500)) : 500;
 
   // Resolve and sandbox-check the target directory
   const { rootReal, abs } = resolveAndGuard(ctx.workspacePath, userPath);

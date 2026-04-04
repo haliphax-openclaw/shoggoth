@@ -7,8 +7,9 @@ import { toolRead, toolReadBinary, toolWrite } from "@shoggoth/os-exec";
 import { IMAGE_EXTENSION_TO_MIME } from "@shoggoth/shared";
 import type { ChatContentPart } from "@shoggoth/models";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import { truncateToolOutput } from "./truncate-output";
 
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("read", readHandler);
@@ -51,7 +52,7 @@ async function readHandler(
   }
 
   const body = await toolRead(ctx.workspacePath, path, ctx.creds);
-  return { resultJson: JSON.stringify({ path, content: body }) };
+  return { resultJson: JSON.stringify({ path, content: truncateToolOutput(body) }) };
 }
 
 async function writeHandler(

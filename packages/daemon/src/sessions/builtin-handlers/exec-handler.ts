@@ -4,6 +4,7 @@
 
 import { toolExec, toolExecExtended, toolPoll } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import { truncateToolOutput } from "./truncate-output";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("exec", execHandler);
@@ -69,8 +70,8 @@ async function execHandlerInner(
       return {
         resultJson: JSON.stringify({
           exitCode: r.exitCode,
-          stdout: r.stdout,
-          stderr: r.stderr,
+          stdout: r.stdout != null ? truncateToolOutput(r.stdout) : r.stdout,
+          stderr: r.stderr != null ? truncateToolOutput(r.stderr) : r.stderr,
           stdoutTruncated: r.stdoutTruncated,
           stderrTruncated: r.stderrTruncated,
         }),
@@ -79,7 +80,7 @@ async function execHandlerInner(
     return {
       resultJson: JSON.stringify({
         exitCode: r.exitCode,
-        output: r.output,
+        output: r.output != null ? truncateToolOutput(r.output) : r.output,
         truncated: r.truncated,
       }),
     };
@@ -88,8 +89,8 @@ async function execHandlerInner(
   return {
     resultJson: JSON.stringify({
       exitCode: r.exitCode,
-      stdout: r.stdout,
-      stderr: r.stderr,
+      stdout: truncateToolOutput(r.stdout),
+      stderr: truncateToolOutput(r.stderr),
     }),
   };
 }
@@ -109,5 +110,6 @@ async function pollHandler(
     tail: typeof args.tail === "number" ? args.tail : undefined,
     since: typeof args.since === "number" ? args.since : undefined,
   });
-  return { resultJson: JSON.stringify(r) };
+  const raw = JSON.stringify(r);
+  return { resultJson: truncateToolOutput(raw) };
 }

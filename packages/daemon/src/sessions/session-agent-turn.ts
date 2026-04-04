@@ -3,13 +3,16 @@ import type Database from "better-sqlite3";
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import type { ChatMessage, ImageBlockCodec, OpenAIToolFunctionDefinition } from "@shoggoth/models";
 import {
+  createFailoverClientFromModelsConfig,
   createFailoverToolCallingClientFromModelsConfig,
   getImageBlockCodec,
   mergeModelInvocationParams,
+  resolveCompactionPolicyFromModelsConfig,
   ModelHttpError,
   type CreateFailoverFromConfigOptions,
   type FailoverToolCallingClient,
 } from "@shoggoth/models";
+import { compactSessionTranscript } from "../transcript-compact";
 import type { AgentCredentials } from "@shoggoth/os-exec";
 import type { ShoggothConfig, ShoggothModelsConfig } from "@shoggoth/shared";
 import {
@@ -248,10 +251,40 @@ export async function executeSessionAgentTurn(
   const imageBlockCodec = resolveImageBlockCodec(modelsForSession);
 
   // Strip image blocks from transcript when the provider doesn't support image input.
-  const initialMessages: ChatMessage[] = sanitizeTranscriptForProvider(
+  let initialMessages: ChatMessage[] = sanitizeTranscriptForProvider(
     [system, ...effectiveHistory],
     imageBlockCodec,
   );
+
+  // --- Inline context-window-aware compaction check ---
+  if (!input.minimalContext) {
+    const chain = modelsForSession?.failoverChain;
+    const ctxWindowTokens = chain?.[0]?.contextWindowTokens;
+    if (ctxWindowTokens) {
+      const thresholdPct = modelsForSession?.compaction?.contextWindowThresholdPercent ?? 60;
+      const systemChars = effectiveSystemPrompt.length;
+      const toolSchemaChars = JSON.stringify(mcpCtx.toolsOpenAi).length;
+      const transcriptChars = initialMessages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
+      const estimatedTokens = (systemChars + toolSchemaChars + transcriptChars) / 4;
+      const fillPct = (estimatedTokens / ctxWindowTokens) * 100;
+      if (fillPct > thresholdPct) {
+        log.debug("inline compaction triggered", { sessionId: input.sessionId, fillPct: fillPct.toFixed(1), thresholdPct, estimatedTokens: Math.round(estimatedTokens), ctxWindowTokens });
+        try {
+          const policy = resolveCompactionPolicyFromModelsConfig(modelsForSession);
+          const compactionClient = createFailoverClientFromModelsConfig(modelsForSession, { env: input.env });
+          const { compacted } = await compactSessionTranscript(input.db, input.sessionId, policy, compactionClient, { modelsConfig: modelsForSession, force: true });
+          if (compacted) {
+            log.info("inline compaction completed", { sessionId: input.sessionId });
+            const reloadedHistory = loadSessionTranscriptAsModelChat(input.db, input.sessionId, ctxSeg);
+            effectiveHistory = reloadedHistory;
+            initialMessages = sanitizeTranscriptForProvider([system, ...effectiveHistory], imageBlockCodec);
+          }
+        } catch (e) {
+          log.warn("inline compaction failed, proceeding with full context", { sessionId: input.sessionId, err: String(e) });
+        }
+      }
+    }
+  }
 
   // --- Mutable tools ref for mid-loop refresh (tool discovery) ---
   let currentToolsOpenAi: readonly OpenAIToolFunctionDefinition[] = mcpCtx.toolsOpenAi;

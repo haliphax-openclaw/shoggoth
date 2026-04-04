@@ -323,8 +323,8 @@ describe("fs-handlers image read", () => {
   it("returns error for oversized image", async () => {
     const ws = makeTmpWorkspace();
     try {
-      // Create a file just over 20 MB
-      const big = Buffer.alloc(20 * 1024 * 1024 + 1, 0x42);
+      // Create a file just over 10 MB
+      const big = Buffer.alloc(10 * 1024 * 1024 + 1, 0x42);
       writeFileSync(join(ws, "huge.png"), big);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
@@ -333,6 +333,47 @@ describe("fs-handlers image read", () => {
       assert.strictEqual(result.contentParts, undefined);
       const parsed = JSON.parse(result.resultJson);
       assert.ok(parsed.error.includes("too large"));
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fs-handlers: large file read truncation
+// ---------------------------------------------------------------------------
+
+describe("fs-handlers read truncation", () => {
+  it("truncates file content over 50k characters", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      const bigContent = "A".repeat(10_000) + "M".repeat(50_000) + "Z".repeat(10_000);
+      writeFileSync(join(ws, "big.txt"), bigContent);
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const result = await reg.execute("read", { path: "big.txt" }, ctx);
+      const parsed = JSON.parse(result.resultJson);
+      assert.ok(parsed.content.length < bigContent.length, "content should be truncated");
+      assert.ok(parsed.content.startsWith("A".repeat(10_000)), "should keep first 10k");
+      assert.ok(parsed.content.endsWith("Z".repeat(10_000)), "should keep last 10k");
+      assert.ok(parsed.content.includes("[... truncated"), "should include truncation notice");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("does not truncate file content under 50k characters", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      const content = "x".repeat(49_000);
+      writeFileSync(join(ws, "small.txt"), content);
+      const reg = new BuiltinToolRegistry();
+      registerFs(reg);
+      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const result = await reg.execute("read", { path: "small.txt" }, ctx);
+      const parsed = JSON.parse(result.resultJson);
+      assert.equal(parsed.content, content);
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }

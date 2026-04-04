@@ -9,6 +9,8 @@ import { getLogger } from "../../logging.js";
 
 const log = getLogger("show-handler");
 
+const MAX_SHOW_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("show", showHandler);
 }
@@ -65,6 +67,16 @@ async function showHandler(
         }),
       };
     }
+  }
+
+  if (totalBytes > MAX_SHOW_BYTES) {
+    const sizeMB = (totalBytes / (1024 * 1024)).toFixed(1);
+    return {
+      resultJson: JSON.stringify({
+        error: `Show input too large (${sizeMB} MB, limit 10 MB).`,
+        type,
+      }),
+    };
   }
 
   return {

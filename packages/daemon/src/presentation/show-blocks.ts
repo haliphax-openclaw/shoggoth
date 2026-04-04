@@ -12,7 +12,7 @@ import { getLogger } from "../logging.js";
 
 const log = getLogger("show-blocks");
 
-const DEFAULT_MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const DEFAULT_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 // ---------------------------------------------------------------------------
 // Types

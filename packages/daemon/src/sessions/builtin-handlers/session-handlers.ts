@@ -39,7 +39,7 @@ async function sessionQuery(
   if (!allowed.has(requestedAgentId)) {
     return { resultJson: JSON.stringify({ error: `not allowed to query sessions for agent id: ${requestedAgentId}` }) };
   }
-  const limit = Math.min(Math.max(1, Math.trunc(Number(args.limit) || 50)), 200);
+  const limit = Math.min(Math.max(1, Math.trunc(Number(args.limit) || 50)), 100);
   const orderRaw = args.order;
   const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
   const hasExplicitOffset = args.offset !== undefined && args.offset !== null;
