@@ -271,7 +271,6 @@ function buildHeartbeatsSection(): string {
   return daemonPrompt("system-heartbeats");
 }
 
-}
 
 function buildReactionGuidanceSection(): string {
   return [
