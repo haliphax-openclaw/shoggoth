@@ -214,43 +214,34 @@ describe("control plane (unix socket + JSONL)", () => {
   });
 
   it("version and health ops return JSON", async () => {
-    const vLine = await jsonlRoundTrip(
-      {
-        v: WIRE_VERSION,
-        id: "v1",
-        op: "version",
-        auth: { kind: "operator_token", token: "test-op-token" },
-      }
-      },
-    );
+    const vLine = await jsonlRoundTrip({
+      v: WIRE_VERSION,
+      id: "v1",
+      op: "version",
+      auth: { kind: "operator_token", token: "test-op-token" },
+    });
     const v = parseResponseLine(vLine);
     assert.equal(v.ok, true);
     assert.deepStrictEqual(v.result, { version: "test-0" });
 
-    const hLine = await jsonlRoundTrip(
-      {
-        v: WIRE_VERSION,
-        id: "h1",
-        op: "health",
-        auth: { kind: "operator_token", token: "test-op-token" },
-      }
-      },
-    );
+    const hLine = await jsonlRoundTrip({
+      v: WIRE_VERSION,
+      id: "h1",
+      op: "health",
+      auth: { kind: "operator_token", token: "test-op-token" },
+    });
     const h = parseResponseLine(hLine);
     assert.equal(h.ok, true);
     assert.ok(h.result && typeof h.result === "object");
   });
 
   it("rejects agent_ping for operator principal (ERR_UNKNOWN_OP, not policy denial)", async () => {
-    const line = await jsonlRoundTrip(
-      {
-        v: WIRE_VERSION,
-        id: "op1",
-        op: "agent_ping",
-        auth: { kind: "operator_token", token: "test-op-token" },
-      }
-      },
-    );
+    const line = await jsonlRoundTrip({
+      v: WIRE_VERSION,
+      id: "op1",
+      op: "agent_ping",
+      auth: { kind: "operator_token", token: "test-op-token" },
+    });
     const res = parseResponseLine(line);
     assert.equal(res.ok, false);
     assert.equal(res.error?.code, "ERR_UNKNOWN_OP");
