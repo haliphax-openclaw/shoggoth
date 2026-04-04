@@ -11,6 +11,12 @@ export const contextLevelSchema = z.enum(CONTEXT_LEVELS);
 
 export type ContextLevel = z.infer<typeof contextLevelSchema>;
 
+export const THINKING_DISPLAY_MODES = ["full", "indicator", "none"] as const;
+
+export const thinkingDisplaySchema = z.enum(THINKING_DISPLAY_MODES);
+
+export type ThinkingDisplay = z.infer<typeof thinkingDisplaySchema>;
+
 export const contextLevelToolOverrideSchema = z
   .object({
     /** Additional tools to allow at this level (added to defaults). */
@@ -685,6 +691,8 @@ export const shoggothAgentEntrySchema = z
     subagentContextLevel: contextLevelSchema.optional(),
     /** Per-agent tool discovery overrides (merged with global `toolDiscovery`). */
     toolDiscovery: shoggothAgentToolDiscoveryConfigSchema.optional(),
+    /** How to display model thinking output. Default: "none" if omitted. */
+    thinkingDisplay: thinkingDisplaySchema.optional(),
   })
   .strict();
 
@@ -850,6 +858,8 @@ export const shoggothConfigFragmentSchema = z
     searxng: shoggothSearxngConfigSchema.optional(),
     /** Dynamic tool discovery / collapse configuration. */
     toolDiscovery: shoggothToolDiscoveryConfigSchema.optional(),
+    /** How to display model thinking output. Default: "none" if omitted. */
+    thinkingDisplay: thinkingDisplaySchema.optional(),
   })
   .strict();
 
@@ -898,6 +908,8 @@ export const shoggothConfigSchema = z
     searxng: shoggothSearxngConfigSchema.optional(),
     /** Dynamic tool discovery / collapse configuration. */
     toolDiscovery: shoggothToolDiscoveryConfigSchema.optional(),
+    /** How to display model thinking output. Default: "none" if omitted. */
+    thinkingDisplay: thinkingDisplaySchema.optional(),
   })
   .strict();
 
