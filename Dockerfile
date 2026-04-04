@@ -29,6 +29,7 @@ RUN HASH=$(cat .git-meta/HEAD); \
 FROM node:22-bookworm-slim
 ARG SHOGGOTH_UID=1000
 ARG AGENT_UID=900
+RUN apt-get install -y --no-install-recommends ripgrep && rm -rf /var/lib/apt/lists/*
 RUN userdel node 2>/dev/null; groupdel node 2>/dev/null; \
   (groupadd --system --gid ${SHOGGOTH_UID} shoggoth || true) \
   && useradd --system --uid ${SHOGGOTH_UID} --gid shoggoth --home-dir /var/lib/shoggoth --shell /usr/sbin/nologin shoggoth \
