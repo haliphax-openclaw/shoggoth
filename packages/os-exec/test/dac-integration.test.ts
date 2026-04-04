@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { toolRead } from "../src/tools";
 import { runAsUser } from "../src/subprocess";
-import { AbsolutePathRejectedError, resolvePathForRead } from "../src/workspace-path";
+import { PathEscapeError, resolvePathForRead } from "../src/workspace-path";
 
 const AGENT_TEST_UID = 901;
 const AGENT_TEST_GID = 901;
@@ -87,8 +87,8 @@ describe("DAC + deny sensitive paths (integration)", () => {
     rmSync(ws, { recursive: true, force: true });
   });
 
-  it("absolute paths are rejected before any subprocess (control socket, etc.)", () => {
-    assert.throws(() => resolvePathForRead(ws, "/run/shoggoth/control.sock"), AbsolutePathRejectedError);
+  it("absolute paths outside workspace are rejected (control socket, etc.)", () => {
+    assert.throws(() => resolvePathForRead(ws, "/run/shoggoth/control.sock"), PathEscapeError);
   });
 
   it("kernel DAC blocks agent uid reading root-only file inside workspace", async (t) => {

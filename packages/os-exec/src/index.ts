@@ -1,5 +1,4 @@
 export {
-  AbsolutePathRejectedError,
   PathEscapeError,
   resolvePathForRead,
   resolvePathForWrite,

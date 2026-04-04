@@ -8,13 +8,6 @@ export class PathEscapeError extends Error {
   }
 }
 
-export class AbsolutePathRejectedError extends Error {
-  override readonly name = "AbsolutePathRejectedError";
-  constructor(message = "absolute paths are not allowed for tool paths") {
-    super(message);
-  }
-}
-
 function assertInsideRoot(rootReal: string, absolutePath: string): void {
   const rel = relative(rootReal, absolutePath);
   if (rel === "..") {
@@ -25,19 +18,18 @@ function assertInsideRoot(rootReal: string, absolutePath: string): void {
   }
 }
 
-function validateUserRelativePath(userPath: string): void {
+function validatePath(userPath: string): void {
   if (userPath.includes("\0")) {
     throw new PathEscapeError("NUL byte in path");
-  }
-  if (isAbsolute(userPath)) {
-    throw new AbsolutePathRejectedError();
   }
 }
 
 function logicalPathUnderRoot(workspaceRoot: string, userPath: string): { rootReal: string; joined: string } {
-  validateUserRelativePath(userPath);
+  validatePath(userPath);
   const rootReal = realpathSync(workspaceRoot);
-  const joined = resolve(rootReal, userPath);
+  
+  // Accept both absolute and relative paths
+  const joined = isAbsolute(userPath) ? userPath : resolve(rootReal, userPath);
   assertInsideRoot(rootReal, joined);
   return { rootReal, joined };
 }
@@ -67,8 +59,12 @@ function ensureWriteParentContained(rootReal: string, logicalFile: string): void
 }
 
 /**
- * Resolve a session-relative path for read: logical path must stay under workspace;
+ * Resolve a session-relative or absolute path for read: logical path must stay under workspace;
  * final target is realpath'd so symlink escapes are rejected.
+ * 
+ * Accepts both:
+ * - Relative paths (resolved relative to workspace root)
+ * - Absolute paths (validated to be within workspace root)
  */
 export function resolvePathForRead(workspaceRoot: string, userPath: string): string {
   const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);
@@ -78,7 +74,11 @@ export function resolvePathForRead(workspaceRoot: string, userPath: string): str
 }
 
 /**
- * Resolve a session-relative path for write: parent directories must exist and resolve under workspace.
+ * Resolve a session-relative or absolute path for write: parent directories must exist and resolve under workspace.
+ * 
+ * Accepts both:
+ * - Relative paths (resolved relative to workspace root)
+ * - Absolute paths (validated to be within workspace root)
  */
 export function resolvePathForWrite(workspaceRoot: string, userPath: string): string {
   const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);

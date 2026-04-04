@@ -67,6 +67,14 @@ export interface ModelThinkingOptions {
 }
 
 /**
+ * Model capabilities describing provider-specific feature support.
+ */
+export interface ModelCapabilities {
+  /** Whether this provider accepts image content in messages. */
+  readonly imageInput?: boolean;
+}
+
+/**
  * Cross-provider knobs merged into HTTP JSON bodies where the upstream supports them.
  * Configure globally under `models.defaultInvocation` and per-session via `sessions.model_selection`.
  */
@@ -117,6 +125,7 @@ export interface ModelCompleteOutput {
 
 export interface ModelProvider {
   readonly id: string;
+  readonly capabilities?: ModelCapabilities;
   complete(input: ModelCompleteInput): Promise<ModelCompleteOutput>;
   /** OpenAI-style chat completions with `tools` + `tool_calls` / tool messages. */
   completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput>;
