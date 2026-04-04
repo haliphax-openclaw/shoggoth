@@ -1,5 +1,111 @@
 import type { ChatContentPart } from "./types";
 
+type State = 'text' | 'buffering-tag' | 'in-thinking';
+
+interface ProcessResult {
+  thinking?: string;
+  text?: string;
+}
+
+export class ThinkingStreamNormalizer {
+  private state: State = 'text';
+  private buffer: string = '';
+  private thinkingContent: string = '';
+  private textContent: string = '';
+  private readonly MAX_BUFFER_SIZE = 11; // Length of "</thinking>"
+
+  processChunk(chunk: string): ProcessResult {
+    const result: ProcessResult = {};
+    let i = 0;
+
+    while (i < chunk.length) {
+      const char = chunk[i];
+
+      switch (this.state) {
+        case 'text':
+          if (char === '<') {
+            this.state = 'buffering-tag';
+            this.buffer = '<';
+          } else {
+            this.textContent += char;
+          }
+          i++;
+          break;
+
+        case 'buffering-tag':
+          this.buffer += char;
+
+          if (this.buffer === '<thinking>') {
+            this.state = 'in-thinking';
+            this.buffer = '';
+          } else if (this.buffer === '</thinking>') {
+            this.state = 'text';
+            this.buffer = '';
+            // Flush accumulated thinking content
+            if (this.thinkingContent) {
+              result.thinking = this.thinkingContent;
+              this.thinkingContent = '';
+            }
+          } else if (this.buffer.length >= this.MAX_BUFFER_SIZE) {
+            // Buffer exceeded, not a tag we're looking for
+            this.textContent += this.buffer;
+            this.state = 'text';
+            this.buffer = '';
+          }
+          i++;
+          break;
+
+        case 'in-thinking':
+          if (char === '<') {
+            this.state = 'buffering-tag';
+            this.buffer = '<';
+          } else {
+            this.thinkingContent += char;
+          }
+          i++;
+          break;
+      }
+    }
+
+    if (this.textContent) {
+      result.text = this.textContent;
+      this.textContent = '';
+    }
+
+    return result;
+  }
+
+  flush(): ProcessResult {
+    const result: ProcessResult = {};
+
+    // Handle any remaining buffer content
+    if (this.buffer) {
+      if (this.state === 'in-thinking') {
+        this.thinkingContent += this.buffer;
+      } else {
+        this.textContent += this.buffer;
+      }
+      this.buffer = '';
+    }
+
+    // Return any accumulated content
+    if (this.thinkingContent) {
+      result.thinking = this.thinkingContent;
+      this.thinkingContent = '';
+    }
+
+    if (this.textContent) {
+      result.text = this.textContent;
+      this.textContent = '';
+    }
+
+    // Reset state
+    this.state = 'text';
+
+    return result;
+  }
+}
+
 /**
  * Extracts thinking blocks from content that uses XML-style tags.
  * Returns an array of ChatContentPart if thinking tags are found,

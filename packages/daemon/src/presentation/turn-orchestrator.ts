@@ -13,6 +13,7 @@ import {
   formatErrorUserText,
 } from "./reply-formatter.js";
 import { ingestAttachmentImage } from "./image-ingest.js";
+import { resolveEffectiveThinkingDisplay } from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
 
 const log = getLogger("turn-orchestrator");
@@ -104,6 +105,7 @@ export class PresentationTurnOrchestrator {
     const { adapter, config, env } = this;
     const maxLen = adapter.maxBodyLength;
     const errorPrefix = this.deps.errorReplyPrefix ?? "";
+    const thinkingDisplay = resolveEffectiveThinkingDisplay(config, sessionId);
 
     const sliceDisplayText = (text: string): string =>
       text.length > maxLen ? text.slice(0, maxLen) : text;
@@ -164,12 +166,14 @@ export class PresentationTurnOrchestrator {
         adapter.sendBody(sessionId, body, {
           replyTo: replyToMessageId,
           attachments: opts?.attachments as OutboundAttachment[] | undefined,
+          thinkingDisplay,
         }),
-      sendErrorBody: (body: string) => adapter.sendError(sessionId, body, { replyTo: replyToMessageId }),
+      sendErrorBody: (body: string) => adapter.sendError(sessionId, body, { replyTo: replyToMessageId, thinkingDisplay }),
       // Follow-up message for attachments when streaming (stream edits can't carry files).
       sendAttachments: (attachments: readonly OutboundAttachment[]) =>
         adapter.sendBody(sessionId, "", {
           attachments: attachments as OutboundAttachment[],
+          thinkingDisplay,
         }),
       mcpLifecycle,
       logContext,
