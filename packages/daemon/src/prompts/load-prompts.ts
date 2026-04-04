@@ -8,7 +8,6 @@ export const REQUIRED_PROMPT_KEYS: readonly string[] = [
   "session-segment-startup-new",
   "session-segment-startup-reset",
   "system-env-session-appendix",
-  "system-heartbeats",
   "system-project-context-title",
   "system-project-operator-block",
   "system-project-workspace-intro",

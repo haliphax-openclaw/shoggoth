@@ -1,2 +1,1 @@
-The following workspace files were injected below. Follow **AGENTS.md** and **TOOLS.md** when present.
-
+Agent template files are injected below. Follow **AGENTS.md** and **TOOLS.md** when present.

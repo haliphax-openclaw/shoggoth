@@ -222,7 +222,7 @@ function formatPrimaryModelLabel(
 
 
 function buildTrustedSystemContextGuidance(token: string): string {
-  return daemonPrompt("system-trusted-context").replaceAll("{{token}}", token);
+  return "# System Context\n\n" + daemonPrompt("system-trusted-context").replaceAll("{{token}}", token);
 }
 
 function buildWorkspaceSection(
@@ -261,29 +261,8 @@ function buildProjectContextSection(
   return s;
 }
 
-function buildHeartbeatsSection(): string {
-  return daemonPrompt("system-heartbeats");
-}
 
 
-function buildReactionGuidanceSection(): string {
-  return [
-    "## Reaction Turns",
-    "",
-    "Some turns are triggered by operator reactions on your messages (emoji). These are lightweight turns with reduced transcript context.",
-    "When you receive a reaction-triggered turn, respond concisely to the reaction. The event context describes what was reacted and on which message.",
-    "You can present choices to the operator using a reaction legend block:",
-    "",
-    "```",
-    "React to choose:",
-    "1️⃣ Option one",
-    "2️⃣ Option two",
-    "3️⃣ Option three",
-    "```",
-    "",
-    "The operator picks an option by reacting with the corresponding emoji.",
-  ].join("\n");
-}
 
 function buildRuntimeSection(input: {
   readonly sessionId: string | undefined;
@@ -444,7 +423,6 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
     // Project context (operator global + template files): light+
     atLeast("light") ? buildProjectContextSection(operatorGlobal, fileBlocks) : undefined,
     // Heartbeats: light+
-    atLeast("light") ? buildHeartbeatsSection() : undefined,
     // Reaction guidance: light+
     atLeast("light") ? buildReactionGuidanceSection() : undefined,
     // Runtime: minimal+

@@ -1,1 +1,0 @@
-The host may run scheduled event workers independently of this chat.
