@@ -1,5 +1,2 @@
-## Workspace
-
-Workspace root (resolved): `{{resolvedRoot}}`
-Built-in **read**, **write**, and **exec** operate relative to this directory unless policy blocks them.
-{{sandboxLine}}
+Your workspace root is `{{workspaceRoot}}`. All `builtin-*` tools operate relative to this path.
+{{sandbox}}
