@@ -36,6 +36,7 @@ export type {
   ChatContentPart,
   ImageBlock,
   ImageBlockCodec,
+  ModelCapabilities,
   ModelProvider,
   ModelCompleteInput,
   ModelCompleteOutput,

@@ -45,13 +45,14 @@ export const WORKSPACE_TEMPLATE_FILES = [
 
 /**
  * Template files allowed at each context level.
- * - `none` / `minimal`: no workspace template files
- * - `light`: operational files only (AGENTS.md, TOOLS.md, HEARTBEAT.md)
+ * - `none`: no workspace template files
+ * - `minimal`: TOOLS.md only (essential tool guidance for subagents)
+ * - `light`: operational files (AGENTS.md, TOOLS.md)
  * - `full`: all workspace template files
  */
 export const TEMPLATE_FILES_BY_LEVEL: Record<ContextLevel, Set<string>> = {
   none: new Set(),
-  minimal: new Set(),
+  minimal: new Set(["TOOLS.md"]),
   light: new Set(["AGENTS.md", "TOOLS.md"]),
   full: new Set(WORKSPACE_TEMPLATE_FILES),
 };
@@ -321,9 +322,9 @@ function buildReactionGuidanceSection(): string {
     "",
     "```",
     "React to choose:",
-    "1\uFE0F\u20E3 Option one",
-    "2\uFE0F\u20E3 Option two",
-    "3\uFE0F\u20E3 Option three",
+    "1️⃣ Option one",
+    "2️⃣ Option two",
+    "3️⃣ Option three",
     "```",
     "",
     "The operator picks an option by reacting with the corresponding emoji.",

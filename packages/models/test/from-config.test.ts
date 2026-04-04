@@ -201,6 +201,65 @@ describe("createFailoverClientFromModelsConfig", () => {
     assert.match(url, /\/v1\/messages$/);
     assert.equal(out.content, "ok");
   });
+
+  it("propagates hop capabilities to failover client", async () => {
+    const cfg: ShoggothModelsConfig = {
+      providers: [
+        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
+      ],
+      failoverChain: [
+        { providerId: "p1", model: "m1", capabilities: { imageInput: false } },
+      ],
+    };
+    const c = createFailoverClientFromModelsConfig(cfg, {
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    // The failover client should have the hop capabilities merged
+    assert.deepEqual(c.capabilities, { imageInput: false });
+  });
+
+  it("merges hopCapabilities with provider capabilities", async () => {
+    const cfg: ShoggothModelsConfig = {
+      providers: [
+        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
+      ],
+      failoverChain: [
+        { providerId: "p1", model: "m1", capabilities: { imageInput: false } },
+      ],
+    };
+    const c = createFailoverClientFromModelsConfig(cfg, {
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    // Hop capabilities override provider defaults
+    assert.deepEqual(c.capabilities, { imageInput: false });
+  });
+
+  it("propagates hopCapabilities to tool calling client", async () => {
+    const cfg: ShoggothModelsConfig = {
+      providers: [
+        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
+      ],
+      failoverChain: [
+        { providerId: "p1", model: "m1", capabilities: { imageInput: true } },
+      ],
+    };
+    const c = createFailoverToolCallingClientFromModelsConfig(cfg, {
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    assert.deepEqual(c.capabilities, { imageInput: true });
+  });
 });
 
 describe("resolveCompactionPolicyFromModelsConfig", () => {

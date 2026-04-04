@@ -1,16 +1,18 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
 import { createFailoverModelClient } from "../src/failover";
-import type { ModelProvider } from "../src/types";
+import type { ModelProvider, ModelCapabilities } from "../src/types";
 import { ModelHttpError } from "../src/errors";
 
 function mockProvider(
   id: string,
   behavior: "ok" | "503" | "429",
   content?: string,
+  capabilities?: ModelCapabilities,
 ): ModelProvider {
   return {
     id,
+    capabilities,
     async complete() {
       if (behavior === "ok") return { content: content ?? "ok" };
       if (behavior === "503") throw new ModelHttpError(503, "down");
@@ -89,5 +91,81 @@ describe("createFailoverModelClient", () => {
       () => c.complete({ messages: [{ role: "user", content: "x" }] }),
       (e: unknown) => e instanceof ModelHttpError && e.status === 401,
     );
+  });
+
+  describe("capabilities", () => {
+    it("exposes capabilities from the first hop's provider", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x", { imageInput: true }),
+          model: "m1",
+        },
+      ]);
+      assert.deepEqual(c.capabilities, { imageInput: true });
+    });
+
+    it("returns undefined capabilities when provider has none", () => {
+      const c = createFailoverModelClient([
+        { provider: mockProvider("a", "ok", "x"), model: "m1" },
+      ]);
+      assert.equal(c.capabilities, undefined);
+    });
+
+    it("merges hop capabilities with provider capabilities", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x", { imageInput: true }),
+          model: "m1",
+          capabilities: { imageInput: false },
+        },
+      ]);
+      assert.deepEqual(c.capabilities, { imageInput: false });
+    });
+
+    it("hop capabilities override provider defaults", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x", { imageInput: true }),
+          model: "m1",
+          capabilities: { imageInput: false },
+        },
+      ]);
+      assert.equal(c.capabilities?.imageInput, false);
+    });
+
+    it("uses hop capabilities when provider has none", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x"),
+          model: "m1",
+          capabilities: { imageInput: false },
+        },
+      ]);
+      assert.deepEqual(c.capabilities, { imageInput: false });
+    });
+
+    it("uses provider capabilities when hop has none", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x", { imageInput: true }),
+          model: "m1",
+        },
+      ]);
+      assert.deepEqual(c.capabilities, { imageInput: true });
+    });
+
+    it("exposes capabilities from first hop (primary)", () => {
+      const c = createFailoverModelClient([
+        {
+          provider: mockProvider("a", "ok", "x", { imageInput: true }),
+          model: "m1",
+        },
+        {
+          provider: mockProvider("b", "ok", "y", { imageInput: false }),
+          model: "m2",
+        },
+      ]);
+      assert.deepEqual(c.capabilities, { imageInput: true });
+    });
   });
 });
