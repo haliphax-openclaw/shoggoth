@@ -4,7 +4,7 @@ import { parseResponseLine, WIRE_VERSION, type WireAuth, type WireResponse } fro
 
 export type InvokeControlRequestInput = {
   readonly socketPath: string;
-  readonly auth: WireAuth;
+  readonly auth?: WireAuth;
   readonly op: string;
   /** Defaults to a random UUID. */
   readonly id?: string;

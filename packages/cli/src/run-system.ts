@@ -35,7 +35,7 @@ export async function runSystemCli(argv: string[]): Promise<void> {
       : undefined;
     const res = await invokeControlRequest({
       socketPath,
-      auth: auth as any,
+      auth,
       op: "health",
       payload: {},
     });

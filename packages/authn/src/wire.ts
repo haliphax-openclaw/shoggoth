@@ -10,7 +10,7 @@ export type WireRequest = {
   v: typeof WIRE_VERSION;
   id: string;
   op: string;
-  auth: WireAuth;
+  auth?: WireAuth;
   payload?: unknown;
 };
 
@@ -58,23 +58,41 @@ export function parseRequestLine(line: string): WireRequest {
     throw new WireParseError("missing request id");
   if (typeof r.op !== "string" || !r.op)
     throw new WireParseError("missing op");
-  if (!r.auth || typeof r.auth !== "object")
-    throw new WireParseError("missing auth");
-  const auth = r.auth as Record<string, unknown>;
-  const kind = auth.kind;
-  if (kind !== "operator_token" && kind !== "agent") {
-    throw new WireParseError(`unknown auth.kind: ${String(kind)}`);
+  // Auth is optional — ops like "health" are exempt
+  if (r.auth && typeof r.auth === "object") {
+    const auth = r.auth as Record<string, unknown>;
+    const kind = auth.kind;
+    if (kind !== "operator_token" && kind !== "agent") {
+      throw new WireParseError(`unknown auth.kind: ${String(kind)}`);
+    }
+    if (kind === "operator_token") {
+      if (typeof auth.token !== "string" || !auth.token)
+        throw new WireParseError("operator_token requires auth.token");
+    }
+    if (kind === "agent") {
+      if (typeof auth.session_id !== "string" || !auth.session_id)
+        throw new WireParseError("agent auth requires auth.session_id");
+      if (typeof auth.token !== "string" || !auth.token)
+        throw new WireParseError("agent auth requires auth.token");
+    }
   }
-  if (kind === "operator_token") {
-    if (typeof auth.token !== "string" || !auth.token)
-      throw new WireParseError("operator_token requires auth.token");
-  }
-  if (kind === "agent") {
-    if (typeof auth.session_id !== "string" || !auth.session_id)
-      throw new WireParseError("agent auth requires auth.session_id");
-    if (typeof auth.token !== "string" || !auth.token)
-      throw new WireParseError("agent auth requires auth.token");
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return r as unknown as WireRequest;
 }
 
