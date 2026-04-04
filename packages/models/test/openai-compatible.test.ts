@@ -1,8 +1,14 @@
-import { describe, it } from "vitest";
+import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert";
 import { createOpenAICompatibleProvider } from "../src/openai-compatible";
 import type { ChatMessage } from "../src/types";
 import { ModelHttpError } from "../src/errors";
+import { setResilienceGate, ModelResilienceGate } from "../src/resilience";
+
+// Disable retries so error tests don't wait on real backoff delays
+beforeEach(() => {
+  setResilienceGate(new ModelResilienceGate({ maxRetries: 0 }));
+});
 
 function sseResponse(lines: readonly string[]): Response {
   const text = lines.join("\n") + "\n";

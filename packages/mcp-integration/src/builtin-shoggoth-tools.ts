@@ -633,6 +633,19 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
           "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 5s, max 30d. Per-session cap: 50 active timers.",
         inputSchema: timerArgs,
       },
+      {
+        name: "discover",
+        description:
+          "Manage which tools are active. Call with enable/disable arrays of tool IDs, or list: true to see the full catalog.",
+        inputSchema: {
+          type: "object" as const,
+          properties: {
+            enable: { type: "array", items: { type: "string" }, description: "Tool IDs to enable for this session." },
+            disable: { type: "array", items: { type: "string" }, description: "Tool IDs to disable (collapse) for this session." },
+            list: { type: "boolean", description: "When true, list all available tools with their current state." },
+          },
+        },
+      },
       buildWorkflowToolDescriptor() as McpToolDescriptor,
     ],
   };

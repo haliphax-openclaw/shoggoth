@@ -280,7 +280,7 @@ describe("subagent_wait and subagent_result control ops", { concurrency: false }
 
     const req = makeWireRequest("subagent_wait", {
       session_ids: ["agent:test:discord:channel:slow-1"],
-      timeout_ms: 600, // very short timeout — just over one poll interval
+      timeout_ms: 60, _poll_interval_ms: 20, // short poll + timeout for test speed
     });
     const result = (await handleIntegrationControlOp(req, operatorPrincipal, ctx)) as {
       completed: unknown[];
@@ -332,11 +332,12 @@ describe("subagent_wait and subagent_result control ops", { concurrency: false }
     // Terminate the session after a short delay (during the poll loop).
     setTimeout(() => {
       sessions.update("agent:test:discord:channel:delayed-1", { status: "terminated" });
-    }, 300);
+    }, 30);
 
     const req = makeWireRequest("subagent_wait", {
       session_ids: ["agent:test:discord:channel:delayed-1"],
       timeout_ms: 5000,
+      _poll_interval_ms: 20,
     });
     const start = Date.now();
     const result = (await handleIntegrationControlOp(req, operatorPrincipal, ctx)) as {

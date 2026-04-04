@@ -209,7 +209,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       }
 
       for (const tc of turn.toolCalls) {
-        log.debug("tool call received", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId, args: truncate(tc.argsJson, 200) });
+        log.debug("tool call received", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId, args: truncate(tc.argsJson, 1000) });
         // Estimate argsJson tokens (becomes part of next model input context)
         emitStats?.({ estimatedInputTokens: estimateTokens(tc.argsJson) });
         assertNotAborted(options.turnAbortSignal);
@@ -367,7 +367,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
 
         assertNotAborted(options.turnAbortSignal);
         const t0 = Date.now();
-        log.debug("tool call started", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, args: truncate(tc.argsJson) });
+        log.debug("tool call started", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId});
 
         const execPromise = options.executor.execute({
           name: tc.name,
@@ -409,7 +409,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           }
           continue;
         }
-        log.debug("tool call completed", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, durationMs: Date.now() - t0, success: true });
+        log.debug("tool call completed", { toolName: compoundResource, toolCallId: tc.id, sessionId: options.sessionId, durationMs: Date.now() - t0, success: true});
 
         // When contentParts is present, serialize as JSON for transcript storage and model feedback.
         const toolMessageContent = out.contentParts

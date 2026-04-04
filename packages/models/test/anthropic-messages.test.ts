@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert";
 import {
   buildOpenAiToAnthropicToolNameMap,
@@ -10,6 +10,12 @@ import {
 } from "../src/anthropic-messages";
 import type { ChatMessage } from "../src/types";
 import { ModelHttpError } from "../src/errors";
+import { setResilienceGate, ModelResilienceGate } from "../src/resilience";
+
+// Disable retries so error tests don't wait on real backoff delays
+beforeEach(() => {
+  setResilienceGate(new ModelResilienceGate({ maxRetries: 0 }));
+});
 
 function anthropicSseResponse(lines: readonly string[]): Response {
   const text = lines.join("\n") + "\n";

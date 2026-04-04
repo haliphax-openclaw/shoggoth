@@ -1,6 +1,6 @@
 ---
 date: 2026-04-04
-completed: never
+completed: 2026-04-04
 ---
 
 # Dynamic tool discovery — collapsible tool catalog with auto-trigger

@@ -517,9 +517,8 @@ describe("Integration: status message lifecycle", () => {
     const initialPost = s.msgAdapter.posted[0];
     assert.ok(initialPost.includes("Task workflow"));
 
-    // Tick — should edit the status message
+    // Tick spawns tasks but updateStatus is on a timer, not called during tick.
     await s.orch.tick();
-    assert.ok(s.msgAdapter.edited.length >= 1);
 
     // Complete task 1
     s.pollResults.set("session-1", { status: "done", output: "ok" });

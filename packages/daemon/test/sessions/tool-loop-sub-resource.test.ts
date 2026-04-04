@@ -462,27 +462,25 @@ describe("tool-loop sub-resource extraction", () => {
       pushToolMessage() {},
     };
 
-    await assert.rejects(
-      runToolLoop({
-        db,
-        sessionId: "s-bypass-specific",
-        runId: "run-bypass-rm",
-        principalId: "s-bypass-specific",
-        policy,
-        audit,
-        model: model2,
-        tools: [{ name: "builtin-exec" }],
-        executor: {
-          execute: async ({ name }) => {
-            executed.push(name);
-            return { resultJson: '{"ok":true}' };
-          },
+    // Policy denials now return error results to the model instead of throwing
+    await runToolLoop({
+      db,
+      sessionId: "s-bypass-specific",
+      runId: "run-bypass-rm",
+      principalId: "s-bypass-specific",
+      policy,
+      audit,
+      model: model2,
+      tools: [{ name: "builtin-exec" }],
+      executor: {
+        execute: async ({ name }) => {
+          executed.push(name);
+          return { resultJson: '{"ok":true}' };
         },
-        toolRuns,
-        subResourceRegistry: createDefaultSubResourceRegistry(),
-      }),
-      /default_deny/,
-    );
+      },
+      toolRuns,
+      subResourceRegistry: createDefaultSubResourceRegistry(),
+    });
 
     // rm should NOT have executed
     assert.deepStrictEqual(executed, ["builtin-exec"]);

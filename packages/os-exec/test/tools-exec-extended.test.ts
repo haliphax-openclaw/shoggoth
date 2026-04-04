@@ -70,7 +70,7 @@ describe("toolExecExtended", () => {
     it("kills a long-running process after timeout", async () => {
       const r = await toolExecExtended(ws, {
         command: "sleep 5",
-        timeout: 1,
+        timeout: 0.1,
       }, creds);
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
@@ -413,7 +413,7 @@ describe("toolExecExtended", () => {
       const r = await toolExecExtended(ws, {
         command: "sleep 5",
         background: true,
-        timeout: 1,
+        timeout: 0.1,
       }, creds);
       const bg = r as ExecBackgroundResult;
       const session = getExecSession(bg.sessionId);
@@ -445,8 +445,8 @@ describe("toolExecExtended", () => {
 
     it("backgrounds process when it exceeds yield window", async () => {
       const r = await toolExecExtended(ws, {
-        command: "sleep 2; echo done",
-        yieldMs: 200,
+        command: "sleep 0.5; echo done",
+        yieldMs: 50,
       }, creds);
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
@@ -506,8 +506,8 @@ describe("toolExecExtended", () => {
     it("includes partial output when yielded", async () => {
       const r = await toolExecExtended(ws, {
         // Echo something immediately, then sleep
-        command: "echo partial-data; sleep 2",
-        yieldMs: 500,
+        command: "echo partial-data; sleep 0.5",
+        yieldMs: 100,
       }, creds);
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
@@ -549,7 +549,7 @@ describe("toolExecExtended", () => {
     it("timeout + splitStreams", async () => {
       const r = await toolExecExtended(ws, {
         command: "echo out; echo err >&2; sleep 60",
-        timeout: 1,
+        timeout: 0.1,
         splitStreams: true,
       }, creds);
       assert.equal(r.kind, "foreground");

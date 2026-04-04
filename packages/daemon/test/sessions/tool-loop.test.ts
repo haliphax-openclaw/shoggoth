@@ -85,39 +85,50 @@ describe("runToolLoop", () => {
     assert.equal(row.status, "completed");
   });
 
-  it("marks run failed and stops when policy denies", async () => {
+  it("feeds policy denial back to model and completes", async () => {
+    const pushed: { toolCallId: string; content: string }[] = [];
+    const exec = vi.fn(async () => ({ resultJson: "{}" }));
+    let step = 0;
     const model: ModelClient = {
       async complete() {
-        return {
-          content: null,
-          toolCalls: [{ id: "c1", name: "builtin-exec", argsJson: "{}" }],
-        };
+        step += 1;
+        if (step === 1) {
+          return {
+            content: null,
+            toolCalls: [{ id: "c1", name: "builtin-exec", argsJson: "{}" }],
+          };
+        }
+        return { content: "denied", toolCalls: [] };
+      },
+      pushToolMessage(msg) {
+        pushed.push(msg);
       },
     };
     const toolRuns = createToolRunStore(db);
-    await assert.rejects(
-      () =>
-        runToolLoop({
-          db,
-          sessionId: "sess",
-          runId: "run-deny",
-          principalId: "agent:sess",
-          policy: {
-            check: () => ({ allow: false, reason: "blocked" }),
-          },
-          audit: { record: () => {} },
-          model,
-          tools: [{ name: "builtin-exec" }],
-          executor: { execute: async () => ({ resultJson: "{}" }) },
-          toolRuns,
-        }),
-      /blocked/,
-    );
+    await runToolLoop({
+      db,
+      sessionId: "sess",
+      runId: "run-deny",
+      principalId: "agent:sess",
+      policy: {
+        check: () => ({ allow: false, reason: "blocked" }),
+      },
+      audit: { record: () => {} },
+      model,
+      tools: [{ name: "builtin-exec" }],
+      executor: { execute: exec },
+      toolRuns,
+    });
+    // Executor should never have been called
+    assert.equal(exec.mock.calls.length, 0);
+    // Model should have received the denial via pushToolMessage
+    assert.equal(pushed.length, 1);
+    assert.ok(pushed[0]!.content.includes("policy_denied"));
+    // Run should complete (model recovered on second hop)
     const row = db
-      .prepare(`SELECT status, failure_reason FROM tool_runs WHERE id = 'run-deny'`)
-      .get() as { status: string; failure_reason: string | null };
-    assert.equal(row.status, "failed");
-    assert.match(row.failure_reason ?? "", /policy/);
+      .prepare(`SELECT status FROM tool_runs WHERE id = 'run-deny'`)
+      .get() as { status: string };
+    assert.equal(row.status, "completed");
   });
 
   it("queues HITL pending and skips execute when operator denies", async () => {

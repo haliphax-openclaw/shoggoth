@@ -35,6 +35,7 @@ describe("createToolLoopPolicyAndAudit", () => {
       correlationId: "run-corr",
     });
     let calls = 0;
+    const pushed: { toolCallId: string; content: string }[] = [];
     const model = {
       async complete() {
         if (calls++ === 0) {
@@ -45,24 +46,31 @@ describe("createToolLoopPolicyAndAudit", () => {
         }
         return { content: null, toolCalls: [] };
       },
+      pushToolMessage(input: { toolCallId: string; content: string }) {
+        pushed.push(input);
+      },
     };
     const toolRuns = createToolRunStore(db);
-    await assert.rejects(
-      runToolLoop({
-        db,
-        sessionId: "sess-a",
-        runId: "run-1",
-        principalId: "sess-a",
-        policy,
-        audit,
-        model,
-        tools: [{ name: "builtin-read" }, { name: "builtin-exec" }],
-        executor: {
-          execute: async () => ({ resultJson: "{}" }),
-        },
-        toolRuns,
-      }),
-    );
+    // Policy denials now return error results to the model instead of throwing
+    await runToolLoop({
+      db,
+      sessionId: "sess-a",
+      runId: "run-1",
+      principalId: "sess-a",
+      policy,
+      audit,
+      model,
+      tools: [{ name: "builtin-read" }, { name: "builtin-exec" }],
+      executor: {
+        execute: async () => ({ resultJson: "{}" }),
+      },
+      toolRuns,
+    });
+    // The denied tool call should have been pushed back as an error result
+    assert.ok(pushed.length >= 1);
+    const deniedResult = JSON.parse(pushed[0]!.content);
+    assert.strictEqual(deniedResult.error, "policy_denied");
+
     const rows = db
       .prepare(`SELECT action, resource, outcome, args_redacted_json FROM audit_log ORDER BY id`)
       .all() as {

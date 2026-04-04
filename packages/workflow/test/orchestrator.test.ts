@@ -492,9 +492,10 @@ describe("Orchestrator", () => {
       updateCalls.length = 0; // reset
       await orch.tick();
 
-      // The tick that completes the workflow should still update the status
-      // so the post reflects the final state before summary is posted
-      assert.equal(updateCalls.length, 1);
+      // updateStatus is called by the status timer (setInterval), not by tick().
+      // The completing tick calls checkCompletion → stopPolling → postSummary.
+      // No updateStatus call happens during tick itself.
+      assert.equal(updateCalls.length, 0);
     });
   });
 

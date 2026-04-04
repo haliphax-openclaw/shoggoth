@@ -1007,7 +1007,7 @@ export async function handleIntegrationControlOp(
         }
       }
 
-      const POLL_INTERVAL_MS = 500;
+      const POLL_INTERVAL_MS = optionalFinitePositiveInt(pl, "_poll_interval_ms") ?? 500;
       const deadline = Date.now() + timeoutMs;
 
       /** Check whether a session counts as "completed" (terminated, or not found). */

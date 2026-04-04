@@ -79,10 +79,10 @@ export async function createSessionMcpRuntime(
 ): Promise<SessionMcpRuntime> {
   // Register context-level tool filtering finalizer (config-aware).
   registerContextFinalizer(createContextLevelToolFinalizer(opts.config));
-  // Register tool discovery finalizer (after context-level, before web-search).
-  registerContextFinalizer(createToolDiscoveryFinalizer(opts.config, opts.db));
   // Register web-search tool finalizer (adds builtin-web-search when SearXNG is configured).
   registerContextFinalizer(createWebSearchToolFinalizer(opts.config));
+  // Register tool discovery finalizer (must be last — sees the full catalog including web-search).
+  registerContextFinalizer(createToolDiscoveryFinalizer(opts.config, opts.db));
 
   const mcpServers = opts.config.mcp?.servers ?? [];
   const mcpPoolScope = opts.config.mcp?.poolScope ?? "global";

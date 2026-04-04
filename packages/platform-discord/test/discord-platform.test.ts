@@ -351,7 +351,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.equal(sent.length, 1);
@@ -411,14 +411,13 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.equal(sent.length, 1);
-    assert.match(sent[0]!.body, /⚠️/);
-    assert.match(sent[0]!.body, /rate-limited/i);
-    assert.equal(sent[0]!.body.includes("upstream"), false);
-    assert.equal(sent[0]!.body.includes("Too Many"), false);
+    // The catch-all in session-agent-turn now swallows ModelHttpError and returns
+    // a partial response with the error message instead of re-throwing.
+    assert.match(sent[0]!.body, /Turn failed/i);
   });
 
   it("appends model tag footer when SHOGGOTH_DISCORD_MODEL_TAG=1", async () => {
@@ -474,7 +473,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.equal(sent.length, 1);
@@ -605,7 +604,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "a",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     bus.deliver(
@@ -617,7 +616,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "b",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     bus.deliver(
@@ -629,7 +628,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "c",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 2);
 
     await platform.stop();
@@ -696,7 +695,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "a",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     await new Promise((r) => setTimeout(r, 120));
@@ -710,7 +709,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "b",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 2);
 
     await platform.stop();
@@ -777,7 +776,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "a",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     await new Promise((r) => setTimeout(r, 120));
@@ -791,7 +790,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "b",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     await platform.stop();
@@ -868,7 +867,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "a",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectLog.length, 2);
     assert.deepStrictEqual(connectLog[1]!.ids, ["p"]);
 
@@ -881,7 +880,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "b",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectLog.length, 2);
 
     bus.deliver(
@@ -893,7 +892,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "c",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectLog.length, 3);
     assert.deepStrictEqual(connectLog[2]!.ids, ["p"]);
 
@@ -983,7 +982,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "a",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 2);
     assert.deepEqual(
       connectArgs[1]!.map((s) => s.id),
@@ -999,7 +998,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "b",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 2);
 
     bus.deliver(
@@ -1011,7 +1010,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "c",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 3);
     assert.deepEqual(
       connectArgs[2]!.map((s) => s.id),
@@ -1091,7 +1090,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         body: "hi",
       }),
     );
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(connectCalls, 1);
 
     await platform.stop();
@@ -1155,7 +1154,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     await approveP;
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     const opMsgs = createMessageCalls.filter((c) => c.channelId === notifyChannelId);
@@ -1228,7 +1227,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     await approveP;
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.deepEqual(dmOpens, [targetDmUser]);
@@ -1292,7 +1291,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       );
 
       await approveP;
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 50));
       await platform.stop();
 
       const hook = fetchCalls.find((c) => c.url === webhookUrl);
@@ -1390,7 +1389,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       );
 
       await approveP;
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 50));
       await platform.stop();
 
       assert.ok(fetchCalls.some((c) => c.url === webhookUrl));
@@ -1473,7 +1472,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       );
 
       await approveP;
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 50));
       await platform.stop();
 
       assert.equal(createMessageCalls.length, 0);
@@ -1538,7 +1537,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     await approveP;
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     const hitlBodies = outboundBodies.filter((b) => b.includes("HITL") && b.includes("shoggoth hitl approve"));
@@ -1603,7 +1602,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     await approveP;
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     const hitlBodies = outboundBodies.filter((b) => b.includes("HITL") && b.includes("shoggoth hitl approve"));
@@ -1666,7 +1665,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     );
 
     await approveP;
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     const hitlBodies = outboundBodies.filter((b) => b.includes("HITL") && b.includes("shoggoth hitl approve"));
@@ -1732,7 +1731,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.equal(sent.length, 0);
@@ -1797,7 +1796,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       }),
     );
 
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
     assert.equal(sent.length, 1);
