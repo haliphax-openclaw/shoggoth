@@ -58,7 +58,8 @@ if (argv[0] === "config") {
     process.exit(0);
   }
   if (rest[0] === "show") {
-    await runConfigShow();
+    const dynamic = rest.includes("--dynamic");
+    await runConfigShow({ dynamic });
     process.exit(0);
   }
   console.error("usage: shoggoth config show");

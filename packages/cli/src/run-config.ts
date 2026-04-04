@@ -5,7 +5,8 @@ export function printConfigHelp(version: string): void {
   console.log(`${version}
 
 Usage:
-  shoggoth config show   Print effective layered config (JSON, redacted)`);
+  shoggoth config show [--dynamic]   Print effective layered config (JSON, redacted)
+                                      --dynamic  Show only dynamic config fragments`);
 }
 
 function controlAuth():
@@ -23,19 +24,24 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
-export async function runConfigShow(): Promise<void> {
+export async function runConfigShow(opts?: { dynamic?: boolean }): Promise<void> {
   const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
   const socketPath = socketPathFromEnv(configDir);
   const auth = controlAuth();
+  const payload = opts?.dynamic ? { dynamic: true } : {};
   const res = await invokeControlRequest({
     socketPath,
     auth,
     op: "config_show",
-    payload: {},
+    payload,
   });
   if (res.ok) {
     const result = res.result as Record<string, unknown> | undefined;
-    console.log(JSON.stringify(result?.config ?? result, null, 2));
+    if (opts?.dynamic) {
+      console.log(JSON.stringify(result?.fragments ?? result, null, 2));
+    } else {
+      console.log(JSON.stringify(result?.config ?? result, null, 2));
+    }
   } else {
     console.error(JSON.stringify(res.error ?? res, null, 2));
     process.exitCode = 1;
