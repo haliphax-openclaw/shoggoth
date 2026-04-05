@@ -24,7 +24,6 @@ import { runCronTick } from "./events/cron-scheduler";
 import { runBootReconciliation } from "./events/boot-reconciliation";
 import { runRetentionJobs, retentionScheduleIntervalMs } from "./retention/retention-jobs";
 import {
-import {
   createDefaultHeartbeatHandlers,
   runHeartbeatBatch,
 } from "./events/heartbeat-consumer";
