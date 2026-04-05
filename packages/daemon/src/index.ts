@@ -117,7 +117,7 @@ import {
   createDaemonKillAdapter,
   createDaemonMessageAdapter,
   createDaemonMessagePoster,
-  createDaemonToolExecutor,
+  createDaemonToolExecutorFactory,
 
   
   type CompletionMap,
@@ -606,13 +606,12 @@ void (async () => {
       }),
 
   
-      createToolExecutor: (sessionId: string) => createDaemonToolExecutor({
-        getToolContext: async () => {
-          const runtime = getSessionMcpRuntimeRef();
-          if (!runtime) return undefined;
-          return runtime.resolveContext(sessionId);
-        },
-        logger: getLogger("workflow-tool-executor"),
+      createToolExecutor: createDaemonToolExecutorFactory({
+        sessionMcpRuntime: { resolveContext: (sid: string) => getSessionMcpRuntimeRef()?.resolveContext(sid) },
+        db: stateDb,
+        config: resolvedConfig,
+        env: process.env as Record<string, string>,
+        workspacePath: resolvedConfig.runtime?.workspacePath ?? process.cwd(),
       }),
       createNotificationAdapter: (replyToSessionId: string) => ({
         async sendNotification(target: string, message: string): Promise<void> {
