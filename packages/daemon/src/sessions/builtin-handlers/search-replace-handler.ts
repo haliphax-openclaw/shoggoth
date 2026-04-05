@@ -2,8 +2,8 @@
 // builtin-search-replace — search (via rg) and replace text in files
 // ---------------------------------------------------------------------------
 
-import { realpathSync } from "node:fs";
-import { relative, resolve, isAbsolute, sep } from "node:path";
+import { realpathSync, statSync } from "node:fs";
+import { relative, resolve, isAbsolute, sep, dirname, basename } from "node:path";
 import { runAsUser } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 
@@ -63,12 +63,16 @@ async function handleSearch(
   if (typeof args.contextLines === "number") rgArgs.push("-C", String(args.contextLines));
   if (typeof args.maxCount === "number") rgArgs.push("-m", String(args.maxCount));
 
-  rgArgs.push("--", pattern, ".");
+  // Handle file vs directory paths
+  const isFile = statSync(searchPath, { throwIfNoEntry: false })?.isFile() ?? false;
+  const rgCwd = isFile ? dirname(searchPath) : searchPath;
+  const rgTarget = isFile ? basename(searchPath) : ".";
+  rgArgs.push("--", pattern, rgTarget);
 
   const r = await runAsUser({
     file: "rg",
     args: rgArgs,
-    cwd: searchPath,
+    cwd: rgCwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,
   });

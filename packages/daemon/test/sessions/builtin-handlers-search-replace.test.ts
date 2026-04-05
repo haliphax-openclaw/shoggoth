@@ -167,6 +167,24 @@ describe("search-replace: search", () => {
       rmSync(ws, { recursive: true, force: true });
     }
   });
+
+  it("search with direct file path (not directory)", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "target.txt"), "alpha\nbeta\ngamma\n");
+      const result = await exec(ws, {
+        action: "search",
+        pattern: "beta",
+        path: join(ws, "target.txt"),
+      });
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      const output = result.output as string;
+      assert.ok(output.includes("beta"), "should find match in file");
+      assert.ok(!output.includes("alpha"), "should not include non-matching lines");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
