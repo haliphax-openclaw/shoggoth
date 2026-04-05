@@ -100,6 +100,9 @@ import { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
 import { setNoticeResolver as setPresentationNoticeResolver } from "./presentation/notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
 import { registerContextFinalizer, getSessionMcpRuntimeRef } from "./sessions/session-mcp-runtime";
+import type { PlatformAdapter } from "./presentation/platform-adapter";
+
+const platformAdapterRef: { current?: PlatformAdapter } = { current: undefined };
 import {
   messageToolFinalizer,
   subagentToolStripFinalizer,
@@ -594,7 +597,11 @@ void (async () => {
         sessionId,
       }),
       createMessagePoster: (sessionId: string) => createDaemonMessagePoster({
-        getMessageContext: () => messageToolContextRef.current ?? undefined,
+        sendBody: async (target: string, body: string) => {
+          const adapter = platformAdapterRef.current;
+          if (!adapter) throw new Error("platform adapter not available");
+          await adapter.sendBody(target, body);
+        },
         logger: getLogger("workflow-message-poster"),
       }),
 
@@ -666,6 +673,7 @@ void (async () => {
       deps: defaultPlatformAssistantDeps,
     });
     registerPlatform("discord", discordPlatform);
+    platformAdapterRef.current = discordPlatform.adapter;
 
     // Wire reaction passthrough: resolve raw Discord events into the processed format.
     const passthroughLogger = getLogger("reaction-passthrough");

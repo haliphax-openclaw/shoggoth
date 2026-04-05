@@ -269,10 +269,8 @@ export function createDaemonMessageAdapter(deps: DaemonMessageAdapterDeps): Mess
 // ---------------------------------------------------------------------------
 
 export interface DaemonMessagePosterDeps {
-  /** Lazy getter — messaging context may not be available at construction time. */
-  readonly getMessageContext: () =>
-    | { execute: (sessionId: string, args: Record<string, unknown>) => Promise<Record<string, unknown>> }
-    | undefined;
+  /** Platform-agnostic message sender. Resolves lazily since the platform may start after the workflow singleton. */
+  readonly sendBody: (sessionId: string, body: string) => Promise<void>;
   readonly logger: ReturnType<typeof getLogger>;
 }
 
@@ -280,29 +278,12 @@ export function createDaemonMessagePoster(deps: DaemonMessagePosterDeps): Messag
   const logger = adaptLogger(deps.logger);
   return {
     async post(target: string, message: string): Promise<void> {
-      const ctx = deps.getMessageContext();
       logger.debug("message task posting", { target, messageLen: message.length });
-      if (!ctx) {
-        logger.warn("message task: no message context available");
-        return;
-      }
-
       try {
-        const result = await ctx.execute(target, {
-          action: "post",
-          content: message,
-          target,
-        });
-
-        const res = result as { ok?: boolean; error?: string };
-        if (res.ok === false) {
-          logger.warn("message task post failed", { target, error: res.error });
-          return;
-        }
-
+        await deps.sendBody(target, message);
         logger.debug("message task posted", { target });
       } catch (e) {
-        logger.warn("message task post threw", { target, err: String(e) });
+        logger.warn("message task post failed", { target, err: String(e) });
       }
     },
   };
