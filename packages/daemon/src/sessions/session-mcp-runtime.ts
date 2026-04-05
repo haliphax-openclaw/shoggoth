@@ -268,7 +268,7 @@ export async function createSessionMcpRuntime(
     return runContextFinalizers(await inflight, sessionId);
   }
 
-  return {
+  const _runtime: SessionMcpRuntime = {
     resolveContext,
     notifyTurnBegin: cancelPerSessionMcpIdleTimer,
     notifyTurnEnd: (sessionId: string) => {
@@ -291,4 +291,14 @@ export async function createSessionMcpRuntime(
       perSessionMcpConnect.clear();
     },
   };
+  _runtimeRef = _runtime;
+  return _runtime;
+}
+
+// ── Singleton ref ──────────────────────────────────────────────────
+let _runtimeRef: SessionMcpRuntime | undefined;
+
+/** Returns the last created SessionMcpRuntime, or undefined. */
+export function getSessionMcpRuntimeRef(): SessionMcpRuntime | undefined {
+  return _runtimeRef;
 }

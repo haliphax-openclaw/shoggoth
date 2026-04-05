@@ -170,6 +170,7 @@ export {
   type SessionMcpRuntime,
   type CreateSessionMcpRuntimeOptions,
   type SessionMcpContextFinalizer,
+  getSessionMcpRuntimeRef,
 } from "./sessions/session-mcp-runtime";
 export type {
   SessionToolLoopFailoverState,

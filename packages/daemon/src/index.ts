@@ -99,7 +99,7 @@ import { createHitlPendingResolutionStack, type HitlPendingStack } from "./hitl/
 import { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
 import { setNoticeResolver as setPresentationNoticeResolver } from "./presentation/notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
-import { registerContextFinalizer } from "./sessions/session-mcp-runtime";
+import { registerContextFinalizer, getSessionMcpRuntimeRef } from "./sessions/session-mcp-runtime";
 import {
   messageToolFinalizer,
   subagentToolStripFinalizer,
@@ -594,29 +594,14 @@ void (async () => {
         sessionId,
       }),
       createMessagePoster: (sessionId: string) => createDaemonMessagePoster({
-        getMessageContext: () => {
-          const messaging = discordMessaging;
-          if (!messaging) return undefined;
-          return {
-            execute: async (target: string, args: Record<string, unknown>) => {
-              const action = args.action as string;
-              const content = args.content as string;
-              if (action === "post" && content) {
-                await messaging.sendMessage(target, content);
-                return { ok: true };
-              }
-              return { ok: false, error: "unsupported action" };
-            },
-          };
-        },
+        getMessageContext: () => messageToolContextRef.current ?? undefined,
         logger: getLogger("workflow-message-poster"),
       }),
 
   
       createToolExecutor: (sessionId: string) => createDaemonToolExecutor({
         getToolContext: async () => {
-          const { default: { getSessionMcpRuntime } } = await import("./sessions/session-mcp-runtime.js");
-          const runtime = getSessionMcpRuntime();
+          const runtime = getSessionMcpRuntimeRef();
           if (!runtime) return undefined;
           return runtime.resolveContext(sessionId);
         },
