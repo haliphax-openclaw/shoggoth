@@ -106,6 +106,11 @@ async function handleReplace(
     return { resultJson: JSON.stringify({ error: "file, match, and replacement are required" }) };
   }
 
+  // Validate regex early
+  try { new RegExp(match); } catch (e: any) {
+    return { resultJson: JSON.stringify({ error: `invalid regex: ${e.message}` }) };
+  }
+
   let absPath: string;
   try {
     absPath = resolveAndGuard(ctx.workspacePath, file);
@@ -113,55 +118,102 @@ async function handleReplace(
     return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
   }
 
-  // Read file via runAsUser
-  const readResult = await runAsUser({
-    file: process.execPath,
-    args: ["-e", `process.stdout.write(require("fs").readFileSync(${JSON.stringify(absPath)}, "utf8"))`],
-    cwd: realpathSync(ctx.workspacePath),
+  const cwd = realpathSync(ctx.workspacePath);
+  const hasCount = typeof args.count === "number";
+
+  // Step 1: check for matches via rg --count-matches
+  const countResult = await runAsUser({
+    file: "rg",
+    args: ["--count-matches", "--no-filename", "--", match, absPath],
+    cwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,
   });
 
-  if (readResult.exitCode !== 0) {
-    return { resultJson: JSON.stringify({ error: readResult.stderr.trim() || "failed to read file" }) };
+  if (countResult.exitCode === 2) {
+    return { resultJson: JSON.stringify({ error: countResult.stderr.trim() || "failed to read file" }) };
   }
 
-  const content = readResult.stdout;
-  const count = typeof args.count === "number" ? args.count : 1;
-  const maxReplacements = count === 0 ? Infinity : count;
-
-  let result = "";
-  let replacements = 0;
-  let pos = 0;
-
-  while (pos < content.length) {
-    const idx = content.indexOf(match, pos);
-    if (idx === -1 || replacements >= maxReplacements) {
-      result += content.slice(pos);
-      break;
-    }
-    result += content.slice(pos, idx) + replacement;
-    replacements++;
-    pos = idx + match.length;
-  }
-
-  if (replacements === 0) {
+  const totalMatches = parseInt(countResult.stdout.trim(), 10) || 0;
+  if (totalMatches === 0) {
     return { resultJson: JSON.stringify({ error: "match not found in file" }) };
   }
 
-  // Write file via runAsUser
+  // Step 2a: count-limited replacement — read, replace in JS, write back
+  if (hasCount) {
+    const readResult = await runAsUser({
+      file: process.execPath,
+      args: ["-e", `process.stdout.write(require("fs").readFileSync(${JSON.stringify(absPath)}, "utf8"))`],
+      cwd,
+      uid: ctx.creds.uid,
+      gid: ctx.creds.gid,
+    });
+    if (readResult.exitCode !== 0) {
+      return { resultJson: JSON.stringify({ error: readResult.stderr.trim() || "failed to read file" }) };
+    }
+
+    const count = args.count as number;
+    const maxReplacements = count === 0 ? Infinity : count;
+    let replacements = 0;
+    const result = readResult.stdout.replace(new RegExp(match, "g"), (m, ...rest) => {
+      if (replacements >= maxReplacements) return m;
+      replacements++;
+      // Support $1..$9 capture group refs via the native replace
+      return replacement.replace(/\$(\d)/g, (_, n) => rest[parseInt(n, 10) - 1] ?? _);
+    });
+
+    const writeResult = await runAsUser({
+      file: process.execPath,
+      args: ["-e", `require("fs").writeFileSync(${JSON.stringify(absPath)}, process.env.SR_CONTENT)`],
+      cwd,
+      uid: ctx.creds.uid,
+      gid: ctx.creds.gid,
+      env: { SR_CONTENT: result },
+    });
+    if (writeResult.exitCode !== 0) {
+      return { resultJson: JSON.stringify({ error: writeResult.stderr.trim() || "failed to write file" }) };
+    }
+    return { resultJson: JSON.stringify({ replacements }) };
+  }
+
+  // Step 2b: full replacement via rg --passthru --replace
+  const rgResult = await runAsUser({
+    file: "rg",
+    args: ["--passthru", "--no-line-number", "--no-filename", "--color", "never",
+           "--replace", replacement, "--", match, absPath],
+    cwd,
+    uid: ctx.creds.uid,
+    gid: ctx.creds.gid,
+  });
+
+  if (rgResult.exitCode !== 0 && rgResult.exitCode !== 1) {
+    return { resultJson: JSON.stringify({ error: rgResult.stderr.trim() || "rg replace failed" }) };
+  }
+
+  // rg --passthru adds a trailing newline; preserve original EOF
+  const readTrailing = await runAsUser({
+    file: process.execPath,
+    args: ["-e", `const c=require("fs").readFileSync(${JSON.stringify(absPath)},"utf8");process.stdout.write(c.endsWith("\\n")?"1":"0")`],
+    cwd,
+    uid: ctx.creds.uid,
+    gid: ctx.creds.gid,
+  });
+  let replaced = rgResult.stdout;
+  if (readTrailing.stdout === "0" && replaced.endsWith("\n")) {
+    replaced = replaced.slice(0, -1);
+  }
+
   const writeResult = await runAsUser({
     file: process.execPath,
     args: ["-e", `require("fs").writeFileSync(${JSON.stringify(absPath)}, process.env.SR_CONTENT)`],
-    cwd: realpathSync(ctx.workspacePath),
+    cwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,
-    env: { SR_CONTENT: result },
+    env: { SR_CONTENT: replaced },
   });
-
   if (writeResult.exitCode !== 0) {
     return { resultJson: JSON.stringify({ error: writeResult.stderr.trim() || "failed to write file" }) };
   }
 
-  return { resultJson: JSON.stringify({ replacements }) };
+  return { resultJson: JSON.stringify({ replacements: totalMatches }) };
 }

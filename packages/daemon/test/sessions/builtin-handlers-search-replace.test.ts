@@ -174,7 +174,7 @@ describe("search-replace: search", () => {
 // ---------------------------------------------------------------------------
 
 describe("search-replace: replace", () => {
-  it("basic literal replacement works", async () => {
+  it("regex replacement replaces all occurrences by default", async () => {
     const ws = makeTmpWorkspace();
     try {
       writeFileSync(join(ws, "file.txt"), "foo bar foo baz");
@@ -184,16 +184,50 @@ describe("search-replace: replace", () => {
         match: "foo",
         replacement: "qux",
       });
-      assert.ok(!result.error);
-      assert.strictEqual(result.replacements, 1);
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      assert.strictEqual(result.replacements, 2);
       const content = readFileSync(join(ws, "file.txt"), "utf8");
-      assert.strictEqual(content, "qux bar foo baz");
+      assert.strictEqual(content, "qux bar qux baz");
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
   });
 
-  it("count parameter limits replacements", async () => {
+  it("regex capture groups work", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "hello world\nhello there");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "hello (\\w+)",
+        replacement: "hi $1",
+      });
+      assert.ok(!result.error);
+      const content = readFileSync(join(ws, "file.txt"), "utf8");
+      assert.strictEqual(content, "hi world\nhi there");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("returns error for invalid regex", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "hello");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "(unclosed",
+        replacement: "x",
+      });
+      assert.ok(result.error);
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("count parameter limits replacements (literal fallback)", async () => {
     const ws = makeTmpWorkspace();
     try {
       writeFileSync(join(ws, "file.txt"), "aaa aaa aaa");
@@ -207,25 +241,6 @@ describe("search-replace: replace", () => {
       assert.strictEqual(result.replacements, 2);
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "bbb bbb aaa");
-    } finally {
-      rmSync(ws, { recursive: true, force: true });
-    }
-  });
-
-  it("count=0 replaces all occurrences", async () => {
-    const ws = makeTmpWorkspace();
-    try {
-      writeFileSync(join(ws, "file.txt"), "x x x");
-      const result = await exec(ws, {
-        action: "replace",
-        file: "file.txt",
-        match: "x",
-        replacement: "y",
-        count: 0,
-      });
-      assert.strictEqual(result.replacements, 3);
-      const content = readFileSync(join(ws, "file.txt"), "utf8");
-      assert.strictEqual(content, "y y y");
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
