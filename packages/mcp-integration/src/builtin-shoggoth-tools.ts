@@ -662,6 +662,37 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
           },
         },
       },
+      {
+        name: "search-replace",
+        description:
+          "Search files using ripgrep or replace text in a file. Actions: search (regex/literal pattern match across files), replace (regex replacement with capture group support).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["search", "replace"],
+              description: "search: find text in files using ripgrep. replace: regex replace in a single file.",
+            },
+            pattern: { type: "string", description: "search: regex pattern to search for." },
+            path: { type: "string", description: "search: file or directory to search (workspace-relative). Default: \".\"" },
+            fileType: { type: "string", description: "search: ripgrep type filter (e.g. \"ts\", \"json\")." },
+            glob: { type: "string", description: "search: glob pattern for file filtering (e.g. \"*.ts\", \"!*.test.ts\")." },
+            caseSensitive: { type: "boolean", description: "search: case-sensitive search. Default: true." },
+            fixedStrings: { type: "boolean", description: "search: treat pattern as literal string, not regex. Default: false." },
+            contextLines: { type: "integer", description: "search: lines of context around matches." },
+            maxCount: { type: "integer", description: "search: max matches per file." },
+            maxResults: { type: "integer", description: "search: total max result lines. Default: 200." },
+            includeHidden: { type: "boolean", description: "search: include hidden files/dirs. Default: false." },
+            multiline: { type: "boolean", description: "search: enable multiline matching. Default: false." },
+            file: { type: "string", description: "replace: path to file (workspace-relative)." },
+            match: { type: "string", description: "replace: regex pattern to find." },
+            replacement: { type: "string", description: "replace: replacement string (supports $1, $2 capture groups)." },
+            count: { type: "integer", description: "replace: max occurrences to replace. Omit to replace all." },
+          },
+          required: ["action"],
+        },
+      },
       buildWorkflowToolDescriptor() as McpToolDescriptor,
     ],
   };
