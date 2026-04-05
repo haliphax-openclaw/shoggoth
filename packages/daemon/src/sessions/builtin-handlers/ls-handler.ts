@@ -19,9 +19,8 @@ export function register(registry: BuiltinToolRegistry): void {
 
 function resolveAndGuard(workspaceRoot: string, userPath: string): { rootReal: string; abs: string } {
   if (userPath.includes("\0")) throw new Error("NUL byte in path");
-  if (isAbsolute(userPath)) throw new Error("absolute paths are not allowed");
   const rootReal = realpathSync(workspaceRoot);
-  const abs = resolve(rootReal, userPath);
+  const abs = isAbsolute(userPath) ? userPath : resolve(rootReal, userPath);
   const rel = relative(rootReal, abs);
   if (rel === ".." || rel.startsWith(`..${sep}`)) {
     throw new Error("path escapes workspace");
