@@ -13,6 +13,7 @@ import {
 import type { ShoggothModelsConfig } from "@shoggoth/shared";
 import { compactSessionTranscript } from "../transcript-compact";
 import { loadSessionTranscriptAsModelChat } from "./transcript-to-chat";
+import { TurnAbortedError } from "./session-turn-abort";
 import { getLogger } from "../logging";
 import type { ModelClient } from "./tool-loop";
 
@@ -71,6 +72,8 @@ export function createSessionToolLoopModelClient(input: {
     readonly env: Record<string, string | undefined>;
     readonly systemPromptChars: number;
     readonly toolSchemaChars: number;
+    readonly turnAbortSignal?: AbortSignal;
+    readonly compactionAbortTimeoutMs: number;
   };
 }): SessionToolLoopModelClient {
   let messages: ChatMessage[] = [...input.initialMessages];
@@ -122,7 +125,7 @@ export function createSessionToolLoopModelClient(input: {
         const estimatedTokens = (c.systemPromptChars / 4) + (c.toolSchemaChars / 2) + (textChars / 4) + (jsonChars / 2);
         if (estimatedTokens > c.ctxWindowTokens - c.reserveTokens) {
           log.debug("mid-turn compaction triggered", { sessionId: c.sessionId, estimatedTokens: Math.round(estimatedTokens), ctxWindowTokens: c.ctxWindowTokens, reserveTokens: c.reserveTokens });
-          try {
+          const compactionPromise = (async () => {
             const policy = resolveCompactionPolicyFromModelsConfig(c.modelsConfig);
             const compactionClient = createFailoverClientFromModelsConfig(c.modelsConfig, { env: c.env });
             const { compacted } = await compactSessionTranscript(c.db, c.sessionId, policy, compactionClient, { modelsConfig: c.modelsConfig, force: true });
@@ -132,8 +135,28 @@ export function createSessionToolLoopModelClient(input: {
               messages = systemMsg ? [systemMsg, ...reloaded] : [...reloaded];
               log.debug("mid-turn compaction completed", { sessionId: c.sessionId });
             }
+          })();
+
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const timeoutPromise = new Promise<void>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("compaction timeout")), c.compactionAbortTimeoutMs);
+          });
+
+          try {
+            await Promise.race([compactionPromise, timeoutPromise]);
           } catch (e) {
-            log.warn("mid-turn compaction failed, proceeding with current messages", { sessionId: c.sessionId, err: String(e) });
+            if (String(e).includes("compaction timeout")) {
+              log.warn("mid-turn compaction timed out, proceeding with current messages", { sessionId: c.sessionId });
+            } else {
+              log.warn("mid-turn compaction failed, proceeding with current messages", { sessionId: c.sessionId, err: String(e) });
+            }
+          } finally {
+            if (timer !== undefined) clearTimeout(timer);
+          }
+
+          if (c.turnAbortSignal?.aborted) {
+            log.debug("abort deferred until compaction completed", { sessionId: c.sessionId });
+            throw new TurnAbortedError();
           }
         }
       }

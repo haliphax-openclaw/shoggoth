@@ -260,6 +260,10 @@ export async function executeSessionAgentTurn(
     ? modelsForSession?.failoverChain?.[0]?.contextWindowTokens
     : undefined;
 
+  const { signal: turnAbortSignal, end: endTurnAbortScope } = beginSessionTurnAbortScope(
+    input.sessionId,
+  );
+
   const model: SessionToolLoopModelClient = createSessionToolLoopModelClient({
     toolClient,
     initialMessages,
@@ -280,6 +284,8 @@ export async function executeSessionAgentTurn(
       env: input.env,
       systemPromptChars: effectiveSystemPrompt.length,
       toolSchemaChars: JSON.stringify(mcpCtx.toolsOpenAi).length,
+      turnAbortSignal,
+      compactionAbortTimeoutMs: modelsForSession?.compaction?.compactionAbortTimeoutMs ?? 60_000,
     } : undefined,
   });
 
@@ -336,9 +342,6 @@ export async function executeSessionAgentTurn(
     },
   });
 
-  const { signal: turnAbortSignal, end: endTurnAbortScope } = beginSessionTurnAbortScope(
-    input.sessionId,
-  );
   log.debug("model call started", {
     sessionId: input.sessionId,
     messageCount: initialMessages.length,

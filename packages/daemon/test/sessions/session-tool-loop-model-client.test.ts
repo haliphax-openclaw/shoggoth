@@ -8,6 +8,7 @@ import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
 import { createSessionStore } from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { createSessionToolLoopModelClient } from "../../src/sessions/session-tool-loop-model-client";
+import { TurnAbortedError } from "../../src/sessions/session-turn-abort";
 
 // Mock compactSessionTranscript
 vi.mock("../../src/transcript-compact", () => ({
@@ -207,6 +208,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 0,
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -238,6 +240,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 12, // "sys" → 3 chars/4 ≈ 1 token
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -280,6 +283,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 0,
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -324,6 +328,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 0,
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -362,6 +367,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 0,
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -388,6 +394,7 @@ describe("mid-turn compaction in complete()", () => {
         env: {},
         systemPromptChars: 0,
         toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
       },
     });
 
@@ -395,5 +402,166 @@ describe("mid-turn compaction in complete()", () => {
     model2.pushToolMessage!({ toolCallId: "tc1", content: "b".repeat(200) });
     await model2.complete();
     assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "tool content at chars/2 should exceed budget");
+  });
+});
+
+describe("abort during mid-turn compaction", () => {
+  let db: Database.Database;
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "shoggoth-stlmc-abort-"));
+    db = new Database(join(tmp, "test.db"));
+    db.pragma("foreign_keys = ON");
+    migrate(db, defaultMigrationsDir());
+    createSessionStore(db).create({ id: "sess-1", workspacePath: tmp });
+    vi.mocked(compactSessionTranscript).mockReset();
+    vi.mocked(loadSessionTranscriptAsModelChat).mockReset();
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  function makeCompactionConfig(overrides?: { turnAbortSignal?: AbortSignal; compactionAbortTimeoutMs?: number }) {
+    return {
+      db,
+      sessionId: "sess-1",
+      contextSegmentId: "default",
+      ctxWindowTokens: 100,
+      reserveTokens: 50,
+      modelsConfig: undefined as any,
+      env: {},
+      systemPromptChars: 0,
+      toolSchemaChars: 0,
+      ...overrides,
+    };
+  }
+
+  it("defers abort until compaction completes, then throws TurnAbortedError", async () => {
+    const ac = new AbortController();
+    let compactionResolved = false;
+
+    // Compaction takes 100ms; abort fires at 30ms — compaction should still finish
+    vi.mocked(compactSessionTranscript).mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+      compactionResolved = true;
+      return { compacted: true, messageCount: 1 };
+    });
+    vi.mocked(loadSessionTranscriptAsModelChat).mockReturnValue([
+      { role: "user", content: "compacted" },
+    ]);
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: makeCompactionConfig({
+        turnAbortSignal: ac.signal,
+        compactionAbortTimeoutMs: 5_000,
+      }),
+    });
+
+    // Push large tool message to trigger compaction
+    model.pushToolMessage!({ toolCallId: "tc1", content: "x".repeat(400) });
+
+    // Fire abort after 30ms (while compaction is in progress)
+    setTimeout(() => ac.abort(), 30);
+
+    await assert.rejects(() => model.complete(), (err: Error) => {
+      assert.ok(err instanceof TurnAbortedError);
+      return true;
+    });
+
+    // Compaction must have completed before the error was thrown
+    assert.ok(compactionResolved, "compaction should have completed before TurnAbortedError");
+  });
+
+  it("proceeds normally when no abort signal fires during compaction", async () => {
+    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: true, messageCount: 1 });
+    vi.mocked(loadSessionTranscriptAsModelChat).mockReturnValue([
+      { role: "user", content: "compacted" },
+    ]);
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: makeCompactionConfig({
+        compactionAbortTimeoutMs: 60_000,
+      }),
+    });
+
+    model.pushToolMessage!({ toolCallId: "tc1", content: "x".repeat(400) });
+
+    // Should NOT throw — no abort signal
+    const result = await model.complete();
+    assert.equal(result.content, "done");
+  });
+
+  it("honors compaction timeout when compaction takes too long", async () => {
+    // Compaction takes 500ms, timeout is 50ms
+    vi.mocked(compactSessionTranscript).mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+      return { compacted: true, messageCount: 1 };
+    });
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: makeCompactionConfig({
+        compactionAbortTimeoutMs: 50,
+      }),
+    });
+
+    model.pushToolMessage!({ toolCallId: "tc1", content: "x".repeat(400) });
+
+    // Should proceed without waiting for compaction to finish
+    const result = await model.complete();
+    assert.equal(result.content, "done");
+    // Transcript should NOT have been reloaded since we timed out
+    assert.equal(vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length, 0);
+  });
+
+  it("throws TurnAbortedError after compaction timeout if abort signal was fired", async () => {
+    const ac = new AbortController();
+    ac.abort(); // already aborted
+
+    // Compaction takes 500ms, timeout is 50ms
+    vi.mocked(compactSessionTranscript).mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 500));
+      return { compacted: true, messageCount: 1 };
+    });
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: makeCompactionConfig({
+        turnAbortSignal: ac.signal,
+        compactionAbortTimeoutMs: 50,
+      }),
+    });
+
+    model.pushToolMessage!({ toolCallId: "tc1", content: "x".repeat(400) });
+
+    await assert.rejects(() => model.complete(), (err: Error) => {
+      assert.ok(err instanceof TurnAbortedError);
+      return true;
+    });
   });
 });
