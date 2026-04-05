@@ -23,6 +23,7 @@ import type { SessionMcpRuntime } from "./sessions/session-mcp-runtime.js";
 import type { BuiltinToolRegistry } from "./sessions/builtin-tool-registry.js";
 import { pushSystemContext } from "./sessions/system-context-buffer";
 import { getLogger } from "./logging";
+import { randomUUID } from "node:crypto";
 
 const log = getLogger("workflow-adapters");
 
@@ -308,59 +309,50 @@ export function createDaemonMessagePoster(deps: DaemonMessagePosterDeps): Messag
 }
 
 // ---------------------------------------------------------------------------
-// WorkflowToolExecutorAdapter (converts daemon tool context to workflow ToolExecutor)
+// Workflow Notifier (for workflow completion notifications)
 // ---------------------------------------------------------------------------
 
-export interface WorkflowToolExecutorAdapterDeps {
-  readonly sessionId: string;
-  readonly getToolContext: () => Promise<import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined>;
+export interface WorkflowNotifierDeps {
+  readonly getRunSessionModelTurn: () => (input: {
+    readonly sessionId: string;
+    readonly userContent: string;
+    readonly userMetadata?: Record<string, unknown>;
+    readonly systemContext?: { kind: string; summary: string; data?: Record<string, unknown>; guidance?: string };
+    readonly delivery: { kind: string };
+  }) => Promise<{ latestAssistantText: string; failoverMeta?: unknown }>;
   readonly logger: ReturnType<typeof getLogger>;
 }
 
-/**
- * Adapter that converts the daemon's tool context interface to the workflow ToolExecutor interface.
- * Workflow tasks call execute(tool, args) and expect { ok, output, error }.
- * The daemon's tool context expects { name, argsJson, toolCallId } and returns { resultJson }.
- */
-export function createWorkflowToolExecutorAdapter(deps: WorkflowToolExecutorAdapterDeps): ToolExecutor {
+export function createWorkflowNotifier(deps: WorkflowNotifierDeps): NotifyAdapter {
   const logger = adaptLogger(deps.logger);
 
   return {
-    async execute(tool: string, args: Record<string, unknown>) {
-      const argsJson = JSON.stringify(args);
-      const toolCallId = `workflow-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    async notify(workflowId: string, success: boolean, context?: { replyTo: string; aborted?: boolean }): Promise<void> {
+      const runSessionModelTurn = deps.getRunSessionModelTurn();
+      const sessionId = context?.replyTo;
+      if (!sessionId) {
+        logger.warn("workflow notify: no replyTo in context");
+        return;
+      }
 
-      logger.debug("workflow tool task executing", { tool, sessionId: deps.sessionId, argsLen: argsJson.length });
+      const status = success ? "✅ completed successfully" : "❌ completed with failures";
+      const message = `**Workflow ${status}:** \`${workflowId}\``;
 
       try {
-        const context = await deps.getToolContext();
-        if (!context) {
-          logger.warn("workflow tool task: no context available", { tool, sessionId: deps.sessionId });
-          return { ok: false, output: "", error: "Tool context not available" };
-        }
-
-        const result = await context.execute({ name: tool, argsJson, toolCallId });
-        let parsed: Record<string, unknown>;
-        try {
-          parsed = JSON.parse(result.resultJson);
-        } catch (e) {
-          logger.warn("workflow tool task: failed to parse result", { tool, sessionId: deps.sessionId, error: String(e) });
-          return { ok: false, output: "", error: "Tool returned invalid JSON" };
-        }
-
-        // Check if the result indicates an error
-        if (parsed.error) {
-          const errorMsg = (parsed.message as string | undefined) || (parsed.error as string);
-          logger.debug("workflow tool task: tool returned error", { tool, sessionId: deps.sessionId, error: errorMsg });
-          return { ok: false, output: "", error: errorMsg };
-        }
-
-        logger.debug("workflow tool task completed", { tool, sessionId: deps.sessionId });
-        return { ok: true, output: result.resultJson };
+        await runSessionModelTurn({
+          sessionId,
+          userContent: message,
+          userMetadata: { workflow_notify: true, workflow_id: workflowId, success },
+          systemContext: {
+            kind: "workflow.complete",
+            summary: `Workflow completed ${success ? "successfully" : "failed"}.`,
+            guidance: "The user can already see task statuses, durations, total duration, and workflow completion in the automated status post. Surface any meaningful information beyond that, or simply acknowledge completion in your own voice.",
+            data: { workflow_id: workflowId, success },
+          },
+          delivery: { kind: "internal" },
+        });
       } catch (e) {
-        const errMsg = e instanceof Error ? e.message : String(e);
-        logger.warn("workflow tool task failed", { tool, sessionId: deps.sessionId, error: errMsg });
-        return { ok: false, output: "", error: errMsg };
+        logger.warn("workflow completion notification failed", { workflowId, error: String(e) });
       }
     },
   };
@@ -482,7 +474,6 @@ export function createDaemonToolExecutor(deps: DaemonToolExecutorDeps): ToolExec
           return {
             resultJson: JSON.stringify({
               error: "no_context",
-              tool: name,
               message: "Tool context not available",
             }),
           };
@@ -499,9 +490,87 @@ export function createDaemonToolExecutor(deps: DaemonToolExecutorDeps): ToolExec
         return {
           resultJson: JSON.stringify({
             error: "execution_failed",
-            tool: name,
             message: errMsg,
           }),
+        };
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Workflow Tool Executor Adapter (custom interface for tests)
+// ---------------------------------------------------------------------------
+
+export interface WorkflowToolExecutorAdapterDeps {
+  readonly sessionId?: string;
+  readonly getToolContext: () => Promise<import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined>;
+  readonly logger: ReturnType<typeof getLogger>;
+}
+
+/**
+ * Creates a custom adapter with a different interface for workflow tool execution.
+ * This adapter converts from the custom interface to the SessionMcpToolContext interface.
+ */
+export function createWorkflowToolExecutorAdapter(deps: WorkflowToolExecutorAdapterDeps) {
+  const logger = adaptLogger(deps.logger);
+
+  return {
+    async execute(toolName: string, args: Record<string, unknown>): Promise<{ ok: boolean; output: string; error?: string }> {
+      logger.debug("tool executor: executing", { tool: toolName, sessionId: deps.sessionId });
+
+      try {
+        const context = await deps.getToolContext();
+        if (!context) {
+          logger.warn("tool executor: no context available", { tool: toolName, sessionId: deps.sessionId });
+          return {
+            ok: false,
+            output: "",
+            error: "Tool context not available",
+          };
+        }
+
+        const toolCallId = `workflow-${randomUUID()}`;
+        const argsJson = JSON.stringify(args);
+        
+        // Execute tool through context
+        const result = await context.execute({ name: toolName, argsJson, toolCallId });
+        
+        // Parse the result
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(result.resultJson);
+        } catch {
+          logger.warn("tool executor: invalid JSON response", { tool: toolName, sessionId: deps.sessionId });
+          return {
+            ok: false,
+            output: "",
+            error: "Tool returned invalid JSON",
+          };
+        }
+
+        // Check for error in result
+        if (parsed.error) {
+          logger.debug("tool executor: tool returned error", { tool: toolName, sessionId: deps.sessionId });
+          return {
+            ok: false,
+            output: "",
+            error: (parsed.message as string) || (parsed.error as string),
+          };
+        }
+
+        logger.debug("tool executor: execution completed", { tool: toolName, sessionId: deps.sessionId });
+        return {
+          ok: true,
+          output: result.resultJson,
+        };
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        logger.warn("tool executor: execution failed", { tool: toolName, sessionId: deps.sessionId, error: errMsg });
+        return {
+          ok: false,
+          output: "",
+          error: errMsg,
         };
       }
     },
