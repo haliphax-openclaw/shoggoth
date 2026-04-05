@@ -608,10 +608,10 @@ void (async () => {
   
       createToolExecutor: createDaemonToolExecutorFactory({
         sessionMcpRuntime: { resolveContext: (sid: string) => getSessionMcpRuntimeRef()?.resolveContext(sid) },
-        db: stateDb,
-        config: resolvedConfig,
+        db,
+        config: cfg,
         env: process.env as Record<string, string>,
-        workspacePath: resolvedConfig.runtime?.workspacePath ?? process.cwd(),
+        workspacePath: cfg.runtime?.workspacePath ?? process.cwd(),
       }),
       createNotificationAdapter: (replyToSessionId: string) => ({
         async sendNotification(target: string, message: string): Promise<void> {
