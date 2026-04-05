@@ -799,8 +799,6 @@ void (async () => {
         }, retentionMs)
       : undefined;
 
-      : undefined;
-
   stopEventLoops = () => {
     clearInterval(hbTimer);
     clearInterval(cronTimer);
