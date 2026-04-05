@@ -25,7 +25,7 @@ const workflowToolArgs = {
         type: "object",
         properties: {
           id: { type: "integer", description: "Unique task number (1-based)." },
-          kind: { type: "string", enum: ["agent", "tool", "gate", "transform"], description: "Task kind. Default: agent." },
+          kind: { type: "string", enum: ["agent", "tool", "gate", "transform", "message"], description: "Task kind. Default: agent." },
           prompt: { type: "string", description: "Task prompt. May contain {{task:N:output}} or {{task:N:success}} templates." },
           title: { type: "string", description: "Optional display title for status/summary posts (max 60 chars). Falls back to truncated prompt.", maxLength: 60 },
           failure_behavior: {
@@ -57,6 +57,8 @@ const workflowToolArgs = {
           args: { type: "object", description: "Tool task: tool arguments." },
           condition: { type: "string", description: "Gate task: condition expression." },
           template: { type: "string", description: "Transform task: template string." },
+          message: { type: "string", description: "Message task: message body. Supports {{task:N:output}} / {{task:N:success}} refs." },
+          channel: { type: "string", description: "Message task: target channel. Defaults to replyTo session." },
           output_template: { type: "string", description: "Optional: reshape task output before downstream consumption. Supports {{self.output}}, {{self.error}}." },
         },
         required: ["id"],

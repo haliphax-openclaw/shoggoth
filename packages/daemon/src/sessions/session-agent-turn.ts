@@ -264,10 +264,25 @@ export async function executeSessionAgentTurn(
       const reserveTokens = modelsForSession?.compaction?.contextWindowReserveTokens ?? 20_000;
       const systemChars = effectiveSystemPrompt.length;
       const toolSchemaChars = JSON.stringify(mcpCtx.toolsOpenAi).length;
-      const transcriptChars = initialMessages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
-      const estimatedTokens = (systemChars + toolSchemaChars + transcriptChars) / 4;
+      // Split token estimation: text ≈ chars/4, JSON-heavy content ≈ chars/2
+      let textChars = 0;
+      let jsonChars = 0;
+      for (const m of initialMessages) {
+        const contentLen = typeof m.content === "string" ? m.content.length
+          : Array.isArray(m.content) ? m.content.reduce((n, p) => n + ("text" in p && typeof p.text === "string" ? p.text.length : 0), 0)
+          : 0;
+        if (m.role === "tool") {
+          jsonChars += contentLen;
+        } else {
+          textChars += contentLen;
+        }
+        if (m.toolCalls) {
+          for (const tc of m.toolCalls) jsonChars += tc.arguments.length;
+        }
+      }
+      const estimatedTokens = (systemChars / 4) + (toolSchemaChars / 2) + (textChars / 4) + (jsonChars / 2);
       if (estimatedTokens > ctxWindowTokens - reserveTokens) {
-        log.debug("inline compaction triggered", { sessionId: input.sessionId, estimatedTokens: Math.round(estimatedTokens), ctxWindowTokens, reserveTokens });
+        log.debug("inline compaction triggered", { sessionId: input.sessionId, estimatedTokens: Math.round(estimatedTokens), textChars, jsonChars, ctxWindowTokens, reserveTokens });
         try {
           const policy = resolveCompactionPolicyFromModelsConfig(modelsForSession);
           const compactionClient = createFailoverClientFromModelsConfig(modelsForSession, { env: input.env });

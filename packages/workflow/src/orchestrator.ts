@@ -783,8 +783,9 @@ export class Orchestrator {
         }
       }
 
-      // Post summary before notifying
+      // Update status message with final state before posting summary
       if (this.statusManager) {
+        await this.statusManager.updateStatus(wf);
         await this.statusManager.postSummary(wf);
       }
 

@@ -470,8 +470,8 @@ describe("Orchestrator", () => {
     });
   });
 
-  describe("status edits skip when all terminal", () => {
-    it("does not update status when all tasks are terminal and not paused", async () => {
+  describe("status edits on completion", () => {
+    it("updates status when all tasks are terminal before posting summary", async () => {
       const spawner = mockSpawnAdapter();
       const pollResults = new Map<string, PollResult>();
       const poller = mockPollAdapter(pollResults);
@@ -492,10 +492,9 @@ describe("Orchestrator", () => {
       updateCalls.length = 0; // reset
       await orch.tick();
 
-      // updateStatus is called by the status timer (setInterval), not by tick().
-      // The completing tick calls checkCompletion → stopPolling → postSummary.
-      // No updateStatus call happens during tick itself.
-      assert.equal(updateCalls.length, 0);
+      // When completion is detected, updateStatus is called to reflect final state
+      // before postSummary is called.
+      assert.equal(updateCalls.length, 1);
     });
   });
 
