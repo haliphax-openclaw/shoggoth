@@ -69,6 +69,7 @@ export interface DaemonSpawnAdapterDeps {
     readonly userMetadata?: Record<string, unknown>;
     readonly systemContext?: { kind: string; summary: string; data?: Record<string, unknown>; guidance?: string };
     readonly delivery: { kind: string };
+    readonly throwOnError?: boolean;
   }) => Promise<{ latestAssistantText: string; failoverMeta?: unknown }>;
   /** Abort an in-flight session turn by session ID. Uses the existing session turn abort scope. */
   readonly requestTurnAbort?: (sessionId: string) => boolean;
@@ -118,6 +119,7 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
           data: { workflow_id: req.workflowId ?? null, task_id: req.taskId },
         },
         delivery: { kind: "internal" },
+        throwOnError: true,
       });
 
       turnPromise

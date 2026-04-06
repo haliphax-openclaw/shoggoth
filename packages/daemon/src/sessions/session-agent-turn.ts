@@ -90,6 +90,9 @@ export interface ExecuteSessionAgentTurnInput {
     readonly tailMessages: number;
     readonly eventContext: string;
   };
+  /** When true, errors during the tool loop are re-thrown instead of caught.
+   *  Use for workflow tasks where a failed turn should mark the task as failed. */
+  readonly throwOnError?: boolean;
 }
 
 export interface SessionAgentTurnResult {
@@ -421,6 +424,10 @@ export async function executeSessionAgentTurn(
     const errMsg = e instanceof Error ? e.message : String(e);
     const bodySnippet = e instanceof ModelHttpError ? e.bodySnippet : undefined;
     log.error("tool loop unexpected error", { sessionId: input.sessionId, error: errMsg, ...(bodySnippet ? { bodySnippet } : {}) });
+
+    // Workflow tasks opt into throwOnError so the orchestrator can mark the task as failed.
+    if (input.throwOnError) throw e;
+
     pushSystemContext(input.sessionId, `Previous turn encountered an error: ${errMsg}`);
     const failoverMeta2 = model.getSessionToolLoopFailoverState();
     const latestAssistantText2 =

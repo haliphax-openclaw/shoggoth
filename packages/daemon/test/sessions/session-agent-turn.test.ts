@@ -221,6 +221,94 @@ describe("executeSessionAgentTurn (no Discord)", { concurrency: false }, () => {
     assert.ok(result);
     assert.equal(result.latestAssistantText, "CODEC_TEST_REPLY");
   });
+
+  it("swallows tool loop errors by default and returns partial output", async () => {
+    const config = defaultConfig(tmp);
+    const sessions = createSessionStore(db);
+    const session = sessions.getById("sess-core");
+    assert.ok(session);
+    const transcript = createTranscriptStore(db);
+    const toolRuns = createToolRunStore(db);
+    const hitlStack = createHitlPendingResolutionStack(db);
+    const builtin = buildBuiltinOnlySessionMcpToolContext();
+
+    const result = await executeSessionAgentTurn({
+      db,
+      sessionId: "sess-core",
+      session: session!,
+      transcript,
+      toolRuns,
+      userContent: "trigger error test",
+      userMetadata: undefined,
+      systemPrompt: "test",
+      env: process.env,
+      config,
+      policyEngine: createPolicyEngine(config.policy),
+      getHitlConfig: () => ({ ...DEFAULT_HITL_CONFIG, ...config.hitl }),
+      hitl: {
+        bypassUpTo: "safe",
+        pending: hitlStack.pending,
+        clock: { nowMs: () => Date.now() },
+        newPendingId: () => randomUUID(),
+        waitForHitlResolution: hitlStack.waitForHitlResolution,
+      },
+      loopImpl: runToolLoop,
+      createToolCallingClient: () => ({
+        async completeWithTools() {
+          throw new Error("Bad Gateway");
+        },
+      }),
+      resolveMcpContext: async () => builtin,
+    });
+
+    // Error is swallowed; partial output returned with error message fallback
+    assert.ok(result.latestAssistantText.includes("Bad Gateway"));
+  });
+
+  it("re-throws tool loop errors when throwOnError is true", async () => {
+    const config = defaultConfig(tmp);
+    const sessions = createSessionStore(db);
+    const session = sessions.getById("sess-core");
+    assert.ok(session);
+    const transcript = createTranscriptStore(db);
+    const toolRuns = createToolRunStore(db);
+    const hitlStack = createHitlPendingResolutionStack(db);
+    const builtin = buildBuiltinOnlySessionMcpToolContext();
+
+    await assert.rejects(
+      () =>
+        executeSessionAgentTurn({
+          db,
+          sessionId: "sess-core",
+          session: session!,
+          transcript,
+          toolRuns,
+          userContent: "trigger error test",
+          userMetadata: undefined,
+          systemPrompt: "test",
+          env: process.env,
+          config,
+          policyEngine: createPolicyEngine(config.policy),
+          getHitlConfig: () => ({ ...DEFAULT_HITL_CONFIG, ...config.hitl }),
+          hitl: {
+            bypassUpTo: "safe",
+            pending: hitlStack.pending,
+            clock: { nowMs: () => Date.now() },
+            newPendingId: () => randomUUID(),
+            waitForHitlResolution: hitlStack.waitForHitlResolution,
+          },
+          loopImpl: runToolLoop,
+          createToolCallingClient: () => ({
+            async completeWithTools() {
+              throw new Error("Bad Gateway");
+            },
+          }),
+          resolveMcpContext: async () => builtin,
+          throwOnError: true,
+        }),
+      { message: "Bad Gateway" },
+    );
+  });
 });
 
 describe("shoggothModelsCompactionSchema – contextWindowReserveTokens", () => {
