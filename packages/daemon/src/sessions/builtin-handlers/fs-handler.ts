@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// builtin-fs — file operations: move, copy, delete, stat, chmod, rename
+// builtin-fs — file operations: move, copy, delete, stat, chmod, rename, mkdir
 // ---------------------------------------------------------------------------
 
 import { realpathSync } from "node:fs";
@@ -7,7 +7,7 @@ import { basename, dirname, join, relative } from "node:path";
 import { resolvePathForRead, resolvePathForWrite, runAsUser } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry";
 
-type FsAction = "move" | "copy" | "delete" | "stat" | "chmod" | "rename";
+type FsAction = "move" | "copy" | "delete" | "stat" | "chmod" | "rename" | "mkdir";
 
 interface FsArgs {
   action: FsAction;
@@ -278,6 +278,33 @@ async function doRename(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinT
 // Main handler dispatch
 // ---------------------------------------------------------------------------
 
+async function doMkdir(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
+  const dst = resolveDst(ctx, args.path);
+  const recursive = args.recursive === true;
+
+  const script = [
+    `const fs = require("fs");`,
+    `const target = process.env._TARGET;`,
+    `const recursive = process.env._RECURSIVE === "1";`,
+    `try { if (fs.statSync(target).isDirectory()) { process.stdout.write("ok"); process.exit(0); } } catch {}`,
+    `fs.mkdirSync(target, { recursive });`,
+    `process.stdout.write("ok");`,
+  ].join(" ");
+
+  await runScript(ctx, script, {
+    _TARGET: dst,
+    _RECURSIVE: recursive ? "1" : "0",
+  });
+
+  return {
+    resultJson: JSON.stringify({
+      ok: true,
+      action: "mkdir",
+      path: relPath(ctx, dst),
+    }),
+  };
+}
+
 const ACTIONS: Record<FsAction, (ctx: BuiltinToolContext, args: FsArgs) => Promise<BuiltinToolResult>> = {
   move: doMove,
   copy: doCopy,
@@ -285,6 +312,7 @@ const ACTIONS: Record<FsAction, (ctx: BuiltinToolContext, args: FsArgs) => Promi
   stat: doStat,
   chmod: doChmod,
   rename: doRename,
+  mkdir: doMkdir,
 };
 
 async function fsHandler(
