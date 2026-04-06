@@ -830,7 +830,6 @@ export async function handleIntegrationControlOp(
           subagentMode: "one_shot",
           subagentPlatformThreadId: null,
           subagentExpiresAtMs: null,
-          workingDirectory: parent.workingDirectory ?? null,
         });
         const subLog = getLogger("subagent");
         subLog.info("subagent one_shot model turn starting", { childId, parentSessionId, promptLen: prompt.length });
@@ -889,7 +888,6 @@ export async function handleIntegrationControlOp(
         subagentMode: "persistent",
         subagentPlatformThreadId: platformThreadId ?? null,
         subagentExpiresAtMs: expiresAt,
-        workingDirectory: parent.workingDirectory ?? null,
       });
       const unregisterThread = platformThreadId
         ? ext.registerPlatformThreadBinding(platformThreadId, childId)

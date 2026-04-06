@@ -139,6 +139,13 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
           lightContext: input.lightContext,
           contextLevel: resolvedContextLevel,
         });
+        // Inherit parent's working directory when spawning a child session.
+        if (input.parentSessionId) {
+          const parent = options.sessions.getById(input.parentSessionId);
+          if (parent?.workingDirectory) {
+            options.sessions.update(id, { workingDirectory: parent.workingDirectory });
+          }
+        }
         options.agentTokens.register(id, agentToken);
       });
       run();
