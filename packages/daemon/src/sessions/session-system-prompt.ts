@@ -32,12 +32,12 @@ const SHOGGOTH_REFERENCE_DOCS_DIR = "/app/docs";
  */
 /** Basenames injected into the system prompt when present under the session workspace (OpenClaw order). */
 export const WORKSPACE_TEMPLATE_FILES = [
-  "AGENTS.md",
-  "TOOLS.md",
   "IDENTITY.md",
   "USER.md",
-  "BOOTSTRAP.md",
+  "AGENTS.md",
   "MEMORY.md",
+  "TOOLS.md",
+  "BOOTSTRAP.md",
 ] as const;
 
 /**
