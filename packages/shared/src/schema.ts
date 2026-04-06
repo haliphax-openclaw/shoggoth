@@ -610,9 +610,9 @@ export const shoggothToolDiscoveryConfigSchema = z
     enabled: z.boolean().optional(),
     /** Tool IDs that are never collapsed (always in the tools array). */
     alwaysOn: z.array(z.string().min(1)).default([
-      "read", "write", "exec", "memory-search", "session-query",
-      "poll", "skills", "show", "fs", "ls", "fetch", "kv", "timer",
-      "search-replace", "cd",
+      "builtin-read", "builtin-write", "builtin-exec", "builtin-memory-search", "builtin-session-query",
+      "builtin-poll", "builtin-skills", "builtin-show", "builtin-fs", "builtin-ls", "builtin-fetch", "builtin-kv", "builtin-timer",
+      "builtin-search-replace", "builtin-cd",
     ]),
     /** Trigger phrases: when a user message contains the match string (case-insensitive), the listed tool IDs are auto-enabled for that turn. */
     triggers: z.array(toolDiscoveryTriggerSchema).optional(),
