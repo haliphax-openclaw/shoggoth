@@ -270,6 +270,19 @@ Update all code that reads model properties from failover chain entries to use t
 - `packages/platform-discord/src/platform.ts`
 - `packages/cli/src/run-session.ts`
 
+### Phase 6: CLI & Platform Model Commands
+
+Update CLI and platform commands that view or set the session model to use the `provider/model` string syntax instead of JSON objects.
+
+- Update `/model` slash command in Discord platform to accept `provider/model` format
+- Update `run-session.ts` model flags to accept `provider/model` format
+- Update model display/output to show `provider/model` instead of JSON
+- Remove any JSON object parsing for model references in CLI/platform commands
+
+**Files:**
+- `packages/platform-discord/src/platform.ts`
+- `packages/cli/src/run-session.ts`
+
 ## Testing Strategy
 
 - **Phase 1:** Schema validation tests — new fields accepted
