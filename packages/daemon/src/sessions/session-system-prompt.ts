@@ -56,6 +56,7 @@ export const TEMPLATE_FILES_BY_LEVEL: Record<ContextLevel, Set<string>> = {
 
 export interface BuildSessionSystemContextInput {
   readonly workspacePath: string | undefined;
+  readonly workingDirectory: string | undefined;
   readonly config?: ShoggothConfig;
   readonly env?: NodeJS.ProcessEnv;
   /** Context level controlling which system prompt sections are assembled. Defaults to `"full"`. */
@@ -269,6 +270,7 @@ function buildRuntimeSection(input: {
   readonly contextSegmentId: string | undefined;
   readonly channel: string | undefined;
   readonly resolvedWorkspace: string | undefined;
+  readonly workingDirectory: string | undefined;
   readonly modelLabel: string;
   readonly toolCount: number;
 }): string {
@@ -283,6 +285,9 @@ function buildRuntimeSection(input: {
     input.contextSegmentId ? `context_segment=${input.contextSegmentId}` : undefined,
     input.channel ? `channel=${input.channel}` : undefined,
     input.resolvedWorkspace ? `workspace=${input.resolvedWorkspace}` : "workspace=(none)",
+    input.workingDirectory && input.workingDirectory !== input.resolvedWorkspace
+      ? `workdir=${input.workingDirectory}`
+      : undefined,
     `host=${hostname()}`,
     `os=${process.platform}`,
     `node=${process.version}`,
@@ -429,6 +434,7 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
       contextSegmentId: input.contextSegmentId,
       channel: input.channel,
       resolvedWorkspace: resolvedRoot,
+      workingDirectory: input.workingDirectory,
       modelLabel: formatPrimaryModelLabel(
         input.sessionId && input.config
           ? resolveEffectiveModelsConfig(input.config, input.sessionId) ?? input.config.models

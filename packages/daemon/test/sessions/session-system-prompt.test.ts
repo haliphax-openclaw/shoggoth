@@ -21,6 +21,7 @@ describe("buildSessionSystemContext", () => {
   it("includes core sections without workspace", () => {
     const s = buildSessionSystemContext({
       workspacePath: undefined,
+      workingDirectory: undefined,
       env: { SHOGGOTH_MODEL: "test-model" },
       sessionId: "sid-1",
       channel: "discord",
@@ -65,6 +66,7 @@ describe("buildSessionSystemContext", () => {
       writeFileSync(join(opDir, "custom.md"), "from-env-path");
       const s = buildSessionSystemContext({
         workspacePath: undefined,
+      workingDirectory: undefined,
         env: { SHOGGOTH_GLOBAL_INSTRUCTIONS_PATH: join(opDir, "custom.md") },
         config: { operatorDirectory: opDir } as unknown as import("@shoggoth/shared").ShoggothConfig,
         systemContextToken: "test0001",
@@ -81,6 +83,7 @@ describe("buildSessionSystemContext", () => {
       symlinkSync("/etc/passwd", join(opDir, "GLOBAL.md"));
       const s = buildSessionSystemContext({
         workspacePath: undefined,
+      workingDirectory: undefined,
         config: { operatorDirectory: opDir } as unknown as import("@shoggoth/shared").ShoggothConfig,
         systemContextToken: "test0001",
       });
@@ -108,6 +111,7 @@ describe("buildSessionSystemContext", () => {
   it("appends SHOGGOTH_SESSION_SYSTEM_PROMPT", () => {
     const s = buildSessionSystemContext({
       workspacePath: undefined,
+      workingDirectory: undefined,
       env: { SHOGGOTH_SESSION_SYSTEM_PROMPT: "extra operator note" },
       systemContextToken: "test0001",
     });
@@ -118,6 +122,7 @@ describe("buildSessionSystemContext", () => {
   it("includes trusted system context guidance in every system prompt", () => {
     const s = buildSessionSystemContext({
       workspacePath: undefined,
+      workingDirectory: undefined,
       env: { SHOGGOTH_MODEL: "test-model" },
       sessionId: "sid-tsc",
       systemContextToken: "test0001",
@@ -143,6 +148,7 @@ describe("buildSessionSystemContext", () => {
   it("lists memory roots from config when set", () => {
     const s = buildSessionSystemContext({
       workspacePath: undefined,
+      workingDirectory: undefined,
       config: {
         memory: {
           paths: ["/data/memory"],

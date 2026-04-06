@@ -391,6 +391,7 @@ export async function startDiscordPlatform(
             userMetadata,
             systemPrompt: buildSessionSystemContext({
               workspacePath: session.workspacePath,
+              workingDirectory: session.workingDirectory,
               config: opts.config,
               env,
               sessionId: session.id,
@@ -516,6 +517,7 @@ export async function startDiscordPlatform(
         systemContext: input.systemContext,
         systemPrompt: buildSessionSystemContext({
           workspacePath: sessionRow.workspacePath,
+          workingDirectory: sessionRow.workingDirectory,
           config: opts.config,
           env,
           sessionId: sessionRow.id,
