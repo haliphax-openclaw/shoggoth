@@ -34,6 +34,7 @@ export function ensureAgentWorkspaceLayout(
   }
 
   for (const name of WORKSPACE_TEMPLATE_FILES) {
+    if (name === "BOOTSTRAP.md") continue;
     const from = join(srcDir, name);
     const to = join(root, name);
     if (!existsSync(from) || existsSync(to)) continue;
