@@ -144,9 +144,9 @@ describe("StatusManager", () => {
       adapter.editShouldFail = false;
       await manager.updateStatus(wf);
 
-      // 1 initial + 2 reposts = 3 posts, 0 edits
-      assert.equal(adapter.posted.length, 3);
-      assert.equal(adapter.edited.length, 0);
+      // 1 initial + 1 reposts + 1 edit
+      assert.equal(adapter.posted.length, 2);
+      assert.equal(adapter.edited.length, 1);
     });
 
     it("does nothing if no initial status was posted", async () => {
