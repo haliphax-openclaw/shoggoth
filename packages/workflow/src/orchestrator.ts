@@ -420,10 +420,18 @@ export class Orchestrator {
       const result = await this.poller.poll(task.sessionKey);
 
       if (result.status === "done") {
-        task.status = "done";
-        task.output = result.output;
-        task.completedAt = result.completedAt ?? Date.now();
-        log.debug("task completed", { workflowId: wf.id, taskId: task.taskDef.id });
+        // Check for self-reported failure marker in the output
+        if (result.output && result.output.includes("ERROR:TASK_FAILED")) {
+          task.status = "failed";
+          task.error = `self-reported failure: ${result.output}`;
+          task.completedAt = result.completedAt ?? Date.now();
+          log.debug("task self-reported failure via ERROR:TASK_FAILED marker", { workflowId: wf.id, taskId: task.taskDef.id });
+        } else {
+          task.status = "done";
+          task.output = result.output;
+          task.completedAt = result.completedAt ?? Date.now();
+          log.debug("task completed", { workflowId: wf.id, taskId: task.taskDef.id });
+        }
         if (this.killer && task.sessionKey) {
           await this.killer.kill(task.sessionKey).catch(() => {});
         }

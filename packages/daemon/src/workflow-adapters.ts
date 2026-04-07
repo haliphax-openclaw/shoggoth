@@ -116,7 +116,7 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
         systemContext: {
           kind: "workflow.task",
           summary: "You are executing a workflow task.",
-          guidance: "Execute the task described in the message content. Focus only on this task and return your result.",
+          guidance: "Execute the task described in the message content. Focus only on this task and return your result. If you are unable to complete the task for any reason (tool call failures, ambiguous instructions, missing context, etc.), include the exact text ERROR:TASK_FAILED at the end of your response instead of continuing to retry or flail.",
           data: { workflow_id: req.workflowId ?? null, task_id: req.taskId },
         },
         delivery: { kind: "internal" },
