@@ -107,14 +107,20 @@ async function handleReplace(
   const file = args.file as string;
   const match = args.match as string;
   const replacement = args.replacement as string;
+  const fixedStrings = args.fixedStrings === true;
   if (!file || match == null || replacement == null) {
     return { resultJson: JSON.stringify({ error: "file, match, and replacement are required" }) };
   }
 
-  // Validate regex early
-  try { new RegExp(match); } catch (e: any) {
-    return { resultJson: JSON.stringify({ error: `invalid regex: ${e.message}` }) };
+  // Validate regex early (skip when fixedStrings mode)
+  if (!fixedStrings) {
+    try { new RegExp(match); } catch (e: any) {
+      return { resultJson: JSON.stringify({ error: `invalid regex: ${e.message}` }) };
+    }
   }
+
+  // For regex operations in JS, escape the match when fixedStrings is set.
+  const regexPattern = fixedStrings ? match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : match;
 
   let absPath: string;
   try {
@@ -127,9 +133,12 @@ async function handleReplace(
   const hasCount = typeof args.count === "number";
 
   // Step 1: check for matches via rg --count-matches
+  const countArgs = ["--count-matches", "--no-filename"];
+  if (fixedStrings) countArgs.push("-F");
+  countArgs.push("--", match, absPath);
   const countResult = await runAsUser({
     file: "rg",
-    args: ["--count-matches", "--no-filename", "--", match, absPath],
+    args: countArgs,
     cwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,
@@ -160,9 +169,10 @@ async function handleReplace(
     const count = args.count as number;
     const maxReplacements = count === 0 ? Infinity : count;
     let replacements = 0;
-    const result = readResult.stdout.replace(new RegExp(match, "g"), (m, ...rest) => {
+    const result = readResult.stdout.replace(new RegExp(regexPattern, "g"), (m, ...rest) => {
       if (replacements >= maxReplacements) return m;
       replacements++;
+      if (fixedStrings) return replacement;
       // Support $1..$9 capture group refs via the native replace
       return replacement.replace(/\$(\d)/g, (_, n) => rest[parseInt(n, 10) - 1] ?? _);
     });
@@ -182,10 +192,12 @@ async function handleReplace(
   }
 
   // Step 2b: full replacement via rg --passthru --replace
+  const rgReplaceArgs = ["--passthru", "--no-line-number", "--no-filename", "--color", "never"];
+  if (fixedStrings) rgReplaceArgs.push("-F");
+  rgReplaceArgs.push("--replace", replacement, "--", match, absPath);
   const rgResult = await runAsUser({
     file: "rg",
-    args: ["--passthru", "--no-line-number", "--no-filename", "--color", "never",
-           "--replace", replacement, "--", match, absPath],
+    args: rgReplaceArgs,
     cwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,

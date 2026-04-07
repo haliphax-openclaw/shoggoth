@@ -311,4 +311,45 @@ describe("search-replace: replace", () => {
       rmSync(ws, { recursive: true, force: true });
     }
   });
+
+  it("fixedStrings mode treats match as literal string in replace", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "call foo() and foo.bar[0] here");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "foo()",
+        replacement: "bar()",
+        fixedStrings: true,
+      });
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      assert.strictEqual(result.replacements, 1);
+      const content = readFileSync(join(ws, "file.txt"), "utf8");
+      assert.strictEqual(content, "call bar() and foo.bar[0] here");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("fixedStrings mode with count-limited replace", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "a.b a.b a.b");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "a.b",
+        replacement: "x",
+        fixedStrings: true,
+        count: 2,
+      });
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      assert.strictEqual(result.replacements, 2);
+      const content = readFileSync(join(ws, "file.txt"), "utf8");
+      assert.strictEqual(content, "x x a.b");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
 });
