@@ -203,20 +203,32 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         break;
       }
 
+      // Sanitize malformed argsJson before transcript storage.
+      // Models (especially local ones like Gemma) sometimes produce invalid JSON
+      // in tool call arguments, which poisons the transcript and causes subsequent
+      // API calls to fail. Track which tool calls had bad args so we can skip
+      // execution but still store valid JSON in the transcript.
+      const badArgIds = new Set<string>();
+      const sanitizedToolCalls = turn.toolCalls.map((tc) => {
+        try { JSON.parse(tc.argsJson); return tc; } catch {
+          log.warn("tool call args sanitized", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId });
+          badArgIds.add(tc.id);
+          return { ...tc, argsJson: "{}" };
+        }
+      });
+
       if (options.transcript) {
         appendTx({
           role: "assistant",
           content: turn.content ?? null,
-          toolCalls: turn.toolCalls.map((tc) => ({
-            id: tc.id,
-            name: tc.name,
-            argsJson: tc.argsJson,
+          toolCalls: sanitizedToolCalls.map((tc) => ({
+            id: tc.id, name: tc.name, argsJson: tc.argsJson,
           })),
         });
         emitStats?.({ transcriptMessageCount: getTranscriptCount() });
       }
 
-      for (const tc of turn.toolCalls) {
+      for (const tc of sanitizedToolCalls) {
         log.debug("tool call received", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId, args: truncate(tc.argsJson, 1000) });
         // Estimate argsJson tokens (becomes part of next model input context)
         emitStats?.({ estimatedInputTokens: estimateTokens(tc.argsJson) });
@@ -258,14 +270,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           continue;
         }
 
-        // Resolve compound resource (e.g. exec → exec:curl) for policy/HITL checks.
-        // Parse and validate tool call arguments.
-        let toolArgs: Record<string, unknown>;
-        try {
-          toolArgs = JSON.parse(tc.argsJson) as Record<string, unknown>;
-        } catch {
-          log.warn("tool call args parse failed", { toolName: tc.name, toolCallId: tc.id, sessionId: options.sessionId });
-          const errBody = JSON.stringify({ error: "invalid_arguments", tool: tc.name, message: "Tool call arguments are not valid JSON." });
+        // Skip execution for tool calls with originally malformed argsJson.
+        // The transcript already has sanitized JSON; notify the model so it can retry.
+        if (badArgIds.has(tc.id)) {
+          const errBody = JSON.stringify({ error: "invalid_arguments", tool: tc.name, message: "Tool call arguments were not valid JSON." });
           options.audit.record({ phase: "args_parse_error", tool: tc.name, toolCallId: tc.id });
           options.model.pushToolMessage?.({ toolCallId: tc.id, content: errBody });
           if (options.transcript) {
@@ -273,6 +281,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           }
           continue;
         }
+
+        // Parse and validate tool call arguments (argsJson is pre-sanitized above).
+        const toolArgs = JSON.parse(tc.argsJson) as Record<string, unknown>;
         const toolSchema = schemas.get(tc.name);
         if (toolSchema) {
           const validationErrors = validateToolArgs(toolArgs, toolSchema);

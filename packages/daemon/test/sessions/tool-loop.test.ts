@@ -519,45 +519,6 @@ describe("runToolLoop", () => {
     assert.equal(row.status, "completed");
   });
 
-  it("feeds parse error back to model when argsJson is not valid JSON", async () => {
-    const pushed: { toolCallId: string; content: string }[] = [];
-    const exec = vi.fn(async () => ({ resultJson: "{}" }));
-    let step = 0;
-    const model: ModelClient = {
-      async complete() {
-        step += 1;
-        if (step === 1) {
-          return {
-            content: null,
-            toolCalls: [{ id: "p1", name: "read", argsJson: "{bad json" }],
-          };
-        }
-        return { content: "recovered", toolCalls: [] };
-      },
-      pushToolMessage(msg) {
-        pushed.push(msg);
-      },
-    };
-    const toolRuns = createToolRunStore(db);
-    await runToolLoop({
-      db,
-      sessionId: "sess",
-      runId: "run-parse",
-      principalId: "p",
-      policy: { check: () => ({ allow: true }) },
-      audit: { record: () => {} },
-      model,
-      tools: [{ name: "read" }],
-      executor: { execute: exec },
-      toolRuns,
-    });
-    assert.equal(exec.mock.calls.length, 0);
-    assert.equal(pushed.length, 1);
-    const parsed = JSON.parse(pushed[0]!.content);
-    assert.equal(parsed.error, "invalid_arguments");
-    assert.ok(parsed.message.includes("not valid JSON"));
-  });
-
   it("feeds validation error back to model when args fail schema check", async () => {
     const pushed: { toolCallId: string; content: string }[] = [];
     const exec = vi.fn(async () => ({ resultJson: "{}" }));
@@ -643,5 +604,59 @@ describe("runToolLoop", () => {
       toolRuns,
     });
     assert.equal(exec.mock.calls.length, 1);
+  });
+
+  it("sanitizes malformed argsJson in transcript and skips execution", async () => {
+    const tr = createTranscriptStore(db);
+    const pushed: { toolCallId: string; content: string }[] = [];
+    const exec = vi.fn(async () => ({ resultJson: '{"ok":true}' }));
+    let step = 0;
+    const model: ModelClient = {
+      async complete() {
+        step += 1;
+        if (step === 1) {
+          return {
+            content: null,
+            toolCalls: [{ id: "bad1", name: "builtin-read", argsJson: "not valid json {{{" }],
+          };
+        }
+        return { content: "recovered", toolCalls: [] };
+      },
+      pushToolMessage(msg) {
+        pushed.push(msg);
+      },
+    };
+    const toolRuns = createToolRunStore(db);
+    const seg = getSessionContextSegmentId(db, "sess");
+    await runToolLoop({
+      db,
+      sessionId: "sess",
+      runId: "run-bad-args",
+      principalId: "p",
+      policy: { check: () => ({ allow: true }) },
+      audit: { record: () => {} },
+      model,
+      tools: [{ name: "builtin-read" }],
+      executor: { execute: exec },
+      toolRuns,
+      transcript: tr,
+      contextSegmentId: seg,
+    });
+
+    // Tool should NOT execute with malformed args
+    assert.equal(exec.mock.calls.length, 0);
+
+    // Model should be notified of the error
+    assert.equal(pushed.length, 1);
+    const parsed = JSON.parse(pushed[0]!.content);
+    assert.equal(parsed.error, "invalid_arguments");
+
+    // The assistant message in the transcript should have valid JSON for argsJson
+    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
+    const assistantMsgs = page.messages.filter((m) => m.role === "assistant" && m.toolCalls?.length);
+    assert.equal(assistantMsgs.length, 1);
+    const storedArgsJson = assistantMsgs[0]!.toolCalls![0]!.argsJson;
+    assert.doesNotThrow(() => JSON.parse(storedArgsJson), "argsJson in transcript must be valid JSON");
+    assert.equal(storedArgsJson, "{}");
   });
 });
