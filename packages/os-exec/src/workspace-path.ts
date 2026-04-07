@@ -58,19 +58,53 @@ function ensureWriteParentContained(rootReal: string, logicalFile: string): void
   }
 }
 
+/** Default set of absolute directory prefixes that are readable (but never writable). */
+export const DEFAULT_ADDITIONAL_READ_ROOTS: readonly string[] = ["/app"];
+
 /**
- * Resolve a session-relative or absolute path for read: logical path must stay under workspace;
- * final target is realpath'd so symlink escapes are rejected.
+ * Resolve a session-relative or absolute path for read: logical path must stay under workspace
+ * **or** under one of the additional read roots (default: `/app`).
+ * Final target is realpath'd so symlink escapes are rejected.
  * 
  * Accepts both:
  * - Relative paths (resolved relative to workspace root)
- * - Absolute paths (validated to be within workspace root)
+ * - Absolute paths (validated to be within workspace root or an additional read root)
  */
-export function resolvePathForRead(workspaceRoot: string, userPath: string): string {
-  const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);
-  const realTarget = realpathSync(joined);
-  assertInsideRoot(rootReal, realTarget);
-  return realTarget;
+export function resolvePathForRead(
+  workspaceRoot: string,
+  userPath: string,
+  additionalReadRoots: readonly string[] = DEFAULT_ADDITIONAL_READ_ROOTS,
+): string {
+  try {
+    const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);
+    const realTarget = realpathSync(joined);
+    assertInsideRoot(rootReal, realTarget);
+    return realTarget;
+  } catch (e) {
+    if (!(e instanceof PathEscapeError)) throw e;
+
+    // If the workspace check failed, try each additional read root.
+    validatePath(userPath);
+    if (isAbsolute(userPath)) {
+      for (const root of additionalReadRoots) {
+        try {
+          const rootReal = realpathSync(root);
+          const resolved = resolve(userPath);
+          // Logical path must be inside the root
+          assertInsideRoot(rootReal, resolved);
+          // Real path (after symlink resolution) must also be inside the root
+          const realTarget = realpathSync(resolved);
+          assertInsideRoot(rootReal, realTarget);
+          return realTarget;
+        } catch {
+          // Root doesn't exist or path escapes this root — try next root.
+          continue;
+        }
+      }
+    }
+
+    throw e;
+  }
 }
 
 /**

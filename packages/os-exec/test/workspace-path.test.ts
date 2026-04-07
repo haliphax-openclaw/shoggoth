@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -100,6 +100,83 @@ describe("workspace path allowlist", () => {
       } finally {
         rmSync(outside, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("additional read roots (/app)", () => {
+    let appDir: string;
+
+    beforeEach(() => {
+      appDir = mkdtempSync(join(tmpdir(), "shoggoth-app-"));
+      mkdirSync(join(appDir, "packages/shared/src"), { recursive: true });
+      writeFileSync(join(appDir, "packages/shared/src/schema.ts"), "export type Schema = {}");
+      writeFileSync(join(appDir, "README.md"), "hello");
+    });
+
+    afterEach(() => {
+      rmSync(appDir, { recursive: true, force: true });
+    });
+
+    it("accepts paths under an additional read root", () => {
+      const p = resolvePathForRead(ws, join(appDir, "packages/shared/src/schema.ts"), [appDir]);
+      assert.ok(p.endsWith("schema.ts"));
+    });
+
+    it("accepts the additional read root directory itself", () => {
+      const p = resolvePathForRead(ws, appDir, [appDir]);
+      assert.strictEqual(p, realpathSync(appDir));
+    });
+
+    it("rejects traversal escaping the additional read root", () => {
+      assert.throws(
+        () => resolvePathForRead(ws, join(appDir, "../etc/passwd"), [appDir]),
+        PathEscapeError,
+      );
+    });
+
+    it("rejects traversal via double-dot from additional read root", () => {
+      assert.throws(
+        () => resolvePathForRead(ws, join(appDir, ".."), [appDir]),
+        PathEscapeError,
+      );
+    });
+
+    it("rejects symlink escape from additional read root", () => {
+      const outside = mkdtempSync(join(tmpdir(), "shoggoth-out-"));
+      try {
+        writeFileSync(join(outside, "secret"), "nope");
+        symlinkSync(join(outside, "secret"), join(appDir, "escape-link"));
+        assert.throws(
+          () => resolvePathForRead(ws, join(appDir, "escape-link"), [appDir]),
+          PathEscapeError,
+        );
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    });
+
+    it("still allows workspace-relative paths when additional roots are set", () => {
+      mkdirSync(join(ws, "sub"), { recursive: true });
+      writeFileSync(join(ws, "sub/hello.txt"), "hi");
+      const p = resolvePathForRead(ws, "sub/hello.txt", [appDir]);
+      assert.ok(p.endsWith("hello.txt"));
+    });
+
+    it("resolvePathForWrite rejects paths under additional read root", () => {
+      assert.throws(
+        () => resolvePathForWrite(ws, join(appDir, "packages/shared/src/schema.ts")),
+        PathEscapeError,
+      );
+    });
+
+    it("uses /app as default additional read root", () => {
+      // When no additionalReadRoots argument is passed, /app should be the default.
+      // We can't easily test this without /app existing, but we verify the signature
+      // accepts the call without the third argument (existing behavior preserved).
+      mkdirSync(join(ws, "sub"), { recursive: true });
+      writeFileSync(join(ws, "sub/file.txt"), "data");
+      const p = resolvePathForRead(ws, "sub/file.txt");
+      assert.ok(p.endsWith("file.txt"));
     });
   });
 

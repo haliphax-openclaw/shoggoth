@@ -2,6 +2,7 @@ export {
   PathEscapeError,
   resolvePathForRead,
   resolvePathForWrite,
+  DEFAULT_ADDITIONAL_READ_ROOTS,
 } from "./workspace-path";
 export {
   runAsUser,
