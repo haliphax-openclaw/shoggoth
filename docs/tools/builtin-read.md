@@ -1,6 +1,6 @@
 # builtin-read
 
-Read file content (text or image) from the workspace. Supports line ranges, multi-file globs, and stat-only mode.
+Read file content (text or image) from the workspace. Supports line ranges, multi-file globs, and stat-only mode. This tool is permitted special access to read from the Shoggoth app directory for inspecting system source code and documentation.
 
 ## Parameters
 
