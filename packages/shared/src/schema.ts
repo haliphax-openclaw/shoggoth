@@ -15,7 +15,7 @@ export type ProviderModel = z.infer<typeof providerModelSchema>;
  * Schema for retry configuration
  */
 export const modelsRetrySchema = z.object({
-  maxRetries: z.number().int().nonnegative('maxRetries must be non-negative'),
+  maxAttempts: z.number().int().positive('maxAttempts must be positive'),
   initialDelayMs: z.number().nonnegative('initialDelayMs must be non-negative').optional(),
   maxDelayMs: z.number().nonnegative('maxDelayMs must be non-negative').optional(),
   backoffMultiplier: z.number().positive('backoffMultiplier must be positive').optional(),
@@ -32,16 +32,6 @@ export const modelsRetrySchema = z.object({
 export type ModelsRetry = z.infer<typeof modelsRetrySchema>;
 
 /**
- * Schema for failure configuration
- */
-export const failureConfigSchema = z.object({
-  markDownAfterFailures: z.number().int().positive('markDownAfterFailures must be positive'),
-  recoveryCheckIntervalMs: z.number().int().positive('recoveryCheckIntervalMs must be positive'),
-}).strict();
-
-export type FailureConfig = z.infer<typeof failureConfigSchema>;
-
-/**
  * Schema for a provider definition
  */
 export const providerSchema = z.object({
@@ -56,8 +46,13 @@ export const providerSchema = z.object({
   }).optional(),
   customHeaders: z.record(z.string()).optional(),
   models: z.array(providerModelSchema),
-  retryConfig: modelsRetrySchema.optional(),
-  failureConfig: failureConfigSchema.optional(),
+  retryMaxAttempts: z.number().int().nonnegative('retryMaxAttempts must be non-negative').optional(),
+  retryInitialDelayMs: z.number().nonnegative('retryInitialDelayMs must be non-negative').optional(),
+  retryMaxDelayMs: z.number().nonnegative('retryMaxDelayMs must be non-negative').optional(),
+  retryBackoffMultiplier: z.number().positive('retryBackoffMultiplier must be positive').optional(),
+  failureThresholdCount: z.number().int().nonnegative('failureThresholdCount must be non-negative').optional(),
+  failureThresholdWindowMs: z.number().int().nonnegative('failureThresholdWindowMs must be non-negative').optional(),
+  failureRecoveryDelayMs: z.number().int().nonnegative('failureRecoveryDelayMs must be non-negative').optional(),
 }).strict();
 
 export type Provider = z.infer<typeof providerSchema>;
@@ -67,9 +62,9 @@ export type Provider = z.infer<typeof providerSchema>;
  * Can be either a string reference "providerId/modelName" or an object with a ref field
  */
 export const failoverChainEntrySchema = z.union([
-  z.string().regex(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/, 'Invalid ref format. Expected "providerId/modelName"'),
+  z.string().regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/, 'Invalid ref format. Expected "providerId/modelName"'),
   z.object({
-    ref: z.string().regex(/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/, 'Invalid ref format. Expected "providerId/modelName"'),
+    ref: z.string().regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/, 'Invalid ref format. Expected "providerId/modelName"'),
   }),
 ]);
 
