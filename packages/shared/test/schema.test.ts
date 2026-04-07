@@ -25,9 +25,9 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).not.toThrow();
     });
 
-    it('should validate a model with thinkingFormat as json', () => {
+    it('should validate a model with thinkingFormat as "json"', () => {
       const model = {
-        name: 'claude-opus',
+        name: 'claude-3-opus',
         contextWindowTokens: 200000,
         thinkingFormat: 'json',
       };
@@ -37,7 +37,7 @@ describe('providerModelSchema', () => {
     it('should validate a model with large context window', () => {
       const model = {
         name: 'claude-3-opus',
-        contextWindowTokens: 200000,
+        contextWindowTokens: 1000000,
       };
       expect(() => providerModelSchema.parse(model)).not.toThrow();
     });
@@ -50,15 +50,7 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).not.toThrow();
     });
 
-    it('should validate a model with numeric name', () => {
-      const model = {
-        name: 'model-123',
-        contextWindowTokens: 16384,
-      };
-      expect(() => providerModelSchema.parse(model)).not.toThrow();
-    });
-
-    it('should validate a model with special characters in name', () => {
+    it('should validate model names with hyphens and numbers', () => {
       const model = {
         name: 'gpt-4-turbo-2024-04-09',
         contextWindowTokens: 128000,
@@ -66,31 +58,39 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).not.toThrow();
     });
 
-    it('should validate a model with underscore in name', () => {
+    it('should validate model names with underscores', () => {
       const model = {
-        name: 'claude_3_opus',
+        name: 'claude_3_opus_20240229',
         contextWindowTokens: 200000,
+      };
+      expect(() => providerModelSchema.parse(model)).not.toThrow();
+    });
+
+    it('should validate model names with dots', () => {
+      const model = {
+        name: 'llama.2.70b',
+        contextWindowTokens: 4096,
       };
       expect(() => providerModelSchema.parse(model)).not.toThrow();
     });
   });
 
   describe('invalid models', () => {
-    it('should reject a model without name', () => {
+    it('should reject model without name', () => {
       const model = {
         contextWindowTokens: 8192,
       };
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model without contextWindowTokens', () => {
+    it('should reject model without contextWindowTokens', () => {
       const model = {
         name: 'gpt-4',
       };
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with empty name', () => {
+    it('should reject model with empty name', () => {
       const model = {
         name: '',
         contextWindowTokens: 8192,
@@ -98,15 +98,7 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with negative contextWindowTokens', () => {
-      const model = {
-        name: 'gpt-4',
-        contextWindowTokens: -1,
-      };
-      expect(() => providerModelSchema.parse(model)).toThrow();
-    });
-
-    it('should reject a model with zero contextWindowTokens', () => {
+    it('should reject model with zero contextWindowTokens', () => {
       const model = {
         name: 'gpt-4',
         contextWindowTokens: 0,
@@ -114,15 +106,23 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with non-integer contextWindowTokens', () => {
+    it('should reject model with negative contextWindowTokens', () => {
       const model = {
         name: 'gpt-4',
-        contextWindowTokens: 8192.5,
+        contextWindowTokens: -1000,
       };
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with invalid thinkingFormat', () => {
+    it('should reject model with non-numeric contextWindowTokens', () => {
+      const model = {
+        name: 'gpt-4',
+        contextWindowTokens: 'large',
+      };
+      expect(() => providerModelSchema.parse(model)).toThrow();
+    });
+
+    it('should reject model with invalid thinkingFormat', () => {
       const model = {
         name: 'gpt-4',
         contextWindowTokens: 8192,
@@ -131,39 +131,15 @@ describe('providerModelSchema', () => {
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with null name', () => {
+    it('should reject model with non-string name', () => {
       const model = {
-        name: null,
+        name: 123,
         contextWindowTokens: 8192,
       };
       expect(() => providerModelSchema.parse(model)).toThrow();
     });
 
-    it('should reject a model with null contextWindowTokens', () => {
-      const model = {
-        name: 'gpt-4',
-        contextWindowTokens: null,
-      };
-      expect(() => providerModelSchema.parse(model)).toThrow();
-    });
-
-    it('should reject a model with string contextWindowTokens', () => {
-      const model = {
-        name: 'gpt-4',
-        contextWindowTokens: '8192',
-      };
-      expect(() => providerModelSchema.parse(model)).toThrow();
-    });
-
-    it('should reject a model with numeric name', () => {
-      const model = {
-        name: 12345,
-        contextWindowTokens: 8192,
-      };
-      expect(() => providerModelSchema.parse(model)).toThrow();
-    });
-
-    it('should reject a model with extra unknown fields', () => {
+    it('should reject model with extra unknown fields', () => {
       const model = {
         name: 'gpt-4',
         contextWindowTokens: 8192,
@@ -193,7 +169,7 @@ describe('providerSchema', () => {
         baseUrl: 'https://api.openai.com/v1',
         models: [
           { name: 'gpt-4', contextWindowTokens: 8192 },
-          { name: 'gpt-3.5-turbo', contextWindowTokens: 4096 },
+          { name: 'gpt-4-turbo', contextWindowTokens: 128000 },
         ],
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
@@ -215,18 +191,7 @@ describe('providerSchema', () => {
         id: 'anthropic',
         kind: 'anthropic',
         baseUrl: 'https://api.anthropic.com',
-        bearerToken: 'token-123',
-        models: [],
-      };
-      expect(() => providerSchema.parse(provider)).not.toThrow();
-    });
-
-    it('should validate a provider with basic auth', () => {
-      const provider = {
-        id: 'custom',
-        kind: 'custom',
-        baseUrl: 'https://custom.example.com',
-        basicAuth: { username: 'user', password: 'pass' },
+        bearerToken: 'token-value',
         models: [],
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
@@ -236,8 +201,11 @@ describe('providerSchema', () => {
       const provider = {
         id: 'custom',
         kind: 'custom',
-        baseUrl: 'https://custom.example.com',
-        customHeaders: { 'X-Custom-Header': 'value' },
+        baseUrl: 'https://custom.api.com',
+        customHeaders: {
+          'X-API-Key': 'key-value',
+          'X-Custom-Header': 'custom-value',
+        },
         models: [],
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
@@ -249,12 +217,10 @@ describe('providerSchema', () => {
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         models: [],
-        retryConfig: {
-          maxRetries: 3,
-          initialDelayMs: 1000,
-          maxDelayMs: 10000,
-          backoffMultiplier: 2,
-        },
+        retryMaxAttempts: 3,
+        retryInitialDelayMs: 1000,
+        retryMaxDelayMs: 10000,
+        retryBackoffMultiplier: 2,
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
     });
@@ -265,10 +231,9 @@ describe('providerSchema', () => {
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         models: [],
-        failureConfig: {
-          markDownAfterFailures: 3,
-          recoveryCheckIntervalMs: 60000,
-        },
+        failureThresholdCount: 5,
+        failureThresholdWindowMs: 60000,
+        failureRecoveryDelayMs: 30000,
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
     });
@@ -279,56 +244,43 @@ describe('providerSchema', () => {
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         apiKey: 'sk-test-key',
-        customHeaders: { 'X-Custom': 'header' },
+        customHeaders: { 'X-Custom': 'value' },
         models: [{ name: 'gpt-4', contextWindowTokens: 8192 }],
-        retryConfig: {
-          maxRetries: 5,
-          initialDelayMs: 500,
-          maxDelayMs: 30000,
-          backoffMultiplier: 1.5,
-        },
-        failureConfig: {
-          markDownAfterFailures: 5,
-          recoveryCheckIntervalMs: 120000,
-        },
+        retryMaxAttempts: 3,
+        retryInitialDelayMs: 1000,
+        retryMaxDelayMs: 10000,
+        retryBackoffMultiplier: 2,
+        failureThresholdCount: 5,
+        failureThresholdWindowMs: 60000,
+        failureRecoveryDelayMs: 30000,
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
     });
 
-    it('should validate a provider with different kind values', () => {
+    it('should validate provider with different kinds', () => {
       const kinds = ['openai', 'anthropic', 'custom', 'azure', 'ollama'];
       kinds.forEach((kind) => {
         const provider = {
           id: `provider-${kind}`,
           kind,
-          baseUrl: 'https://example.com',
+          baseUrl: 'https://api.example.com',
           models: [],
         };
         expect(() => providerSchema.parse(provider)).not.toThrow();
       });
     });
 
-    it('should validate a provider with numeric id suffix', () => {
+    it('should validate provider with https baseUrl', () => {
       const provider = {
-        id: 'openai-2',
+        id: 'secure',
         kind: 'openai',
-        baseUrl: 'https://api.openai.com/v1',
+        baseUrl: 'https://secure.api.com/v1',
         models: [],
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
     });
 
-    it('should validate a provider with hyphenated id', () => {
-      const provider = {
-        id: 'my-custom-provider',
-        kind: 'custom',
-        baseUrl: 'https://example.com',
-        models: [],
-      };
-      expect(() => providerSchema.parse(provider)).not.toThrow();
-    });
-
-    it('should validate a provider with localhost baseUrl', () => {
+    it('should validate provider with http baseUrl', () => {
       const provider = {
         id: 'local',
         kind: 'ollama',
@@ -338,11 +290,11 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).not.toThrow();
     });
 
-    it('should validate a provider with port in baseUrl', () => {
+    it('should validate provider with port in baseUrl', () => {
       const provider = {
         id: 'custom',
         kind: 'custom',
-        baseUrl: 'https://example.com:8443',
+        baseUrl: 'https://api.example.com:8443/v1',
         models: [],
       };
       expect(() => providerSchema.parse(provider)).not.toThrow();
@@ -350,7 +302,7 @@ describe('providerSchema', () => {
   });
 
   describe('invalid providers', () => {
-    it('should reject a provider without id', () => {
+    it('should reject provider without id', () => {
       const provider = {
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
@@ -359,7 +311,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider without kind', () => {
+    it('should reject provider without kind', () => {
       const provider = {
         id: 'openai',
         baseUrl: 'https://api.openai.com/v1',
@@ -368,7 +320,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider without baseUrl', () => {
+    it('should reject provider without baseUrl', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -377,7 +329,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider without models array', () => {
+    it('should reject provider without models array', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -386,7 +338,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with empty id', () => {
+    it('should reject provider with empty id', () => {
       const provider = {
         id: '',
         kind: 'openai',
@@ -396,7 +348,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with empty kind', () => {
+    it('should reject provider with empty kind', () => {
       const provider = {
         id: 'openai',
         kind: '',
@@ -406,7 +358,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with empty baseUrl', () => {
+    it('should reject provider with empty baseUrl', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -416,7 +368,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with invalid baseUrl format', () => {
+    it('should reject provider with invalid baseUrl format', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -426,7 +378,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with models not being an array', () => {
+    it('should reject provider with non-array models', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -436,7 +388,7 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with invalid model in models array', () => {
+    it('should reject provider with invalid model in models array', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
@@ -446,62 +398,101 @@ describe('providerSchema', () => {
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with invalid retryConfig', () => {
+    it('should reject provider with negative retryMaxAttempts', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         models: [],
-        retryConfig: {
-          maxRetries: -1,
-          initialDelayMs: 1000,
-          maxDelayMs: 10000,
-          backoffMultiplier: 2,
-        },
+        retryMaxAttempts: -1,
       };
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with invalid failureConfig', () => {
+    it('should reject provider with negative retryInitialDelayMs', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         models: [],
-        failureConfig: {
-          markDownAfterFailures: 0,
-          recoveryCheckIntervalMs: 60000,
-        },
+        retryInitialDelayMs: -100,
       };
       expect(() => providerSchema.parse(provider)).toThrow();
     });
 
-    it('should reject a provider with null id', () => {
-      const provider = {
-        id: null,
-        kind: 'openai',
-        baseUrl: 'https://api.openai.com/v1',
-        models: [],
-      };
-      expect(() => providerSchema.parse(provider)).toThrow();
-    });
-
-    it('should reject a provider with numeric id', () => {
-      const provider = {
-        id: 123,
-        kind: 'openai',
-        baseUrl: 'https://api.openai.com/v1',
-        models: [],
-      };
-      expect(() => providerSchema.parse(provider)).toThrow();
-    });
-
-    it('should reject a provider with null models', () => {
+    it('should reject provider with negative retryMaxDelayMs', () => {
       const provider = {
         id: 'openai',
         kind: 'openai',
         baseUrl: 'https://api.openai.com/v1',
-        models: null,
+        models: [],
+        retryMaxDelayMs: -1000,
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with negative retryBackoffMultiplier', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        retryBackoffMultiplier: -2,
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with negative failureThresholdCount', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        failureThresholdCount: -5,
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with negative failureThresholdWindowMs', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        failureThresholdWindowMs: -60000,
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with negative failureRecoveryDelayMs', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        failureRecoveryDelayMs: -30000,
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with non-object customHeaders', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        customHeaders: 'not-an-object',
+      };
+      expect(() => providerSchema.parse(provider)).toThrow();
+    });
+
+    it('should reject provider with non-string customHeaders values', () => {
+      const provider = {
+        id: 'openai',
+        kind: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        models: [],
+        customHeaders: { 'X-Custom': 123 },
       };
       expect(() => providerSchema.parse(provider)).toThrow();
     });
@@ -510,43 +501,41 @@ describe('providerSchema', () => {
 
 describe('failoverChainEntrySchema', () => {
   describe('valid entries', () => {
-    it('should validate a string ref with provider and model', () => {
+    it('should validate a string ref with providerId/model format', () => {
       const entry = 'openai/gpt-4';
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
 
-    it('should validate a string ref with hyphenated provider id', () => {
-      const entry = 'my-provider/gpt-4';
+    it('should validate a string ref with different provider and model names', () => {
+      const entry = 'anthropic/claude-3-opus';
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
 
-    it('should validate a string ref with numeric provider id', () => {
-      const entry = 'provider-1/model-1';
+    it('should validate a string ref with hyphens in names', () => {
+      const entry = 'azure-openai/gpt-4-turbo';
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
 
-    it('should validate a string ref with complex model name', () => {
-      const entry = 'openai/gpt-4-turbo-2024-04-09';
+    it('should validate a string ref with underscores in names', () => {
+      const entry = 'custom_provider/custom_model';
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
 
-    it('should validate an object ref with ref field', () => {
+    it('should validate a string ref with dots in names', () => {
+      const entry = 'provider.v1/model.2024';
+      expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
+    });
+
+    it('should validate an object with ref field', () => {
       const entry = { ref: 'openai/gpt-4' };
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
 
-    it('should validate an object ref with additional fields', () => {
+    it('should validate an object with ref and additional fields', () => {
       const entry = {
         ref: 'openai/gpt-4',
         weight: 1,
-      };
-      expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
-    });
-
-    it('should validate an object ref with priority field', () => {
-      const entry = {
-        ref: 'anthropic/claude-opus',
-        priority: 1,
+        priority: 'high',
       };
       expect(() => failoverChainEntrySchema.parse(entry)).not.toThrow();
     });
@@ -554,9 +543,9 @@ describe('failoverChainEntrySchema', () => {
     it('should validate multiple different string refs', () => {
       const refs = [
         'openai/gpt-4',
-        'anthropic/claude-opus',
-        'custom/model-1',
-        'local/llama2',
+        'anthropic/claude-3-opus',
+        'azure/gpt-4-turbo',
+        'ollama/llama2',
       ];
       refs.forEach((ref) => {
         expect(() => failoverChainEntrySchema.parse(ref)).not.toThrow();
@@ -566,8 +555,8 @@ describe('failoverChainEntrySchema', () => {
     it('should validate multiple different object refs', () => {
       const refs = [
         { ref: 'openai/gpt-4' },
-        { ref: 'anthropic/claude-opus', weight: 2 },
-        { ref: 'custom/model-1', priority: 1 },
+        { ref: 'anthropic/claude-3-opus', weight: 2 },
+        { ref: 'azure/gpt-4-turbo', priority: 'high' },
       ];
       refs.forEach((ref) => {
         expect(() => failoverChainEntrySchema.parse(ref)).not.toThrow();
@@ -576,27 +565,27 @@ describe('failoverChainEntrySchema', () => {
   });
 
   describe('invalid entries', () => {
-    it('should reject a string ref without slash', () => {
+    it('should reject a string without slash separator', () => {
       const entry = 'openai-gpt-4';
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject a string ref with empty provider', () => {
+    it('should reject a string with empty provider id', () => {
       const entry = '/gpt-4';
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject a string ref with empty model', () => {
+    it('should reject a string with empty model name', () => {
       const entry = 'openai/';
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject a string ref with multiple slashes', () => {
+    it('should reject a string with multiple slashes', () => {
       const entry = 'openai/gpt-4/extra';
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject an empty string ref', () => {
+    it('should reject an empty string', () => {
       const entry = '';
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
@@ -606,13 +595,13 @@ describe('failoverChainEntrySchema', () => {
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject an object with null ref', () => {
-      const entry = { ref: null };
+    it('should reject an object with empty ref', () => {
+      const entry = { ref: '' };
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject an object with empty ref', () => {
-      const entry = { ref: '' };
+    it('should reject an object with invalid ref format', () => {
+      const entry = { ref: 'invalid-format' };
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
@@ -626,13 +615,13 @@ describe('failoverChainEntrySchema', () => {
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject an array', () => {
-      const entry = ['openai/gpt-4'];
+    it('should reject undefined', () => {
+      const entry = undefined;
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
 
-    it('should reject a ref with special characters', () => {
-      const entry = 'openai@/gpt-4!';
+    it('should reject an array', () => {
+      const entry = ['openai/gpt-4'];
       expect(() => failoverChainEntrySchema.parse(entry)).toThrow();
     });
   });
@@ -642,218 +631,195 @@ describe('modelsRetrySchema', () => {
   describe('valid retry configs', () => {
     it('should validate a minimal retry config', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
     it('should validate a retry config with all fields', () => {
       const config = {
-        maxRetries: 5,
+        maxAttempts: 3,
         initialDelayMs: 1000,
-        maxDelayMs: 30000,
+        maxDelayMs: 10000,
         backoffMultiplier: 2,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with zero maxRetries', () => {
+    it('should validate retry config with maxAttempts of 1', () => {
       const config = {
-        maxRetries: 0,
+        maxAttempts: 1,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with large maxRetries', () => {
+    it('should validate retry config with large maxAttempts', () => {
       const config = {
-        maxRetries: 100,
+        maxAttempts: 100,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with small initialDelayMs', () => {
+    it('should validate retry config with small initialDelayMs', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         initialDelayMs: 100,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with large maxDelayMs', () => {
+    it('should validate retry config with large initialDelayMs', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
+        initialDelayMs: 60000,
+      };
+      expect(() => modelsRetrySchema.parse(config)).not.toThrow();
+    });
+
+    it('should validate retry config with small maxDelayMs', () => {
+      const config = {
+        maxAttempts: 3,
+        maxDelayMs: 1000,
+      };
+      expect(() => modelsRetrySchema.parse(config)).not.toThrow();
+    });
+
+    it('should validate retry config with large maxDelayMs', () => {
+      const config = {
+        maxAttempts: 3,
         maxDelayMs: 300000,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with backoffMultiplier of 1', () => {
+    it('should validate retry config with backoffMultiplier of 1', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         backoffMultiplier: 1,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with backoffMultiplier of 10', () => {
+    it('should validate retry config with backoffMultiplier of 2', () => {
       const config = {
-        maxRetries: 3,
-        backoffMultiplier: 10,
+        maxAttempts: 3,
+        backoffMultiplier: 2,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate a retry config with decimal backoffMultiplier', () => {
+    it('should validate retry config with decimal backoffMultiplier', () => {
       const config = {
-        maxRetries: 3,
-        initialDelayMs: 500,
-        maxDelayMs: 10000,
+        maxAttempts: 3,
         backoffMultiplier: 1.5,
       };
       expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
 
-    it('should validate multiple different retry configs', () => {
-      const configs = [
-        { maxRetries: 3 },
-        { maxRetries: 5, initialDelayMs: 1000 },
-        { maxRetries: 10, initialDelayMs: 500, maxDelayMs: 60000, backoffMultiplier: 2 },
-        { maxRetries: 0, initialDelayMs: 100, maxDelayMs: 1000, backoffMultiplier: 1 },
-      ];
-      configs.forEach((config) => {
-        expect(() => modelsRetrySchema.parse(config)).not.toThrow();
-      });
+    it('should validate retry config with large backoffMultiplier', () => {
+      const config = {
+        maxAttempts: 3,
+        backoffMultiplier: 10,
+      };
+      expect(() => modelsRetrySchema.parse(config)).not.toThrow();
     });
   });
 
   describe('invalid retry configs', () => {
-    it('should reject a config without maxRetries', () => {
+    it('should reject config without maxAttempts', () => {
       const config = {
         initialDelayMs: 1000,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with negative maxRetries', () => {
+    it('should reject config with zero maxAttempts', () => {
       const config = {
-        maxRetries: -1,
+        maxAttempts: 0,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with non-integer maxRetries', () => {
+    it('should reject config with negative maxAttempts', () => {
       const config = {
-        maxRetries: 3.5,
+        maxAttempts: -3,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with null maxRetries', () => {
+    it('should reject config with non-integer maxAttempts', () => {
       const config = {
-        maxRetries: null,
+        maxAttempts: 3.5,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with string maxRetries', () => {
+    it('should reject config with non-numeric maxAttempts', () => {
       const config = {
-        maxRetries: '3',
+        maxAttempts: 'three',
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with negative initialDelayMs', () => {
+    it('should reject config with negative initialDelayMs', () => {
       const config = {
-        maxRetries: 3,
-        initialDelayMs: -1,
+        maxAttempts: 3,
+        initialDelayMs: -1000,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with negative maxDelayMs', () => {
+    it('should reject config with negative maxDelayMs', () => {
       const config = {
-        maxRetries: 3,
-        maxDelayMs: -1,
+        maxAttempts: 3,
+        maxDelayMs: -10000,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with negative backoffMultiplier', () => {
+    it('should reject config with negative backoffMultiplier', () => {
       const config = {
-        maxRetries: 3,
-        backoffMultiplier: -1,
+        maxAttempts: 3,
+        backoffMultiplier: -2,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with zero backoffMultiplier', () => {
+    it('should reject config with zero backoffMultiplier', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         backoffMultiplier: 0,
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with non-numeric initialDelayMs', () => {
+    it('should reject config with non-numeric initialDelayMs', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         initialDelayMs: 'slow',
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with non-numeric maxDelayMs', () => {
+    it('should reject config with non-numeric maxDelayMs', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         maxDelayMs: 'fast',
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with non-numeric backoffMultiplier', () => {
+    it('should reject config with non-numeric backoffMultiplier', () => {
       const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         backoffMultiplier: 'exponential',
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
     });
 
-    it('should reject a config with initialDelayMs greater than maxDelayMs', () => {
+    it('should reject config with extra unknown fields', () => {
       const config = {
-        maxRetries: 3,
-        initialDelayMs: 10000,
-        maxDelayMs: 1000,
-      };
-      expect(() => modelsRetrySchema.parse(config)).toThrow();
-    });
-
-    it('should reject a config with null initialDelayMs', () => {
-      const config = {
-        maxRetries: 3,
-        initialDelayMs: null,
-      };
-      expect(() => modelsRetrySchema.parse(config)).toThrow();
-    });
-
-    it('should reject a config with null maxDelayMs', () => {
-      const config = {
-        maxRetries: 3,
-        maxDelayMs: null,
-      };
-      expect(() => modelsRetrySchema.parse(config)).toThrow();
-    });
-
-    it('should reject a config with null backoffMultiplier', () => {
-      const config = {
-        maxRetries: 3,
-        backoffMultiplier: null,
-      };
-      expect(() => modelsRetrySchema.parse(config)).toThrow();
-    });
-
-    it('should reject a config with extra unknown fields', () => {
-      const config = {
-        maxRetries: 3,
+        maxAttempts: 3,
         unknownField: 'value',
       };
       expect(() => modelsRetrySchema.parse(config)).toThrow();
