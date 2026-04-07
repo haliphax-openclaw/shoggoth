@@ -127,23 +127,28 @@ export async function runInboundSessionTurn(options: RunInboundSessionTurnOption
       stream: streamPusher
         ? {
             streamModel: true,
-            onModelTextDelta: (t) => {
-              const vis = t.trim() ? t : "…";
-              streamPusher!.push(sliceDisplayText(vis));
-            },
+            onModelTextDelta: (() => {
+              let lastSliced = "";
+              return (t: string) => {
+                const vis = t.trim() ? t : "…";
+                const sliced = sliceDisplayText(vis);
+                if (sliced === lastSliced) return;
+                lastSliced = sliced;
+                streamPusher!.push(sliced);
+              };
+            })(),
           }
         : undefined,
     });
 
-    const body = sliceDisplayText(
-      formatAssistantReply(turnResult.latestAssistantText, turnResult.failoverMeta),
-    );
+    const rawBody = formatAssistantReply(turnResult.latestAssistantText, turnResult.failoverMeta);
 
     const attachments = turnResult.showAttachments;
 
     if (streamPusher && streamSink) {
       await streamPusher.flush();
-      await streamSink.setFullContent(body);
+      // Pass the full body — setFullContent handles its own message splitting.
+      await streamSink.setFullContent(rawBody);
       // Streaming edits can't carry file attachments — send as follow-up.
       if (attachments?.length && options.sendAttachments) {
         try {
@@ -153,7 +158,7 @@ export async function runInboundSessionTurn(options: RunInboundSessionTurnOption
         }
       }
     } else {
-      await options.sendAssistantBody(body, attachments?.length ? { attachments } : undefined);
+      await options.sendAssistantBody(sliceDisplayText(rawBody), attachments?.length ? { attachments } : undefined);
     }
   } catch (e) {
     options.onTurnExecutionFailed?.(e);
