@@ -22,10 +22,7 @@ describe("createFailoverClientFromModelsConfig", () => {
           baseUrl: "https://two.example/v1",
         },
       ],
-      failoverChain: [
-        { providerId: "a", model: "m1" },
-        { providerId: "b", model: "m2" },
-      ],
+      failoverChain: ["a/m1", "b/m2"],
     };
     const c = createFailoverClientFromModelsConfig(cfg, {
       fetchImpl: async () =>
@@ -46,7 +43,7 @@ describe("createFailoverClientFromModelsConfig", () => {
       createFailoverClientFromModelsConfig(
         {
           providers: [{ id: "a", kind: "openai-compatible", baseUrl: "https://x/v1" }],
-          failoverChain: [{ providerId: "nope", model: "m" }],
+          failoverChain: ["nope/m"],
         },
         {},
       ),
@@ -64,7 +61,7 @@ describe("createFailoverClientFromModelsConfig", () => {
           anthropicVersion: "2023-06-01",
         },
       ],
-      failoverChain: [{ providerId: "anthropic-local", model: "claude-sonnet" }],
+      failoverChain: ["anthropic-local/claude-sonnet"],
     };
     const c = createFailoverClientFromModelsConfig(cfg, {
       env: { ANTHROPIC_API_KEY: "k" },
@@ -88,7 +85,7 @@ describe("createFailoverClientFromModelsConfig", () => {
       providers: [
         { id: "oai", kind: "openai-compatible", baseUrl: "https://x/v1", apiKey: "bare-key" },
       ],
-      failoverChain: [{ providerId: "oai", model: "m" }],
+      failoverChain: ["oai/m"],
     };
     let authHeader = "";
     const c = createFailoverClientFromModelsConfig(cfg, {
@@ -110,7 +107,7 @@ describe("createFailoverClientFromModelsConfig", () => {
       providers: [
         { id: "anth", kind: "anthropic-messages", baseUrl: "http://localhost:8000", apiKey: "bare-key" },
       ],
-      failoverChain: [{ providerId: "anth", model: "m" }],
+      failoverChain: ["anth/m"],
     };
     let apiKeyHeader = "";
     const c = createFailoverClientFromModelsConfig(cfg, {
@@ -132,7 +129,7 @@ describe("createFailoverClientFromModelsConfig", () => {
       providers: [
         { id: "oai", kind: "openai-compatible", baseUrl: "https://x/v1", apiKey: "bare", apiKeyEnv: "MY_KEY" },
       ],
-      failoverChain: [{ providerId: "oai", model: "m" }],
+      failoverChain: ["oai/m"],
     };
     let authHeader = "";
     const c = createFailoverClientFromModelsConfig(cfg, {
@@ -200,65 +197,6 @@ describe("createFailoverClientFromModelsConfig", () => {
     });
     assert.match(url, /\/v1\/messages$/);
     assert.equal(out.content, "ok");
-  });
-
-  it("propagates hop capabilities to failover client", async () => {
-    const cfg: ShoggothModelsConfig = {
-      providers: [
-        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
-      ],
-      failoverChain: [
-        { providerId: "p1", model: "m1", capabilities: { imageInput: false } },
-      ],
-    };
-    const c = createFailoverClientFromModelsConfig(cfg, {
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-    });
-    // The failover client should have the hop capabilities merged
-    assert.deepEqual(c.capabilities, { imageInput: false });
-  });
-
-  it("merges hopCapabilities with provider capabilities", async () => {
-    const cfg: ShoggothModelsConfig = {
-      providers: [
-        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
-      ],
-      failoverChain: [
-        { providerId: "p1", model: "m1", capabilities: { imageInput: false } },
-      ],
-    };
-    const c = createFailoverClientFromModelsConfig(cfg, {
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-    });
-    // Hop capabilities override provider defaults
-    assert.deepEqual(c.capabilities, { imageInput: false });
-  });
-
-  it("propagates hopCapabilities to tool calling client", async () => {
-    const cfg: ShoggothModelsConfig = {
-      providers: [
-        { id: "p1", kind: "openai-compatible", baseUrl: "https://x/v1" },
-      ],
-      failoverChain: [
-        { providerId: "p1", model: "m1", capabilities: { imageInput: true } },
-      ],
-    };
-    const c = createFailoverToolCallingClientFromModelsConfig(cfg, {
-      fetchImpl: async () =>
-        new Response(
-          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-    });
-    assert.deepEqual(c.capabilities, { imageInput: true });
   });
 });
 

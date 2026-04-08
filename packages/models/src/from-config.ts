@@ -141,24 +141,28 @@ export function createFailoverClientFromModelsConfig(
 
   const byId = modelProvidersById(providers, env, options.fetchImpl);
 
-  const entries = chain.map((hop) => {
-    const provider = byId.get(hop.providerId);
-    if (!provider) {
-      throw new Error(`Unknown model provider id "${hop.providerId}" in failoverChain`);
+  const entries = chain.map((entry) => {
+    const slash = entry.indexOf("/");
+    if (slash < 1 || slash === entry.length - 1) {
+      throw new Error(`Invalid failover chain entry "${entry}" — expected "providerId/model"`);
     }
+    const providerId = entry.slice(0, slash);
+    const modelName = entry.slice(slash + 1);
+    const provider = byId.get(providerId);
+    if (!provider) {
+      throw new Error(`Unknown model provider id "${providerId}" in failoverChain`);
+    }
+    const providerConfig = providers?.find((p) => p.id === providerId);
+    const modelConfig = providerConfig?.models?.find((m) => m.name === modelName);
     return {
       provider,
-      model: hop.model,
-      thinkingFormat: hop.thinkingFormat,
-      contextWindowTokens: hop.contextWindowTokens,
+      model: modelName,
+      thinkingFormat: modelConfig?.thinkingFormat,
+      contextWindowTokens: modelConfig?.contextWindowTokens,
     };
   });
 
   const client = createFailoverModelClient(entries, options.hooks);
-  const hopCaps = chain[0]?.capabilities;
-  if (hopCaps) {
-    return Object.assign(client, { capabilities: hopCaps });
-  }
   return client;
 }
 
@@ -177,24 +181,28 @@ export function createFailoverToolCallingClientFromModelsConfig(
 
   const byId = modelProvidersById(providers, env, options.fetchImpl);
 
-  const entries = chain.map((hop) => {
-    const provider = byId.get(hop.providerId);
-    if (!provider) {
-      throw new Error(`Unknown model provider id "${hop.providerId}" in failoverChain`);
+  const entries = chain.map((entry) => {
+    const slash = entry.indexOf("/");
+    if (slash < 1 || slash === entry.length - 1) {
+      throw new Error(`Invalid failover chain entry "${entry}" — expected "providerId/model"`);
     }
+    const providerId = entry.slice(0, slash);
+    const modelName = entry.slice(slash + 1);
+    const provider = byId.get(providerId);
+    if (!provider) {
+      throw new Error(`Unknown model provider id "${providerId}" in failoverChain`);
+    }
+    const providerConfig = providers?.find((p) => p.id === providerId);
+    const modelConfig = providerConfig?.models?.find((m) => m.name === modelName);
     return {
       provider,
-      model: hop.model,
-      thinkingFormat: hop.thinkingFormat,
-      contextWindowTokens: hop.contextWindowTokens,
+      model: modelName,
+      thinkingFormat: modelConfig?.thinkingFormat,
+      contextWindowTokens: modelConfig?.contextWindowTokens,
     };
   });
 
   const client = createFailoverToolCallingClient(entries, options.hooks);
-  const hopCaps = chain[0]?.capabilities;
-  if (hopCaps) {
-    return Object.assign(client, { capabilities: hopCaps });
-  }
   return client;
 }
 
