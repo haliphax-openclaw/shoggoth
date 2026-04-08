@@ -32,6 +32,36 @@ describe("shoggothModelsCompactionSchema contextWindowReserveTokens", () => {
   });
 });
 
+describe("shoggothModelsCompactionSchema model", () => {
+  it("accepts optional model string", () => {
+    const result = shoggothModelsCompactionSchema.safeParse({
+      maxContextChars: 100_000,
+      preserveRecentMessages: 4,
+      model: "local/gemma4",
+    });
+    assert.ok(result.success);
+    assert.equal(result.data!.model, "local/gemma4");
+  });
+
+  it("accepts config without model", () => {
+    const result = shoggothModelsCompactionSchema.safeParse({
+      maxContextChars: 80_000,
+      preserveRecentMessages: 8,
+    });
+    assert.ok(result.success);
+    assert.equal(result.data!.model, undefined);
+  });
+
+  it("rejects empty model string", () => {
+    const result = shoggothModelsCompactionSchema.safeParse({
+      maxContextChars: 80_000,
+      preserveRecentMessages: 8,
+      model: "",
+    });
+    assert.ok(!result.success);
+  });
+});
+
 describe("shoggothModelsCompactionSchema compactionAbortTimeoutMs", () => {
   it("accepts valid compactionAbortTimeoutMs", () => {
     const result = shoggothModelsCompactionSchema.safeParse({

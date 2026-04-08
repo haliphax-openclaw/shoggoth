@@ -285,6 +285,7 @@ export async function executeSessionAgentTurn(
       ctxWindowTokens,
       reserveTokens: modelsForSession?.compaction?.contextWindowReserveTokens ?? 20_000,
       modelsConfig: modelsForSession,
+      compactionModel: modelsForSession?.compaction?.model,
       env: input.env,
       systemPromptChars: effectiveSystemPrompt.length,
       toolSchemaChars: JSON.stringify(mcpCtx.toolsOpenAi).length,

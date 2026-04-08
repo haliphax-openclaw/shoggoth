@@ -40,14 +40,12 @@ const RETRY_DEFAULTS: RetryConfig = {
 
 /**
  * Extract the ref string from a failover chain entry.
- * Handles three shapes:
- * - string: "providerId/model"
- * - { ref: "providerId/model" } (FailoverChainEntry object form)
+ * Handles two shapes:
+ * - string: "providerId/model" (FailoverChainEntry)
  * - { providerId: "x", model: "y" } (ShoggothModelFailoverHop from agent overrides)
  */
 function entryToRef(entry: FailoverChainEntry | { providerId: string; model: string }): string {
   if (typeof entry === "string") return entry;
-  if ("ref" in entry) return entry.ref;
   if ("providerId" in entry && "model" in entry) return `${entry.providerId}/${entry.model}`;
   return "";
 }

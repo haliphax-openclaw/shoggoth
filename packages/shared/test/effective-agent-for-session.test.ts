@@ -126,6 +126,61 @@ describe("effective agent config for session", () => {
     assert.equal(formatAgentIdentityPrefix(cfg, sid), "**🤖 Rook:**\n");
   });
 
+  it("merges per-agent compaction model override", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      models: {
+        ...base.models,
+        compaction: {
+          maxContextChars: 100_000,
+          preserveRecentMessages: 4,
+          model: "global/compactor",
+        },
+      },
+      agents: {
+        list: {
+          alice: {
+            models: {
+              compaction: {
+                model: "local/gemma4",
+              },
+            },
+          },
+        },
+      },
+    };
+    const m = resolveEffectiveModelsConfig(cfg, sid);
+    assert.equal(m?.compaction?.model, "local/gemma4");
+  });
+
+  it("inherits global compaction model when agent does not override it", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      models: {
+        ...base.models,
+        compaction: {
+          maxContextChars: 100_000,
+          preserveRecentMessages: 4,
+          model: "global/compactor",
+        },
+      },
+      agents: {
+        list: {
+          alice: {
+            models: {
+              compaction: {
+                maxContextChars: 50_000,
+              },
+            },
+          },
+        },
+      },
+    };
+    const m = resolveEffectiveModelsConfig(cfg, sid);
+    assert.equal(m?.compaction?.model, "global/compactor");
+    assert.equal(m?.compaction?.maxContextChars, 50_000);
+  });
+
   it("merges memory.paths for matching agent", () => {
     const cfg: ShoggothConfig = {
       ...base,

@@ -172,7 +172,7 @@ describe("model-resolution", () => {
           providers: [
             { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
           ],
-          failoverChain: [{ ref: "openai/gpt-4o" }],
+          failoverChain: ["openai/gpt-4o"],
         },
       });
       const result = resolveModel(db, config);

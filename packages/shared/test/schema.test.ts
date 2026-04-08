@@ -150,29 +150,15 @@ describe("failoverChainEntrySchema", () => {
     assert.equal(r.data, "anthropic/claude-sonnet-4-20250514");
   });
 
-  it("accepts an object with ref", () => {
-    const r = failoverChainEntrySchema.safeParse({ ref: "openai/gpt-4o" });
-    assert.ok(r.success);
-    assert.deepStrictEqual(r.data, { ref: "openai/gpt-4o" });
-  });
-
   it("rejects empty string", () => {
     assert.ok(!failoverChainEntrySchema.safeParse("").success);
-  });
-
-  it("rejects object with empty ref", () => {
-    assert.ok(!failoverChainEntrySchema.safeParse({ ref: "" }).success);
-  });
-
-  it("rejects object without ref", () => {
-    assert.ok(!failoverChainEntrySchema.safeParse({}).success);
   });
 
   it("works inside modelsConfig failoverChain", () => {
     const r = shoggothModelsConfigSchema.safeParse({
       failoverChain: [
         "anthropic/claude-sonnet-4-20250514",
-        { ref: "openai/gpt-4o" },
+        "openai/gpt-4o",
       ],
     });
     assert.ok(r.success);

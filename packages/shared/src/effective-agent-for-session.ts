@@ -93,6 +93,7 @@ export function resolveEffectiveModelsConfig(
       preserveRecentMessages:
         o!.compaction.preserveRecentMessages ?? g?.preserveRecentMessages ?? DEFAULT_COMPACTION_PRESERVE,
       summaryMaxOutputTokens: o!.compaction.summaryMaxOutputTokens ?? g?.summaryMaxOutputTokens,
+      model: o!.compaction.model ?? g?.model,
     };
   }
 

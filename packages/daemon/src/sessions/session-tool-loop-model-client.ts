@@ -70,6 +70,8 @@ export function createSessionToolLoopModelClient(input: {
     readonly ctxWindowTokens: number;
     readonly reserveTokens: number;
     readonly modelsConfig: ShoggothModelsConfig | undefined;
+    /** Dedicated compaction model as "providerId/modelName". Overrides the failover chain for compaction only. */
+    readonly compactionModel?: string;
     readonly env: Record<string, string | undefined>;
     readonly systemPromptChars: number;
     readonly toolSchemaChars: number;
@@ -124,7 +126,22 @@ export function createSessionToolLoopModelClient(input: {
           log.debug("mid-turn compaction triggered", { sessionId: c.sessionId, estimatedTokens: Math.round(estimatedTokens), ctxWindowTokens: c.ctxWindowTokens, reserveTokens: c.reserveTokens });
           const compactionPromise = (async () => {
             const policy = resolveCompactionPolicyFromModelsConfig(c.modelsConfig);
-            const compactionClient = createFailoverClientFromModelsConfig(c.modelsConfig, { env: c.env });
+            let compactionModelsConfig = c.modelsConfig;
+            if (c.compactionModel) {
+              const slash = c.compactionModel.indexOf("/");
+              if (slash > 0 && slash < c.compactionModel.length - 1) {
+                const providerId = c.compactionModel.slice(0, slash);
+                const modelName = c.compactionModel.slice(slash + 1);
+                const provider = c.modelsConfig?.providers?.find((p) => p.id === providerId);
+                if (provider) {
+                  compactionModelsConfig = {
+                    providers: [provider],
+                    failoverChain: [{ providerId, model: modelName }],
+                  } as unknown as ShoggothModelsConfig;
+                }
+              }
+            }
+            const compactionClient = createFailoverClientFromModelsConfig(compactionModelsConfig, { env: c.env });
             const { compacted } = await compactSessionTranscript(c.db, c.sessionId, policy, compactionClient, { modelsConfig: c.modelsConfig, force: true });
             if (compacted) {
               const reloaded = loadSessionTranscriptAsModelChat(c.db, c.sessionId, c.contextSegmentId);

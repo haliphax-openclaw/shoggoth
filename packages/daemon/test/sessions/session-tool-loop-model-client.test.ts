@@ -39,6 +39,7 @@ vi.mock("@shoggoth/models", async (importOriginal) => {
 
 import { compactSessionTranscript } from "../../src/transcript-compact";
 import { loadSessionTranscriptAsModelChat } from "../../src/sessions/transcript-to-chat";
+import { createFailoverClientFromModelsConfig } from "@shoggoth/models";
 
 function stubToolClient(responses?: Array<{
   content: string | null;
@@ -401,6 +402,118 @@ describe("mid-turn compaction in complete()", () => {
     model2.pushToolMessage!({ toolCallId: "tc1", content: "{".repeat(200) });
     await model2.complete();
     assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "structural-heavy content at chars/2 should exceed budget");
+  });
+});
+
+describe("dedicated compaction model", () => {
+  let db: Database.Database;
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), "shoggoth-stlmc-cmodel-"));
+    db = new Database(join(tmp, "test.db"));
+    db.pragma("foreign_keys = ON");
+    migrate(db, defaultMigrationsDir());
+    createSessionStore(db).create({ id: "sess-1", workspacePath: tmp });
+    vi.mocked(compactSessionTranscript).mockReset();
+    vi.mocked(loadSessionTranscriptAsModelChat).mockReset();
+    vi.mocked(createFailoverClientFromModelsConfig).mockReset();
+    vi.mocked(createFailoverClientFromModelsConfig).mockReturnValue({} as any);
+  });
+
+  afterEach(() => {
+    db.close();
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("uses dedicated model when compactionModel is set", async () => {
+    const bigToolContent = "x".repeat(400);
+    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
+
+    const modelsConfig = {
+      providers: [
+        { id: "main", kind: "openai-compatible" as const, baseUrl: "http://main:8080" },
+        { id: "local", kind: "openai-compatible" as const, baseUrl: "http://local:8080" },
+      ],
+      failoverChain: [{ providerId: "main", model: "big-model" }],
+    };
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: {
+        db,
+        sessionId: "sess-1",
+        contextSegmentId: "default",
+        ctxWindowTokens: 100,
+        reserveTokens: 50,
+        modelsConfig: modelsConfig as any,
+        compactionModel: "local/gemma4",
+        env: {},
+        systemPromptChars: 0,
+        toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
+      },
+    });
+
+    model.pushToolMessage!({ toolCallId: "tc1", content: bigToolContent });
+    await model.complete();
+
+    // createFailoverClientFromModelsConfig should have been called with a config
+    // containing only the "local" provider and a single-entry failover chain
+    const calls = vi.mocked(createFailoverClientFromModelsConfig).mock.calls;
+    assert.ok(calls.length > 0, "createFailoverClientFromModelsConfig should have been called");
+    const passedConfig = calls[0][0] as any;
+    assert.equal(passedConfig.failoverChain.length, 1);
+    assert.equal(passedConfig.failoverChain[0].providerId, "local");
+    assert.equal(passedConfig.failoverChain[0].model, "gemma4");
+    assert.equal(passedConfig.providers.length, 1);
+    assert.equal(passedConfig.providers[0].id, "local");
+  });
+
+  it("falls back to full modelsConfig when compactionModel is not set", async () => {
+    const bigToolContent = "x".repeat(400);
+    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
+
+    const modelsConfig = {
+      providers: [
+        { id: "main", kind: "openai-compatible" as const, baseUrl: "http://main:8080" },
+      ],
+      failoverChain: [{ providerId: "main", model: "big-model" }],
+    };
+
+    const model = createSessionToolLoopModelClient({
+      toolClient: stubToolClient(),
+      initialMessages: [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      tools: [],
+      compaction: {
+        db,
+        sessionId: "sess-1",
+        contextSegmentId: "default",
+        ctxWindowTokens: 100,
+        reserveTokens: 50,
+        modelsConfig: modelsConfig as any,
+        env: {},
+        systemPromptChars: 0,
+        toolSchemaChars: 0,
+        compactionAbortTimeoutMs: 60_000,
+      },
+    });
+
+    model.pushToolMessage!({ toolCallId: "tc1", content: bigToolContent });
+    await model.complete();
+
+    // Should pass the full modelsConfig (no compactionModel set)
+    const calls = vi.mocked(createFailoverClientFromModelsConfig).mock.calls;
+    assert.ok(calls.length > 0);
+    assert.equal(calls[0][0], modelsConfig);
   });
 });
 

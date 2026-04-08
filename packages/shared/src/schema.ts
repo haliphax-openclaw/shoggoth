@@ -140,11 +140,8 @@ export const shoggothModelFailoverHopSchema = z
 
 export type ShoggothModelFailoverHop = z.infer<typeof shoggothModelFailoverHopSchema>;
 
-/** Simplified failover chain entry: string ref like 'providerId/model' or object with ref. */
-export const failoverChainEntrySchema = z.union([
-  z.string().min(1),
-  z.object({ ref: z.string().min(1) }),
-]);
+/** Simplified failover chain entry: string ref like 'providerId/model'. */
+export const failoverChainEntrySchema = z.string().min(1);
 
 export type FailoverChainEntry = z.infer<typeof failoverChainEntrySchema>;
 
@@ -162,6 +159,8 @@ export type ModelsRetry = z.infer<typeof modelsRetrySchema>;
 
 export const shoggothModelsCompactionSchema = z
   .object({
+    /** Dedicated compaction model as "providerId/modelName". When set, compaction uses this model instead of the agent's failover chain. */
+    model: z.string().min(1).optional(),
     maxContextChars: z.number().int().positive(),
     preserveRecentMessages: z.number().int().nonnegative(),
     summaryMaxOutputTokens: z.number().int().positive().optional(),
