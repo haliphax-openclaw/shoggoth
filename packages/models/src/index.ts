@@ -47,7 +47,6 @@ export type {
 } from "./types";
 export {
   estimateTranscriptChars,
-  shouldAutoCompact,
   compactTranscriptIfNeeded,
   type CompactionPolicy,
   type CompactTranscriptOptions,

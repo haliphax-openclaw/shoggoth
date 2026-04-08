@@ -2,8 +2,6 @@ import type { FailoverModelClient } from "./failover";
 import type { ChatMessage, ModelInvocationParams } from "./types";
 
 export interface CompactionPolicy {
-  /** When total transcript characters exceed this, auto-compaction runs (unless only tail remains). */
-  readonly maxContextChars: number;
   /** Non-system messages kept verbatim at the end after compaction. */
   readonly preserveRecentMessages: number;
   /** Optional cap for the summarization call. */
@@ -11,7 +9,6 @@ export interface CompactionPolicy {
 }
 
 export interface CompactTranscriptOptions {
-  readonly force?: boolean;
   /** Merged into the summarization `complete()` call (defaults still apply for unset fields). */
   readonly modelInvocation?: ModelInvocationParams;
 }
@@ -25,14 +22,6 @@ export function estimateTranscriptChars(messages: readonly ChatMessage[]): numbe
   let n = 0;
   for (const m of messages) n += (m.content ?? "").length;
   return n;
-}
-
-/** Whether automatic compaction should run before the next model call (session loop integration). */
-export function shouldAutoCompact(
-  messages: readonly ChatMessage[],
-  policy: Pick<CompactionPolicy, "maxContextChars">,
-): boolean {
-  return estimateTranscriptChars(messages) > policy.maxContextChars;
 }
 
 function splitSystemPrefix(
@@ -107,14 +96,6 @@ export async function compactTranscriptIfNeeded(
   client: FailoverModelClient,
   options: CompactTranscriptOptions,
 ): Promise<CompactTranscriptResult> {
-  const total = estimateTranscriptChars(messages);
-  const over = total > policy.maxContextChars;
-  const shouldTry = options.force === true || over;
-
-  if (!shouldTry) {
-    return { compacted: false, messages: [...messages] };
-  }
-
   const { prefix, rest } = splitSystemPrefix(messages);
   const preserve = Math.max(0, policy.preserveRecentMessages);
   if (rest.length <= preserve) {

@@ -265,15 +265,13 @@ describe("createFailoverClientFromModelsConfig", () => {
 describe("resolveCompactionPolicyFromModelsConfig", () => {
   it("applies defaults when compaction absent", () => {
     const p = resolveCompactionPolicyFromModelsConfig(undefined);
-    assert.equal(p.maxContextChars > 0, true);
     assert.equal(p.preserveRecentMessages >= 0, true);
   });
 
   it("merges explicit compaction", () => {
     const p = resolveCompactionPolicyFromModelsConfig({
-      compaction: { maxContextChars: 100, preserveRecentMessages: 2 },
+      compaction: { preserveRecentMessages: 2 },
     });
-    assert.equal(p.maxContextChars, 100);
     assert.equal(p.preserveRecentMessages, 2);
   });
 });

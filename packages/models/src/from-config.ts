@@ -198,7 +198,6 @@ export function createFailoverToolCallingClientFromModelsConfig(
   return client;
 }
 
-const DEFAULT_MAX_CONTEXT_CHARS = 80_000;
 const DEFAULT_PRESERVE_RECENT = 8;
 
 export function resolveCompactionPolicyFromModelsConfig(
@@ -206,7 +205,6 @@ export function resolveCompactionPolicyFromModelsConfig(
 ): CompactionPolicy {
   const c = models?.compaction;
   return {
-    maxContextChars: c?.maxContextChars ?? DEFAULT_MAX_CONTEXT_CHARS,
     preserveRecentMessages: c?.preserveRecentMessages ?? DEFAULT_PRESERVE_RECENT,
     summaryMaxOutputTokens: c?.summaryMaxOutputTokens,
   };

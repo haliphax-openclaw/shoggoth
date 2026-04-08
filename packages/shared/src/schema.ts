@@ -161,8 +161,7 @@ export const shoggothModelsCompactionSchema = z
   .object({
     /** Dedicated compaction model as "providerId/modelName". When set, compaction uses this model instead of the agent's failover chain. */
     model: z.string().min(1).optional(),
-    maxContextChars: z.number().int().positive(),
-    preserveRecentMessages: z.number().int().nonnegative(),
+    preserveRecentMessages: z.number().int().nonnegative().optional(),
     summaryMaxOutputTokens: z.number().int().positive().optional(),
     /** Trigger inline compaction when estimated token usage exceeds (contextWindow − reserveTokens). Default 20 000. */
     contextWindowReserveTokens: z.number().int().positive().optional(),

@@ -100,7 +100,7 @@ describe("transcript-compact", () => {
     const out = await compactSessionTranscript(
       db,
       "s1",
-      { maxContextChars: 100, preserveRecentMessages: 2 },
+      { preserveRecentMessages: 2 },
       client,
     );
 
@@ -241,7 +241,7 @@ describe("transcript-compact", () => {
     await compactSessionTranscript(
       db,
       "s1",
-      { maxContextChars: 100, preserveRecentMessages: 2 },
+      { preserveRecentMessages: 2 },
       client,
     );
 

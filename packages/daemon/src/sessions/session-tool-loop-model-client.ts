@@ -142,7 +142,7 @@ export function createSessionToolLoopModelClient(input: {
               }
             }
             const compactionClient = createFailoverClientFromModelsConfig(compactionModelsConfig, { env: c.env });
-            const { compacted } = await compactSessionTranscript(c.db, c.sessionId, policy, compactionClient, { modelsConfig: c.modelsConfig, force: true });
+            const { compacted } = await compactSessionTranscript(c.db, c.sessionId, policy, compactionClient, { modelsConfig: c.modelsConfig });
             if (compacted) {
               const reloaded = loadSessionTranscriptAsModelChat(c.db, c.sessionId, c.contextSegmentId);
               const systemMsg = messages.find((m) => m.role === "system");

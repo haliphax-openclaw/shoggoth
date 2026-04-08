@@ -40,7 +40,6 @@ const GLOBAL_SLASH_COMMANDS = [
     description: "Compact session transcript (summarize old messages)",
     options: [
       { name: "session_id", type: 3, description: "Session URN", required: false },
-      { name: "force", type: 5, description: "Force compaction even if under threshold", required: false },
     ],
   },
   {

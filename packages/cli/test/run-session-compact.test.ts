@@ -49,10 +49,9 @@ describe("runSessionCompact", () => {
           { id: "p", kind: "openai-compatible", baseUrl: "https://example.invalid/v1" },
         ],
         failoverChain: [{ providerId: "p", model: "m" }],
-        compaction: { maxContextChars: 100, preserveRecentMessages: 2 },
+        compaction: { preserveRecentMessages: 2 },
       },
       sessionId: "sess-1",
-      force: false,
       env: {},
       fetchImpl,
     });

@@ -551,12 +551,10 @@ export async function handleIntegrationControlOp(
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
-      const force = pl.force === true;
       const modelsConfig = resolveEffectiveModelsConfig(ctx.config, sessionId) ?? ctx.config.models;
       const policy = resolveCompactionPolicyFromModelsConfig(modelsConfig);
       const client = createFailoverClientFromModelsConfig(modelsConfig, { env: process.env });
       const result = await compactSessionTranscript(ctx.stateDb, sessionId, policy, client, {
-        force,
         modelsConfig,
       });
       ctx.recordIntegrationAudit({

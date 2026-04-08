@@ -39,7 +39,6 @@ function mergeDefaultInvocation(
   return { ...base, ...over };
 }
 
-const DEFAULT_COMPACTION_MAX = 80_000;
 const DEFAULT_COMPACTION_PRESERVE = 8;
 
 function agentModelsHasOverrides(
@@ -89,7 +88,6 @@ export function resolveEffectiveModelsConfig(
   if (o!.compaction != null && Object.keys(o!.compaction).length > 0) {
     const g = global?.compaction;
     compaction = {
-      maxContextChars: o!.compaction.maxContextChars ?? g?.maxContextChars ?? DEFAULT_COMPACTION_MAX,
       preserveRecentMessages:
         o!.compaction.preserveRecentMessages ?? g?.preserveRecentMessages ?? DEFAULT_COMPACTION_PRESERVE,
       summaryMaxOutputTokens: o!.compaction.summaryMaxOutputTokens ?? g?.summaryMaxOutputTokens,

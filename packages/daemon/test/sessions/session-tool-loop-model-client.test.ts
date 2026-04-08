@@ -30,7 +30,6 @@ vi.mock("@shoggoth/models", async (importOriginal) => {
   return {
     ...orig,
     resolveCompactionPolicyFromModelsConfig: vi.fn(() => ({
-      maxContextChars: 80_000,
       preserveRecentMessages: 2,
     })),
     createFailoverClientFromModelsConfig: vi.fn(() => ({})),

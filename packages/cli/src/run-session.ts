@@ -31,7 +31,7 @@ function printSessionHelp(): void {
 Usage:
   shoggoth session list [status] [--agent <agentId>]   List sessions (optional filters; JSON)
   shoggoth session send <sessionUrn|agentId> [--silent] <message...>  Inject user message + model turn (operator)
-  shoggoth session compact <sessionUrn|agentId> [--force]  Transcript compact (state DB); JSON on stdout
+  shoggoth session compact <sessionUrn|agentId>  Transcript compact (state DB); JSON on stdout
   shoggoth session context new <sessionUrn|agentId>   New context segment (control socket; operator)
   shoggoth session context reset <sessionUrn|agentId>  Reset context segment (control socket; operator)
   shoggoth session inspect <sessionUrn|agentId>   Session row + child subagents (operator)
@@ -153,12 +153,10 @@ export async function runSessionCli(argv: string[]): Promise<void> {
   }
 
   if (sub === "compact") {
-    const rest = argv.slice(1).filter((a) => a !== "--force");
-    const rawTarget = rest[0]?.trim();
-    const force = argv.includes("--force");
+    const rawTarget = argv[1]?.trim();
     if (!rawTarget) {
       console.error(
-        "usage: shoggoth session compact <sessionUrn|agentId> [--force]\n" +
+        "usage: shoggoth session compact <sessionUrn|agentId>\n" +
           "  sessionUrn: full agent:… id; agentId: resolves to that agent’s main (bootstrap primary) session",
       );
       process.exitCode = 1;
@@ -178,7 +176,6 @@ export async function runSessionCli(argv: string[]): Promise<void> {
       stateDbPath: config.stateDbPath,
       models,
       sessionId,
-      force,
     });
     console.log(JSON.stringify(out));
     return;

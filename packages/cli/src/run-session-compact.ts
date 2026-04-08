@@ -16,7 +16,6 @@ interface RunSessionCompactOptions {
   readonly stateDbPath: string;
   readonly models: ShoggothModelsConfig | undefined;
   readonly sessionId: string;
-  readonly force: boolean;
   readonly env?: NodeJS.ProcessEnv;
   readonly fetchImpl?: FetchLike;
 }
@@ -35,7 +34,6 @@ export async function runSessionCompact(
     });
     const policy = resolveCompactionPolicyFromModelsConfig(options.models);
     return await compactSessionTranscript(db, options.sessionId, policy, client, {
-      force: options.force,
       modelsConfig: options.models,
     });
   } finally {

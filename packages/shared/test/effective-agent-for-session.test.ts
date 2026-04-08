@@ -132,7 +132,6 @@ describe("effective agent config for session", () => {
       models: {
         ...base.models,
         compaction: {
-          maxContextChars: 100_000,
           preserveRecentMessages: 4,
           model: "global/compactor",
         },
@@ -159,7 +158,6 @@ describe("effective agent config for session", () => {
       models: {
         ...base.models,
         compaction: {
-          maxContextChars: 100_000,
           preserveRecentMessages: 4,
           model: "global/compactor",
         },
@@ -169,7 +167,7 @@ describe("effective agent config for session", () => {
           alice: {
             models: {
               compaction: {
-                maxContextChars: 50_000,
+                preserveRecentMessages: 2,
               },
             },
           },
@@ -178,7 +176,7 @@ describe("effective agent config for session", () => {
     };
     const m = resolveEffectiveModelsConfig(cfg, sid);
     assert.equal(m?.compaction?.model, "global/compactor");
-    assert.equal(m?.compaction?.maxContextChars, 50_000);
+    assert.equal(m?.compaction?.preserveRecentMessages, 2);
   });
 
   it("merges memory.paths for matching agent", () => {

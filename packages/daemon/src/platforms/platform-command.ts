@@ -39,7 +39,6 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
     op: "session_compact",
     payload: {
       ...(opts.session_id ? { session_id: opts.session_id } : {}),
-      ...(opts.force === "true" ? { force: true } : {}),
     },
   }),
   status: (opts) => ({

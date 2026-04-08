@@ -191,7 +191,6 @@ export async function compactSessionTranscript(
   let sanitizedRows = stripImageBlocksForCompaction(rows);
   sanitizedRows = stripThinkingBlocksForCompaction(sanitizedRows);
   const result = await compactTranscriptIfNeeded(sanitizedRows, policy, client, {
-    force: options?.force,
     modelInvocation,
   });
   if (result.compacted) {
