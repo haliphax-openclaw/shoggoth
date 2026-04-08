@@ -56,7 +56,7 @@ function minimalConfig(socketPath: string): ShoggothConfig {
     logLevel: "info",
     stateDbPath: join(socketPath, "..", "state.db"),
     socketPath,
-    workspacesRoot: "/tmp",
+    workspacesRoot: join(socketPath, "..", "workspaces"),
     secretsDirectory: "/tmp",
     inboundMediaRoot: "/tmp",
     configDirectory: "/tmp",
