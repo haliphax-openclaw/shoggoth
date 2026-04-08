@@ -8,7 +8,9 @@ import type { SpawnAdapter, PollAdapter, NotifyAdapter, OrchestratorOptions } fr
 import { WorkflowServer } from "../src/server.js";
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "workflow-server-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-server-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTask(id: number, kind: "agent" | "tool" = "agent", prompt = `do task ${id}`): TaskDef {

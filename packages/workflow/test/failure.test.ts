@@ -17,7 +17,9 @@ import {
 } from "../src/orchestrator.js";
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "fanout-failure-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-failure-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTask(

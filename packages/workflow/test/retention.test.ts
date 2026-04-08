@@ -17,7 +17,9 @@ import {
 // --- Helpers ---
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "fanout-retention-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-retention-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTask(id: number, prompt = `do task ${id}`): TaskDef {

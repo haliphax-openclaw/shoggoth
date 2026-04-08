@@ -16,7 +16,9 @@ import {
 } from "../src/orchestrator.js";
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "wf-task-types-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wf-task-types-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeAgentTask(id: number, prompt = `do task ${id}`): TaskDef {

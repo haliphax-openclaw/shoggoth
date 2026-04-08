@@ -13,7 +13,9 @@ import {
 import type { TaskList, TaskState, TaskDef } from "../src/types.js";
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "fanout-state-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-state-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTaskDef(id: number, prompt = `task ${id}`): TaskDef {

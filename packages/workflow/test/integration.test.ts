@@ -25,7 +25,9 @@ import { COMPLETED_MAX_AGE_MS } from "../src/retention.js";
 // --- Mock helpers ---
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "fanout-integration-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-integration-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTask(

@@ -24,7 +24,9 @@ import { ControlPlane } from "../src/control.js";
 // --- Mock helpers ---
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "fanout-control-test-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-control-test-"));
+  fs.chmodSync(dir, 0o777);
+  return dir;
 }
 
 function makeTask(
