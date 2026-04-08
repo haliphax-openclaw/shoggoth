@@ -271,7 +271,7 @@ async function handleInteraction(
           `Session: \`${sessionId}\``,
         ];
         if (modelSelection !== null && modelSelection !== undefined) {
-          lines.push(`Selection: \`${String(modelSelection)}\``);
+          lines.push(`Selection: \`${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}\``);
         } else {
           lines.push(`Selection: (using default)`);
         }
