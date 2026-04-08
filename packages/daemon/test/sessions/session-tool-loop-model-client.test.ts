@@ -344,9 +344,8 @@ describe("mid-turn compaction in complete()", () => {
     assert.equal(vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length, 0, "should NOT reload transcript on failure");
   });
 
-  it("uses split token estimation: tool messages at chars/2, text at chars/4", async () => {
-    // Scenario: text-heavy messages should use chars/4, tool messages chars/2.
-    // 200 chars of user text → 200/4 = 50 tokens
+  it("uses per-character token estimation: structural chars at chars/2, other at chars/4", async () => {
+    // 200 chars of plain text (user message) → all non-structural → 200/4 = 50 tokens
     // Budget: ctxWindowTokens=100, reserveTokens=40 → threshold = 60
     // 50 < 60 → no compaction
     const toolClient = stubToolClient();
@@ -372,9 +371,10 @@ describe("mid-turn compaction in complete()", () => {
     });
 
     await model.complete();
-    assert.equal(vi.mocked(compactSessionTranscript).mock.calls.length, 0, "text at chars/4 should be within budget");
+    assert.equal(vi.mocked(compactSessionTranscript).mock.calls.length, 0, "plain text at chars/4 should be within budget");
 
-    // Now same 200 chars but as a tool message → 200/2 = 100 tokens > 60 → triggers compaction
+    // Now use JSON-structural-heavy content in a tool message → triggers compaction
+    // 200 '{' chars → all structural → 200/2 = 100 tokens > 60
     vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
 
     const model2 = createSessionToolLoopModelClient({
@@ -398,10 +398,9 @@ describe("mid-turn compaction in complete()", () => {
       },
     });
 
-    // Push a tool message with 200 chars → 200/2 = 100 tokens > 60
-    model2.pushToolMessage!({ toolCallId: "tc1", content: "b".repeat(200) });
+    model2.pushToolMessage!({ toolCallId: "tc1", content: "{".repeat(200) });
     await model2.complete();
-    assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "tool content at chars/2 should exceed budget");
+    assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "structural-heavy content at chars/2 should exceed budget");
   });
 });
 

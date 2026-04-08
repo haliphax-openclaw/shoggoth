@@ -15,6 +15,7 @@ import { compactSessionTranscript } from "../transcript-compact";
 import { loadSessionTranscriptAsModelChat } from "./transcript-to-chat";
 import { TurnAbortedError } from "./session-turn-abort";
 import { getLogger } from "../logging";
+import { estimateTokensFromContent } from "./session-stats-store";
 import type { ModelClient } from "./tool-loop";
 
 const log = getLogger("session-tool-loop-model-client");
@@ -107,22 +108,18 @@ export function createSessionToolLoopModelClient(input: {
       // --- Mid-turn compaction check ---
       if (input.compaction) {
         const c = input.compaction;
-        let textChars = 0;
-        let jsonChars = 0;
+        let allContent = "";
         for (const m of messages) {
-          const contentLen = typeof m.content === "string" ? m.content.length
-            : Array.isArray(m.content) ? m.content.reduce((n, p) => n + ("text" in p && typeof p.text === "string" ? p.text.length : 0), 0)
-            : 0;
-          if (m.role === "tool") {
-            jsonChars += contentLen;
-          } else {
-            textChars += contentLen;
+          if (typeof m.content === "string") {
+            allContent += m.content;
+          } else if (Array.isArray(m.content)) {
+            for (const p of m.content) if ("text" in p && typeof p.text === "string") allContent += p.text;
           }
           if (m.toolCalls) {
-            for (const tc of m.toolCalls) jsonChars += tc.arguments.length;
+            for (const tc of m.toolCalls) allContent += tc.arguments;
           }
         }
-        const estimatedTokens = (c.systemPromptChars / 4) + (c.toolSchemaChars / 2) + (textChars / 4) + (jsonChars / 2);
+        const estimatedTokens = (c.systemPromptChars / 4) + (c.toolSchemaChars / 2) + estimateTokensFromContent(allContent);
         if (estimatedTokens > c.ctxWindowTokens - c.reserveTokens) {
           log.debug("mid-turn compaction triggered", { sessionId: c.sessionId, estimatedTokens: Math.round(estimatedTokens), ctxWindowTokens: c.ctxWindowTokens, reserveTokens: c.reserveTokens });
           const compactionPromise = (async () => {

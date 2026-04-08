@@ -106,6 +106,17 @@ export function estimateTokens(text: string | null): number {
   return text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
 }
 
+const JSON_STRUCTURAL = new Set(['{', '}', '[', ']', ',', ':', '"']);
+
+/** Estimate tokens using per-character classification: JSON structural chars at 2 chars/token, everything else at 4 chars/token. */
+export function estimateTokensFromContent(text: string): number {
+  let structural = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (JSON_STRUCTURAL.has(text[i])) structural++;
+  }
+  return (structural / 2) + ((text.length - structural) / 4);
+}
+
 /**
  * Estimate current context fill for a session by summing estimated tokens
  * across all transcript messages in the current context segment.
