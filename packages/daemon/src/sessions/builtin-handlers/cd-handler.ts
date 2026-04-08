@@ -2,6 +2,7 @@ import { realpathSync, statSync } from "node:fs";
 import { isAbsolute, resolve, relative, sep } from "node:path";
 import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry";
 import { createSessionStore } from "../session-store";
+import { checkAgentsMdGate } from "../agents-md-gate";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("cd", cdHandler);
@@ -11,6 +12,11 @@ async function cdHandler(
   args: Record<string, unknown>,
   ctx: BuiltinToolContext,
 ): Promise<BuiltinToolResult> {
+  // AGENTS.md discovery gate — check from current working directory
+  const cwd = ctx.workingDirectory ?? ctx.workspacePath;
+  const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, cwd, ctx.workspacePath);
+  if (gate) return { resultJson: JSON.stringify(gate) };
+
   const pathArg = String(args.path ?? "").trim();
 
   // Empty/missing path → reset to workspace root

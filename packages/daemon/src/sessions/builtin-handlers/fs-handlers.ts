@@ -9,6 +9,7 @@ import type { ChatContentPart } from "@shoggoth/models";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 import { truncateToolOutput } from "./truncate-output";
+import { checkAgentsMdGate } from "../agents-md-gate";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("read", readHandler);
@@ -59,6 +60,11 @@ async function writeHandler(
   args: Record<string, unknown>,
   ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
+  // AGENTS.md discovery gate
+  const cwd = ctx.workingDirectory ?? ctx.workspacePath;
+  const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, cwd, ctx.workspacePath);
+  if (gate) return { resultJson: JSON.stringify(gate) };
+
   const path = String(args.path ?? "");
   const content = String(args.content ?? "");
   const resolvedPath = resolveUserPath(ctx, path);

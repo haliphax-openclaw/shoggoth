@@ -7,6 +7,7 @@ import { relative, resolve, isAbsolute, sep, dirname, basename } from "node:path
 import { runAsUser } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
+import { checkAgentsMdGate } from "../agents-md-gate";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("search-replace", searchReplaceHandler);
@@ -104,6 +105,11 @@ async function handleReplace(
   args: Record<string, unknown>,
   ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
+  // AGENTS.md discovery gate
+  const gateCwd = ctx.workingDirectory ?? ctx.workspacePath;
+  const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, gateCwd, ctx.workspacePath);
+  if (gate) return { resultJson: JSON.stringify(gate) };
+
   const file = args.file as string;
   const match = args.match as string;
   const replacement = args.replacement as string;
