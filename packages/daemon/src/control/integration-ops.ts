@@ -1457,9 +1457,6 @@ export async function handleIntegrationControlOp(
           "agent may only steer direct child subagents",
         );
       }
-      if (row.subagentMode === "one_shot") {
-        throw new IntegrationOpError("ERR_SUBAGENT_ONE_SHOT", "one_shot subagents cannot be steered");
-      }
       const platformUserIdRaw = pl.platform_user_id;
       const platformUserId =
         typeof platformUserIdRaw === "string" && platformUserIdRaw.trim()
