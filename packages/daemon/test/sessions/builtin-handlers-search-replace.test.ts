@@ -332,6 +332,65 @@ describe("search-replace: replace", () => {
     }
   });
 
+  it("multiline replace with fixedStrings", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "line one\nline two\nline three\n");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "line one\nline two",
+        replacement: "replaced block",
+        fixedStrings: true,
+        multiline: true,
+      });
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      assert.strictEqual(result.replacements, 1);
+      const content = readFileSync(join(ws, "file.txt"), "utf8");
+      assert.strictEqual(content, "replaced block\nline three\n");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("multiline replace with regex and count limit", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "start\nend\nstart\nend\n");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "start\\nend",
+        replacement: "REPLACED",
+        multiline: true,
+        count: 1,
+      });
+      assert.ok(!result.error, `unexpected error: ${result.error}`);
+      assert.strictEqual(result.replacements, 1);
+      const content = readFileSync(join(ws, "file.txt"), "utf8");
+      assert.strictEqual(content, "REPLACED\nstart\nend\n");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
+  it("multiline replace fails without multiline flag", async () => {
+    const ws = makeTmpWorkspace();
+    try {
+      writeFileSync(join(ws, "file.txt"), "line one\nline two\n");
+      const result = await exec(ws, {
+        action: "replace",
+        file: "file.txt",
+        match: "line one\nline two",
+        replacement: "nope",
+        fixedStrings: true,
+      });
+      assert.ok(result.error, "should error when multiline match attempted without multiline flag");
+    } finally {
+      rmSync(ws, { recursive: true, force: true });
+    }
+  });
+
   it("fixedStrings mode with count-limited replace", async () => {
     const ws = makeTmpWorkspace();
     try {

@@ -108,6 +108,7 @@ async function handleReplace(
   const match = args.match as string;
   const replacement = args.replacement as string;
   const fixedStrings = args.fixedStrings === true;
+  const multiline = args.multiline === true;
   if (!file || match == null || replacement == null) {
     return { resultJson: JSON.stringify({ error: "file, match, and replacement are required" }) };
   }
@@ -135,6 +136,7 @@ async function handleReplace(
   // Step 1: check for matches via rg --count-matches
   const countArgs = ["--count-matches", "--no-filename"];
   if (fixedStrings) countArgs.push("-F");
+  if (multiline) countArgs.push("--multiline");
   countArgs.push("--", match, absPath);
   const countResult = await runAsUser({
     file: "rg",
@@ -169,7 +171,8 @@ async function handleReplace(
     const count = args.count as number;
     const maxReplacements = count === 0 ? Infinity : count;
     let replacements = 0;
-    const result = readResult.stdout.replace(new RegExp(regexPattern, "g"), (m, ...rest) => {
+    const regexFlags = multiline ? "gs" : "g";
+    const result = readResult.stdout.replace(new RegExp(regexPattern, regexFlags), (m, ...rest) => {
       if (replacements >= maxReplacements) return m;
       replacements++;
       if (fixedStrings) return replacement;
@@ -194,6 +197,7 @@ async function handleReplace(
   // Step 2b: full replacement via rg --passthru --replace
   const rgReplaceArgs = ["--passthru", "--no-line-number", "--no-filename", "--color", "never"];
   if (fixedStrings) rgReplaceArgs.push("-F");
+  if (multiline) rgReplaceArgs.push("--multiline");
   rgReplaceArgs.push("--replace", replacement, "--", match, absPath);
   const rgResult = await runAsUser({
     file: "rg",

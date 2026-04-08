@@ -32,6 +32,7 @@ Search files (via `rg`) and replace text. Two actions: `search` and `replace`.
 | `match` | string | yes | Regex pattern (or literal if `fixedStrings`) |
 | `replacement` | string | yes | Replacement text (supports `$1`–`$9` capture groups) |
 | `fixedStrings` | boolean | no | Treat `match` as a literal string |
+| `multiline` | boolean | no | Enable multiline matching (required when `match` spans multiple lines) |
 | `count` | number | no | Max replacements; omit or `0` for all |
 
 ## Examples
@@ -64,6 +65,16 @@ Search files (via `rg`) and replace text. Two actions: `search` and `replace`.
 **Replace only the first 2 occurrences:**
 ```json
 { "action": "replace", "file": "src/foo.ts", "match": "foo", "replacement": "bar", "fixedStrings": true, "count": 2 }
+```
+
+**Multiline literal replace (e.g. swapping a block of lines):**
+```json
+{ "action": "replace", "file": "src/foo.ts", "match": "if (old) {\n  return false;\n}", "replacement": "if (updated) {\n  return true;\n}", "fixedStrings": true, "multiline": true }
+```
+
+**Multiline regex replace:**
+```json
+{ "action": "replace", "file": "src/foo.ts", "match": "// BEGIN BLOCK\\n[\\s\\S]*?// END BLOCK", "replacement": "// cleaned", "multiline": true }
 ```
 
 ## Tips
