@@ -56,7 +56,7 @@ const GLOBAL_SLASH_COMMANDS = [
     options: [
       { name: "session_id", type: 3, description: "Session URN", required: false },
       { name: "agent_id", type: 3, description: "Agent ID (alternative to session_id)", required: false },
-      { name: "model_selection", type: 3, description: "Model selection JSON (omit to view current)", required: false },
+      { name: "model_selection", type: 3, description: "Model ref as provider/model (omit to view current)", required: false },
     ],
   },
   {
@@ -272,15 +272,19 @@ async function handleInteraction(
           `Session: \`${sessionId}\``,
         ];
         if (modelSelection !== null && modelSelection !== undefined) {
-          lines.push(`Selection: \`${JSON.stringify(modelSelection)}\``);
+          lines.push(`Selection: \`${String(modelSelection)}\``);
         } else {
           lines.push(`Selection: (using default)`);
         }
         if (effectiveModels) {
           const provider = effectiveModels.providerId as string | undefined;
           const model = effectiveModels.model as string | undefined;
-          if (provider) lines.push(`Provider: ${provider}`);
-          if (model) lines.push(`Model: ${model}`);
+          if (provider && model) {
+            lines.push(`Effective: \`${provider}/${model}\``);
+          } else {
+            if (provider) lines.push(`Provider: ${provider}`);
+            if (model) lines.push(`Model: ${model}`);
+          }
         }
         content = lines.join("\n");
       } else {

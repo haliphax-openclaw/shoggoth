@@ -78,12 +78,12 @@ describe("translateCommandToControlOp", () => {
     });
   });
 
-  it("translates model command with model_selection as JSON string", () => {
+  it("translates model command with provider/model string", () => {
     const cmd: PlatformCommand = {
       name: "model",
       options: {
         session_id: "agent:main:discord:channel:abc",
-        model_selection: '{"providerId":"anthropic","model":"claude-3-5-sonnet"}',
+        model_selection: "anthropic/claude-3-5-sonnet",
       },
     };
     const op = translateCommandToControlOp(cmd);
@@ -96,12 +96,12 @@ describe("translateCommandToControlOp", () => {
     });
   });
 
-  it("translates model command with invalid JSON in model_selection (falls back to string)", () => {
+  it("translates model command with bare string (no slash) passes through as string", () => {
     const cmd: PlatformCommand = {
       name: "model",
       options: {
         session_id: "agent:main:discord:channel:abc",
-        model_selection: "not-json",
+        model_selection: "not-a-ref",
       },
     };
     const op = translateCommandToControlOp(cmd);
@@ -109,7 +109,7 @@ describe("translateCommandToControlOp", () => {
       op: "session_model",
       payload: {
         session_id: "agent:main:discord:channel:abc",
-        model_selection: "not-json",
+        model_selection: "not-a-ref",
       },
     });
   });

@@ -40,7 +40,7 @@ Usage:
   shoggoth session abort <sessionUrn|agentId>  Abort in-flight model turn (operator)
   shoggoth session kill <sessionUrn|agentId>      Terminate session + cleanup (operator)
   shoggoth session model <sessionUrn|agentId>     Show current model selection (operator)
-  shoggoth session model <sessionUrn|agentId> <json>  Set model selection (JSON string)
+  shoggoth session model <sessionUrn|agentId> <provider/model>  Set model selection (e.g. openai/gpt-4o)
   shoggoth session model <sessionUrn|agentId> --clear  Reset model selection to null
 
   session send: --silent skips posting the assistant reply to the bound messaging surface (internal delivery only).`);
@@ -323,7 +323,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
     const rawTarget = argv[1]?.trim();
     if (!rawTarget) {
       console.error(
-        "usage: shoggoth session model <sessionUrn|agentId> [<json> | --clear]",
+        "usage: shoggoth session model <sessionUrn|agentId> [<provider/model> | --clear]",
       );
       process.exitCode = 1;
       return;
@@ -334,15 +334,21 @@ export async function runSessionCli(argv: string[]): Promise<void> {
     if (argv.includes("--clear")) {
       payload.model_selection = null;
     } else if (argv[2] && argv[2] !== "--clear") {
-      const jsonStr = argv.slice(2).join(" ");
-      try {
-        payload.model_selection = JSON.parse(jsonStr);
-      } catch {
-        console.error("invalid JSON for model_selection");
+      const ref = argv[2].trim();
+      if (!ref.includes("/")) {
+        console.error("model_selection must be in provider/model format (e.g. openai/gpt-4o)");
         process.exitCode = 1;
         return;
       }
+      payload.model_selection = ref;
     }
+    const res = await invokeControlRequest({
+      socketPath,
+      auth,
+      op: "session_model",
+      payload,
+    });
+   
     const res = await invokeControlRequest({
       socketPath,
       auth,

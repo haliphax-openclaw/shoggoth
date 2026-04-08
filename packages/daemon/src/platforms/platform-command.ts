@@ -54,10 +54,15 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
       payload.agent_id = opts.agent_id;
     }
     if (opts.model_selection !== undefined) {
-      try {
-        payload.model_selection = JSON.parse(opts.model_selection);
-      } catch {
-        payload.model_selection = opts.model_selection;
+      const raw = opts.model_selection.trim();
+      const slashIdx = raw.indexOf("/");
+      if (slashIdx > 0) {
+        payload.model_selection = {
+          providerId: raw.slice(0, slashIdx),
+          model: raw.slice(slashIdx + 1),
+        };
+      } else {
+        payload.model_selection = raw;
       }
     }
     return { op: "session_model", payload };
