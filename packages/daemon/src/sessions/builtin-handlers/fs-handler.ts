@@ -7,6 +7,7 @@ import { basename, dirname, join, relative } from "node:path";
 import { resolvePathForRead, resolvePathForWrite, runAsUser } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
+import { checkAgentsMdGate } from "../agents-md-gate";
 
 type FsAction = "move" | "copy" | "delete" | "stat" | "chmod" | "rename" | "mkdir";
 
@@ -326,6 +327,14 @@ async function fsHandler(
   }
   if (!args.path) {
     throw new Error("`path` is required");
+  }
+
+  // AGENTS.md discovery gate — mutating actions only
+  const MUTATING: Set<FsAction> = new Set(["move", "copy", "delete", "rename", "mkdir"]);
+  if (MUTATING.has(action)) {
+    const cwd = ctx.workingDirectory ?? ctx.workspacePath;
+    const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, cwd, ctx.workspacePath);
+    if (gate) return { resultJson: JSON.stringify(gate) };
   }
 
   const fsArgs: FsArgs = {
