@@ -1,7 +1,7 @@
 import { ModelHttpError } from "./errors";
 import { geminiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
-import { normalizeThinkingBlocks, stripXmlThinkingTags } from "./thinking-normalize";
+import { normalizeThinkingBlocks, stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
 import type {
   ChatContentPart,
   ChatMessage,
@@ -315,6 +315,7 @@ export async function consumeGeminiStream(
   let callIndex = 0;
   let forbiddenToolUse = false;
   let lastUsage: ModelUsage | undefined;
+  const thinkNorm = options.thinkingFormat === "xml-tags" ? new ThinkingStreamNormalizer() : undefined;
 
   const handleDataPayload = (raw: string) => {
     let json: unknown;
@@ -354,8 +355,16 @@ export async function consumeGeminiStream(
       const p = part as Record<string, unknown>;
 
       if (typeof p.text === "string" && p.text.length > 0) {
-        accumulatedText += p.text;
-        options.onTextDelta?.(p.text, accumulatedText);
+        if (thinkNorm) {
+          const result = thinkNorm.processChunk(p.text);
+          if (result.text) {
+            accumulatedText += result.text;
+            options.onTextDelta?.(result.text, accumulatedText);
+          }
+        } else {
+          accumulatedText += p.text;
+          options.onTextDelta?.(p.text, accumulatedText);
+        }
       }
 
       if (p.functionCall && typeof p.functionCall === "object") {
@@ -409,8 +418,15 @@ export async function consumeGeminiStream(
     throw new ModelHttpError(502, "unexpected functionCall in non-tool Gemini stream", "");
   }
 
-  const strippedText = options.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(accumulatedText) : accumulatedText;
-  let content: string | ChatContentPart[] | null = strippedText.length > 0 ? strippedText : null;
+  // Flush any remaining buffered thinking content
+  if (thinkNorm) {
+    const flushed = thinkNorm.flush();
+    if (flushed.text) {
+      accumulatedText += flushed.text;
+    }
+  }
+
+  let content: string | ChatContentPart[] | null = accumulatedText.length > 0 ? accumulatedText : null;
 
   // Normalize thinking blocks if thinkingFormat is specified and content is not null
   if (content !== null && options.thinkingFormat) {
@@ -522,15 +538,16 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
         return { content: typeof content === "string" ? content : JSON.stringify(content), usage };
       }
 
-      const text = await res.text();
+      const rawText = await res.text();
       if (!res.ok) {
         throw new ModelHttpError(
           res.status,
           res.statusText || `HTTP ${res.status}`,
-          parseGeminiErrorBody(text),
+          parseGeminiErrorBody(rawText),
         );
       }
 
+      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
@@ -599,15 +616,16 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
         return { content: typeof content === "string" ? content : JSON.stringify(content), toolCalls, usage };
       }
 
-      const text = await res.text();
+      const rawText = await res.text();
       if (!res.ok) {
         throw new ModelHttpError(
           res.status,
           res.statusText || `HTTP ${res.status}`,
-          parseGeminiErrorBody(text),
+          parseGeminiErrorBody(rawText),
         );
       }
 
+      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);

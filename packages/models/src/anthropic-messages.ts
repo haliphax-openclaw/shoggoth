@@ -1,7 +1,7 @@
 import { ModelHttpError } from "./errors";
 import { anthropicImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
-import { stripXmlThinkingTags } from "./thinking-normalize";
+import { stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
 import type {
   ChatContentPart,
   ChatMessage,
@@ -374,6 +374,7 @@ export async function consumeAnthropicMessagesStream(
   let usageOutputTokens: number | undefined;
   const blocks = new Map<number, AnthropicBlockState>();
   const toolCallsByIndex: { index: number; call: ChatToolCall }[] = [];
+  const thinkNorm = options.thinkingFormat === "xml-tags" ? new ThinkingStreamNormalizer() : undefined;
 
   const finalizeToolBlock = (index: number, state: Extract<AnthropicBlockState, { kind: "tool_use" }>) => {
     if (state.finalized) return;
@@ -471,16 +472,25 @@ export async function consumeAnthropicMessagesStream(
       const dt = delta.type;
 
       if (dt === "text_delta" && typeof delta.text === "string" && delta.text.length > 0) {
-        const d = delta.text;
+        const raw = delta.text;
         let st = blocks.get(index);
         if (!st || st.kind !== "text") {
           st = { kind: "text", text: "" };
           blocks.set(index, st);
         }
         if (st.kind === "text") {
-          st.text += d;
-          accumulatedAssistantText += d;
-          options.onTextDelta?.(d, accumulatedAssistantText);
+          if (thinkNorm) {
+            const result = thinkNorm.processChunk(raw);
+            if (result.text) {
+              st.text += result.text;
+              accumulatedAssistantText += result.text;
+              options.onTextDelta?.(result.text, accumulatedAssistantText);
+            }
+          } else {
+            st.text += raw;
+            accumulatedAssistantText += raw;
+            options.onTextDelta?.(raw, accumulatedAssistantText);
+          }
         }
         return;
       }
@@ -585,12 +595,25 @@ export async function consumeAnthropicMessagesStream(
     }
   }
 
+  // Flush any remaining buffered thinking content
+  if (thinkNorm) {
+    const flushed = thinkNorm.flush();
+    if (flushed.text) {
+      // Append to the last text block or create one
+      const lastTextIdx = [...blocks.keys()].reverse().find((k) => blocks.get(k)?.kind === "text");
+      if (lastTextIdx !== undefined) {
+        const st = blocks.get(lastTextIdx) as { kind: "text"; text: string };
+        st.text += flushed.text;
+      }
+    }
+  }
+
   const sortedIndices = [...blocks.keys()].sort((a, b) => a - b);
   const textParts: string[] = [];
   for (const idx of sortedIndices) {
     const st = blocks.get(idx);
     if (st?.kind === "text" && st.text.length > 0) {
-      textParts.push(options.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(st.text) : st.text);
+      textParts.push(st.text);
     }
   }
   const joinedText = textParts.join("");
@@ -793,15 +816,16 @@ export function createAnthropicMessagesProvider(
         return { content: outText, toolCalls, usage };
       }
 
-      const text = await res.text();
+      const rawText = await res.text();
       if (!res.ok) {
         throw new ModelHttpError(
           res.status,
           res.statusText || `HTTP ${res.status}`,
-          parseAnthropicErrorBody(text),
+          parseAnthropicErrorBody(rawText),
         );
       }
 
+      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
@@ -816,7 +840,7 @@ export function createAnthropicMessagesProvider(
         throw new ModelHttpError(
           502,
           "missing assistant content and tool_use blocks",
-          text.slice(0, 200),
+          rawText.slice(0, 200),
         );
       }
 

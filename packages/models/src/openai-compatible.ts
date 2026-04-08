@@ -1,7 +1,7 @@
 import { ModelHttpError } from "./errors";
 import { openaiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
-import { normalizeThinkingBlocks, stripXmlThinkingTags } from "./thinking-normalize";
+import { normalizeThinkingBlocks, stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
 import type {
   ChatContentPart,
   ChatMessage,
@@ -144,6 +144,7 @@ async function consumeOpenAIChatCompletionStream(
   let content: string | null = null;
   let usage: ModelUsage | undefined;
   const toolPartials = new Map<number, ToolCallPartial>();
+  const thinkNorm = options.thinkingFormat === "xml-tags" ? new ThinkingStreamNormalizer() : undefined;
 
   const processDataPayload = (data: string) => {
     if (data === "[DONE]") return;
@@ -170,10 +171,20 @@ async function consumeOpenAIChatCompletionStream(
     const d = delta as { content?: unknown; tool_calls?: unknown };
 
     if (typeof d.content === "string" && d.content.length > 0) {
-      const prev = content ?? "";
-      const next = prev + d.content;
-      content = next;
-      options.onTextDelta?.(d.content, next);
+      if (thinkNorm) {
+        const result = thinkNorm.processChunk(d.content);
+        if (result.text) {
+          const prev = content ?? "";
+          const next = prev + result.text;
+          content = next;
+          options.onTextDelta?.(result.text, next);
+        }
+      } else {
+        const prev = content ?? "";
+        const next = prev + d.content;
+        content = next;
+        options.onTextDelta?.(d.content, next);
+      }
     }
 
     if (options.accumulateTools && d.tool_calls !== undefined) {
@@ -202,6 +213,15 @@ async function consumeOpenAIChatCompletionStream(
     if (done) break;
   }
   if (lineBuf.length > 0) flushLine(lineBuf);
+
+  // Flush any remaining buffered thinking content
+  if (thinkNorm) {
+    const flushed = thinkNorm.flush();
+    if (flushed.text) {
+      const prev = content ?? "";
+      content = prev + flushed.text;
+    }
+  }
 
   if (!sawValidChoice) {
     throw new ModelHttpError(
@@ -315,15 +335,16 @@ export function createOpenAICompatibleProvider(
         return { content, usage };
       }
 
-      const text = await res.text();
+      const rawText = await res.text();
       if (!res.ok) {
         throw new ModelHttpError(
           res.status,
           res.statusText || `HTTP ${res.status}`,
-          text.slice(0, 500),
+          rawText.slice(0, 500),
         );
       }
 
+      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
@@ -399,7 +420,7 @@ export function createOpenAICompatibleProvider(
           thinkingFormat,
           onTextDelta: input.onTextDelta,
         });
-        const content = rawContent && thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawContent) : rawContent;
+        const content = rawContent;
 
         if (toolCalls.length === 0 && (content === null || content === "")) {
           throw new ModelHttpError(502, "missing assistant content and tool_calls", "");
@@ -410,15 +431,16 @@ export function createOpenAICompatibleProvider(
         return { content: finalContent, toolCalls, usage };
       }
 
-      const text = await res.text();
+      const rawText = await res.text();
       if (!res.ok) {
         throw new ModelHttpError(
           res.status,
           res.statusText || `HTTP ${res.status}`,
-          text.slice(0, 500),
+          rawText.slice(0, 500),
         );
       }
 
+      const text = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
