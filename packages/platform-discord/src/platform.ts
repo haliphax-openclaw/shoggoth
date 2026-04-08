@@ -42,6 +42,7 @@ import {
   type SessionAgentTurnResult,
   type SessionModelTurnDelivery,
   type PlatformAssistantDeps,
+  resolveModel,
 } from "@shoggoth/daemon/lib";
 import type { HitlNotifier, PendingActionRow, Logger, HitlAutoApproveGate } from "./daemon-types";
 import { daemonNotice } from "./notices";
@@ -357,26 +358,19 @@ export async function startDiscordPlatform(
         attachments,
         imageBlockCodec: (() => {
           const cfg = opts.configRef?.current ?? opts.config;
-          const mc = resolveEffectiveModelsConfig(cfg, msg.sessionId) ?? cfg.models;
-          if (!mc?.providers?.length) return undefined;
-          const chain = mc.failoverChain;
-          const kind = chain?.length
-            ? mc.providers.find((p) => p.id === chain[0].providerId)?.kind
-            : mc.providers[0]?.kind;
-          if (kind === 'openai-compatible' || kind === 'anthropic-messages' || kind === 'gemini') {
-            return getImageBlockCodec(kind);
+          const resolved = resolveModel(opts.db, cfg, { sessionId: msg.sessionId });
+          if (resolved) {
+            const kind = resolved.provider?.kind;
+            if (kind === 'openai-compatible' || kind === 'anthropic-messages' || kind === 'gemini') {
+              return getImageBlockCodec(kind);
+            }
           }
           return undefined;
         })(),
         imageUrlPassthrough: (() => {
           const cfg = opts.configRef?.current ?? opts.config;
-          const mc = resolveEffectiveModelsConfig(cfg, msg.sessionId) ?? cfg.models;
-          if (!mc?.providers?.length) return false;
-          const chain = mc.failoverChain;
-          const provider = chain?.length
-            ? mc.providers.find((p) => p.id === chain[0].providerId)
-            : mc.providers[0];
-          return (provider as any)?.imageUrlPassthrough === true;
+          const resolved = resolveModel(opts.db, cfg, { sessionId: msg.sessionId });
+          return (resolved?.provider as any)?.imageUrlPassthrough === true;
         })(),
         formatAttachmentMetadata,
         buildTurn: async () => {

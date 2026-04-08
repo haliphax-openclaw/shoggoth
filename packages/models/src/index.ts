@@ -38,14 +38,6 @@ export type {
   ImageBlock,
   ImageBlockCodec,
   ModelProvider,
-  ModelCapabilitie
-export type {
-  ChatMessage,
-  ChatRole,
-  ChatContentPart,
-  ImageBlock,
-  ImageBlockCodec,
-  ModelProvider,
   ModelCapabilities,
   ModelCompleteInput,
   ModelCompleteOutput,

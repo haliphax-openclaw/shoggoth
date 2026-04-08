@@ -179,6 +179,12 @@ export type {
 export {
   resolveSessionBypassUpTo,
 } from "./hitl/session-agent-principals";
+export {
+  resolveModel,
+  resolveRetryConfig,
+  type ResolvedModel,
+  type ResolveModelOpts,
+} from "./sessions/model-resolution";
 export type { SessionModelTurnDelivery } from "./messaging/session-model-turn-delivery";
 export type { HitlConfigRef } from "./config-hot-reload";
 export {

@@ -52,6 +52,7 @@ import { messageToolContextRef } from "../messaging/message-tool-context-ref";
 import { incrementTokenUsage, updateTranscriptMessageCount, incrementTurnCount } from "./session-stats-store";
 import { checkContextWindowMismatch } from "./context-window-mismatch";
 import { getModelContextWindowTokens } from "../model-metadata";
+import { resolveModel } from "./model-resolution";
 import { drainSystemContext, pushSystemContext } from "./system-context-buffer";
 import type { OutboundAttachment } from "../presentation/platform-adapter";
 import { extractShowBlocks } from "../presentation/show-blocks";
@@ -260,7 +261,7 @@ export async function executeSessionAgentTurn(
   let currentToolsOpenAi: readonly OpenAIToolFunctionDefinition[] = mcpCtx.toolsOpenAi;
 
   const ctxWindowTokens = !input.minimalContext
-    ? modelsForSession?.failoverChain?.[0]?.contextWindowTokens
+    ? resolveModel(input.db, input.config, { sessionId: input.sessionId })?.model?.contextWindowTokens
     : undefined;
 
   const { signal: turnAbortSignal, end: endTurnAbortScope } = beginSessionTurnAbortScope(
