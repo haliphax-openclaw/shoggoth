@@ -121,7 +121,8 @@ function resolveImageBlockCodec(
   if (!modelsConfig?.providers?.length) return undefined;
   const chain = modelsConfig.failoverChain;
   if (chain?.length) {
-    const [firstProviderId] = chain[0].split("/");
+    const entry = chain[0];
+    const firstProviderId = typeof entry === "string" ? entry.split("/")[0] : (entry as { providerId: string }).providerId;
     const provider = modelsConfig.providers.find((p) => p.id === firstProviderId);
     if (provider && IMAGE_CODEC_PROVIDER_KINDS.has(provider.kind)) {
       return getImageBlockCodec(provider.kind as "openai-compatible" | "anthropic-messages" | "gemini");
