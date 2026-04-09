@@ -744,6 +744,8 @@ export const shoggothAgentEntrySchema = z
     toolDiscovery: shoggothAgentToolDiscoveryConfigSchema.optional(),
     /** How to display model thinking output. Default: "none" if omitted. */
     thinkingDisplay: thinkingDisplaySchema.optional(),
+    /** Override the model used by subagents spawned by this agent. Format: "providerId/model". The referenced provider must exist in models.providers. */
+    subagentModel: z.string().min(1).optional(),
   })
   .strict();
 
@@ -759,6 +761,8 @@ export const shoggothAgentsConfigSchema = z
     subagentContextLevel: contextLevelSchema.optional(),
     /** Use streaming for internal (non-user-facing) model calls (e.g. workflow tasks, subagents). Default: true. */
     internalStreaming: z.boolean().optional(),
+    /** Default model for all agents' subagents. Format: "providerId/model". Per-agent override in agents.list.<id>.subagentModel. */
+    subagentModel: z.string().min(1).optional(),
   })
   .strict();
 

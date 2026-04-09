@@ -800,7 +800,27 @@ export async function handleIntegrationControlOp(
           "parent session is missing or terminated",
         );
       }      const modelOptions = optionalRecordObject(pl, "model_options");
-      const modelSelection = mergeSubagentSpawnModelSelection(parent.modelSelection, modelOptions);
+
+      // Resolve effective subagentModel from config (per-agent override > global default).
+      // Only applies when per-spawn model_options doesn't already set a model.
+      let effectiveBase = parent.modelSelection;
+      const hasSpawnModel = modelOptions && typeof modelOptions.model === "string" && modelOptions.model.trim();
+      if (!hasSpawnModel) {
+        const parentAgentId = parseAgentSessionUrn(parentSessionId)?.agentId;
+        const perAgent = parentAgentId ? ctx.config.agents?.list?.[parentAgentId]?.subagentModel : undefined;
+        const globalDefault = ctx.config.agents?.subagentModel;
+        const configSubagentModel = perAgent ?? globalDefault;
+        if (configSubagentModel) {
+          const base =
+            effectiveBase && typeof effectiveBase === "object" && !Array.isArray(effectiveBase)
+              ? { ...(effectiveBase as Record<string, unknown>) }
+              : {};
+          base.model = configSubagentModel;
+          effectiveBase = base;
+        }
+      }
+
+      const modelSelection = mergeSubagentSpawnModelSelection(effectiveBase, modelOptions);
 
       // Optional response delivery routing (defaults: respondTo = parent, internal = true).
       const respondToRaw = pl.respond_to;

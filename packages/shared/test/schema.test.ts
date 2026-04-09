@@ -5,6 +5,8 @@ import {
   failoverChainEntrySchema,
   modelsRetrySchema,
   shoggothModelsConfigSchema,
+  shoggothAgentEntrySchema,
+  shoggothAgentsConfigSchema,
 } from "../src/schema";
 
 // ---------------------------------------------------------------------------
@@ -225,5 +227,62 @@ describe("modelsRetrySchema", () => {
     });
     assert.ok(r.success);
     assert.equal(r.data!.retry!.maxRetries, 5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// subagentModel on agent entry and agents config
+// ---------------------------------------------------------------------------
+describe("subagentModel schema field", () => {
+  it("accepts subagentModel on shoggothAgentEntrySchema", () => {
+    const r = shoggothAgentEntrySchema.safeParse({
+      subagentModel: "anthropic/claude-3-5-haiku-20241022",
+    });
+    assert.ok(r.success);
+    assert.equal(r.data!.subagentModel, "anthropic/claude-3-5-haiku-20241022");
+  });
+
+  it("accepts agent entry without subagentModel (optional)", () => {
+    const r = shoggothAgentEntrySchema.safeParse({});
+    assert.ok(r.success);
+    assert.equal(r.data!.subagentModel, undefined);
+  });
+
+  it("rejects empty string subagentModel on agent entry", () => {
+    const r = shoggothAgentEntrySchema.safeParse({ subagentModel: "" });
+    assert.ok(!r.success);
+  });
+
+  it("accepts subagentModel on shoggothAgentsConfigSchema", () => {
+    const r = shoggothAgentsConfigSchema.safeParse({
+      subagentModel: "openai/gpt-4o",
+    });
+    assert.ok(r.success);
+    assert.equal(r.data!.subagentModel, "openai/gpt-4o");
+  });
+
+  it("accepts agents config without subagentModel (optional)", () => {
+    const r = shoggothAgentsConfigSchema.safeParse({});
+    assert.ok(r.success);
+    assert.equal(r.data!.subagentModel, undefined);
+  });
+
+  it("rejects empty string subagentModel on agents config", () => {
+    const r = shoggothAgentsConfigSchema.safeParse({ subagentModel: "" });
+    assert.ok(!r.success);
+  });
+
+  it("accepts both global and per-agent subagentModel together", () => {
+    const r = shoggothAgentsConfigSchema.safeParse({
+      subagentModel: "openai/gpt-4o",
+      list: {
+        main: {
+          subagentModel: "anthropic/claude-3-5-haiku-20241022",
+        },
+      },
+    });
+    assert.ok(r.success);
+    assert.equal(r.data!.subagentModel, "openai/gpt-4o");
+    assert.equal(r.data!.list!.main!.subagentModel, "anthropic/claude-3-5-haiku-20241022");
   });
 });
