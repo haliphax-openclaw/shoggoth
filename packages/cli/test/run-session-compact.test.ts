@@ -48,7 +48,7 @@ describe("runSessionCompact", () => {
         providers: [
           { id: "p", kind: "openai-compatible", baseUrl: "https://example.invalid/v1" },
         ],
-        failoverChain: [{ providerId: "p", model: "m" }],
+        failoverChain: ["p/m"],
         compaction: { preserveRecentMessages: 2 },
       },
       sessionId: "sess-1",
