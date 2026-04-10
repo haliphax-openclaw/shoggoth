@@ -43,21 +43,23 @@ export function createElevationStore(db: Database.Database) {
     },
 
     isActive(sessionId: string): boolean {
+      const now = new Date().toISOString();
       const row = db.prepare(
         `SELECT 1 FROM elevation_grants
-         WHERE session_id = ? AND revoked = 0 AND expires_at > datetime('now')
+         WHERE session_id = ? AND revoked = 0 AND expires_at > ?
          LIMIT 1`,
-      ).get(sessionId);
+      ).get(sessionId, now);
       return row != null;
     },
 
     getStatus(sessionId: string): { active: boolean; grant?: ElevationGrant; remainingMs?: number } {
+      const now = new Date().toISOString();
       const row = db.prepare(
         `SELECT id, session_id, granted_at, expires_at, revoked
          FROM elevation_grants
-         WHERE session_id = ? AND revoked = 0 AND expires_at > datetime('now')
+         WHERE session_id = ? AND revoked = 0 AND expires_at > ?
          ORDER BY expires_at DESC LIMIT 1`,
-      ).get(sessionId) as { id: string; session_id: string; granted_at: string; expires_at: string; revoked: number } | undefined;
+      ).get(sessionId, now) as { id: string; session_id: string; granted_at: string; expires_at: string; revoked: number } | undefined;
       if (!row) return { active: false };
       const remaining = new Date(row.expires_at).getTime() - Date.now();
       return {
