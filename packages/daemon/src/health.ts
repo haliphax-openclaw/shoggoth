@@ -157,7 +157,7 @@ function isGoogleGenAI(normalizedBase: string): boolean {
 }
 
 /** OpenAI-style roots use `/v1/models`; Anthropic origins probe `/`; Google GenAI uses native `/v1beta/models`. */
-function resolveModelProbeUrl(normalizedBase: string, apiKey?: string): string {
+function resolveModelProbeUrl(normalizedBase: string, apiKey?: string, providerKind?: string): string {
   const u = new URL(normalizedBase);
   const p = u.pathname.replace(/\/+$/, "") || "/";
 
@@ -168,7 +168,7 @@ function resolveModelProbeUrl(normalizedBase: string, apiKey?: string): string {
     return modelsUrl.href;
   }
 
-  if (p === "/" && isAnthropicModelProbeBase(normalizedBase)) {
+  if (p === "/" && (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages")) {
     return `${u.origin}/`;
   }
   if (p === "/") {
@@ -202,9 +202,10 @@ function detailFromModelResponse(res: Response): string {
 function buildModelProbeAuthHeaders(
   normalizedBase: string,
   apiKey: string,
+  providerKind?: string,
 ): Record<string, string> {
   if (isGoogleGenAI(normalizedBase)) return {};
-  if (isAnthropicModelProbeBase(normalizedBase)) {
+  if (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages") {
     return { "x-api-key": apiKey };
   }
   return { Authorization: `Bearer ${apiKey}` };
@@ -360,6 +361,7 @@ export async function fetchOpenAIMetadataForProviders(
 export function createModelEndpointProbe(options: {
   getBaseUrl: () => string | undefined;
   getApiKey?: () => string | undefined;
+  getProviderKind?: () => string | undefined;
   name?: string;
 }): DependencyProbe {
   const probeName = options.name ?? "model";
@@ -372,13 +374,14 @@ export function createModelEndpointProbe(options: {
       }
       let probeUrl: string;
       let normalized: string;
+      const providerKind = options.getProviderKind?.();
       try {
         normalized = normalizeModelBaseUrl(raw);
         if (!normalized) {
           return { name: probeName, status: "skipped", detail: "not configured" };
         }
         const apiKeyForUrl = options.getApiKey?.()?.trim();
-        probeUrl = resolveModelProbeUrl(normalized, apiKeyForUrl);
+        probeUrl = resolveModelProbeUrl(normalized, apiKeyForUrl, providerKind);
       } catch {
         return {
           name: probeName,
@@ -388,7 +391,7 @@ export function createModelEndpointProbe(options: {
       }
       try {
         const apiKey = options.getApiKey?.()?.trim();
-        const authHeaders = apiKey ? buildModelProbeAuthHeaders(normalized, apiKey) : {};
+        const authHeaders = apiKey ? buildModelProbeAuthHeaders(normalized, apiKey, providerKind) : {};
         const res = await fetchModelEndpoint(probeUrl, authHeaders);
         if (res.status >= 200 && res.status < 400) {
           return { name: probeName, status: "pass", detail: detailFromModelResponse(res) };

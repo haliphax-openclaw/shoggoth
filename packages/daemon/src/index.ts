@@ -864,6 +864,7 @@ rt.health.register(
   createModelEndpointProbe({
     getBaseUrl: () => resolveModelHealthProbeBaseUrl(configRef.current),
     getApiKey: () => resolveModelHealthProbeApiKey(configRef.current),
+    getProviderKind: () => configRef.current.models?.providers?.[0]?.kind,
   }),
 );
 
