@@ -81,10 +81,7 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
       const raw = opts.model_selection.trim();
       const slashIdx = raw.indexOf("/");
       if (slashIdx > 0) {
-        payload.model_selection = {
-          providerId: raw.slice(0, slashIdx),
-          model: raw.slice(slashIdx + 1),
-        };
+        payload.model_selection = { model: raw };
       } else {
         payload.model_selection = raw;
       }
