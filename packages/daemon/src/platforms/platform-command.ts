@@ -23,6 +23,31 @@ export function parsePlatformCommand(
 }
 
 const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => ControlOpRequest> = {
+  elevate: (opts) => {
+    const action = opts.action?.trim() ?? "grant";
+    if (action === "revoke") {
+      return {
+        op: "elevation_revoke",
+        payload: {
+          ...(opts.grant_id ? { grant_id: opts.grant_id } : {}),
+          ...(opts.session_id ? { session_id: opts.session_id } : {}),
+        },
+      };
+    }
+    // Default: grant
+    const payload: Record<string, unknown> = {};
+    if (opts.session_id) payload.session_id = opts.session_id;
+    if (opts.duration) {
+      const m = /^(\d+)(s|m|h)?$/.exec(opts.duration.trim());
+      if (m) {
+        const n = Number.parseInt(m[1], 10);
+        const unit = m[2] ?? "s";
+        const ms = unit === "h" ? n * 3600000 : unit === "m" ? n * 60000 : n * 1000;
+        payload.duration_ms = ms;
+      }
+    }
+    return { op: "elevation_grant", payload };
+  },
   abort: (opts) => ({
     op: "session_abort",
     payload: opts.session_id ? { session_id: opts.session_id } : {},

@@ -96,6 +96,7 @@ export function resolveToolDiscoveryConfig(
     for (const id of perAgent.alwaysOn) alwaysOn.add(id);
   }
   alwaysOn.add("builtin-discover");
+  alwaysOn.add("builtin-elevate");
 
   // triggers: global ++ per-agent
   const triggers: Array<{ match: string; tools: string[] }> = [

@@ -1848,6 +1848,47 @@ export async function handleIntegrationControlOp(
       throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.action must be list, remove, or clear");
     }
 
+    case "elevation_grant": {
+      if (principal.kind !== "operator") {
+        throw new IntegrationOpError("ERR_FORBIDDEN", "elevation_grant is operator-only");
+      }
+      const elevGrantPl = payloadObject(req);
+      const elevGrantSessionId = typeof elevGrantPl.session_id === "string" ? elevGrantPl.session_id : undefined;
+      if (!elevGrantSessionId) {
+        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.session_id is required");
+      }
+      if (!ctx.stateDb) {
+        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "elevation requires state DB");
+      }
+      const elevDurationMs = typeof elevGrantPl.duration_ms === "number" ? elevGrantPl.duration_ms : undefined;
+      const { createElevationStore: createElevStoreGrant } = await import("../elevation/elevation-store");
+      const elevStoreGrant = createElevStoreGrant(ctx.stateDb);
+      const elevGrant = elevStoreGrant.grant(elevGrantSessionId, elevDurationMs);
+      return { ok: true, ...elevGrant };
+    }
+
+    case "elevation_revoke": {
+      if (principal.kind !== "operator") {
+        throw new IntegrationOpError("ERR_FORBIDDEN", "elevation_revoke is operator-only");
+      }
+      const elevRevokePl = payloadObject(req);
+      if (!ctx.stateDb) {
+        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "elevation requires state DB");
+      }
+      const { createElevationStore: createElevStoreRevoke } = await import("../elevation/elevation-store");
+      const elevStoreRevoke = createElevStoreRevoke(ctx.stateDb);
+      if (typeof elevRevokePl.grant_id === "string") {
+        const revokeOk = elevStoreRevoke.revoke(elevRevokePl.grant_id);
+        return { ok: revokeOk, revoked: revokeOk };
+      }
+      const elevRevokeSessionId = typeof elevRevokePl.session_id === "string" ? elevRevokePl.session_id : undefined;
+      if (!elevRevokeSessionId) {
+        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.grant_id or payload.session_id is required");
+      }
+      const revokeCount = elevStoreRevoke.revokeAllForSession(elevRevokeSessionId);
+      return { ok: true, revokedCount: revokeCount };
+    }
+
     default:
       return undefined;
   }

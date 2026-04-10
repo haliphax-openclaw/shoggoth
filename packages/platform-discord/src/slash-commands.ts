@@ -10,6 +10,25 @@ import { translateCommandToControlOp } from "@shoggoth/daemon/lib";
 /** The set of global slash commands to register. */
 const GLOBAL_SLASH_COMMANDS = [
   {
+    name: "elevate",
+    description: "Grant or revoke elevated privileges for a session",
+    options: [
+      {
+        name: "action",
+        type: 3, // STRING
+        description: "grant or revoke (default: grant)",
+        required: false,
+        choices: [
+          { name: "grant", value: "grant" },
+          { name: "revoke", value: "revoke" },
+        ],
+      },
+      { name: "session_id", type: 3, description: "Session URN (defaults to this channel's session)", required: false },
+      { name: "duration", type: 3, description: "Grant duration e.g. 5m, 30m (default: 5m)", required: false },
+      { name: "grant_id", type: 3, description: "Specific grant ID to revoke", required: false },
+    ],
+  },
+  {
     name: "abort",
     description: "Abort the current session turn",
     options: [
@@ -395,6 +414,46 @@ async function handleInteraction(
       await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
         type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
         data: { content: `⚠️ Queue failed: ${String(err)}` },
+      });
+    }
+    return;
+  }
+
+  if (controlOp.op === "elevation_grant" || controlOp.op === "elevation_revoke") {
+    try {
+      const payload = { ...controlOp.payload };
+      if (!payload.session_id && deps.resolveSessionForChannel) {
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
+        if (resolved) payload.session_id = resolved;
+      }
+      if (!payload.session_id && controlOp.op === "elevation_grant") {
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: { content: "⚠️ No session bound to this channel. Provide a session_id." },
+        });
+        return;
+      }
+      const res = await deps.invokeControlOp(controlOp.op, payload);
+      let content: string;
+      if (res.ok && res.result) {
+        const r = res.result as Record<string, unknown>;
+        if (controlOp.op === "elevation_grant") {
+          content = `🔓 Elevation granted for \`${r.sessionId ?? payload.session_id}\` (expires: ${r.expiresAt ?? "unknown"}, grant: \`${r.id ?? "?"}\`)`;
+        } else {
+          const count = r.revokedCount ?? (r.revoked === true ? 1 : 0);
+          content = `🔒 Elevation revoked. ${count} grant(s) removed.`;
+        }
+      } else {
+        content = `⚠️ \`${controlOp.op}\` failed: ${res.error ?? "unknown error"}`;
+      }
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
+    } catch (err) {
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Elevation failed: ${String(err)}` },
       });
     }
     return;

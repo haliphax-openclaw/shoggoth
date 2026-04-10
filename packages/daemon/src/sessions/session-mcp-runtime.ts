@@ -24,6 +24,7 @@ import {
   type SessionMcpToolContext,
 } from "./session-mcp-tool-context";
 import { createToolDiscoveryFinalizer } from "./session-tool-discovery";
+import { createElevationToolFinalizer } from "./elevation-tool-finalizer";
 
 const log = getLogger("session-mcp");
 
@@ -81,6 +82,8 @@ export async function createSessionMcpRuntime(
   registerContextFinalizer(createContextLevelToolFinalizer(opts.config));
   // Register web-search tool finalizer (adds builtin-web-search when SearXNG is configured).
   registerContextFinalizer(createWebSearchToolFinalizer(opts.config));
+  // Register elevation tool finalizer (conditionally injects builtin-elevate when grant is active).
+  registerContextFinalizer(createElevationToolFinalizer(opts.db));
   // Register tool discovery finalizer (must be last — sees the full catalog including web-search).
   registerContextFinalizer(createToolDiscoveryFinalizer(opts.config, opts.db));
 
