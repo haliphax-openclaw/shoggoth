@@ -1,3 +1,7 @@
+---
+completed: 2026-04-10
+---
+
 # Permission Elevation Tool
 
 ## Problem

@@ -1,6 +1,6 @@
 ---
 date: 2026-04-09
-completed: never
+completed: 2026-04-09
 ---
 
 # Model Resolution: Session Row as Single Source of Truth
