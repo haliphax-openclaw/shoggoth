@@ -1,9 +1,11 @@
 import type { SessionManager } from "../sessions/session-manager";
+import { requestSessionTurnAbort } from "../sessions/session-turn-abort";
 import { disposeSubagentRuntime } from "./subagent-disposables";
 import { subagentRuntimeExtensionRef, type PersistentSubagentSessionEndReason } from "./subagent-extension-ref";
 
 /**
- * Clears in-process bindings then terminates the session (tokens revoked, status terminated).
+ * Aborts any in-flight tool loop, clears in-process bindings, then terminates the session
+ * (tokens revoked, status terminated).
  * For persistent subagents with a thread binding, pass `endReason` so the messaging layer can announce in-thread first.
  */
 export function terminatePersistentSubagentSession(
@@ -20,6 +22,8 @@ export function terminatePersistentSubagentSession(
       /* best-effort notice */
     }
   }
+  // Abort the in-flight tool/model loop so the subagent doesn't keep running.
+  requestSessionTurnAbort(sid);
   disposeSubagentRuntime(sid);
   sessionManager.kill(sid);
 }

@@ -948,7 +948,9 @@ export async function handleIntegrationControlOp(
             } as const;
           })()
         : ({ kind: "internal" } as const);
-      const turn = await ext.runSessionModelTurn({
+      // Fire the first model turn asynchronously so the parent is not blocked.
+      const subLog = getLogger("subagent");
+      ext.runSessionModelTurn({
         sessionId: childId,
         userContent: prompt,
         userMetadata: {
@@ -969,6 +971,8 @@ export async function handleIntegrationControlOp(
           },
         },
         delivery,
+      }).catch((err) => {
+        subLog.warn("persistent subagent first turn failed", { childId, error: String(err) });
       });
       ctx.recordIntegrationAudit({
         action: "subagent.spawn_persistent",
@@ -987,8 +991,6 @@ export async function handleIntegrationControlOp(
         expires_at_ms: expiresAt,
         respond_to: respondTo,
         internal: internalDelivery,
-        first_reply: turn.latestAssistantText,
-        failover: turn.failoverMeta ?? null,
       };
     }
 
