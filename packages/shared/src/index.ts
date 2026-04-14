@@ -52,6 +52,7 @@ export {
   shoggothSessionQueryAllowSchema,
   shoggothSessionQueryConfigSchema,
   shoggothSubagentSpawnAllowSchema,
+  mcpServerRulesSchema,
   shoggothToolRulesSchema,
   thinkingDisplaySchema,
   DEFAULT_SKILLS_CONFIG,
@@ -86,6 +87,7 @@ export {
   type ShoggothSubagentSpawnAllowConfig,
   type ShoggothRetentionConfig,
   type ShoggothRuntimeConfig,
+  type McpServerRules,
   type ShoggothToolRules,
   type ThinkingDisplay,
   processDeclarationSchema,
@@ -118,6 +120,8 @@ export {
   resolveEffectiveModelsConfig,
   resolveEffectiveSessionQueryAllowedAgentIds,
   resolveEffectiveThinkingDisplay,
+  evaluateMcpServerRules,
+  resolveEffectiveMcpServerRules,
   SHOGGOTH_AGENT_DEFAULT_EMOJI,
 } from "./effective-agent-for-session";
 export { redactToolArgsJson, redactJsonValue, redactDeep } from "./redact-json";

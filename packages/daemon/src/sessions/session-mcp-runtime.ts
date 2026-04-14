@@ -20,6 +20,7 @@ import {
   buildMixedSessionMcpToolContext,
   buildSessionMcpToolContext,
   createContextLevelToolFinalizer,
+  createMcpServerRulesFinalizer,
   createWebSearchToolFinalizer,
   type SessionMcpToolContext,
 } from "./session-mcp-tool-context";
@@ -78,6 +79,8 @@ function buildMcpPoolConnectOptions(
 export async function createSessionMcpRuntime(
   opts: CreateSessionMcpRuntimeOptions,
 ): Promise<SessionMcpRuntime> {
+  // Register MCP server rules finalizer.
+  registerContextFinalizer(createMcpServerRulesFinalizer(opts.config));
   // Register context-level tool filtering finalizer (config-aware).
   registerContextFinalizer(createContextLevelToolFinalizer(opts.config));
   // Register web-search tool finalizer (adds builtin-web-search when SearXNG is configured).
@@ -292,6 +295,7 @@ export async function createSessionMcpRuntime(
       perSessionMcpClose.clear();
       perSessionMcpCtx.clear();
       perSessionMcpConnect.clear();
+      contextFinalizers.length = 0;
     },
   };
   _runtimeRef = _runtime;

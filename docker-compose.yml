@@ -14,15 +14,16 @@ services:
         max-file: "5"
         tag: "shoggoth"
     volumes:
+      - shoggoth-daemon:/var/lib/shoggoth/daemon
       - shoggoth-state:/var/lib/shoggoth/state
-      - shoggoth-workspaces:/var/lib/shoggoth/workspaces
       - shoggoth-operator:/var/lib/shoggoth/operator
       - shoggoth-media:/var/lib/shoggoth/media/inbound
+      - shoggoth-workspaces:/var/lib/shoggoth/workspaces
       # Config is loaded recursively from /etc/shoggoth/config.d in full-path alphabetical order.
       # Base config (operator-managed, read-only):
-      #   -v "$PWD/config:/etc/shoggoth/config.d/base:ro"
-      # Dynamic config (daemon-writable at runtime, requires dynamicConfigDirectory in config):
-      #   - shoggoth-dynamic-config:/etc/shoggoth/config.d/dynamic
+      # - ./config/base:/etc/shoggoth/config.d/base:ro
+      # Dynamic config (daemon-writable at runtime):
+      # - ./config/dynamic:/etc/shoggoth/config.d/dynamic
     # Root here is required so entrypoint can chown/chmod volume roots, then drop to shoggoth (default UID 1000) with setpriv
     # so SETUID/SETGID caps survive. Builtins spawn agent children as the agent UID/GID (default 900).
     cap_add:
@@ -34,8 +35,8 @@ services:
     user: "0:0"
 
 volumes:
+  shoggoth-daemon:
+  shoggoth-media:
+  shoggoth-operator:
   shoggoth-state:
   shoggoth-workspaces:
-  shoggoth-operator:
-  shoggoth-media:
-  # shoggoth-dynamic-config:

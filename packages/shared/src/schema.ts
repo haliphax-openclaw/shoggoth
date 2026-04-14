@@ -267,6 +267,16 @@ export const shoggothMemoryConfigSchema = z
 
 export type ShoggothMemoryConfig = z.infer<typeof shoggothMemoryConfigSchema>;
 
+/** MCP server allow/deny filtering. Deny wins; empty allow + no `*` → default-deny. */
+export const mcpServerRulesSchema = z
+  .object({
+    allow: z.array(z.string()),
+    deny: z.array(z.string()),
+  })
+  .strict();
+
+export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
+
 /** Per-principal allow/deny lists for tools or control ops. Deny wins; empty allow + no `*` → default-deny. */
 export const shoggothToolRulesSchema = z
   .object({
@@ -479,6 +489,7 @@ export const shoggothMcpConfigSchema = z
      * effective per-session pool, defaults to {@link SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS}.
      */
     perSessionIdleTimeoutMs: z.number().int().nonnegative().optional(),
+    serverRules: mcpServerRulesSchema.optional(),
   })
   .strict();
 
@@ -746,6 +757,10 @@ export const shoggothAgentEntrySchema = z
     thinkingDisplay: thinkingDisplaySchema.optional(),
     /** Override the model used by subagents spawned by this agent. Format: "providerId/model". The referenced provider must exist in models.providers. */
     subagentModel: z.string().min(1).optional(),
+    /** Per-agent MCP server rules for top-level sessions. */
+    mcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
+    /** Per-agent MCP server rules for subagent sessions spawned by this agent. */
+    subagentMcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -763,6 +778,8 @@ export const shoggothAgentsConfigSchema = z
     internalStreaming: z.boolean().optional(),
     /** Default model for all agents' subagents. Format: "providerId/model". Per-agent override in agents.list.<id>.subagentModel. */
     subagentModel: z.string().min(1).optional(),
+    /** Global MCP server rules for all subagent sessions. */
+    subagentMcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
   })
   .strict();
 

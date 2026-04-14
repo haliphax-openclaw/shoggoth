@@ -747,6 +747,352 @@ describe("mcp-streamable-http-transport", () => {
     }
   });
 
+  it("standing GET reconnect sends Last-Event-ID after disconnect when server sent id: fields", async () => {
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    let getCount = 0;
+    let resolveToolCallId1: ((id: number) => void) | undefined;
+    const toolCallIdPromise1 = new Promise<number>((r) => { resolveToolCallId1 = r; });
+    const server = createServer(async (req, res: ServerResponse) => {
+      if (req.method === "GET") {
+        getCount++;
+        getRequestHeaders.push({ ...req.headers });
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache",
+        });
+        if (getCount === 1) {
+          // First GET: send an event with id, then close (simulate disconnect)
+          res.write(`id: evt-100\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping", params: {} })}\n\n`);
+          res.write(`id: evt-200\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping2", params: {} })}\n\n`);
+          // Close the stream to simulate a disconnect
+          res.end();
+          return;
+        }
+        if (getCount === 2) {
+          // Second GET (reconnect): should have Last-Event-ID: evt-200
+          // Wait for the tool call, then deliver the result
+          const toolCallId = await toolCallIdPromise1;
+          res.write(
+            `id: evt-300\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { reconnected: true } })}\n\n`,
+          );
+          // Keep open briefly then end
+          req.on("close", () => { /* noop */ });
+          return;
+        }
+        // Further reconnects: just stay open
+        req.on("close", () => { /* noop */ });
+        return;
+      }
+      if (req.method !== "POST") {
+        res.writeHead(405).end();
+        return;
+      }
+      const msg = (await readJsonBody(req)) as { method?: string; id?: number };
+      const { method, id } = msg;
+      if (method === "initialize") {
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "MCP-Session-Id": "sess-get-resume",
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2025-11-25",
+              capabilities: {},
+              serverInfo: { name: "get-resume", version: "1" },
+            },
+          }),
+        );
+        return;
+      }
+      if (method === "notifications/initialized") {
+        res.writeHead(202).end();
+        return;
+      }
+      if (method === "tools/list") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: { tools: [{ name: "r", inputSchema: { type: "object", properties: {} } }] },
+          }),
+        );
+        return;
+      }
+      if (method === "tools/call") {
+        resolveToolCallId1?.(id!);
+        // Return 202 so the result must come via standing GET
+        res.writeHead(202).end();
+        return;
+      }
+      res.writeHead(400).end();
+    });
+
+    const baseUrl: string = await new Promise((resolve, reject) => {
+      server.listen(0, "127.0.0.1", () => {
+        const a = server.address();
+        if (a && typeof a === "object") {
+          resolve(`http://127.0.0.1:${a.port}/mcp`);
+        } else reject(new Error("addr"));
+      });
+      server.on("error", reject);
+    });
+
+    const session = await openMcpStreamableHttpClient({ url: baseUrl });
+    try {
+      const tools = await mcpFetchToolsList(session);
+      assert.equal(tools[0]!.name, "r");
+      // Wait for the first GET to connect, receive events, and disconnect
+      await new Promise((r) => setTimeout(r, 150));
+      // Now invoke a tool — POST returns 202, result comes on the reconnected GET
+      const r = await mcpInvokeTool(session, "r", {});
+      assert.deepEqual(r, { reconnected: true });
+      // The second GET request should have included Last-Event-ID: evt-200
+      assert.ok(getCount >= 2, `expected at least 2 GET requests, got `);
+      const secondGetHeaders = getRequestHeaders[1]!;
+      assert.equal(
+        secondGetHeaders["last-event-id"],
+        "evt-200",
+        "second GET should carry Last-Event-ID from the last event of the first stream",
+      );
+    } finally {
+      await session.close();
+      server.close();
+    }
+  });
+
+  it("standing GET reconnect does NOT send Last-Event-ID when server never sent id: fields", async () => {
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    let getCount = 0;
+    let resolveToolCallId2: ((id: number) => void) | undefined;
+    const toolCallIdPromise2 = new Promise<number>((r) => { resolveToolCallId2 = r; });
+    const server = createServer(async (req, res: ServerResponse) => {
+      if (req.method === "GET") {
+        getCount++;
+        getRequestHeaders.push({ ...req.headers });
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache",
+        });
+        if (getCount === 1) {
+          // First GET: send events WITHOUT id: fields, then close
+          res.write(`data: ${JSON.stringify({ jsonrpc: "2.0", method: "test/noid", params: {} })}\n\n`);
+          res.end();
+          return;
+        }
+        if (getCount === 2) {
+          // Second GET (reconnect): should NOT have Last-Event-ID
+          const toolCallId = await toolCallIdPromise2;
+          res.write(
+            `data: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { noId: true } })}\n\n`,
+          );
+          req.on("close", () => { /* noop */ });
+          return;
+        }
+        req.on("close", () => { /* noop */ });
+        return;
+      }
+      if (req.method !== "POST") {
+        res.writeHead(405).end();
+        return;
+      }
+      const msg = (await readJsonBody(req)) as { method?: string; id?: number };
+      const { method, id } = msg;
+      if (method === "initialize") {
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "MCP-Session-Id": "sess-get-noid",
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2025-11-25",
+              capabilities: {},
+              serverInfo: { name: "get-noid", version: "1" },
+            },
+          }),
+        );
+        return;
+      }
+      if (method === "notifications/initialized") {
+        res.writeHead(202).end();
+        return;
+      }
+      if (method === "tools/list") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: { tools: [{ name: "n", inputSchema: { type: "object", properties: {} } }] },
+          }),
+        );
+        return;
+      }
+      if (method === "tools/call") {
+        resolveToolCallId2?.(id!);
+        res.writeHead(202).end();
+        return;
+      }
+      res.writeHead(400).end();
+    });
+
+    const baseUrl: string = await new Promise((resolve, reject) => {
+      server.listen(0, "127.0.0.1", () => {
+        const a = server.address();
+        if (a && typeof a === "object") {
+          resolve(`http://127.0.0.1:${a.port}/mcp`);
+        } else reject(new Error("addr"));
+      });
+      server.on("error", reject);
+    });
+
+    const session = await openMcpStreamableHttpClient({ url: baseUrl });
+    try {
+      const tools = await mcpFetchToolsList(session);
+      assert.equal(tools[0]!.name, "n");
+      // Wait for first GET to connect, receive events without ids, and disconnect
+      await new Promise((r) => setTimeout(r, 150));
+      const r = await mcpInvokeTool(session, "n", {});
+      assert.deepEqual(r, { noId: true });
+      assert.ok(getCount >= 2, `expected at least 2 GET requests, got `);
+      // The first GET should NOT have Last-Event-ID (fresh connection)
+      assert.equal(
+        getRequestHeaders[0]!["last-event-id"],
+        undefined,
+        "first GET should not have Last-Event-ID",
+      );
+      // The second GET should also NOT have Last-Event-ID since no id: fields were sent
+      assert.equal(
+        getRequestHeaders[1]!["last-event-id"],
+        undefined,
+        "second GET should not have Last-Event-ID when server never sent id: fields",
+      );
+    } finally {
+      await session.close();
+      server.close();
+    }
+  });
+
+  it("standing GET reconnect updates Last-Event-ID across multiple disconnects", async () => {
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    let getCount = 0;
+    let resolveToolCallId3: ((id: number) => void) | undefined;
+    const toolCallIdPromise3 = new Promise<number>((r) => { resolveToolCallId3 = r; });
+    const server = createServer(async (req, res: ServerResponse) => {
+      if (req.method === "GET") {
+        getCount++;
+        getRequestHeaders.push({ ...req.headers });
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache",
+        });
+        if (getCount === 1) {
+          // First GET: send event with id, then disconnect
+          res.write(`id: first-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/a", params: {} })}\n\n`);
+          res.end();
+          return;
+        }
+        if (getCount === 2) {
+          // Second GET: send event with a new id, then disconnect again
+          res.write(`id: second-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/b", params: {} })}\n\n`);
+          res.end();
+          return;
+        }
+        if (getCount === 3) {
+          // Third GET: wait for tool call, then deliver the result
+          const toolCallId = await toolCallIdPromise3;
+          res.write(
+            `id: third-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { multi: true } })}\n\n`,
+          );
+          req.on("close", () => { /* noop */ });
+          return;
+        }
+        req.on("close", () => { /* noop */ });
+        return;
+      }
+      if (req.method !== "POST") {
+        res.writeHead(405).end();
+        return;
+      }
+      const msg = (await readJsonBody(req)) as { method?: string; id?: number };
+      const { method, id } = msg;
+      if (method === "initialize") {
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "MCP-Session-Id": "sess-get-multi",
+        });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2025-11-25",
+              capabilities: {},
+              serverInfo: { name: "get-multi", version: "1" },
+            },
+          }),
+        );
+        return;
+      }
+      if (method === "notifications/initialized") {
+        res.writeHead(202).end();
+        return;
+      }
+      if (method === "tools/list") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id,
+            result: { tools: [{ name: "m", inputSchema: { type: "object", properties: {} } }] },
+          }),
+        );
+        return;
+      }
+      if (method === "tools/call") {
+        resolveToolCallId3?.(id!);
+        res.writeHead(202).end();
+        return;
+      }
+      res.writeHead(400).end();
+    });
+
+    const baseUrl: string = await new Promise((resolve, reject) => {
+      server.listen(0, "127.0.0.1", () => {
+        const a = server.address();
+        if (a && typeof a === "object") {
+          resolve(`http://127.0.0.1:${a.port}/mcp`);
+        } else reject(new Error("addr"));
+      });
+      server.on("error", reject);
+    });
+
+    const session = await openMcpStreamableHttpClient({ url: baseUrl });
+    try {
+      await mcpFetchToolsList(session);
+      // Wait for GET #1 to connect, send events, disconnect, then GET #2 to do the same
+      await new Promise((r) => setTimeout(r, 400));
+      const r = await mcpInvokeTool(session, "m", {});
+      assert.deepEqual(r, { multi: true });
+      assert.ok(getCount >= 3, `expected at least 3 GET requests, got `);
+      // First GET: no Last-Event-ID
+      assert.equal(getRequestHeaders[0]!["last-event-id"], undefined, "first GET: no Last-Event-ID");
+      // Second GET: should carry "first-batch"
+      assert.equal(getRequestHeaders[1]!["last-event-id"], "first-batch", "second GET: Last-Event-ID should be first-batch");
+      // Third GET: should carry "second-batch"
+      assert.equal(getRequestHeaders[2]!["last-event-id"], "second-batch", "third GET: Last-Event-ID should be second-batch");
+    } finally {
+      await session.close();
+      server.close();
+    }
+  });
+
   it("cancelRequest sends notifications/cancelled with requestId", async () => {
     let lastNotification: unknown;
     const server = createServer(async (req, res: ServerResponse) => {

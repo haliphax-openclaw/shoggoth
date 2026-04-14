@@ -12,6 +12,7 @@ import {
   formatAssistantReply,
   formatErrorUserText,
 } from "./reply-formatter.js";
+import { getSessionMcpRuntimeRef } from "../sessions/session-mcp-runtime.js";
 import { ingestAttachmentImage } from "./image-ingest.js";
 import { resolveEffectiveThinkingDisplay } from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
@@ -101,7 +102,16 @@ export class PresentationTurnOrchestrator {
   }
 
   async orchestrateInboundTurn(input: OrchestrateTurnInput): Promise<void> {
-    const { sessionId, replyToMessageId, buildTurn, mcpLifecycle, logContext, onTurnExecutionFailed } = input;
+    const { sessionId, replyToMessageId, buildTurn, logContext, onTurnExecutionFailed } = input;
+    // Auto-wire mcpLifecycle from the singleton runtime when the caller doesn't provide it.
+    const mcpLifecycle: RunInboundSessionTurnOptions["mcpLifecycle"] = input.mcpLifecycle ?? (() => {
+      const rt = getSessionMcpRuntimeRef();
+      if (!rt) return undefined;
+      return {
+        onTurnBegin: () => rt.notifyTurnBegin(sessionId),
+        onTurnEnd: () => rt.notifyTurnEnd(sessionId),
+      };
+    })();
     const { adapter, config, env } = this;
     const maxLen = adapter.maxBodyLength;
     const errorPrefix = this.deps.errorReplyPrefix ?? "";

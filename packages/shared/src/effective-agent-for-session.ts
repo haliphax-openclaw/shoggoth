@@ -1,4 +1,4 @@
-import type { ShoggothConfig, ShoggothMemoryConfig, ShoggothModelsConfig, ThinkingDisplay } from "./schema.js";
+import type { McpServerRules, ShoggothConfig, ShoggothMemoryConfig, ShoggothModelsConfig, ThinkingDisplay } from "./schema.js";
 import { parseAgentSessionUrn } from "./session-urn.js";
 
 function findAgentEntry(cfg: ShoggothConfig, agentId: string) {
@@ -161,4 +161,70 @@ export function resolveEffectiveThinkingDisplay(
     }
   }
   return "none";
+}
+
+// ---------------------------------------------------------------------------
+// MCP server allow/deny rules
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MCP_SERVER_RULES: McpServerRules = { allow: ["*"], deny: [] };
+
+/**
+ * Evaluate whether a server id is allowed by the given rules.
+ * Deny wins, then allow check, then default-deny.
+ */
+export function evaluateMcpServerRules(serverId: string, rules: McpServerRules): boolean {
+  // 1. Deny wins
+  if (rules.deny.includes(serverId) || rules.deny.includes("*")) return false;
+  // 2. Allow check
+  if (rules.allow.includes(serverId) || rules.allow.includes("*")) return true;
+  // 3. Default-deny
+  return false;
+}
+
+/**
+ * Resolve effective MCP server rules via 4-level merge cascade.
+ * Per-field replace: if the narrower scope provides `allow`, it replaces inherited `allow`; same for `deny`.
+ */
+export function resolveEffectiveMcpServerRules(
+  config: ShoggothConfig,
+  agentId: string,
+  isSubagent: boolean,
+): McpServerRules {
+  // Start with global rules
+  let effective: McpServerRules = config.mcp?.serverRules
+    ? { ...DEFAULT_MCP_SERVER_RULES, ...config.mcp.serverRules }
+    : { ...DEFAULT_MCP_SERVER_RULES };
+
+  if (isSubagent) {
+    // Merge global subagent rules
+    const globalSubagent = config.agents?.subagentMcp?.serverRules;
+    if (globalSubagent) {
+      effective = {
+        allow: globalSubagent.allow !== undefined ? globalSubagent.allow : effective.allow,
+        deny: globalSubagent.deny !== undefined ? globalSubagent.deny : effective.deny,
+      };
+    }
+    // Merge per-agent subagent rules
+    const entry = findAgentEntry(config, agentId);
+    const perAgentSubagent = entry?.subagentMcp?.serverRules;
+    if (perAgentSubagent) {
+      effective = {
+        allow: perAgentSubagent.allow !== undefined ? perAgentSubagent.allow : effective.allow,
+        deny: perAgentSubagent.deny !== undefined ? perAgentSubagent.deny : effective.deny,
+      };
+    }
+  } else {
+    // Merge per-agent rules for top-level session
+    const entry = findAgentEntry(config, agentId);
+    const perAgent = entry?.mcp?.serverRules;
+    if (perAgent) {
+      effective = {
+        allow: perAgent.allow !== undefined ? perAgent.allow : effective.allow,
+        deny: perAgent.deny !== undefined ? perAgent.deny : effective.deny,
+      };
+    }
+  }
+
+  return effective;
 }

@@ -7,9 +7,11 @@ import type {
 } from "@shoggoth/mcp-integration";
 import { buildMessageToolDescriptor } from "@shoggoth/mcp-integration";
 import {
+  evaluateMcpServerRules,
   isSubagentSessionUrn,
   parseAgentSessionUrn,
   resolveContextLevel,
+  resolveEffectiveMcpServerRules,
   type ContextLevel,
   type ContextLevelToolOverride,
   type ShoggothConfig,
@@ -268,6 +270,73 @@ export function createContextLevelToolFinalizer(
     const isSubagent = isSubagentSessionUrn(sessionId);
     const level = resolveContextLevel(config, agentId, undefined, isSubagent);
     return applyContextLevelToolFilter(ctx, level, config);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// MCP server allow/deny rules — runtime filtering finalizer
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a context finalizer that filters tools and wraps the external invoke
+ * based on the resolved MCP server rules for the session. Evaluated per-call
+ * (not cached) so dynamic config changes take effect on the next turn.
+ */
+export function createMcpServerRulesFinalizer(
+  config: ShoggothConfig,
+): (ctx: SessionMcpToolContext, sessionId: string) => SessionMcpToolContext {
+  return (ctx, sessionId) => {
+    const parsed = parseAgentSessionUrn(sessionId);
+    const agentId = parsed?.agentId ?? "";
+    const isSubagent = isSubagentSessionUrn(sessionId);
+    const rules = resolveEffectiveMcpServerRules(config, agentId, isSubagent);
+
+    // Determine which external sourceIds are denied
+    const externalSourceIds = new Set(
+      ctx.aggregated.tools
+        .filter((t) => t.sourceId !== "builtin")
+        .map((t) => t.sourceId),
+    );
+
+    // Check if any source is actually denied — skip work if all are allowed
+    const deniedSources = new Set<string>();
+    for (const sid of externalSourceIds) {
+      if (!evaluateMcpServerRules(sid, rules)) {
+        deniedSources.add(sid);
+      }
+    }
+
+    if (deniedSources.size === 0) return ctx;
+
+    // Filter tools
+    const filteredTools = ctx.aggregated.tools.filter(
+      (t) => t.sourceId === "builtin" || !deniedSources.has(t.sourceId),
+    );
+    const aggregated: AggregateMcpCatalogResult = { tools: filteredTools };
+
+    // Wrap external invoke to reject denied sourceIds
+    const origExternal = ctx.external;
+    const wrappedExternal: ExternalMcpInvoke | undefined = origExternal
+      ? async (input) => {
+          if (deniedSources.has(input.sourceId)) {
+            return {
+              resultJson: JSON.stringify({
+                error: "mcp_server_denied",
+                sourceId: input.sourceId,
+                detail: `MCP server "${input.sourceId}" is denied by server rules`,
+              }),
+            };
+          }
+          return origExternal(input);
+        }
+      : undefined;
+
+    return {
+      aggregated,
+      toolsOpenAi: openAiToolsFromCatalog(aggregated),
+      toolsLoop: mcpToolsForToolLoop(aggregated),
+      external: wrappedExternal,
+    };
   };
 }
 

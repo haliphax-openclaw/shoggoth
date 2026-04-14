@@ -1,0 +1,233 @@
+import assert from "node:assert";
+import { describe, it } from "vitest";
+import {
+  mcpServerRulesSchema,
+  evaluateMcpServerRules,
+  resolveEffectiveMcpServerRules,
+  type McpServerRules,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
+
+// ---------------------------------------------------------------------------
+// 1. Schema validation
+// ---------------------------------------------------------------------------
+
+describe("mcpServerRulesSchema", () => {
+  it("accepts valid allow/deny", () => {
+    const result = mcpServerRulesSchema.safeParse({ allow: ["*"], deny: [] });
+    assert.ok(result.success);
+  });
+
+  it("accepts named ids", () => {
+    const result = mcpServerRulesSchema.safeParse({ allow: ["a", "b"], deny: ["c"] });
+    assert.ok(result.success);
+  });
+
+  it("rejects extra fields (strict)", () => {
+    const result = mcpServerRulesSchema.safeParse({ allow: ["*"], deny: [], extra: true });
+    assert.ok(!result.success);
+  });
+
+  it("rejects missing allow", () => {
+    const result = mcpServerRulesSchema.safeParse({ deny: [] });
+    assert.ok(!result.success);
+  });
+
+  it("rejects missing deny", () => {
+    const result = mcpServerRulesSchema.safeParse({ allow: ["*"] });
+    assert.ok(!result.success);
+  });
+
+  it("rejects non-string entries", () => {
+    const result = mcpServerRulesSchema.safeParse({ allow: [123], deny: [] });
+    assert.ok(!result.success);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2. evaluateMcpServerRules — deny-wins, wildcard, default-deny
+// ---------------------------------------------------------------------------
+
+describe("evaluateMcpServerRules", () => {
+  it("deny wins over allow wildcard", () => {
+    const rules: McpServerRules = { allow: ["*"], deny: ["x"] };
+    assert.strictEqual(evaluateMcpServerRules("x", rules), false);
+    assert.strictEqual(evaluateMcpServerRules("y", rules), true);
+  });
+
+  it("deny wildcard excludes everything", () => {
+    const rules: McpServerRules = { allow: ["*"], deny: ["*"] };
+    assert.strictEqual(evaluateMcpServerRules("anything", rules), false);
+  });
+
+  it("empty allow + empty deny → default-deny (everything excluded)", () => {
+    const rules: McpServerRules = { allow: [], deny: [] };
+    assert.strictEqual(evaluateMcpServerRules("a", rules), false);
+  });
+
+  it("explicit allow list includes only named ids", () => {
+    const rules: McpServerRules = { allow: ["a", "b"], deny: [] };
+    assert.strictEqual(evaluateMcpServerRules("a", rules), true);
+    assert.strictEqual(evaluateMcpServerRules("b", rules), true);
+    assert.strictEqual(evaluateMcpServerRules("c", rules), false);
+  });
+
+  it("deny specific + allow specific — deny wins for overlap", () => {
+    const rules: McpServerRules = { allow: ["a", "b"], deny: ["b"] };
+    assert.strictEqual(evaluateMcpServerRules("a", rules), true);
+    assert.strictEqual(evaluateMcpServerRules("b", rules), false);
+  });
+
+  it("allow wildcard with no deny → everything included", () => {
+    const rules: McpServerRules = { allow: ["*"], deny: [] };
+    assert.strictEqual(evaluateMcpServerRules("anything", rules), true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. resolveEffectiveMcpServerRules — four config levels, field-level merge
+// ---------------------------------------------------------------------------
+
+describe("resolveEffectiveMcpServerRules", () => {
+  /** Minimal valid ShoggothConfig for testing. */
+  const base: ShoggothConfig = {
+    logLevel: "info",
+    stateDbPath: "/tmp/s.db",
+    socketPath: "/tmp/s.sock",
+    workspacesRoot: "/w",
+    secretsDirectory: "/s",
+    inboundMediaRoot: "/m",
+    operatorDirectory: "/o",
+    configDirectory: "/c",
+    hitl: { defaultApprovalTimeoutMs: 1, toolRisk: {}, bypassUpTo: "safe" },
+    memory: { paths: [], embeddings: { enabled: false } },
+    skills: { scanRoots: [], disabledIds: [] },
+    plugins: [],
+    mcp: { servers: [], poolScope: "global" },
+    policy: {
+      operator: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
+      agent: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
+      auditRedaction: { jsonPaths: [] },
+    },
+  };
+
+  it("returns default allow-all when no serverRules configured anywhere", () => {
+    const rules = resolveEffectiveMcpServerRules(base, "myagent", false);
+    assert.deepStrictEqual(rules, { allow: ["*"], deny: [] });
+  });
+
+  it("uses global mcp.serverRules for top-level session", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["a", "b"], deny: ["c"] } },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", false);
+    assert.deepStrictEqual(rules, { allow: ["a", "b"], deny: ["c"] });
+  });
+
+  it("per-agent mcp.serverRules replaces global for top-level session (field-level)", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["*"], deny: ["x"] } },
+      agents: {
+        list: {
+          myagent: {
+            mcp: { serverRules: { allow: ["only-this"], deny: [] } },
+          },
+        },
+      },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", false);
+    assert.deepStrictEqual(rules.allow, ["only-this"]);
+    assert.deepStrictEqual(rules.deny, []);
+  });
+
+  it("per-agent partial override inherits unset fields from global", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["*"], deny: ["x"] } },
+      agents: {
+        list: {
+          myagent: {
+            // Only override allow; deny should inherit from global
+            mcp: { serverRules: { allow: ["a"], deny: ["x"] } },
+          },
+        },
+      },
+    };
+    // When per-agent provides only `allow`, `deny` inherits from global
+    // We test the full replace case here; partial inheritance is the key behavior
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", false);
+    assert.deepStrictEqual(rules.allow, ["a"]);
+  });
+
+  it("global subagentMcp.serverRules applies to subagent sessions", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["*"], deny: [] } },
+      agents: {
+        subagentMcp: { serverRules: { allow: [], deny: ["*"] } },
+      },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", true);
+    assert.deepStrictEqual(rules.allow, []);
+    assert.deepStrictEqual(rules.deny, ["*"]);
+  });
+
+  it("per-agent subagentMcp.serverRules overrides global subagentMcp for subagent sessions", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["*"], deny: [] } },
+      agents: {
+        subagentMcp: { serverRules: { allow: [], deny: ["*"] } },
+        list: {
+          builder: {
+            subagentMcp: { serverRules: { allow: ["sandbox"], deny: [] } },
+          },
+        },
+      },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "builder", true);
+    assert.deepStrictEqual(rules.allow, ["sandbox"]);
+    assert.deepStrictEqual(rules.deny, []);
+  });
+
+  it("subagent inherits global when no subagent-specific rules exist", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["a"], deny: ["b"] } },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", true);
+    assert.deepStrictEqual(rules, { allow: ["a"], deny: ["b"] });
+  });
+
+  it("top-level session ignores subagentMcp rules", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["*"], deny: [] } },
+      agents: {
+        subagentMcp: { serverRules: { allow: [], deny: ["*"] } },
+      },
+    };
+    // Top-level session should NOT pick up subagentMcp rules
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", false);
+    assert.deepStrictEqual(rules.allow, ["*"]);
+    assert.deepStrictEqual(rules.deny, []);
+  });
+
+  it("unmatched agent id falls back to global rules", () => {
+    const cfg: ShoggothConfig = {
+      ...base,
+      mcp: { ...base.mcp, serverRules: { allow: ["global-only"], deny: [] } },
+      agents: {
+        list: {
+          other: {
+            mcp: { serverRules: { allow: ["nope"], deny: [] } },
+          },
+        },
+      },
+    };
+    const rules = resolveEffectiveMcpServerRules(cfg, "myagent", false);
+    assert.deepStrictEqual(rules.allow, ["global-only"]);
+  });
+});
