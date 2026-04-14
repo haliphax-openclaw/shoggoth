@@ -448,6 +448,8 @@ export async function executeSessionAgentTurn(
   } catch (e) {
     if (e instanceof TurnAbortedError) {
       pushSystemContext(input.sessionId, "Previous turn was aborted. Results may be partial.");
+      // Workflow tasks opt into throwOnError so the orchestrator can mark the task as failed.
+      if (input.throwOnError) throw e;
       const failoverMeta = model.getSessionToolLoopFailoverState();
       const latestAssistantText =
         extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ?? "_Aborted._";
