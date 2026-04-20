@@ -786,7 +786,7 @@ export const shoggothAgentsConfigSchema = z
 export type ShoggothAgentsConfig = z.infer<typeof shoggothAgentsConfigSchema>;
 
 export const DEFAULT_SKILLS_CONFIG: ShoggothSkillsConfig = {
-  scanRoots: [],
+  scanRoots: ["skills"],
   disabledIds: [],
 };
 

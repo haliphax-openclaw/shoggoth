@@ -10,6 +10,8 @@
 export const OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME = "GLOBAL.md" as const;
 
 export const LAYOUT = {
+  dataRoot: "/var/lib/shoggoth",
+  skillsDir: "/var/lib/shoggoth/skills",
   configDir: "/etc/shoggoth/config.d",
   stateDir: "/var/lib/shoggoth/state",
   stateDbFile: "/var/lib/shoggoth/state/shoggoth.db",

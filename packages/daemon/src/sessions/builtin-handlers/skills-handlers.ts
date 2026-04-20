@@ -15,8 +15,9 @@ async function skills(
   ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
   const action = String(args.action ?? "").trim();
+  const ws = ctx.workspacePath;
   if (action === "list") {
-    const rows = listSkillsForConfig(ctx.config).map((s) => ({
+    const rows = listSkillsForConfig(ctx.config, ws).map((s) => ({
       id: s.id,
       title: s.title,
       path: s.absolutePath,
@@ -29,12 +30,12 @@ async function skills(
     return { resultJson: JSON.stringify({ error: "id required for path and read actions" }) };
   }
   if (action === "path") {
-    const p = skillAbsolutePathById(ctx.config, id);
+    const p = skillAbsolutePathById(ctx.config, id, ws);
     if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
     return { resultJson: JSON.stringify({ path: p }) };
   }
   if (action === "read") {
-    const p = skillAbsolutePathById(ctx.config, id);
+    const p = skillAbsolutePathById(ctx.config, id, ws);
     if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
     const content = readFileSync(p, "utf8");
     return { resultJson: JSON.stringify({ path: p, content }) };

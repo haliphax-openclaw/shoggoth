@@ -59,6 +59,8 @@ RUN cp /usr/local/bin/shoggoth-entrypoint.sh /tmp/_ep && mv /tmp/_ep /usr/local/
     && chmod 0750 /usr/local/bin/shoggoth \
     && git config --system core.sharedRepository group
 
+RUN mkdir -p /var/lib/shoggoth/skills && chown shoggoth:shoggoth /var/lib/shoggoth/skills && chmod 0755 /var/lib/shoggoth/skills
+
 ENV NODE_ENV=production
 USER root
 ENTRYPOINT ["/usr/local/bin/shoggoth-entrypoint.sh"]

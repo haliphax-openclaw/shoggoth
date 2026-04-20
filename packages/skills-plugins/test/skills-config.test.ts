@@ -33,22 +33,51 @@ function minimalConfig(
 }
 
 describe("skills-config", () => {
-  test("listSkillsForConfig resolves relative scan roots", () => {
+  test("listSkillsForConfig resolves absolute scan roots", () => {
     const cfgDir = mkdtempSync(join(tmpdir(), "sh-skillcfg-"));
     const skillsDir = join(cfgDir, "my-skills");
     mkdirSync(skillsDir);
     writeFileSync(
       join(skillsDir, "one.md"),
-      `---
-id: one
-title: One
----
-`,
+      `---\nid: one\ntitle: One\n---\n`,
     );
-    const cfg = minimalConfig(cfgDir, { scanRoots: ["my-skills"] });
+    const cfg = minimalConfig(cfgDir, { scanRoots: [skillsDir] });
     const list = listSkillsForConfig(cfg);
     assert.strictEqual(list.length, 1);
     assert.strictEqual(list[0]!.id, "one");
+  });
+
+  test("listSkillsForConfig appends workspace skills folder", () => {
+    const wsDir = mkdtempSync(join(tmpdir(), "sh-skillws-"));
+    const wsSkills = join(wsDir, "skills");
+    mkdirSync(wsSkills);
+    writeFileSync(
+      join(wsSkills, "ws-skill.md"),
+      `---\nid: ws-skill\ntitle: Workspace Skill\n---\n`,
+    );
+    const cfg = minimalConfig("/tmp", { scanRoots: [] });
+    const list = listSkillsForConfig(cfg, wsDir);
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0]!.id, "ws-skill");
+  });
+
+  test("workspace skill overrides system skill with same id", () => {
+    const sysDir = mkdtempSync(join(tmpdir(), "sh-skillsys-"));
+    writeFileSync(
+      join(sysDir, "shared.md"),
+      `---\nid: shared\ntitle: System Version\n---\nSystem content`,
+    );
+    const wsDir = mkdtempSync(join(tmpdir(), "sh-skillws-"));
+    const wsSkills = join(wsDir, "skills");
+    mkdirSync(wsSkills);
+    writeFileSync(
+      join(wsSkills, "shared.md"),
+      `---\nid: shared\ntitle: Workspace Version\n---\nWorkspace content`,
+    );
+    const cfg = minimalConfig("/tmp", { scanRoots: [sysDir] });
+    const list = listSkillsForConfig(cfg, wsDir);
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0]!.title, "Workspace Version");
   });
 
   test("skillAbsolutePathById finds file", () => {
@@ -58,12 +87,22 @@ title: One
     const p = join(skillsDir, "z.md");
     writeFileSync(
       p,
-      `---
-id: zed
----
-`,
+      `---\nid: zed\n---\n`,
     );
-    const cfg = minimalConfig(cfgDir, { scanRoots: ["s"] });
+    const cfg = minimalConfig(cfgDir, { scanRoots: [skillsDir] });
     assert.strictEqual(skillAbsolutePathById(cfg, "zed"), p);
+  });
+
+  test("skillAbsolutePathById prefers workspace skill", () => {
+    const sysDir = mkdtempSync(join(tmpdir(), "sh-skillsys-"));
+    const sysFile = join(sysDir, "x.md");
+    writeFileSync(sysFile, `---\nid: x\n---\n`);
+    const wsDir = mkdtempSync(join(tmpdir(), "sh-skillws-"));
+    const wsSkills = join(wsDir, "skills");
+    mkdirSync(wsSkills);
+    const wsFile = join(wsSkills, "x.md");
+    writeFileSync(wsFile, `---\nid: x\n---\n`);
+    const cfg = minimalConfig("/tmp", { scanRoots: [sysDir] });
+    assert.strictEqual(skillAbsolutePathById(cfg, "x", wsDir), wsFile);
   });
 });

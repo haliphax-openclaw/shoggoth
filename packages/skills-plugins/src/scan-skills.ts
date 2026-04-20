@@ -63,7 +63,8 @@ export function scanSkillDirectories(
   roots: readonly string[],
   disabledIds: ReadonlySet<string>,
 ): SkillRecord[] {
-  const files: string[] = [];
+  const recordMap = new Map<string, SkillRecord>();
+
   for (const root of roots) {
     let st;
     try {
@@ -71,49 +72,40 @@ export function scanSkillDirectories(
     } catch {
       continue;
     }
-    if (st?.isDirectory()) {
-      walkMarkdownFiles(root, files);
+    if (!st?.isDirectory()) continue;
+
+    const files: string[] = [];
+    walkMarkdownFiles(root, files);
+    files.sort((a, b) => a.localeCompare(b, "en"));
+
+    for (const absolutePath of files) {
+      const raw = readFileSync(absolutePath, "utf8");
+      const { fields } = parseMarkdownFrontmatter(raw);
+      const idRaw = fields["id"]?.trim();
+      const id =
+        idRaw && idRaw.length > 0
+          ? idRaw
+          : pathSlugId(root, absolutePath);
+      const title =
+        (fields["title"] ?? fields["name"] ?? "").trim() || id;
+      const fileEnabled = parseBoolField(fields["enabled"], true);
+      const configOk = !disabledIds.has(id);
+      const tags = parseTags(fields["tags"]);
+      const categoryRaw = fields["category"]?.trim().toLowerCase();
+      const category = categoryRaw && categoryRaw.length > 0 ? categoryRaw : null;
+      const descRaw = fields["description"]?.trim();
+      const description = descRaw && descRaw.length > 0 ? descRaw : null;
+      recordMap.set(id, {
+        id,
+        title,
+        absolutePath,
+        enabled: fileEnabled && configOk,
+        tags,
+        category,
+        description,
+      });
     }
   }
-  files.sort((a, b) => a.localeCompare(b, "en"));
 
-  const records: SkillRecord[] = [];
-  for (const absolutePath of files) {
-    const rootForId = roots.find((r) => {
-      try {
-        const rs = statSync(r, { throwIfNoEntry: false });
-        return rs?.isDirectory() && absolutePath.startsWith(r);
-      } catch {
-        return false;
-      }
-    });
-    const raw = readFileSync(absolutePath, "utf8");
-    const { fields } = parseMarkdownFrontmatter(raw);
-    const idRaw = fields["id"]?.trim();
-    const id =
-      idRaw && idRaw.length > 0
-        ? idRaw
-        : rootForId
-          ? pathSlugId(rootForId, absolutePath)
-          : pathSlugId(roots[0] ?? "/", absolutePath);
-    const title =
-      (fields["title"] ?? fields["name"] ?? "").trim() || id;
-    const fileEnabled = parseBoolField(fields["enabled"], true);
-    const configOk = !disabledIds.has(id);
-    const tags = parseTags(fields["tags"]);
-    const categoryRaw = fields["category"]?.trim().toLowerCase();
-    const category = categoryRaw && categoryRaw.length > 0 ? categoryRaw : null;
-    const descRaw = fields["description"]?.trim();
-    const description = descRaw && descRaw.length > 0 ? descRaw : null;
-    records.push({
-      id,
-      title,
-      absolutePath,
-      enabled: fileEnabled && configOk,
-      tags,
-      category,
-      description,
-    });
-  }
-  return records;
+  return [...recordMap.values()];
 }

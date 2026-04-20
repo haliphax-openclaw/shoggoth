@@ -35,7 +35,7 @@ describe("skills-cli", () => {
     const sd = join(d, "sk");
     mkdirSync(sd);
     writeFileSync(join(sd, "a.md"), "---\nid: a\ntitle: A\n---\n");
-    const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
+    const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
     const out = JSON.parse(formatSkillsListJson(c)) as { id: string }[];
     assert.strictEqual(out.length, 1);
     assert.strictEqual(out[0]!.id, "a");
@@ -47,7 +47,7 @@ describe("skills-cli", () => {
     mkdirSync(sd);
     const fp = join(sd, "b.md");
     writeFileSync(fp, "---\nid: bee\n---\n");
-    const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
+    const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
     const line = formatSkillPathLine(c, "bee").trim();
     assert.strictEqual(line, fp);
   });
@@ -59,7 +59,7 @@ describe("skills-cli", () => {
     const fp = join(sd, "c.md");
     const body = "---\nid: cee\ntitle: C\n---\nHello skill";
     writeFileSync(fp, body);
-    const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
+    const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
     const out = JSON.parse(formatSkillReadJson(c, "cee")) as { path: string; content: string };
     assert.strictEqual(out.path, fp);
     assert.strictEqual(out.content, body);
@@ -77,7 +77,7 @@ describe("skills-cli", () => {
       join(sd, "github.md"),
       "---\nid: github\ntitle: GitHub\ntags: [git, ci]\ncategory: dev-tools\ndescription: GitHub operations\n---\n",
     );
-    const c = cfg(d, { scanRoots: ["sk"], disabledIds: [] });
+    const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
 
     // Search by query
     const byQuery = JSON.parse(formatSkillsSearchJson(c, { query: "weather" })) as {
