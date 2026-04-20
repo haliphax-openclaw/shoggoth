@@ -138,7 +138,17 @@ The `shoggoth.json` manifest is updated to support the full hook name set and op
 
 ## Implementation Phases
 
-### Phase 1: Add `hooks-plugin` dependency, define hook types, and implement config freeze\n\nInstall `hooks-plugin` in `@shoggoth/plugins`. Define all hook context types and the `ShoggothPluginSystem` class that instantiates the typed hooks. Implement a configuration freeze mechanism: after the `daemon.configure` waterfall completes, the resulting config object is deep-frozen (`Object.freeze`, recursive) to prevent downstream plugins or hooks from mutating it. This mitigates the risk of a misbehaving plugin corrupting config via the waterfall.\n\n**Files:**\n- `packages/plugins/package.json` — add `hooks-plugin` dependency\n- `packages/plugins/src/hook-types.ts` — NEW: all hook context type definitions\n- `packages/plugins/src/plugin-system.ts` — NEW: `ShoggothPluginSystem` class wrapping `PluginSystem` from `hooks-plugin`; includes `freezeConfig` utility that deep-freezes the config object returned from the `daemon.configure` waterfall\n- `packages/plugins/src/messaging-platform-plugin.ts` — NEW: `MessagingPlatformPlugin` interface and `defineMessagingPlatformPlugin` helper\n- `packages/plugins/src/index.ts` — re-export new types\n- `packages/plugins/test/plugin-system.test.ts` — NEW: tests for hook registration, firing, and config freeze (verify mutation after freeze throws in strict mode)
+### Phase 1: Add `hooks-plugin` dependency, define hook types, and implement config freeze
+
+Install `hooks-plugin` in `@shoggoth/plugins`. Define all hook context types and the `ShoggothPluginSystem` class that instantiates the typed hooks. Implement a configuration freeze mechanism: after the `daemon.configure` waterfall completes, the resulting config object is deep-frozen (`Object.freeze`, recursive) to prevent downstream plugins or hooks from mutating it. This mitigates the risk of a misbehaving plugin corrupting config via the waterfall.
+
+**Files:**
+- `packages/plugins/package.json` — add `hooks-plugin` dependency
+- `packages/plugins/src/hook-types.ts` — NEW: all hook context type definitions
+- `packages/plugins/src/plugin-system.ts` — NEW: `ShoggothPluginSystem` class wrapping `PluginSystem` from `hooks-plugin`; includes `freezeConfig` utility that deep-freezes the config object returned from the `daemon.configure` waterfall
+- `packages/plugins/src/messaging-platform-plugin.ts` — NEW: `MessagingPlatformPlugin` interface and `defineMessagingPlatformPlugin` helper
+- `packages/plugins/src/index.ts` — re-export new types
+- `packages/plugins/test/plugin-system.test.ts` — NEW: tests for hook registration, firing, and config freeze (verify mutation after freeze throws in strict mode)
 
 ### Phase 2: Replace `HookRegistry` with `hooks-plugin` internals
 
