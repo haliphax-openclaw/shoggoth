@@ -325,7 +325,12 @@ void (async () => {
       config,
       system: pluginSystem,
       resolveFromFile,
-      audit: (e) => appendAuditRow(db, pluginAuditToRow(e)),
+      audit: (e) => {
+        appendAuditRow(db, pluginAuditToRow(e));
+        if (e.outcome === "failure") {
+          getLogger("daemon").error("plugin load failed", { plugin: e.resource, detail: e.detail });
+        }
+      },
     });
     if (loaded.length > 0) {
       getLogger("daemon").info("plugins loaded", { count: loaded.length, plugins: loaded.map(p => p.manifestName) });
