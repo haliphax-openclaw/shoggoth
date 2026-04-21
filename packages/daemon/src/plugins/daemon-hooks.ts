@@ -1,6 +1,5 @@
 // -------------------------------------------------------------------------------
 // daemon-hooks.ts — Orchestrates hook firing in the correct boot sequence
-
 // -------------------------------------------------------------------------------
 
 import type { ShoggothPluginSystem, PlatformDeps, PlatformDeliveryRegistry } from "@shoggoth/plugins";
