@@ -1,12 +1,7 @@
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Hook Context Types for the Shoggoth Plugin System
 // See: plans/2026-04-20_hooks-plugin-overhaul/spec.md §1
-// ---------------------------------------------------------------------------
-
-// TODO: Replace placeholder types with real imports once packages are wired up
-// import type Database from "better-sqlite3";
-// import type { ShoggothConfig } from "@shoggoth/shared";
-// import type { PlatformRegistration, InternalMessage, PlatformRuntime } from "@shoggoth/messaging";
+// -------------------------------------------------------------------------------
 
 /** Placeholder for better-sqlite3 Database */
 type Database = any;
@@ -32,10 +27,16 @@ type SubagentRuntimeExtension = any;
 type MessageToolContext = any;
 /** Placeholder for PlatformAdapter */
 type PlatformAdapter = any;
+/** Placeholder for HitlDiscordNoticeRegistry */
+type HitlDiscordNoticeRegistry = any;
+/** Placeholder for Logger */
+type Logger = any;
+/** Placeholder for PlatformAssistantDeps */
+type PlatformAssistantDeps = any;
 
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Daemon Lifecycle
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 /** Waterfall: plugins can return a modified config. */
 export interface DaemonConfigureCtx {
@@ -58,9 +59,9 @@ export interface DaemonShutdownCtx {
   readonly reason: string;
 }
 
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Platform Lifecycle
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 export interface PlatformRegisterCtx {
   readonly config: Readonly<ShoggothConfig>;
@@ -68,11 +69,45 @@ export interface PlatformRegisterCtx {
   readonly setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
 }
 
+/**
+ * Dependencies that the daemon creates and passes to platform plugins.
+ * These are platform-agnostic but needed by the Discord plugin.
+ */
 export interface PlatformDeps {
-  readonly hitlStack: HitlPendingStack;
+  /** HITL pending stack - created by daemon */
+  readonly hitlStack?: HitlPendingStack;
+  /** Policy engine - created by daemon */
   readonly policyEngine: PolicyEngine;
+  /** HITL config ref - created by daemon */
   readonly hitlConfigRef: HitlConfigRef;
+  /** HITL auto-approve gate - created by daemon */
   readonly hitlAutoApproveGate?: HitlAutoApproveGate;
+  /** HITL notice registry - created by daemon */
+  readonly hitlNoticeRegistry?: HitlDiscordNoticeRegistry;
+  /** Logger for platform operations */
+  readonly logger: Logger;
+  /** Default platform assistant dependencies */
+  readonly platformAssistantDeps: PlatformAssistantDeps;
+  /** Function to abort a session turn */
+  readonly abortSession: (sessionId: string) => Promise<void>;
+  /** Function to invoke a control operation */
+  readonly invokeControlOp: (op: string, payload: any) => Promise<{ ok: boolean; result?: any; error?: string }>;
+  /** Function to resolve session for a channel */
+  readonly resolveSessionForChannel: (channelId: string, guildId?: string) => string | undefined;
+  /** Function to register a platform with the daemon's platform registry */
+  readonly registerPlatform: (platformId: string, handle: any) => void;
+  /** Function to stop all platforms */
+  readonly stopAllPlatforms: () => Promise<void>;
+  /** Function to reconcile persistent subagents */
+  readonly reconcilePersistentSubagents: (input: {
+    readonly db: Database;
+    readonly config: ShoggothConfig;
+    readonly ext: any;
+  }) => { restored: number; expiredKilled: number };
+  /** Notice resolver function from daemon */
+  readonly noticeResolver: (key: string, params?: Record<string, any>) => string;
+  /** Function to get Discord bot token */
+  readonly getBotToken: () => string | undefined;
 }
 
 export interface PlatformStartCtx {
@@ -85,15 +120,17 @@ export interface PlatformStartCtx {
   readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension) => void;
   readonly setMessageToolContext: (ctx: MessageToolContext) => void;
   readonly setPlatformAdapter: (adapter: PlatformAdapter) => void;
+  /** Pre-built message tool context from the daemon - the plugin should use this instead of building its own */
+  readonly messageToolContext?: MessageToolContext;
 }
 
 export interface PlatformStopCtx {
   readonly platformId: string;
 }
 
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Messaging
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 export interface MessageInboundCtx {
   readonly message: InternalMessage;
@@ -117,9 +154,9 @@ export interface MessageReactionCtx {
   readonly channelId: string;
 }
 
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Session
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 export interface SessionTurnBeforeCtx {
   readonly sessionId: string;
@@ -141,9 +178,9 @@ export interface SessionSegmentChangeCtx {
   readonly newSegmentId: string;
 }
 
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // Health
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 export interface HealthRegisterCtx {
   readonly registerProbe: (probe: HealthProbe) => void;

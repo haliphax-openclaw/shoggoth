@@ -1,9 +1,9 @@
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // daemon-hooks.ts — Orchestrates hook firing in the correct boot sequence
 // See: plans/2026-04-20_hooks-plugin-overhaul/spec.md §7
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
-import type { ShoggothPluginSystem } from "@shoggoth/plugins";
+import type { ShoggothPluginSystem, PlatformDeps } from "@shoggoth/plugins";
 
 export interface DaemonHooksContext {
   config: Record<string, any>;
@@ -15,10 +15,12 @@ export interface DaemonHooksContext {
   registerPlatform: (reg: any) => void;
   setPlatformRuntime: (platformId: string, runtime: any) => void;
   registerProbe: (probe: any) => void;
-  deps: any;
+  deps: PlatformDeps;
   setSubagentRuntimeExtension: (ext: any) => void;
   setMessageToolContext: (ctx: any) => void;
   setPlatformAdapter: (adapter: any) => void;
+  /** Pre-built message tool context from the daemon */
+  messageToolContext?: any;
 }
 
 export interface DaemonHooksResult {
@@ -75,6 +77,7 @@ export async function fireDaemonHooks(
     setSubagentRuntimeExtension: ctx.setSubagentRuntimeExtension,
     setMessageToolContext: ctx.setMessageToolContext,
     setPlatformAdapter: ctx.setPlatformAdapter,
+    messageToolContext: ctx.messageToolContext,
   });
 
   // 5. daemon.startup (async)
