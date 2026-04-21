@@ -8,6 +8,7 @@ import {
   type MessagingPlatformPlugin,
   type PlatformStartCtx,
   type PlatformDeps,
+  type PlatformDeliveryResolver,
 } from "@shoggoth/plugins";
 import { discordPlatformRegistration } from "./platform-registration";
 import { createDiscordProbe } from "./probe";
@@ -23,7 +24,7 @@ import {
   resolveDiscordOwnerUserId,
 } from "@shoggoth/platform-discord";
 import { executeMessageToolAction } from "@shoggoth/messaging";
-import { randomUUID } from "node:crypto";
+import { resolvePlatformConfig } from "@shoggoth/shared";
 
 /** State held across the plugin's lifecycle. */
 interface DiscordPluginState {
@@ -34,7 +35,59 @@ interface DiscordPluginState {
   getToken: () => string | undefined;
 }
 
-export function createDiscordPlugin(): MessagingPlatformPlugin {
+/** Resolve the Discord bot token from env or config. */
+function resolveDiscordBotToken(config: any): string | undefined {
+  const fromEnv = process.env.DISCORD_BOT_TOKEN?.trim();
+  if (fromEnv) return fromEnv;
+  const dc = resolvePlatformConfig(config, "discord");
+  return (dc?.token as string | undefined)?.trim() || undefined;
+}
+
+/** Resolve session ID for a given channel/guild from agent routes config. */
+function resolveSessionForChannel(config: any, channelId: string, guildId?: string): string | undefined {
+  try {
+    const agentsList = (config.agents as Record<string, unknown>)?.list as Record<string, unknown> | undefined;
+    if (!agentsList) return undefined;
+    for (const agentDef of Object.values(agentsList)) {
+      if (typeof agentDef !== "object" || agentDef === null) continue;
+      const discordPlatform = ((agentDef as Record<string, unknown>).platforms as Record<string, unknown>)?.discord as Record<string, unknown> | undefined;
+      const routesList = discordPlatform?.routes;
+      if (!Array.isArray(routesList)) continue;
+      for (const r of routesList) {
+        if (typeof r !== "object" || r === null) continue;
+        const route = r as { channelId?: string; sessionId?: string; guildId?: string };
+        if (route.channelId !== channelId) continue;
+        if (route.guildId !== undefined && route.guildId !== guildId) continue;
+        if (route.guildId === undefined && guildId !== undefined) continue;
+        return route.sessionId;
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Discord delivery resolver — tells the daemon how to reach the operator
+ * on Discord-owned sessions.
+ */
+function createDiscordDeliveryResolver(configRef: { current: any }): PlatformDeliveryResolver {
+  return {
+    resolveOperatorDelivery(_sessionId, config) {
+      const ownerUserId = resolveDiscordOwnerUserId(config ?? configRef.current);
+      if (ownerUserId) {
+        return { kind: "messaging_surface", userId: ownerUserId };
+      }
+      return undefined;
+    },
+    resolveSessionForInbound(identifiers, config) {
+      return resolveSessionForChannel(config ?? configRef.current, identifiers.channelId, identifiers.guildId);
+    },
+  };
+}
+
+export default function createDiscordPlugin(): MessagingPlatformPlugin {
   const state: DiscordPluginState = {
     reactionBotUserIdRef: { current: undefined },
     reactionPassthroughRef: { current: undefined },
@@ -50,22 +103,24 @@ export function createDiscordPlugin(): MessagingPlatformPlugin {
       },
 
       async "platform.start"(ctx) {
-        const { db, config, configRef, env, deps, registerDrain, setSubagentRuntimeExtension, setMessageToolContext, setPlatformAdapter, messageToolContext } = ctx as PlatformStartCtx;
+        const { db, config, configRef, env, deps, deliveryRegistry, registerDrain, setSubagentRuntimeExtension, setMessageToolContext, setPlatformAdapter } = ctx as PlatformStartCtx;
         const platformDeps = deps as PlatformDeps;
 
-        // Set up token getter for health probe
-        state.getToken = platformDeps.getBotToken;
+        // Plugin reads its own bot token from config
+        state.getToken = () => resolveDiscordBotToken(configRef.current);
+
+        // Register delivery resolver for the "discord" platform segment
+        deliveryRegistry.register("discord", createDiscordDeliveryResolver(configRef));
 
         // Get dependencies from context
         const hitlStack = platformDeps.hitlStack;
         const hitlAutoApproveGate = platformDeps.hitlAutoApproveGate;
-        // Plugin owns its own notice registry — no dependency on the daemon for this
+        // Plugin owns its own notice registry
         const hitlDiscordNoticeRegistry = hitlStack ? createHitlDiscordNoticeRegistry() : undefined;
         const logger = platformDeps.logger;
         const platformAssistantDeps = platformDeps.platformAssistantDeps;
         const abortSession = platformDeps.abortSession;
         const invokeControlOp = platformDeps.invokeControlOp;
-        const resolveSessionForChannel = platformDeps.resolveSessionForChannel;
         const registerPlatformFn = platformDeps.registerPlatform;
         const stopAllPlatforms = platformDeps.stopAllPlatforms;
         const reconcilePersistentSubagents = platformDeps.reconcilePersistentSubagents;
@@ -91,7 +146,8 @@ export function createDiscordPlugin(): MessagingPlatformPlugin {
             logger,
             abortSession,
             invokeControlOp,
-            resolveSessionForChannel,
+            resolveSessionForChannel: (channelId, guildId) =>
+              resolveSessionForChannel(configRef.current, channelId, guildId),
           }),
           onMessageReactionAdd:
             hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
@@ -200,47 +256,42 @@ export function createDiscordPlugin(): MessagingPlatformPlugin {
         };
         setSubagentRuntimeExtension(subagentExt);
 
-        // Set message tool context - use provided context or build from capabilities
-        if (messageToolContext) {
-          setMessageToolContext(messageToolContext);
-        } else {
-          // Fallback: build minimal context from capabilities (for backward compatibility)
-          const ctx = {
-            slice: discordMessaging.capabilities.extensions,
-            execute: (sessionId: string, args: any) =>
-              executeMessageToolAction(
-                {
-                  capabilities: discordMessaging.capabilities,
-                  transport: discordMessaging.discordRestTransport,
-                  sessionToChannel: (sid) => discordMessaging.resolveOutboundChannelIdForSession?.(sid),
-                  sessionToGuild: (sid) => discordMessaging.resolveGuildIdForSession?.(sid),
-                  getSessionWorkspace: (sid) => {
-                    try {
-                      const row = db.prepare("SELECT workspace_path FROM sessions WHERE id = ?").get(sid) as
-                        | { workspace_path: string }
-                        | undefined;
-                      return row?.workspace_path;
-                    } catch {
-                      return undefined;
-                    }
-                  },
-                  downloadFile: async (url, destPath) => {
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
-                    const buf = Buffer.from(await res.arrayBuffer());
-                    const { writeFile, mkdir } = await import("node:fs/promises");
-                    const { dirname } = await import("node:path");
-                    await mkdir(dirname(destPath), { recursive: true });
-                    await writeFile(destPath, buf);
-                    return buf.byteLength;
-                  },
+        // Build message tool context from capabilities
+        const msgCtx = {
+          slice: discordMessaging.capabilities.extensions,
+          execute: (sessionId: string, args: any) =>
+            executeMessageToolAction(
+              {
+                capabilities: discordMessaging.capabilities,
+                transport: discordMessaging.discordRestTransport,
+                sessionToChannel: (sid) => discordMessaging.resolveOutboundChannelIdForSession?.(sid),
+                sessionToGuild: (sid) => discordMessaging.resolveGuildIdForSession?.(sid),
+                getSessionWorkspace: (sid) => {
+                  try {
+                    const row = db.prepare("SELECT workspace_path FROM sessions WHERE id = ?").get(sid) as
+                      | { workspace_path: string }
+                      | undefined;
+                    return row?.workspace_path;
+                  } catch {
+                    return undefined;
+                  }
                 },
-                sessionId,
-                args,
-              ),
-          };
-          setMessageToolContext(ctx);
-        }
+                downloadFile: async (url, destPath) => {
+                  const res = await fetch(url);
+                  if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
+                  const buf = Buffer.from(await res.arrayBuffer());
+                  const { writeFile, mkdir } = await import("node:fs/promises");
+                  const { dirname } = await import("node:path");
+                  await mkdir(dirname(destPath), { recursive: true });
+                  await writeFile(destPath, buf);
+                  return buf.byteLength;
+                },
+              },
+              sessionId,
+              args,
+            ),
+        };
+        setMessageToolContext(msgCtx);
 
         // Run persistent subagent reconciliation
         const subRecon = reconcilePersistentSubagents({

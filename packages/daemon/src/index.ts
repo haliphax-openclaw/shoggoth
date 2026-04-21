@@ -2,8 +2,6 @@ import {
   DEFAULT_HITL_CONFIG,
   loadLayeredConfig,
   LAYOUT,
-  parseAgentSessionUrn,
-  resolvePlatformConfig,
   VERSION,
 } from "@shoggoth/shared";
 import { routeMcpToolInvocation } from "@shoggoth/mcp-integration";
@@ -65,7 +63,7 @@ import { initLogger, getLogger } from "./logging";
 
 const log = getLogger("shoggoth-daemon");
 import { createDelegatingPolicyEngine, createPolicyEngine } from "./policy/engine";
-import { bootstrapPlugins } from "./plugins/bootstrap";
+import { pluginAuditToRow } from "./plugins/bootstrap";
 import { bootstrapMainSession } from "./bootstrap-main-session";
 import { createDaemonRuntime } from "./runtime";
 import { initProcessManager } from "./process-manager-singleton";
@@ -119,10 +117,9 @@ import {
 } from "./config/effective-runtime";
 import { TimerScheduler } from "./timers/timer-scheduler";
 import { setTimerScheduler } from "./sessions/builtin-handlers/timer-handler";
-import { createDiscordPlugin } from "@shoggoth/platform-discord";
 import { ShoggothPluginSystem, type PlatformDeps } from "@shoggoth/plugins";
 import { fireDaemonHooks } from "./plugins/daemon-hooks";
-import { resolveDiscordOwnerUserId } from "@shoggoth/platform-discord";
+import { appendAuditRow } from "./audit/append-audit";
 
 process.umask(0o007);
 loadDaemonPrompts();
@@ -162,13 +159,7 @@ if (config.models?.providers && config.models?.failoverChain) {
   registerOpenAIDefaultsForProviders(config.models.providers, config.models.failoverChain);
 }
 
-/** Env `DISCORD_BOT_TOKEN` overrides layered `discord.token` (hot-reload picks up config changes). */
-function resolvedDiscordBotToken(): string | undefined {
-  const fromEnv = process.env.DISCORD_BOT_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-  const dc = resolvePlatformConfig(configRef.current, "discord");
-  return (dc?.token as string | undefined)?.trim() || undefined;
-}
+
 const policyRef = { engine: createPolicyEngine(config.policy, config.agents) };
 const policyEngine = createDelegatingPolicyEngine(() => policyRef.engine);
 const hitlRef = { value: { ...DEFAULT_HITL_CONFIG, ...config.hitl } };
@@ -325,14 +316,27 @@ void (async () => {
     setResilienceGate(gate);
   }
 
-  // Create plugin system and register Discord plugin
+  // Create plugin system and load plugins via standard discovery
   const pluginSystem = new ShoggothPluginSystem();
-  const discordPlugin = createDiscordPlugin();
-  pluginSystem.use(discordPlugin);
+  const resolveFromFile = fileURLToPath(import.meta.url);
+  {
+    const { loadAllPluginsFromConfig } = await import("@shoggoth/plugins");
+    const loaded = await loadAllPluginsFromConfig({
+      config,
+      system: pluginSystem,
+      resolveFromFile,
+      audit: (e) => appendAuditRow(db, pluginAuditToRow(e)),
+    });
+    if (loaded.length > 0) {
+      getLogger("daemon").info("plugins loaded", { count: loaded.length, plugins: loaded.map(p => p.manifestName) });
+    }
+  }
 
-  // Build PlatformDeps - all the callbacks the plugin needs
+  // Build PlatformDeps - platform-agnostic callbacks the plugins need
   const platformsMap = new Map<string, any>();
-  
+  const { PlatformDeliveryRegistry } = await import("@shoggoth/plugins");
+  const deliveryRegistry = new PlatformDeliveryRegistry();
+
   const platformDeps: PlatformDeps = {
     hitlStack,
     policyEngine,
@@ -361,32 +365,9 @@ void (async () => {
         auth: { kind: "operator_token" as const, token: "__internal__" },
         payload,
       };
-      const principal = { kind: "operator" as const, operatorId: "discord-slash", roles: ["admin"], source: "cli_operator_token" as const };
+      const principal = { kind: "operator" as const, operatorId: "platform-slash", roles: ["admin"], source: "cli_operator_token" as const };
       const result = await handleIntegrationControlOp(req, principal, ctx);
       return { ok: true, result };
-    },
-    resolveSessionForChannel: (channelId, guildId) => {
-      try {
-        const agentsList = (configRef.current.agents as Record<string, unknown>)?.list as Record<string, unknown> | undefined;
-        if (!agentsList) return undefined;
-        for (const agentDef of Object.values(agentsList)) {
-          if (typeof agentDef !== "object" || agentDef === null) continue;
-          const discordPlatform = ((agentDef as Record<string, unknown>).platforms as Record<string, unknown>)?.discord as Record<string, unknown> | undefined;
-          const routesList = discordPlatform?.routes;
-          if (!Array.isArray(routesList)) continue;
-          for (const r of routesList) {
-            if (typeof r !== "object" || r === null) continue;
-            const route = r as { channelId?: string; sessionId?: string; guildId?: string };
-            if (route.channelId !== channelId) continue;
-            if (route.guildId !== undefined && route.guildId !== guildId) continue;
-            if (route.guildId === undefined && guildId !== undefined) continue;
-            return route.sessionId;
-          }
-        }
-        return undefined;
-      } catch {
-        return undefined;
-      }
     },
     registerPlatform: (platformId, handle) => {
       registerPlatform(platformId, handle);
@@ -395,16 +376,16 @@ void (async () => {
     stopAllPlatforms,
     reconcilePersistentSubagents,
     noticeResolver: daemonNotice,
-    getBotToken: resolvedDiscordBotToken,
   };
 
-  // Fire daemon hooks — the Discord plugin builds the real message tool context internally - this triggers platform.start which runs the Discord plugin
-  await fireDaemonHooks(pluginSystem, {
+  // Fire daemon hooks — plugins handle platform.start, health.register, etc.
+  const hookResult = await fireDaemonHooks(pluginSystem, {
     config,
     db,
     configRef,
     env: process.env,
     platforms: platformsMap,
+    deliveryRegistry,
     registerDrain: (name, fn) => rt.shutdown.registerDrain(name, fn),
     registerPlatform: (reg) => registerMessagingPlatform(reg),
     setPlatformRuntime: (platformId, runtime) => platformsMap.set(platformId, runtime),
@@ -416,19 +397,9 @@ void (async () => {
     messageToolContext: undefined,
   });
 
-  // After hooks fire, the plugin has set up everything
-  // Continue with non-Discord daemon initialization
-
-  try {
-    await bootstrapPlugins({
-      config,
-      db,
-      rt,
-      resolveFromFile: fileURLToPath(import.meta.url),
-    });
-  } catch (e) {
-    getLogger("daemon").warn("plugin bootstrap failed", { err: String(e) });
-  }
+  // Register plugin shutdown drains
+  rt.shutdown.registerDrain("plugin-platform-stop", hookResult.drains.platformStop);
+  rt.shutdown.registerDrain("plugin-daemon-shutdown", hookResult.drains.daemonShutdown);
   stateShutdown.db = db;
   stateShutdown.toolRuns = createToolRunStore(db);
 
@@ -497,7 +468,7 @@ void (async () => {
   });
 
   // --- Workflow tool: init server, resume incomplete workflows, register shutdown ---
-  // Adapters use lazy refs because the Discord platform (and thus sessionManager,
+  // Adapters use lazy refs because the platform plugin (and thus sessionManager,
   // runSessionModelTurn, messageToolContextRef) are initialized later in this file.
   const workflowStateDir = resolve(config.stateDbPath, "..", "workflow-state");
   try {
@@ -553,16 +524,8 @@ void (async () => {
             const message = `**Workflow ${status}:** \`${workflowId}\``;
 
             getLogger("daemon").debug("workflow notify: delivering to session", { sessionId });
-            const parsed = parseAgentSessionUrn(sessionId);
-            const delivery = (() => {
-              if (parsed?.platform === "discord") {
-                const ownerUserId = resolveDiscordOwnerUserId(configRef.current);
-                if (ownerUserId) {
-                  return { kind: "messaging_surface" as const, userId: ownerUserId };
-                }
-              }
-              return { kind: "internal" as const };
-            })();
+            const delivery = deliveryRegistry.resolveOperatorDelivery(sessionId, configRef.current)
+              ?? { kind: "internal" as const };
             getLogger("daemon").debug("workflow notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
             await ext.runSessionModelTurn({
               sessionId,
@@ -637,14 +600,8 @@ void (async () => {
         async sendNotification(target: string, message: string): Promise<void> {
           const ext = subagentRuntimeExtensionRef.current;
           if (!ext) { getLogger("daemon").warn("workflow task notification: subagent runtime not available"); return; }
-          const parsed = parseAgentSessionUrn(target);
-          const delivery = (() => {
-            if (parsed?.platform === "discord") {
-              const ownerUserId = resolveDiscordOwnerUserId(configRef.current);
-              if (ownerUserId) return { kind: "messaging_surface" as const, userId: ownerUserId };
-            }
-            return { kind: "internal" as const };
-          })();
+          const delivery = deliveryRegistry.resolveOperatorDelivery(target, configRef.current)
+            ?? { kind: "internal" as const };
           try {
             await ext.runSessionModelTurn({
               sessionId: target,
@@ -728,7 +685,7 @@ void (async () => {
 })();
 
 rt.health.register(createSqliteProbe({ getPath: () => config.stateDbPath }));
-// Note: Discord health probe is now registered by the plugin via health.register hook
+// Note: Platform health probes are registered by plugins via health.register hook
 rt.health.register(
   createModelEndpointProbe({
     getBaseUrl: () => resolveModelHealthProbeBaseUrl(configRef.current),
@@ -768,7 +725,7 @@ void (async () => {
   const sqliteFailed = checks.some((c) => c.name === "sqlite" && c.status === "fail");
   const modelChecks = checks.filter((c) => c.name === "model");
   const allModelsFailed = modelChecks.length > 0 && modelChecks.every((c) => c.status === "fail");
-  const anyNonModelFailed = checks.some((c) => (c.name === "embeddings" || c.name === "discord") && c.status === "fail");
+  const anyNonModelFailed = checks.some((c) => c.name !== "sqlite" && c.name !== "model" && c.status === "fail");
   const someModelFailed = modelChecks.some((c) => c.status === "fail");
 
   const level = sqliteFailed || allModelsFailed ? "error" : anyNonModelFailed || someModelFailed ? "warn" : "info";

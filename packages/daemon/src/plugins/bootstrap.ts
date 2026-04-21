@@ -24,7 +24,7 @@ function effectiveConfigAuditPayload(config: ShoggothConfig): string {
   });
 }
 
-function pluginAuditToRow(e: PluginAuditEvent): AppendAuditRowInput {
+export function pluginAuditToRow(e: PluginAuditEvent): AppendAuditRowInput {
   return {
     source: "system",
     principalKind: "system",

@@ -3,7 +3,7 @@
 
 // -------------------------------------------------------------------------------
 
-import type { ShoggothPluginSystem, PlatformDeps } from "@shoggoth/plugins";
+import type { ShoggothPluginSystem, PlatformDeps, PlatformDeliveryRegistry } from "@shoggoth/plugins";
 
 export interface DaemonHooksContext {
   config: Record<string, any>;
@@ -11,6 +11,7 @@ export interface DaemonHooksContext {
   configRef: { current: any };
   env: NodeJS.ProcessEnv;
   platforms: Map<string, any>;
+  deliveryRegistry: PlatformDeliveryRegistry;
   registerDrain: (name: string, fn: () => void | Promise<void>) => void;
   registerPlatform: (reg: any) => void;
   setPlatformRuntime: (platformId: string, runtime: any) => void;
@@ -19,8 +20,6 @@ export interface DaemonHooksContext {
   setSubagentRuntimeExtension: (ext: any) => void;
   setMessageToolContext: (ctx: any) => void;
   setPlatformAdapter: (adapter: any) => void;
-  /** Pre-built message tool context from the daemon */
-  messageToolContext?: any;
 }
 
 export interface DaemonHooksResult {
@@ -73,11 +72,11 @@ export async function fireDaemonHooks(
     configRef: ctx.configRef,
     env: ctx.env,
     deps: ctx.deps,
+    deliveryRegistry: ctx.deliveryRegistry,
     registerDrain: ctx.registerDrain,
     setSubagentRuntimeExtension: ctx.setSubagentRuntimeExtension,
     setMessageToolContext: ctx.setMessageToolContext,
     setPlatformAdapter: ctx.setPlatformAdapter,
-    messageToolContext: ctx.messageToolContext,
   });
 
   // 5. daemon.startup (async)

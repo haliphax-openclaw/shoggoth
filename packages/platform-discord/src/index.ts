@@ -33,7 +33,7 @@ export * from "./config";
 export * from "./probe";
 
 // Step 8: Discord plugin (MessagingPlatformPlugin)
-export { createDiscordPlugin } from "./plugin";
+export { default as createDiscordPlugin } from "./plugin";
 
 // Step 7: Discord platform adapter (presentation layer integration)
 export * from "./discord-platform-adapter";

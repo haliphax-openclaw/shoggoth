@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createDiscordPlugin } from "../src/plugin";
+import createDiscordPlugin from "../src/plugin";
 import {
   defineMessagingPlatformPlugin,
   REQUIRED_MESSAGING_PLATFORM_HOOKS,

@@ -28,6 +28,11 @@ export {
   REQUIRED_MESSAGING_PLATFORM_HOOKS,
   type MessagingPlatformPlugin,
 } from "./messaging-platform-plugin";
+export {
+  PlatformDeliveryRegistry,
+  type PlatformDeliveryResolver,
+  type OperatorDelivery,
+} from "./platform-delivery-registry";
 export type {
   DaemonConfigureCtx,
   DaemonStartupCtx,

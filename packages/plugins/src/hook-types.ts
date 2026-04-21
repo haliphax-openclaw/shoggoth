@@ -32,6 +32,8 @@ type Logger = any;
 /** Placeholder for PlatformAssistantDeps */
 type PlatformAssistantDeps = any;
 
+import type { PlatformDeliveryRegistry } from "./platform-delivery-registry";
+
 // -------------------------------------------------------------------------------
 // Daemon Lifecycle
 // -------------------------------------------------------------------------------
@@ -69,7 +71,7 @@ export interface PlatformRegisterCtx {
 
 /**
  * Dependencies that the daemon creates and passes to platform plugins.
- * These are platform-agnostic but needed by the Discord plugin.
+ * Platform-agnostic — no Discord/Telegram/etc. specifics leak here.
  */
 export interface PlatformDeps {
   /** HITL pending stack - created by daemon */
@@ -88,8 +90,6 @@ export interface PlatformDeps {
   readonly abortSession: (sessionId: string) => Promise<void>;
   /** Function to invoke a control operation */
   readonly invokeControlOp: (op: string, payload: any) => Promise<{ ok: boolean; result?: any; error?: string }>;
-  /** Function to resolve session for a channel */
-  readonly resolveSessionForChannel: (channelId: string, guildId?: string) => string | undefined;
   /** Function to register a platform with the daemon's platform registry */
   readonly registerPlatform: (platformId: string, handle: any) => void;
   /** Function to stop all platforms */
@@ -102,8 +102,6 @@ export interface PlatformDeps {
   }) => { restored: number; expiredKilled: number };
   /** Notice resolver function from daemon */
   readonly noticeResolver: (key: string, params?: Record<string, any>) => string;
-  /** Function to get Discord bot token */
-  readonly getBotToken: () => string | undefined;
 }
 
 export interface PlatformStartCtx {
@@ -112,12 +110,12 @@ export interface PlatformStartCtx {
   readonly configRef: { readonly current: ShoggothConfig };
   readonly env: NodeJS.ProcessEnv;
   readonly deps: PlatformDeps;
+  /** Platform delivery registry — plugins register their resolver here */
+  readonly deliveryRegistry: PlatformDeliveryRegistry;
   readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
   readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension) => void;
   readonly setMessageToolContext: (ctx: MessageToolContext) => void;
   readonly setPlatformAdapter: (adapter: PlatformAdapter) => void;
-  /** Pre-built message tool context from the daemon - the plugin should use this instead of building its own */
-  readonly messageToolContext?: MessageToolContext;
 }
 
 export interface PlatformStopCtx {
