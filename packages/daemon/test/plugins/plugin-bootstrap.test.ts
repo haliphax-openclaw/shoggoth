@@ -33,21 +33,26 @@ describe("bootstrapPlugins", () => {
     mkdirSync(pluginDir);
 
     writeFileSync(
-      join(pluginDir, "shoggoth.json"),
+      join(pluginDir, "package.json"),
       JSON.stringify({
         name: "tplug",
         version: "0.1.0",
-        hooks: {
-          "daemon.startup": "./s.mjs",
-          "daemon.shutdown": "./d.mjs",
+        shoggothPlugin: {
+          kind: "general",
+          entrypoint: "./index.mjs",
         },
       }),
     );
     writeFileSync(
-      join(pluginDir, "s.mjs"),
-      `export default () => { globalThis.__shoggothPlugTest = (globalThis.__shoggothPlugTest ?? 0) + 1; };`,
+      join(pluginDir, "index.mjs"),
+      `export default () => ({
+        name: "tplug",
+        hooks: {
+          "daemon.startup": () => { globalThis.__shoggothPlugTest = (globalThis.__shoggothPlugTest ?? 0) + 1; },
+          "daemon.shutdown": () => {},
+        },
+      });`,
     );
-    writeFileSync(join(pluginDir, "d.mjs"), `export default () => {};`);
 
     const config: ShoggothConfig = {
       ...defaultConfig(cfgDir),
