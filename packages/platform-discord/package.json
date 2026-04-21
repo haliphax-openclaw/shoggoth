@@ -9,7 +9,8 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "shoggothPlugin": {
     "kind": "messaging-platform",
