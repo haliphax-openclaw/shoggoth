@@ -93,9 +93,8 @@ The Discord platform becomes a plugin that satisfies `MessagingPlatformPlugin`:
 
 - `platform.register` — registers `discordPlatformRegistration` URN policy, declares capabilities
 - `platform.start` — runs `startDaemonDiscordMessaging` + `startDiscordPlatform`, wires HITL reactions, slash commands, reaction passthrough, subagent extension, message tool context
-- `platform.stop` — disconnects gateway, unsubscribes bus, shuts down MCP runtime
+- `platform.stop` — disconnects gateway, unsubscribes bus, shuts down MCP runtime, clears subagent extension ref
 - `health.register` — registers `createDiscordProbe`
-- `daemon.shutdown` — runs `stopAllPlatforms`, clears subagent extension ref
 
 All of the ~200 lines of Discord glue in `daemon/src/index.ts` move into `platform-discord/src/plugin.ts`.
 
