@@ -442,6 +442,7 @@ export async function toolWrite(
 function xdgEnvForWorkspace(workspaceRoot: string): NodeJS.ProcessEnv {
   return {
     HOME: workspaceRoot,
+    BASH_ENV: join(workspaceRoot, ".bashrc"),
     XDG_CONFIG_HOME: join(workspaceRoot, ".config"),
     XDG_DATA_HOME: join(workspaceRoot, ".local", "share"),
     XDG_CACHE_HOME: join(workspaceRoot, ".cache"),
@@ -1109,7 +1110,7 @@ export async function toolExecExtended(
 
   // Build spawn options
   const spawnOpts = {
-    file: "/bin/sh",
+    file: "/bin/bash",
     args: ["-c", opts.command],
     cwd,
     uid: creds.uid,
@@ -1128,7 +1129,7 @@ export async function toolExecExtended(
       const spec: ProcessSpec = {
         id: specId,
         owner: { kind: "agent-tool", scopeId: "exec" },
-        command: "/bin/sh",
+        command: "/bin/bash",
         args: ["-c", opts.command],
         cwd,
         uid: creds.uid,
@@ -1171,7 +1172,7 @@ export async function toolExecExtended(
       const spec: ProcessSpec = {
         id: specId,
         owner: { kind: "agent-tool", scopeId: "exec" },
-        command: "/bin/sh",
+        command: "/bin/bash",
         args: ["-c", opts.command],
         cwd,
         uid: creds.uid,

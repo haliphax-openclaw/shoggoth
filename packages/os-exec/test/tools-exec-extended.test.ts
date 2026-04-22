@@ -527,6 +527,37 @@ describe("toolExecExtended", () => {
   });
 
   // -----------------------------------------------------------------------
+  // BASH_ENV and /bin/bash shell
+  // -----------------------------------------------------------------------
+
+  describe("BASH_ENV and bash shell", () => {
+    it("sets BASH_ENV to workspace .bashrc", async () => {
+      const r = await toolExecExtended(ws, { command: "echo $BASH_ENV" }, creds);
+      assert.equal(r.kind, "foreground");
+      const fg = r as ExecForegroundResult;
+      assert.ok(fg.output?.trim().endsWith("/.bashrc"), `expected BASH_ENV to end with /.bashrc, got: ${fg.output?.trim()}`);
+      // Should be an absolute path under the workspace, not just "/.bashrc"
+      assert.ok(fg.output!.trim().length > "/.bashrc".length, "BASH_ENV should be an absolute path, not just /.bashrc");
+    });
+
+    it("runs commands via /bin/bash, not /bin/sh", async () => {
+      // BASH_VERSION is only set by bash, not sh
+      const r = await toolExecExtended(ws, { command: "echo ${BASH_VERSION:-not_bash}" }, creds);
+      assert.equal(r.kind, "foreground");
+      const fg = r as ExecForegroundResult;
+      assert.ok(!fg.output?.includes("not_bash"), "should be running under bash, not sh");
+    });
+
+    it("sources .bashrc via BASH_ENV when it exists", async () => {
+      writeFileSync(join(ws, ".bashrc"), "export CUSTOM_FROM_BASHRC=hello_from_rc\n");
+      const r = await toolExecExtended(ws, { command: "echo $CUSTOM_FROM_BASHRC" }, creds);
+      assert.equal(r.kind, "foreground");
+      const fg = r as ExecForegroundResult;
+      assert.ok(fg.output?.includes("hello_from_rc"), `expected .bashrc to be sourced, got: ${fg.output?.trim()}`);
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // Combined features
   // -----------------------------------------------------------------------
 

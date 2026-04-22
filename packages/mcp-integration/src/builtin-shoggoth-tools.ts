@@ -554,7 +554,7 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
       {
         name: "memory-ingest",
         description:
-          "Scan memory.paths (absolute or workspace-relative) for *.md and upsert into the daemon state DB for memory-search.",
+          "Scan memory.paths (workspace-relative) for *.md and upsert into the daemon state DB for memory-search.",
         inputSchema: memoryIngestArgs,
       },
       {

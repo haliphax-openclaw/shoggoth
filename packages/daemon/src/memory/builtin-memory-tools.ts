@@ -27,14 +27,15 @@ const MAX_SNIPPET_CHARS = 1000;
 /** Maximum number of file entries included in the ingest report response. */
 const MAX_REPORT_FILES = 200;
 
-/** Resolve configured memory roots: absolute paths as-is; relative paths under the session workspace. */
+/** Resolve configured memory roots: workspace-relative paths only. Absolute paths are skipped. */
 export function resolveMemoryScanRoots(
   workspacePath: string,
   paths: readonly string[],
 ): string[] {
   const out: string[] = [];
   for (const p of paths) {
-    const abs = isAbsolute(p) ? p : resolve(workspacePath, p);
+    if (isAbsolute(p)) continue;
+    const abs = resolve(workspacePath, p);
     if (existsSync(abs)) out.push(abs);
   }
   return out;

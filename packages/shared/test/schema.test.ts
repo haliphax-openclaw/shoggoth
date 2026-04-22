@@ -1,6 +1,8 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
 import {
+  shoggothMemoryConfigSchema,
+  DEFAULT_MEMORY_CONFIG,
   providerModelSchema,
   failoverChainEntrySchema,
   modelsRetrySchema,
@@ -8,6 +10,49 @@ import {
   shoggothAgentEntrySchema,
   shoggothAgentsConfigSchema,
 } from "../src/schema";
+
+// ---------------------------------------------------------------------------
+// shoggothMemoryConfigSchema — workspace-relative paths
+// ---------------------------------------------------------------------------
+describe("shoggothMemoryConfigSchema", () => {
+  it("accepts workspace-relative paths", () => {
+    const r = shoggothMemoryConfigSchema.safeParse({
+      paths: ["memory", "notes/daily"],
+      embeddings: { enabled: false },
+    });
+    assert.ok(r.success);
+  });
+
+  it("rejects absolute paths", () => {
+    const r = shoggothMemoryConfigSchema.safeParse({
+      paths: ["/var/lib/shoggoth/workspaces/main/memory"],
+      embeddings: { enabled: false },
+    });
+    assert.ok(!r.success);
+  });
+
+  it("rejects paths starting with /", () => {
+    const r = shoggothMemoryConfigSchema.safeParse({
+      paths: ["/etc/something"],
+      embeddings: { enabled: false },
+    });
+    assert.ok(!r.success);
+  });
+
+  it("accepts empty paths array", () => {
+    const r = shoggothMemoryConfigSchema.safeParse({
+      paths: [],
+      embeddings: { enabled: false },
+    });
+    assert.ok(r.success);
+  });
+});
+
+describe("DEFAULT_MEMORY_CONFIG", () => {
+  it("defaults paths to [\"memory\"]", () => {
+    assert.deepEqual(DEFAULT_MEMORY_CONFIG.paths, ["memory"]);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // providerModelSchema

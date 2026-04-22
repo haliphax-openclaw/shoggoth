@@ -257,10 +257,16 @@ export const shoggothMemoryEmbeddingsConfigSchema = z
 
 export type ShoggothMemoryEmbeddingsConfig = z.infer<typeof shoggothMemoryEmbeddingsConfigSchema>;
 
+/** Schema for a workspace-relative path (must not start with '/'). */
+const workspaceRelativePathSchema = z
+  .string()
+  .min(1)
+  .refine((s) => !s.startsWith("/"), { message: "memory paths must be workspace-relative (not absolute)" });
+
 export const shoggothMemoryConfigSchema = z
   .object({
-    /** Absolute or workspace-relative roots scanned recursively for `*.md`. */
-    paths: z.array(z.string().min(1)),
+    /** Workspace-relative roots scanned recursively for `*.md`. */
+    paths: z.array(workspaceRelativePathSchema),
     embeddings: shoggothMemoryEmbeddingsConfigSchema,
   })
   .strict();
@@ -382,7 +388,7 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
 };
 
 export const DEFAULT_MEMORY_CONFIG: ShoggothMemoryConfig = {
-  paths: [],
+  paths: ["memory"],
   embeddings: { enabled: false },
 };
 
@@ -709,7 +715,7 @@ export const shoggothAgentEntrySchema = z
     /** Extra memory roots (merged after global `memory.paths` for this agent's sessions). */
     memory: z
       .object({
-        paths: z.array(z.string().min(1)).optional(),
+        paths: z.array(workspaceRelativePathSchema).optional(),
       })
       .strict()
       .optional(),
@@ -885,7 +891,7 @@ export const shoggothConfigFragmentSchema = z
     hitl: shoggothHitlConfigSchema.partial().optional(),
     memory: z
       .object({
-        paths: z.array(z.string().min(1)).optional(),
+        paths: z.array(workspaceRelativePathSchema).optional(),
         embeddings: shoggothMemoryEmbeddingsConfigSchema.partial().optional(),
       })
       .strict()
