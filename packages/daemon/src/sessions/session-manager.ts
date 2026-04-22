@@ -38,6 +38,8 @@ export interface SessionManagerOptions {
   readonly config?: ShoggothConfig;
   /** Test hook */
   readonly mintToken?: () => string;
+  /** Default agent credentials (uid/gid) for workspace operations. */
+  readonly agentCreds?: { uid: number; gid: number };
 }
 
 export interface SpawnSessionInput {
@@ -68,7 +70,7 @@ export class SessionManagerError extends Error {
 }
 
 export interface SessionManager {
-  spawn(input: SpawnSessionInput): SpawnSessionResult;
+  spawn(input: SpawnSessionInput): Promise<SpawnSessionResult>;
   /** Mint a new raw agent token for an existing non-terminated session (revokes prior hashes). */
   rotateAgentToken(sessionId: string): SpawnSessionResult;
   kill(sessionId: string): void;
@@ -81,6 +83,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   const defaultAgentId = options.agentId ?? "main";
   const agentsConfig = options.agentsConfig;
   const config = options.config;
+  const agentCreds = options.agentCreds ?? { uid: 900, gid: 900 };
 
   /** Resolve platform from agent's platform bindings in agentsConfig. */
   function resolveAgentPlatform(agentId: string): string | undefined {
@@ -91,7 +94,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   }
 
   return {
-    spawn(input) {
+    async spawn(input) {
       let id: string;
       let dirAgentId: string;
       if (input.parentSessionId) {
@@ -118,7 +121,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
       }
       const wsPath = resolveAgentWorkspacePath(options.workspacesRoot, dirAgentId);
       try {
-        ensureAgentWorkspaceLayout(wsPath);
+        await ensureAgentWorkspaceLayout(wsPath, agentCreds);
       } catch (e) {
         throw new SessionManagerError(
           "ERR_WORKSPACE_LAYOUT",

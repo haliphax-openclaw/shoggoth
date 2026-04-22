@@ -29,13 +29,14 @@ fi
 fix_dir /var/lib/shoggoth/daemon 0700 shoggoth shoggoth
 fix_dir /var/lib/shoggoth/state 0700 shoggoth shoggoth
 # Workspaces root: setgid (2…) so new session dirs inherit group `agent`; agent UID matches group perms.
-fix_dir /var/lib/shoggoth/workspaces 2770 shoggoth agent
+fix_dir /var/lib/shoggoth/workspaces 2770 agent agent
 fix_dir /var/lib/shoggoth/operator 0700 shoggoth shoggoth
 fix_dir /var/lib/shoggoth/skills 0755 shoggoth shoggoth
 fix_dir /var/lib/shoggoth/media/inbound 0750 shoggoth shoggoth
 fix_dir /run/shoggoth 0750 shoggoth shoggoth
 # Add agent ACL layer to workspaces
-setfacl -R -m u:agent:rwX /var/lib/shoggoth/workspaces
+setfacl -R -m u:shoggoth:rwX /var/lib/shoggoth/workspaces
+setfacl -R -d -m u:shoggoth:rwX /var/lib/shoggoth/workspaces
 # Fix .ssh permissions
 chown -R agent:agent /var/lib/shoggoth/workspaces/*/.ssh || true
 chmod 600 /var/lib/shoggoth/workspaces/*/.ssh/id_* || true

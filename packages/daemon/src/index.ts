@@ -213,7 +213,7 @@ void (async () => {
     migrate(db, defaultMigrationsDir());
     stateDb = db;
 
-    bootstrapMainSession({
+    await bootstrapMainSession({
       db,
       config,
     });

@@ -89,7 +89,7 @@ describe("bootstrapMainSession", () => {
     rmSync(TMP, { recursive: true, force: true });
   }
 
-  it("creates session from agent platform route on fresh DB", () => {
+  it("creates session from agent platform route on fresh DB", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -97,7 +97,7 @@ describe("bootstrapMainSession", () => {
       const stub = stubLogger();
 
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: makeConfig() });
+      await bootstrapMainSession({ db, config: makeConfig() });
 
       const store = createSessionStore(db);
       const session = store.getById("agent:main:discord:channel:1234567890123456789");
@@ -113,7 +113,7 @@ describe("bootstrapMainSession", () => {
     }
   });
 
-  it("skips creation when session already exists", () => {
+  it("skips creation when session already exists", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -122,10 +122,10 @@ describe("bootstrapMainSession", () => {
 
       // Bootstrap twice
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: makeConfig() });
+      await bootstrapMainSession({ db, config: makeConfig() });
       stub.logs.length = 0;
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: makeConfig() });
+      await bootstrapMainSession({ db, config: makeConfig() });
 
       const exists = stub.logs.find((l) => l.msg === "bootstrap.agent.session_exists");
       assert.ok(exists, "should log session exists");
@@ -140,7 +140,7 @@ describe("bootstrapMainSession", () => {
     }
   });
 
-  it("warns when DB has sessions but not the expected one", () => {
+  it("warns when DB has sessions but not the expected one", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -158,7 +158,7 @@ describe("bootstrapMainSession", () => {
 
       const stub = stubLogger();
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: makeConfig() });
+      await bootstrapMainSession({ db, config: makeConfig() });
 
       // Session should still be created even if others exist
       const session = store.getById("agent:main:discord:channel:1234567890123456789");
@@ -170,7 +170,7 @@ describe("bootstrapMainSession", () => {
     }
   });
 
-  it("derives platform from agent bindings", () => {
+  it("derives platform from agent bindings", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -178,7 +178,7 @@ describe("bootstrapMainSession", () => {
       const stub = stubLogger();
 
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: makeConfig() });
+      await bootstrapMainSession({ db, config: makeConfig() });
 
       const store = createSessionStore(db);
       // Platform is derived from agent bindings (discord)
@@ -191,7 +191,7 @@ describe("bootstrapMainSession", () => {
     }
   });
 
-  it("warns and skips when agent has no platform bindings", () => {
+  it("warns and skips when agent has no platform bindings", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -204,7 +204,7 @@ describe("bootstrapMainSession", () => {
       });
 
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: cfg });
+      await bootstrapMainSession({ db, config: cfg });
 
       const warn = stub.logs.find((l) => l.msg === "bootstrap.agent.no_platforms");
       assert.ok(warn, "should warn about missing platform bindings");
@@ -216,7 +216,7 @@ describe("bootstrapMainSession", () => {
     }
   });
 
-  it("bootstraps multiple agents from config", () => {
+  it("bootstraps multiple agents from config", async () => {
     setup();
     try {
       const db = new Database(":memory:");
@@ -257,7 +257,7 @@ describe("bootstrapMainSession", () => {
       });
 
       setRootLogger(stub.logger as any);
-      bootstrapMainSession({ db, config: cfg });
+      await bootstrapMainSession({ db, config: cfg });
 
       const store = createSessionStore(db);
       assert.ok(store.getById("agent:main:discord:channel:1111111111111111111"), "main session should exist");

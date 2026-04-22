@@ -837,7 +837,7 @@ export async function handleIntegrationControlOp(
 
       let childId: string;
       try {
-        ({ sessionId: childId } = sessionManager.spawn({
+        ({ sessionId: childId } = await sessionManager.spawn({
           parentSessionId,
           ...(modelSelection !== undefined ? { modelSelection } : {}),
         }));

@@ -434,7 +434,7 @@ describe("systemContext adoption: workflow task spawning", () => {
       update: () => {},
     };
     const sessionManager = {
-      spawn: () => ({
+      spawn: async () => ({
         sessionId: "agent:main:discord:channel:child-1",
         agentToken: "tok",
         agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const,

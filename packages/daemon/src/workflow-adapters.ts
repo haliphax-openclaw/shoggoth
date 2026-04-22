@@ -91,7 +91,7 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
     async spawn(req: SpawnRequest): Promise<string> {
       const parentSessionId = deps.parentSessionId ?? req.replyTo;
 
-      const { sessionId: childId } = deps.sessionManager.spawn({
+      const { sessionId: childId } = await deps.sessionManager.spawn({
         parentSessionId,
         contextLevel: deps.contextLevel ?? "minimal",
       });

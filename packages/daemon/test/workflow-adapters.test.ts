@@ -17,7 +17,7 @@ import {
 
 function fakeSessionManager(overrides: Partial<DaemonSpawnAdapterDeps["sessionManager"]> = {}) {
   return {
-    spawn: overrides.spawn ?? (() => ({
+    spawn: overrides.spawn ?? (async () => ({
       sessionId: "agent:main:discord:channel:abc:child-uuid",
       agentToken: "tok",
       agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const,
@@ -77,7 +77,7 @@ describe("createDaemonSpawnAdapter", () => {
   it("spawns a child session via sessionManager and returns the session id", async () => {
     const spawnCalls: unknown[] = [];
     const sm = fakeSessionManager({
-      spawn: (input: unknown) => {
+      spawn: async (input: unknown) => {
         spawnCalls.push(input);
         return {
           sessionId: "agent:main:discord:channel:abc:child-1",

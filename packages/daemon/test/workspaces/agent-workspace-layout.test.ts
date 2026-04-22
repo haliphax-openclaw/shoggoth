@@ -20,16 +20,18 @@ describe("ensureAgentWorkspaceLayout", () => {
     rmSync(tmpl, { recursive: true, force: true });
   });
 
-  it("creates skills/memory and copies missing template files", () => {
-    ensureAgentWorkspaceLayout(dir, { templateDir: tmpl });
+  it("creates skills/memory and copies missing template files", async () => {
+    const creds = { uid: process.getuid?.() ?? 0, gid: process.getgid?.() ?? 0 };
+    await ensureAgentWorkspaceLayout(dir, creds, { templateDir: tmpl });
     assert.ok(existsSync(join(dir, "skills")));
     assert.ok(existsSync(join(dir, "memory")));
     assert.equal(readFileSync(join(dir, "AGENTS.md"), "utf8"), "from-tpl");
   });
 
-  it("does not overwrite existing workspace markdown", () => {
+  it("does not overwrite existing workspace markdown", async () => {
+    const creds = { uid: process.getuid?.() ?? 0, gid: process.getgid?.() ?? 0 };
     writeFileSync(join(dir, "AGENTS.md"), "original", "utf8");
-    ensureAgentWorkspaceLayout(dir, { templateDir: tmpl });
+    await ensureAgentWorkspaceLayout(dir, creds, { templateDir: tmpl });
     assert.equal(readFileSync(join(dir, "AGENTS.md"), "utf8"), "original");
   });
 });

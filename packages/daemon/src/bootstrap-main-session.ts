@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { mkdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { join } from "node:path";
 import type { ShoggothConfig } from "@shoggoth/shared";
@@ -29,30 +28,30 @@ interface BootstrapMainSessionOptions {
  * Backward-compatible: if no agents are configured, falls back to bootstrapping
  * a single "main" agent using `config.runtime?.agentId`.
  */
-export function bootstrapMainSession(opts: BootstrapMainSessionOptions): void {
+export async function bootstrapMainSession(opts: BootstrapMainSessionOptions): Promise<void> {
   const log = getLogger("bootstrap");
   const { db, config } = opts;
 
   const agentsList = config.agents?.list;
   if (agentsList && Object.keys(agentsList).length > 0) {
     for (const [agentId, agentEntry] of Object.entries(agentsList)) {
-      bootstrapAgent(db, config, agentId, agentEntry, log);
+      await bootstrapAgent(db, config, agentId, agentEntry, log);
     }
   } else {
     // Fallback: single agent from runtime config
     const agentId = config.runtime?.agentId?.trim() || "main";
     const agentEntry = config.agents?.list?.[agentId];
-    bootstrapAgent(db, config, agentId, agentEntry, log);
+    await bootstrapAgent(db, config, agentId, agentEntry, log);
   }
 }
 
-function bootstrapAgent(
+async function bootstrapAgent(
   db: Database.Database,
   config: ShoggothConfig,
   agentId: string,
   agentEntry: Record<string, unknown> | undefined,
   log: ReturnType<typeof getLogger>,
-): void {
+): Promise<void> {
   const platformKeys = agentEntry?.platforms
     ? Object.keys(agentEntry.platforms as Record<string, unknown>)
     : [];
@@ -78,18 +77,7 @@ function bootstrapAgent(
     firstRoute?.sessionId?.trim() ||
     resolveBootstrapPrimarySessionUrn(agentId, platform);
 
-  // Create workspace layout (dirs + template files)
-  ensureAgentWorkspaceLayout(dir);
-
-  const store = createSessionStore(db);
-  const existing = store.getById(id);
-
-  if (existing) {
-    log.debug("bootstrap.agent.session_exists", { sessionId: id, agentId });
-    return;
-  }
-
-  // Resolve agent UID/GID for the session row
+  // Resolve agent UID/GID for the session row (must happen before workspace creation)
   let runtimeUid: number;
   let runtimeGid: number;
   try {
@@ -98,6 +86,17 @@ function bootstrapAgent(
   } catch {
     runtimeUid = 900;
     runtimeGid = 900;
+  }
+
+  // Create workspace layout (dirs + template files) as the agent user
+  await ensureAgentWorkspaceLayout(dir, { uid: runtimeUid, gid: runtimeGid });
+
+  const store = createSessionStore(db);
+  const existing = store.getById(id);
+
+  if (existing) {
+    log.debug("bootstrap.agent.session_exists", { sessionId: id, agentId });
+    return;
   }
 
   store.create({

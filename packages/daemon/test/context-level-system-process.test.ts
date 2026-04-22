@@ -39,7 +39,7 @@ function fakeSessionManager() {
   const spawnCalls: unknown[] = [];
   return {
     spawnCalls,
-    spawn: (input: unknown) => {
+    spawn: async (input: unknown) => {
       spawnCalls.push(input);
       return {
         sessionId: "agent:main:discord:channel:abc:child-1",

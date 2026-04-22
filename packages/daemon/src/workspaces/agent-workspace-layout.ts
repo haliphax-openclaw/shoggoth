@@ -1,4 +1,4 @@
-import { chmodSync, copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { runAsUser } from "@shoggoth/os-exec";
 import { join } from "node:path";
 import { WORKSPACE_TEMPLATE_FILES } from "../sessions/session-system-prompt";
 
@@ -16,34 +16,54 @@ export function resolveAgentTemplateDir(): string {
  * Ensures `skills/` + `memory/` exist and copies any missing template markdown files from the
  * template directory (never overwrites existing workspace files).
  */
-export function ensureAgentWorkspaceLayout(
+export async function ensureAgentWorkspaceLayout(
   workspaceRoot: string,
+  creds: { uid: number; gid: number },
   opts?: { readonly templateDir?: string },
-): void {
+): Promise<void> {
   const root = workspaceRoot.trim();
   if (!root) return;
 
-  const dmode = 0o770;
-  mkdirSync(root, { recursive: true, mode: dmode });
-  mkdirSync(join(root, "skills"), { recursive: true, mode: dmode });
-  mkdirSync(join(root, "memory"), { recursive: true, mode: dmode });
-  mkdirSync(join(root, "tmp"), { recursive: true, mode: dmode });
-
   const srcDir = opts?.templateDir ?? resolveAgentTemplateDir();
-  if (!existsSync(srcDir)) {
-    return;
-  }
+  const templateFiles = WORKSPACE_TEMPLATE_FILES.filter((f) => f !== "BOOTSTRAP.md");
 
-  for (const name of WORKSPACE_TEMPLATE_FILES) {
-    if (name === "BOOTSTRAP.md") continue;
-    const from = join(srcDir, name);
-    const to = join(root, name);
-    if (!existsSync(from) || existsSync(to)) continue;
-    copyFileSync(from, to);
-    try {
-      chmodSync(to, 0o660);
-    } catch {
-      /* non-root / exotic FS: kernel DAC may still allow agent via setgid dirs */
-    }
+  const script = [
+    'const fs = require("fs");',
+    'const path = require("path");',
+    'const root = process.env._WS_ROOT;',
+    'const srcDir = process.env._TEMPLATE_DIR;',
+    'const files = JSON.parse(process.env._TEMPLATE_FILES);',
+    'const dmode = 0o770;',
+    'const fmode = 0o660;',
+    'fs.mkdirSync(root, { recursive: true, mode: dmode });',
+    'fs.mkdirSync(path.join(root, "skills"), { recursive: true, mode: dmode });',
+    'fs.mkdirSync(path.join(root, "memory"), { recursive: true, mode: dmode });',
+    'fs.mkdirSync(path.join(root, "tmp"), { recursive: true, mode: dmode });',
+    'if (fs.existsSync(srcDir)) {',
+    '  for (const name of files) {',
+    '    const from = path.join(srcDir, name);',
+    '    const to = path.join(root, name);',
+    '    if (!fs.existsSync(from) || fs.existsSync(to)) continue;',
+    '    fs.copyFileSync(from, to);',
+    '    try { fs.chmodSync(to, fmode); } catch {}',
+    '  }',
+    '}',
+  ].join("\n");
+
+  const r = await runAsUser({
+    file: process.execPath,
+    args: ["-e", script],
+    cwd: "/tmp",
+    uid: creds.uid,
+    gid: creds.gid,
+    env: {
+      _WS_ROOT: root,
+      _TEMPLATE_DIR: srcDir,
+      _TEMPLATE_FILES: JSON.stringify(templateFiles),
+    },
+  });
+
+  if (r.exitCode !== 0) {
+    throw new Error(r.stderr.trim() || `workspace layout setup failed (exit ${r.exitCode})`);
   }
 }
