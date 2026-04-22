@@ -143,6 +143,9 @@ export function getResilienceGate(): ModelResilienceGate {
 // ── Helpers ────────────────────────────────────────────────────────
 
 function extractErrorInfo(err: unknown): { status: number; code?: string } {
+  if (err instanceof TypeError && err.message.toLowerCase().includes("fetch")) {
+    return { status: 0, code: "FETCH_FAILED" };
+  }
   if (err && typeof err === "object") {
     const obj = err as Record<string, unknown>;
     const status =

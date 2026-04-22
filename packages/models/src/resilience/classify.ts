@@ -8,6 +8,7 @@ const RETRYABLE_NETWORK_CODES = new Set([
   "ECONNRESET",
   "ETIMEDOUT",
   "ECONNREFUSED",
+  "FETCH_FAILED",
 ]);
 
 export function classifyModelError(
