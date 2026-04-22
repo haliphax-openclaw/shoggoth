@@ -20,18 +20,20 @@ Request a configuration change by submitting a fragment. The host decides whethe
 
 ### Parameters
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `fragment` | any | yes | Configuration fragment to apply |
+| Param      | Type | Required | Notes                           |
+| ---------- | ---- | -------- | ------------------------------- |
+| `fragment` | any  | yes      | Configuration fragment to apply |
 
 ### Examples
 
 **Request a model change:**
+
 ```json
 { "fragment": { "model": "claude-sonnet-4-20250514" } }
 ```
 
 **Request a temperature tweak:**
+
 ```json
 { "fragment": { "temperature": 0.5 } }
 ```

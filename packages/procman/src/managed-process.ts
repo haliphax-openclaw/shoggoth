@@ -14,9 +14,14 @@ import type {
 } from "./types.js";
 import { RingBuffer } from "./ring-buffer.js";
 
-function log(level: string, msg: string, fields: Record<string, unknown> = {}): void {
+function log(
+  level: string,
+  msg: string,
+  fields: Record<string, unknown> = {},
+): void {
   process.stderr.write(
-    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) + "\n",
+    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) +
+      "\n",
   );
 }
 
@@ -69,11 +74,21 @@ export class ManagedProcess extends EventEmitter {
 
   // -- Public getters -------------------------------------------------------
 
-  get state(): ProcessState { return this._state; }
-  get pid(): number | undefined { return this._pid; }
-  get restartCount(): number { return this._restartCount; }
-  get lastExitCode(): number | null { return this._lastExitCode; }
-  get lastSignal(): NodeJS.Signals | null { return this._lastSignal; }
+  get state(): ProcessState {
+    return this._state;
+  }
+  get pid(): number | undefined {
+    return this._pid;
+  }
+  get restartCount(): number {
+    return this._restartCount;
+  }
+  get lastExitCode(): number | null {
+    return this._lastExitCode;
+  }
+  get lastSignal(): NodeJS.Signals | null {
+    return this._lastSignal;
+  }
 
   get uptimeMs(): number {
     if (this._startedAt == null) return 0;
@@ -138,7 +153,10 @@ export class ManagedProcess extends EventEmitter {
       try {
         await this._runPreStop(cfg.preStop);
       } catch (err) {
-        log("warn", "preStop command failed", { processId: this.spec.id, error: String(err) });
+        log("warn", "preStop command failed", {
+          processId: this.spec.id,
+          error: String(err),
+        });
       }
     }
 
@@ -147,7 +165,9 @@ export class ManagedProcess extends EventEmitter {
     // Grace period → SIGKILL
     const graceTimer = setTimeout(() => {
       if (this._child && this._child.exitCode === null) {
-        log("warn", "grace period expired, sending SIGKILL", { processId: this.spec.id });
+        log("warn", "grace period expired, sending SIGKILL", {
+          processId: this.spec.id,
+        });
         killPg(this._child!, "SIGKILL");
       }
     }, graceMs);
@@ -217,7 +237,9 @@ export class ManagedProcess extends EventEmitter {
 
     // Pipe stdout/stderr into ring buffers
     child.stdout?.on("data", (chunk: Buffer) => {
-      this._stdoutBuf.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      this._stdoutBuf.write(
+        typeof chunk === "string" ? Buffer.from(chunk) : chunk,
+      );
       this.emit("stdout", chunk);
 
       // stdout-match health check
@@ -235,7 +257,9 @@ export class ManagedProcess extends EventEmitter {
     });
 
     child.stderr?.on("data", (chunk: Buffer) => {
-      this._stderrBuf.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+      this._stderrBuf.write(
+        typeof chunk === "string" ? Buffer.from(chunk) : chunk,
+      );
       this.emit("stderr", chunk);
     });
 
@@ -295,8 +319,7 @@ export class ManagedProcess extends EventEmitter {
     // Decide whether to restart
     const policy = this.spec.restart;
     const shouldRestart =
-      policy.mode === "always" ||
-      (policy.mode === "on-failure" && code !== 0);
+      policy.mode === "always" || (policy.mode === "on-failure" && code !== 0);
 
     const maxRetries = policy.maxRetries ?? 5;
 
@@ -350,7 +373,10 @@ export class ManagedProcess extends EventEmitter {
       try {
         await this.start();
       } catch (err) {
-        log("error", "restart failed", { processId: this.spec.id, error: String(err) });
+        log("error", "restart failed", {
+          processId: this.spec.id,
+          error: String(err),
+        });
         this._setState("failed");
       }
     }, delay);
@@ -379,7 +405,9 @@ export class ManagedProcess extends EventEmitter {
       return new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
           if (this._state === "starting") {
-            log("error", "stdout-match health check timed out", { processId: this.spec.id });
+            log("error", "stdout-match health check timed out", {
+              processId: this.spec.id,
+            });
             this._setState("failed");
             reject(new Error(`stdout-match timeout for ${this.spec.id}`));
           }
@@ -430,7 +458,9 @@ export class ManagedProcess extends EventEmitter {
           maxRetries,
         });
         if (this._healthRetries >= maxRetries) {
-          log("error", "health check retries exhausted", { processId: this.spec.id });
+          log("error", "health check retries exhausted", {
+            processId: this.spec.id,
+          });
           this._setState("failed");
           reject(new Error(`health check failed for ${this.spec.id}`));
           return;
@@ -464,7 +494,11 @@ export class ManagedProcess extends EventEmitter {
     }
   }
 
-  private _probeTcp(port: number, host: string, timeoutMs: number): Promise<boolean> {
+  private _probeTcp(
+    port: number,
+    host: string,
+    timeoutMs: number,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       const sock = net.createConnection({ port, host, timeout: timeoutMs });
       sock.on("connect", () => {
@@ -482,7 +516,11 @@ export class ManagedProcess extends EventEmitter {
     });
   }
 
-  private _probeHttp(url: string, expectedStatus: number, timeoutMs: number): Promise<boolean> {
+  private _probeHttp(
+    url: string,
+    expectedStatus: number,
+    timeoutMs: number,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       const req = http.get(url, { timeout: timeoutMs }, (res) => {
         res.resume(); // drain
@@ -496,7 +534,11 @@ export class ManagedProcess extends EventEmitter {
     });
   }
 
-  private _probeExec(command: string, args: string[], timeoutMs: number): Promise<boolean> {
+  private _probeExec(
+    command: string,
+    args: string[],
+    timeoutMs: number,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       const child = execFile(command, args, { timeout: timeoutMs }, (err) => {
         resolve(!err);
@@ -507,7 +549,11 @@ export class ManagedProcess extends EventEmitter {
 
   // -- Internal: preStop command --------------------------------------------
 
-  private _runPreStop(cfg: { command: string; args?: string[]; timeoutMs?: number }): Promise<void> {
+  private _runPreStop(cfg: {
+    command: string;
+    args?: string[];
+    timeoutMs?: number;
+  }): Promise<void> {
     return new Promise((resolve, reject) => {
       const child = execFile(
         cfg.command,
@@ -525,9 +571,21 @@ export class ManagedProcess extends EventEmitter {
   // -- Internal: timer cleanup ----------------------------------------------
 
   private _clearTimers(): void {
-    if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
-    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
-    if (this._runtimeTimer) { clearTimeout(this._runtimeTimer); this._runtimeTimer = null; }
-    if (this._resetTimer) { clearTimeout(this._resetTimer); this._resetTimer = null; }
+    if (this._healthTimer) {
+      clearTimeout(this._healthTimer);
+      this._healthTimer = null;
+    }
+    if (this._restartTimer) {
+      clearTimeout(this._restartTimer);
+      this._restartTimer = null;
+    }
+    if (this._runtimeTimer) {
+      clearTimeout(this._runtimeTimer);
+      this._runtimeTimer = null;
+    }
+    if (this._resetTimer) {
+      clearTimeout(this._resetTimer);
+      this._resetTimer = null;
+    }
   }
 }

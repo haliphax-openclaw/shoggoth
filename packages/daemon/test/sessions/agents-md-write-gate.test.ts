@@ -6,7 +6,10 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import { BuiltinToolRegistry, type BuiltinToolContext } from "../../src/sessions/builtin-tool-registry";
+import {
+  BuiltinToolRegistry,
+  type BuiltinToolContext,
+} from "../../src/sessions/builtin-tool-registry";
 import { register as registerFs } from "../../src/sessions/builtin-handlers/fs-handlers";
 import { register as registerSearchReplace } from "../../src/sessions/builtin-handlers/search-replace-handler";
 
@@ -18,10 +21,15 @@ function openMigratedDb(): { db: Database.Database; dir: string } {
   return { db, dir };
 }
 
-function makeCtx(db: Database.Database, workspacePath: string, workingDirectory?: string): BuiltinToolContext {
+function makeCtx(
+  db: Database.Database,
+  workspacePath: string,
+  workingDirectory?: string,
+): BuiltinToolContext {
   return {
     sessionId: "s1",
     db,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: process.env,
     workspacePath,
@@ -31,6 +39,7 @@ function makeCtx(db: Database.Database, workspacePath: string, workingDirectory?
     getAgentIntegrationInvoker: () => undefined,
     getProcessManager: () => undefined,
     messageToolCtx: undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     memoryConfig: { paths: [], embeddings: { enabled: false } } as any,
     runtimeOpenaiBaseUrl: undefined,
     isSubagentSession: false,
@@ -64,7 +73,11 @@ describe("write handler AGENTS.md gate", () => {
     registerFs(registry);
 
     const ctx = makeCtx(db, wsPath, sub);
-    const result = await registry.execute("write", { path: "foo.txt", content: "hello" }, ctx);
+    const result = await registry.execute(
+      "write",
+      { path: "foo.txt", content: "hello" },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.strictEqual(json.gated, true);
   });
@@ -81,7 +94,11 @@ describe("write handler AGENTS.md gate", () => {
     // First call — gated
     await registry.execute("write", { path: "foo.txt", content: "hello" }, ctx);
     // Second call — should proceed
-    const result = await registry.execute("write", { path: "foo.txt", content: "hello" }, ctx);
+    const result = await registry.execute(
+      "write",
+      { path: "foo.txt", content: "hello" },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.strictEqual(json.ok, true);
   });
@@ -115,12 +132,16 @@ describe("search-replace handler AGENTS.md gate", () => {
     registerSearchReplace(registry);
 
     const ctx = makeCtx(db, wsPath, sub);
-    const result = await registry.execute("search-replace", {
-      action: "replace",
-      file: "target.txt",
-      match: "old",
-      replacement: "new",
-    }, ctx);
+    const result = await registry.execute(
+      "search-replace",
+      {
+        action: "replace",
+        file: "target.txt",
+        match: "old",
+        replacement: "new",
+      },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.strictEqual(json.gated, true);
   });
@@ -135,10 +156,14 @@ describe("search-replace handler AGENTS.md gate", () => {
     registerSearchReplace(registry);
 
     const ctx = makeCtx(db, wsPath, sub);
-    const result = await registry.execute("search-replace", {
-      action: "search",
-      pattern: "some",
-    }, ctx);
+    const result = await registry.execute(
+      "search-replace",
+      {
+        action: "search",
+        pattern: "some",
+      },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     // Should not be gated — search is read-only
     assert.ok(!json.gated);

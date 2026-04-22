@@ -4,46 +4,47 @@ Orchestrate multi-task workflows with dependency graphs. Supports agent, tool, g
 
 ## Top-Level Parameters
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | string | yes | One of: `start`, `abort`, `pause`, `resume`, `status`, `list`, `post`, `edit`, `retry`, `retention` |
-| `workflow_id` | string | per-action | Required for: `abort`, `pause`, `resume`, `status`, `post`, `edit`, `retry` |
-| `name` | string | no | Workflow name (default: `"unnamed-workflow"`) |
-| `tasks` | array | start | Array of task objects (see below) |
-| `graph` | string | start | Dependency graph — task id → dependency ids |
-| `reply_to` | string | start | Session id to receive completion |
-| `polling_interval_ms` | number | no | Poll interval (default: 10000) |
-| `runtime_limit_ms` | number | no | Max workflow runtime (default: 600000) |
-| `concurrency` | number | no | Max concurrent tasks |
-| `task_id` | number | edit/retry | Target task id |
-| `prompt` | string | no | New prompt (edit action) |
-| `failure_behavior` | string | no | `"abort"`, `"pause"`, or `"continue"` (edit action) |
-| `failure_notification` | string/object | no | `"silent"`, `{ "kind": "notify-parent" }`, or `{ "kind": "notify-target", "target_id": "..." }` |
-| `cascade` | boolean | no | Retry downstream tasks too (retry action) |
-| `agent_chain_id` | string | no | Filter by agent chain (list action) |
+| Param                  | Type          | Required   | Notes                                                                                               |
+| ---------------------- | ------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| `action`               | string        | yes        | One of: `start`, `abort`, `pause`, `resume`, `status`, `list`, `post`, `edit`, `retry`, `retention` |
+| `workflow_id`          | string        | per-action | Required for: `abort`, `pause`, `resume`, `status`, `post`, `edit`, `retry`                         |
+| `name`                 | string        | no         | Workflow name (default: `"unnamed-workflow"`)                                                       |
+| `tasks`                | array         | start      | Array of task objects (see below)                                                                   |
+| `graph`                | string        | start      | Dependency graph — task id → dependency ids                                                         |
+| `reply_to`             | string        | start      | Session id to receive completion                                                                    |
+| `polling_interval_ms`  | number        | no         | Poll interval (default: 10000)                                                                      |
+| `runtime_limit_ms`     | number        | no         | Max workflow runtime (default: 600000)                                                              |
+| `concurrency`          | number        | no         | Max concurrent tasks                                                                                |
+| `task_id`              | number        | edit/retry | Target task id                                                                                      |
+| `prompt`               | string        | no         | New prompt (edit action)                                                                            |
+| `failure_behavior`     | string        | no         | `"abort"`, `"pause"`, or `"continue"` (edit action)                                                 |
+| `failure_notification` | string/object | no         | `"silent"`, `{ "kind": "notify-parent" }`, or `{ "kind": "notify-target", "target_id": "..." }`     |
+| `cascade`              | boolean       | no         | Retry downstream tasks too (retry action)                                                           |
+| `agent_chain_id`       | string        | no         | Filter by agent chain (list action)                                                                 |
 
 ## Task Object
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `id` | number | yes | Unique task id (referenced in graph) |
-| `kind` | string | no | `"agent"` (default), `"tool"`, `"gate"`, `"transform"`, `"message"` |
-| `title` | string | no | Display title (max 60 chars) |
-| `prompt` | string | agent | Required for agent tasks |
-| `tool` | string | tool | Required for tool tasks |
-| `args` | object | tool | Required for tool tasks |
-| `condition` | string | gate | Required for gate tasks |
-| `template` | string | transform | Required for transform tasks |
-| `message` | string | message | Required for message tasks |
-| `channel` | string | no | Channel for message tasks |
-| `output_template` | string | no | Template applied to task output |
-| `failure_behavior` | string | no | `"abort"`, `"pause"`, or `"continue"` (default: `"continue"`) |
-| `failure_notification` | string/object | no | Same as top-level |
-| `runtime_limit_ms` | number | no | Per-task timeout |
+| Param                  | Type          | Required  | Notes                                                               |
+| ---------------------- | ------------- | --------- | ------------------------------------------------------------------- |
+| `id`                   | number        | yes       | Unique task id (referenced in graph)                                |
+| `kind`                 | string        | no        | `"agent"` (default), `"tool"`, `"gate"`, `"transform"`, `"message"` |
+| `title`                | string        | no        | Display title (max 60 chars)                                        |
+| `prompt`               | string        | agent     | Required for agent tasks                                            |
+| `tool`                 | string        | tool      | Required for tool tasks                                             |
+| `args`                 | object        | tool      | Required for tool tasks                                             |
+| `condition`            | string        | gate      | Required for gate tasks                                             |
+| `template`             | string        | transform | Required for transform tasks                                        |
+| `message`              | string        | message   | Required for message tasks                                          |
+| `channel`              | string        | no        | Channel for message tasks                                           |
+| `output_template`      | string        | no        | Template applied to task output                                     |
+| `failure_behavior`     | string        | no        | `"abort"`, `"pause"`, or `"continue"` (default: `"continue"`)       |
+| `failure_notification` | string/object | no        | Same as top-level                                                   |
+| `runtime_limit_ms`     | number        | no        | Per-task timeout                                                    |
 
 ## Examples
 
 **Start a two-task workflow (task 2 depends on task 1):**
+
 ```json
 {
   "action": "start",
@@ -58,42 +59,56 @@ Orchestrate multi-task workflows with dependency graphs. Supports agent, tool, g
 ```
 
 **Check workflow status:**
+
 ```json
 { "action": "status", "workflow_id": "wf-123" }
 ```
 
 **Pause / resume / abort:**
+
 ```json
 { "action": "pause", "workflow_id": "wf-123" }
 ```
+
 ```json
 { "action": "resume", "workflow_id": "wf-123" }
 ```
+
 ```json
 { "action": "abort", "workflow_id": "wf-123" }
 ```
 
 **List workflows:**
+
 ```json
 { "action": "list" }
 ```
 
 **Edit a paused task's prompt:**
+
 ```json
-{ "action": "edit", "workflow_id": "wf-123", "task_id": 2, "prompt": "Run tests with coverage" }
+{
+  "action": "edit",
+  "workflow_id": "wf-123",
+  "task_id": 2,
+  "prompt": "Run tests with coverage"
+}
 ```
 
 **Retry a failed task (with cascade):**
+
 ```json
 { "action": "retry", "workflow_id": "wf-123", "task_id": 1, "cascade": true }
 ```
 
 **Post workflow results:**
+
 ```json
 { "action": "post", "workflow_id": "wf-123" }
 ```
 
 **Run retention cleanup:**
+
 ```json
 { "action": "retention" }
 ```

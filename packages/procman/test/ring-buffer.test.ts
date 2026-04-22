@@ -38,7 +38,7 @@ describe("RingBuffer", () => {
   it("handles wrap-around correctly", () => {
     const rb = new RingBuffer(8);
     rb.write(Buffer.from("ABCDEF")); // 6 bytes, head at 6
-    rb.write(Buffer.from("GHIJ"));   // wraps: GH at [6,7], IJ at [0,1]
+    rb.write(Buffer.from("GHIJ")); // wraps: GH at [6,7], IJ at [0,1]
     assert.equal(rb.readString(), "CDEFGHIJ");
   });
 

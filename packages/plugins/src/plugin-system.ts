@@ -7,7 +7,6 @@ import {
   SyncHook,
   AsyncHook,
   SyncWaterfallHook,
-  AsyncParallelHook,
   AsyncWaterfallHook,
 } from "hooks-plugin";
 
@@ -73,7 +72,11 @@ export function freezeConfig<T>(obj: T): T {
   Object.freeze(obj);
   if (obj !== null && typeof obj === "object") {
     for (const value of Object.values(obj as Record<string, unknown>)) {
-      if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        !Object.isFrozen(value)
+      ) {
         freezeConfig(value);
       }
     }

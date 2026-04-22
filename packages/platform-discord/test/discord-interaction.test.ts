@@ -36,13 +36,21 @@ describe("discordInteractionToCommand", () => {
       userId: "user-1",
       data: {
         name: "abort",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     };
     const result = discordInteractionToCommand(ev);
     assert.ok(result);
     assert.strictEqual(result.command.name, "abort");
-    assert.deepStrictEqual(result.command.options, { session_id: "agent:main:discord:channel:abc" });
+    assert.deepStrictEqual(result.command.options, {
+      session_id: "agent:main:discord:channel:abc",
+    });
   });
 
   it("returns null for non-APPLICATION_COMMAND interactions", () => {
@@ -66,6 +74,7 @@ describe("discordInteractionToCommand", () => {
       type: 2,
       channelId: "ch-1",
       userId: "user-1",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: {} as any,
     };
     assert.strictEqual(discordInteractionToCommand(ev), null);

@@ -5,7 +5,10 @@ import { describe, test, expect } from "vitest";
 import { fileURLToPath } from "node:url";
 import type { ShoggothConfig } from "@shoggoth/shared";
 import { ShoggothPluginSystem } from "../src/plugin-system";
-import { loadAllPluginsFromConfig, resolveLocalPluginPath } from "../src/load-plugins-from-config";
+import {
+  loadAllPluginsFromConfig,
+  resolveLocalPluginPath,
+} from "../src/load-plugins-from-config";
 
 describe("resolveLocalPluginPath", () => {
   test("returns absolute paths unchanged", () => {
@@ -53,7 +56,10 @@ describe("loadAllPluginsFromConfig", () => {
     const cfgDir = mkdtempSync(join(tmpdir(), "sh-cfg-"));
     const config = {
       configDirectory: cfgDir,
-      plugins: [{ id: "a", path: bad }, { id: "b", path: good }],
+      plugins: [
+        { id: "a", path: bad },
+        { id: "b", path: good },
+      ],
     } as Pick<ShoggothConfig, "plugins" | "configDirectory">;
 
     const audits: { outcome: string; resource: string }[] = [];

@@ -19,7 +19,9 @@ function openTestDb(): Database.Database {
   const db = new Database(join(TMP, "test.db"));
   migrate(db, defaultMigrationsDir());
   // Seed a session row so FK constraint is satisfied
-  db.prepare("INSERT OR IGNORE INTO sessions (id, context_segment_id, workspace_path, status) VALUES (?, ?, ?, ?)").run("sess", "seg-1", "/tmp/test", "active");
+  db.prepare(
+    "INSERT OR IGNORE INTO sessions (id, context_segment_id, workspace_path, status) VALUES (?, ?, ?, ?)",
+  ).run("sess", "seg-1", "/tmp/test", "active");
   return db;
 }
 
@@ -47,8 +49,16 @@ describe("session-stats-store", () => {
     resetSegmentStats(db, "sess");
 
     const after = getSessionStats(db, "sess");
-    assert.equal(after?.compactionCount, 0, "compaction_count should be 0 after reset");
-    assert.equal(after?.lastCompactedAt, null, "last_compacted_at should be null after reset");
+    assert.equal(
+      after?.compactionCount,
+      0,
+      "compaction_count should be 0 after reset",
+    );
+    assert.equal(
+      after?.lastCompactedAt,
+      null,
+      "last_compacted_at should be null after reset",
+    );
   });
 
   it("resetSegmentStats resets turn_count and token counters", () => {

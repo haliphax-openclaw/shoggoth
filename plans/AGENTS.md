@@ -24,8 +24,8 @@ Every plan README must include YAML frontmatter:
 
 ```yaml
 ---
-date: 2026-04-15        # Date the plan was created (YYYY-MM-DD)
-completed: never        # Date completed (YYYY-MM-DD), or "never"
+date: 2026-04-15 # Date the plan was created (YYYY-MM-DD)
+completed: never # Date completed (YYYY-MM-DD), or "never"
 ---
 ```
 

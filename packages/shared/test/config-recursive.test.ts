@@ -85,7 +85,10 @@ describe("loadLayeredConfig recursive", () => {
       mkdirSync(join(TMP, "dynamic"), { recursive: true });
       writeFileSync(join(TMP, "base", "README.md"), "# not json");
       writeFileSync(join(TMP, "base", ".main.json.swp"), "vim swap garbage");
-      writeFileSync(join(TMP, "dynamic", ".override.json.swp"), "vim swap garbage");
+      writeFileSync(
+        join(TMP, "dynamic", ".override.json.swp"),
+        "vim swap garbage",
+      );
       writeFileSync(
         join(TMP, "base", "00-main.json"),
         JSON.stringify({ logLevel: "info" }),
@@ -111,7 +114,9 @@ describe("loadLayeredConfig recursive", () => {
 
       assert.throws(
         () => loadLayeredConfig(TMP),
-        (err: Error) => err.message.includes("Invalid JSON") && err.message.includes("01-bad.json"),
+        (err: Error) =>
+          err.message.includes("Invalid JSON") &&
+          err.message.includes("01-bad.json"),
       );
     } finally {
       teardown();

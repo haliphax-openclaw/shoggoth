@@ -25,8 +25,16 @@ describe("buildWorkflowToolDescriptor", () => {
     const props = schema.properties as Record<string, { enum?: string[] }>;
     const actions = props.action.enum!;
     assert.deepEqual(actions, [
-      "start", "abort", "pause", "resume", "status",
-      "list", "post", "edit", "retry", "retention",
+      "start",
+      "abort",
+      "pause",
+      "resume",
+      "status",
+      "list",
+      "post",
+      "edit",
+      "retry",
+      "retention",
     ]);
   });
 

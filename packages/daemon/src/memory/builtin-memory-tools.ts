@@ -41,15 +41,10 @@ export function resolveMemoryScanRoots(
   return out;
 }
 
-function trimHit(hit: MemoryHit) {
-  const body =
-    hit.body.length > MAX_BODY_CHARS
-      ? `${hit.body.slice(0, MAX_BODY_CHARS - 1)}…`
-      : hit.body;
-  return { id: hit.id, sourcePath: hit.sourcePath, title: hit.title, body };
-}
-
-function sourcePathUnderMemoryRoots(sourcePath: string, roots: string[]): boolean {
+function sourcePathUnderMemoryRoots(
+  sourcePath: string,
+  roots: string[],
+): boolean {
   for (const r of roots) {
     const root = r.endsWith("/") ? r.slice(0, -1) : r;
     if (sourcePath === root) return true;
@@ -67,26 +62,40 @@ async function syncMemoryEmbeddingsAfterIngest(input: {
   readonly fetchImpl?: FetchLike;
   readonly runtimeOpenaiBaseUrl?: string | undefined;
 }): Promise<void> {
-  const { db, absoluteRoots, memory, env, fetchImpl, runtimeOpenaiBaseUrl } = input;
+  const { db, absoluteRoots, memory, env, fetchImpl, runtimeOpenaiBaseUrl } =
+    input;
   if (!memory.embeddings.enabled || absoluteRoots.length === 0) return;
 
   const modelId = resolveMemoryEmbeddingModelId(memory);
   const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
-  const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
+  const baseUrl = resolveMemoryEmbeddingBaseUrl(
+    env,
+    memory,
+    runtimeOpenaiBaseUrl,
+  );
 
   const all = db
     .prepare(
       `SELECT id, source_path AS sourcePath, body, content_sha256 AS contentSha256 FROM memory_documents`,
     )
-    .all() as { id: number; sourcePath: string; body: string; contentSha256: string }[];
+    .all() as {
+    id: number;
+    sourcePath: string;
+    body: string;
+    contentSha256: string;
+  }[];
 
-  const docs = all.filter((d) => sourcePathUnderMemoryRoots(d.sourcePath, absoluteRoots));
+  const docs = all.filter((d) =>
+    sourcePathUnderMemoryRoots(d.sourcePath, absoluteRoots),
+  );
   const selectEmbSha = db.prepare(
     `SELECT content_sha256 AS h FROM memory_embeddings WHERE document_id = @id AND model_id = @model`,
   );
 
   for (const d of docs) {
-    const row = selectEmbSha.get({ id: d.id, model: modelId }) as { h: string | null } | undefined;
+    const row = selectEmbSha.get({ id: d.id, model: modelId }) as
+      | { h: string | null }
+      | undefined;
     const prev = row?.h ?? null;
     if (prev !== null && prev === d.contentSha256) continue;
 
@@ -144,7 +153,9 @@ export async function runMemoryBuiltin(input: {
       .map((p) => String(p).trim())
       .filter((p) => p.length > 0);
 
-    const rawExclude = Array.isArray(args.exclude) ? (args.exclude as unknown[]) : [];
+    const rawExclude = Array.isArray(args.exclude)
+      ? (args.exclude as unknown[])
+      : [];
     const excludePaths = rawExclude
       .map((p) => String(p).trim())
       .filter((p) => p.length > 0);
@@ -154,9 +165,10 @@ export async function runMemoryBuiltin(input: {
         ? { paths: includePaths, exclude: excludePaths }
         : undefined;
 
-    const result = roots.length === 0
-      ? { changed: 0, files: [] }
-      : ingestMemoryRoots(db, roots, ingestOpts);
+    const result =
+      roots.length === 0
+        ? { changed: 0, files: [] }
+        : ingestMemoryRoots(db, roots, ingestOpts);
 
     await syncMemoryEmbeddingsAfterIngest({
       db,
@@ -174,7 +186,8 @@ export async function runMemoryBuiltin(input: {
     };
 
     if (roots.length === 0) {
-      response.message = "no configured memory paths exist on disk for this session";
+      response.message =
+        "no configured memory paths exist on disk for this session";
     }
 
     if (report) {
@@ -193,13 +206,18 @@ export async function runMemoryBuiltin(input: {
       return {
         resultJson: JSON.stringify({
           hits: [],
-          message: "memory.paths is empty in server config; operators must configure markdown roots",
+          message:
+            "memory.paths is empty in server config; operators must configure markdown roots",
         }),
       };
     }
     const query = String(args.query ?? "").trim();
     if (!query) {
-      return { resultJson: JSON.stringify({ error: "memory-search requires non-empty query" }) };
+      return {
+        resultJson: JSON.stringify({
+          error: "memory-search requires non-empty query",
+        }),
+      };
     }
     const rawLimit = args.limit;
     let limit = DEFAULT_LIMIT;
@@ -226,28 +244,44 @@ export async function runMemoryBuiltin(input: {
     if (typeof args.after === "string" && args.after.trim()) {
       const parsed = Date.parse(args.after.trim());
       if (Number.isNaN(parsed)) {
-        return { resultJson: JSON.stringify({ error: "invalid ISO 8601 date for 'after'" }) };
+        return {
+          resultJson: JSON.stringify({
+            error: "invalid ISO 8601 date for 'after'",
+          }),
+        };
       }
       afterMs = parsed;
     }
     if (typeof args.before === "string" && args.before.trim()) {
       const parsed = Date.parse(args.before.trim());
       if (Number.isNaN(parsed)) {
-        return { resultJson: JSON.stringify({ error: "invalid ISO 8601 date for 'before'" }) };
+        return {
+          resultJson: JSON.stringify({
+            error: "invalid ISO 8601 date for 'before'",
+          }),
+        };
       }
       beforeMs = parsed;
     }
     if (afterMs != null && beforeMs != null && afterMs >= beforeMs) {
       return {
-        resultJson: JSON.stringify({ error: "'after' must be earlier than 'before'" }),
+        resultJson: JSON.stringify({
+          error: "'after' must be earlier than 'before'",
+        }),
       };
     }
 
     // Snippet options.
     const snippetMode = args.snippet === true;
     let snippetChars = DEFAULT_SNIPPET_CHARS;
-    if (typeof args.snippet_chars === "number" && Number.isFinite(args.snippet_chars)) {
-      snippetChars = Math.min(MAX_SNIPPET_CHARS, Math.max(20, Math.floor(args.snippet_chars)));
+    if (
+      typeof args.snippet_chars === "number" &&
+      Number.isFinite(args.snippet_chars)
+    ) {
+      snippetChars = Math.min(
+        MAX_SNIPPET_CHARS,
+        Math.max(20, Math.floor(args.snippet_chars)),
+      );
     }
     const highlightTag =
       typeof args.highlight_tag === "string" ? args.highlight_tag : "**";
@@ -266,7 +300,11 @@ export async function runMemoryBuiltin(input: {
     if (memory.embeddings.enabled) {
       try {
         const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
-        const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
+        const baseUrl = resolveMemoryEmbeddingBaseUrl(
+          env,
+          memory,
+          runtimeOpenaiBaseUrl,
+        );
         queryEmbedding = await fetchOpenAiCompatibleTextEmbedding({
           baseUrl,
           apiKey,
@@ -329,5 +367,9 @@ export async function runMemoryBuiltin(input: {
     };
   }
 
-  return { resultJson: JSON.stringify({ error: `unknown memory builtin: ${originalName}` }) };
+  return {
+    resultJson: JSON.stringify({
+      error: `unknown memory builtin: ${originalName}`,
+    }),
+  };
 }

@@ -83,10 +83,12 @@ export function searchSkills(
   } = params;
 
   const normalizedQuery = query?.trim().toLowerCase() ?? null;
-  const normalizedTags = tags.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0);
+  const normalizedTags = tags
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0);
   const normalizedCategory = category?.trim().toLowerCase() ?? null;
 
-  let results: SkillSearchResult[] = [];
+  const results: SkillSearchResult[] = [];
 
   for (const skill of skills) {
     // --- Tag filter (AND logic) ---

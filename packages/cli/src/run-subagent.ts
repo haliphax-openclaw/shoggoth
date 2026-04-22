@@ -18,7 +18,10 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
-function resolveSessionTargetOrExit(configDir: string, raw: string): string | null {
+function resolveSessionTargetOrExit(
+  configDir: string,
+  raw: string,
+): string | null {
   const config = loadLayeredConfig(configDir);
   try {
     return resolveSessionTargetFromCliArg(raw, config);
@@ -41,11 +44,15 @@ function parseSubagentSpawnArgv(args: string[]): {
     const a = args[i]!;
     if (a === "--model-options") {
       const raw = args[++i];
-      if (raw === undefined) return { positional: [], error: "missing value for --model-options" };
+      if (raw === undefined)
+        return { positional: [], error: "missing value for --model-options" };
       try {
         const parsed = JSON.parse(raw) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          return { positional: [], error: "--model-options must be a JSON object" };
+          return {
+            positional: [],
+            error: "--model-options must be a JSON object",
+          };
         }
         modelOptions = parsed as Record<string, unknown>;
       } catch {
@@ -55,11 +62,15 @@ function parseSubagentSpawnArgv(args: string[]): {
     }
     if (a.startsWith("--model-options=")) {
       const raw = a.slice("--model-options=".length);
-      if (raw === "") return { positional: [], error: "empty value for --model-options=" };
+      if (raw === "")
+        return { positional: [], error: "empty value for --model-options=" };
       try {
         const parsed = JSON.parse(raw) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          return { positional: [], error: "--model-options must be a JSON object" };
+          return {
+            positional: [],
+            error: "--model-options must be a JSON object",
+          };
         }
         modelOptions = parsed as Record<string, unknown>;
       } catch {
@@ -106,7 +117,9 @@ export async function runSubagentCli(argv: string[]): Promise<void> {
 
   const sub = argv[0];
   if (sub === "spawn") {
-    const { positional, modelOptions, error } = parseSubagentSpawnArgv(argv.slice(1));
+    const { positional, modelOptions, error } = parseSubagentSpawnArgv(
+      argv.slice(1),
+    );
     if (error) {
       console.error(error);
       process.exitCode = 1;
@@ -132,7 +145,11 @@ export async function runSubagentCli(argv: string[]): Promise<void> {
         process.exitCode = 1;
         return;
       }
-      payload = { parent_session_id: parentSessionId, prompt, mode: "one_shot" };
+      payload = {
+        parent_session_id: parentSessionId,
+        prompt,
+        mode: "one_shot",
+      };
     } else {
       // persistent mode: threadId is optional; if the next positional looks like a numeric platform id, treat it as threadId
       const maybeThreadId = positional[2]?.trim();
@@ -154,7 +171,9 @@ export async function runSubagentCli(argv: string[]): Promise<void> {
         return;
       }
       const lifetimeRaw = process.env.SHOGGOTH_SUBAGENT_LIFETIME_MS?.trim();
-      const lifetimeMs = lifetimeRaw ? Number.parseInt(lifetimeRaw, 10) : undefined;
+      const lifetimeMs = lifetimeRaw
+        ? Number.parseInt(lifetimeRaw, 10)
+        : undefined;
       payload = {
         parent_session_id: parentSessionId,
         prompt,
@@ -163,7 +182,11 @@ export async function runSubagentCli(argv: string[]): Promise<void> {
       if (threadId) {
         payload.platform_thread_id = threadId;
       }
-      if (lifetimeMs !== undefined && Number.isFinite(lifetimeMs) && lifetimeMs > 0) {
+      if (
+        lifetimeMs !== undefined &&
+        Number.isFinite(lifetimeMs) &&
+        lifetimeMs > 0
+      ) {
         payload.lifetime_ms = lifetimeMs;
       }
     }

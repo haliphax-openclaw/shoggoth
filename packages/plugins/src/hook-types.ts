@@ -13,7 +13,11 @@ import type {
   MessageToolContext,
   PlatformAdapter,
 } from "@shoggoth/shared";
-import type { PlatformRegistration, PlatformRuntime, InternalMessage } from "@shoggoth/messaging";
+import type {
+  PlatformRegistration,
+  PlatformRuntime,
+  InternalMessage,
+} from "@shoggoth/messaging";
 import type { PlatformDeliveryRegistry } from "./platform-delivery-registry";
 
 // -------------------------------------------------------------------------------
@@ -30,7 +34,10 @@ export interface DaemonStartupCtx {
   readonly db: unknown;
   readonly config: Readonly<ShoggothConfig>;
   readonly configRef: { readonly current: ShoggothConfig };
-  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
+  readonly registerDrain: (
+    name: string,
+    fn: () => void | Promise<void>,
+  ) => void;
 }
 
 export interface DaemonReadyCtx {
@@ -49,7 +56,10 @@ export interface DaemonShutdownCtx {
 export interface PlatformRegisterCtx {
   readonly config: Readonly<ShoggothConfig>;
   readonly registerPlatform: (reg: PlatformRegistration) => void;
-  readonly setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
+  readonly setPlatformRuntime: (
+    platformId: string,
+    runtime: PlatformRuntime,
+  ) => void;
 }
 
 /**
@@ -65,7 +75,10 @@ export interface PlatformDeps {
   /** Default platform assistant dependencies (opaque to the plugin system). */
   readonly platformAssistantDeps: unknown;
   readonly abortSession: (sessionId: string) => Promise<void>;
-  readonly invokeControlOp: (op: string, payload: unknown) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
+  readonly invokeControlOp: (
+    op: string,
+    payload: unknown,
+  ) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
   readonly registerPlatform: (platformId: string, handle: unknown) => void;
   readonly stopAllPlatforms: () => Promise<void>;
   readonly reconcilePersistentSubagents: (input: {
@@ -73,7 +86,10 @@ export interface PlatformDeps {
     readonly config: ShoggothConfig;
     readonly ext: unknown;
   }) => { restored: number; expiredKilled: number };
-  readonly noticeResolver: (key: string, params?: Record<string, unknown>) => string;
+  readonly noticeResolver: (
+    key: string,
+    params?: Record<string, unknown>,
+  ) => string;
 }
 
 export interface PlatformStartCtx {
@@ -83,8 +99,13 @@ export interface PlatformStartCtx {
   readonly env: NodeJS.ProcessEnv;
   readonly deps: PlatformDeps;
   readonly deliveryRegistry: PlatformDeliveryRegistry;
-  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
-  readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension | undefined) => void;
+  readonly registerDrain: (
+    name: string,
+    fn: () => void | Promise<void>,
+  ) => void;
+  readonly setSubagentRuntimeExtension: (
+    ext: SubagentRuntimeExtension | undefined,
+  ) => void;
   readonly setMessageToolContext: (ctx: MessageToolContext) => void;
   readonly setPlatformAdapter: (adapter: PlatformAdapter) => void;
 }

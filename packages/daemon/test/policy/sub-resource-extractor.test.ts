@@ -12,7 +12,9 @@ describe("execSubResourceExtractor", () => {
 
   it("extracts basename from absolute path", () => {
     assert.strictEqual(
-      execSubResourceExtractor({ command: "/usr/bin/curl https://example.com" }),
+      execSubResourceExtractor({
+        command: "/usr/bin/curl https://example.com",
+      }),
       "curl",
     );
   });
@@ -25,10 +27,7 @@ describe("execSubResourceExtractor", () => {
   });
 
   it("returns 'unknown' for empty command", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({ command: "" }),
-      "unknown",
-    );
+    assert.strictEqual(execSubResourceExtractor({ command: "" }), "unknown");
   });
 
   it("handles leading/trailing whitespace", () => {
@@ -39,17 +38,11 @@ describe("execSubResourceExtractor", () => {
   });
 
   it("returns 'unknown' for undefined command", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({}),
-      "unknown",
-    );
+    assert.strictEqual(execSubResourceExtractor({}), "unknown");
   });
 
   it("handles command with only whitespace", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({ command: "   " }),
-      "unknown",
-    );
+    assert.strictEqual(execSubResourceExtractor({ command: "   " }), "unknown");
   });
 
   it("extracts basename from relative path", () => {

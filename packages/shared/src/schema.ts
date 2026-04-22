@@ -26,7 +26,9 @@ export const contextLevelToolOverrideSchema = z
   })
   .strict();
 
-export type ContextLevelToolOverride = z.infer<typeof contextLevelToolOverrideSchema>;
+export type ContextLevelToolOverride = z.infer<
+  typeof contextLevelToolOverrideSchema
+>;
 
 export const contextLevelToolsConfigSchema = z
   .object({
@@ -106,7 +108,10 @@ const shoggothModelProviderEntrySchema = z.discriminatedUnion("kind", [
   shoggothGeminiProviderSchema,
 ]);
 
-type ShoggothModelProviderEntry = z.infer<typeof shoggothModelProviderEntrySchema>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothModelProviderEntry = z.infer<
+  typeof shoggothModelProviderEntrySchema
+>;
 
 const shoggothModelThinkingSchema = z
   .object({
@@ -131,14 +136,19 @@ export const shoggothModelFailoverHopSchema = z
     model: z.string().min(1),
     contextWindowTokens: z.number().int().positive().optional(),
     thinkingFormat: z.enum(["native", "xml-tags", "none"]).optional(),
-    capabilities: z.object({
-      imageInput: z.boolean().optional(),
-      thinkingFormat: z.enum(["native", "xml-tags", "none"]).optional(),
-    }).strict().optional(),
+    capabilities: z
+      .object({
+        imageInput: z.boolean().optional(),
+        thinkingFormat: z.enum(["native", "xml-tags", "none"]).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
-export type ShoggothModelFailoverHop = z.infer<typeof shoggothModelFailoverHopSchema>;
+export type ShoggothModelFailoverHop = z.infer<
+  typeof shoggothModelFailoverHopSchema
+>;
 
 /** Simplified failover chain entry: string ref like 'providerId/model'. */
 export const failoverChainEntrySchema = z.string().min(1);
@@ -170,9 +180,12 @@ export const shoggothModelsCompactionSchema = z
   })
   .strict();
 
-export type ShoggothModelsCompaction = z.infer<typeof shoggothModelsCompactionSchema>;
+export type ShoggothModelsCompaction = z.infer<
+  typeof shoggothModelsCompactionSchema
+>;
 
-const shoggothModelsCompactionPartialSchema = shoggothModelsCompactionSchema.partial();
+const shoggothModelsCompactionPartialSchema =
+  shoggothModelsCompactionSchema.partial();
 
 /** Per-agent model stack / invocation / compaction overrides (merged with global `models`). */
 export const shoggothAgentModelsOverrideSchema = z
@@ -183,11 +196,21 @@ export const shoggothAgentModelsOverrideSchema = z
     compaction: shoggothModelsCompactionPartialSchema.optional(),
   })
   .strict()
-  .refine((v) => !(v.primary != null && v.failoverChain != null && v.failoverChain.length > 0), {
-    message: "agent models: set only one of primary or failoverChain",
-  });
+  .refine(
+    (v) =>
+      !(
+        v.primary != null &&
+        v.failoverChain != null &&
+        v.failoverChain.length > 0
+      ),
+    {
+      message: "agent models: set only one of primary or failoverChain",
+    },
+  );
 
-export type ShoggothAgentModelsOverride = z.infer<typeof shoggothAgentModelsOverrideSchema>;
+export type ShoggothAgentModelsOverride = z.infer<
+  typeof shoggothAgentModelsOverrideSchema
+>;
 
 export const shoggothModelsConfigSchema = z
   .object({
@@ -219,15 +242,25 @@ export const shoggothRetentionConfigSchema = z
   })
   .strict();
 
-export type ShoggothRetentionConfig = z.infer<typeof shoggothRetentionConfigSchema>;
+export type ShoggothRetentionConfig = z.infer<
+  typeof shoggothRetentionConfigSchema
+>;
 
-const shoggothReactionsConfigSchema = z.object({
-  globalPassthrough: z.array(z.string().min(1)).optional(),
-  maxAgeMinutes: z.number().int().positive().optional(),
-}).strict();
-type ShoggothReactionsConfig = z.infer<typeof shoggothReactionsConfigSchema>;
+const shoggothReactionsConfigSchema = z
+  .object({
+    globalPassthrough: z.array(z.string().min(1)).optional(),
+    maxAgeMinutes: z.number().int().positive().optional(),
+  })
+  .strict();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothReactionsConfig = z.infer<typeof shoggothReactionsConfigSchema>;
 
-export const hitlRiskTierSchema = z.enum(["safe", "caution", "critical", "never"]);
+export const hitlRiskTierSchema = z.enum([
+  "safe",
+  "caution",
+  "critical",
+  "never",
+]);
 
 export type HitlRiskTier = z.infer<typeof hitlRiskTierSchema>;
 
@@ -255,13 +288,17 @@ export const shoggothMemoryEmbeddingsConfigSchema = z
   })
   .strict();
 
-export type ShoggothMemoryEmbeddingsConfig = z.infer<typeof shoggothMemoryEmbeddingsConfigSchema>;
+export type ShoggothMemoryEmbeddingsConfig = z.infer<
+  typeof shoggothMemoryEmbeddingsConfigSchema
+>;
 
 /** Schema for a workspace-relative path (must not start with '/'). */
 const workspaceRelativePathSchema = z
   .string()
   .min(1)
-  .refine((s) => !s.startsWith("/"), { message: "memory paths must be workspace-relative (not absolute)" });
+  .refine((s) => !s.startsWith("/"), {
+    message: "memory paths must be workspace-relative (not absolute)",
+  });
 
 export const shoggothMemoryConfigSchema = z
   .object({
@@ -346,7 +383,9 @@ export const shoggothPolicyFragmentSchema = z
   .strict()
   .optional();
 
-export type ShoggothPolicyFragment = z.infer<typeof shoggothPolicyFragmentSchema>;
+export type ShoggothPolicyFragment = z.infer<
+  typeof shoggothPolicyFragmentSchema
+>;
 
 export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
   operator: {
@@ -383,7 +422,14 @@ export const DEFAULT_POLICY_CONFIG: ShoggothPolicyConfig = {
     tools: { allow: ["*"], deny: [], review: [] },
   },
   auditRedaction: {
-    jsonPaths: ["password", "token", "apiKey", "api_key", "authorization", "secret"],
+    jsonPaths: [
+      "password",
+      "token",
+      "apiKey",
+      "api_key",
+      "authorization",
+      "secret",
+    ],
   },
 };
 
@@ -407,7 +453,8 @@ export const shoggothPluginEntrySchema = z
     if (n !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "each plugin entry must specify exactly one of path or package",
+        message:
+          "each plugin entry must specify exactly one of path or package",
       });
     }
   });
@@ -427,12 +474,20 @@ export type ShoggothSkillsConfig = z.infer<typeof shoggothSkillsConfigSchema>;
 const mcpSourceIdSchema = z
   .string()
   .min(1)
-  .refine((s) => !s.includes("."), { message: "MCP server id must not contain '.' (used as source id)" });
+  .refine((s) => !s.includes("."), {
+    message: "MCP server id must not contain '.' (used as source id)",
+  });
 
 /** Per-server override for MCP connection pooling (omit or `inherit` → use top-level `mcp.poolScope`). */
-export const shoggothMcpServerPoolScopeSchema = z.enum(["inherit", "global", "per_session"]);
+export const shoggothMcpServerPoolScopeSchema = z.enum([
+  "inherit",
+  "global",
+  "per_session",
+]);
 
-export type ShoggothMcpServerPoolScope = z.infer<typeof shoggothMcpServerPoolScopeSchema>;
+export type ShoggothMcpServerPoolScope = z.infer<
+  typeof shoggothMcpServerPoolScopeSchema
+>;
 
 export const shoggothMcpStdioServerSchema = z
   .object({
@@ -473,9 +528,13 @@ export const shoggothMcpServerEntrySchema = z.discriminatedUnion("transport", [
   shoggothMcpHttpServerSchema,
 ]);
 
-export type ShoggothMcpServerEntry = z.infer<typeof shoggothMcpServerEntrySchema>;
+export type ShoggothMcpServerEntry = z.infer<
+  typeof shoggothMcpServerEntrySchema
+>;
 
-export type ShoggothMcpHttpServerEntry = z.infer<typeof shoggothMcpHttpServerSchema>;
+export type ShoggothMcpHttpServerEntry = z.infer<
+  typeof shoggothMcpHttpServerSchema
+>;
 
 /** Default idle eviction for lazy per-session MCP pools when `perSessionIdleTimeoutMs` is omitted. */
 export const SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS = 30 * 60 * 1000;
@@ -511,7 +570,8 @@ const shoggothAcpxConfigSchema = z
   })
   .strict();
 
-type ShoggothAcpxConfig = z.infer<typeof shoggothAcpxConfigSchema>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothAcpxConfig = z.infer<typeof shoggothAcpxConfigSchema>;
 
 /**
  * Common platform config fields validated by core. Platform-specific extension fields pass through
@@ -554,9 +614,12 @@ export const shoggothRuntimeConfigSchema = z
     ollamaHost: z.string().min(1).optional(),
     /** When true, suppress the platform-surfaced context window mismatch notice (stderr log still fires). */
     suppressContextWindowMismatchNotice: z.boolean().optional(),
-    minimalContext: z.object({
-      transcriptTailMessages: z.number().int().nonnegative().optional(),
-    }).strict().optional(),
+    minimalContext: z
+      .object({
+        transcriptTailMessages: z.number().int().nonnegative().optional(),
+      })
+      .strict()
+      .optional(),
     turnQueue: z
       .object({
         starvationThreshold: z.number().int().positive().optional(),
@@ -613,7 +676,9 @@ export const shoggothAgentToAgentConfigSchema = z
   })
   .strict();
 
-export type ShoggothAgentToAgentConfig = z.infer<typeof shoggothAgentToAgentConfigSchema>;
+export type ShoggothAgentToAgentConfig = z.infer<
+  typeof shoggothAgentToAgentConfigSchema
+>;
 
 /**
  * Per-agent `sessionQuery` block: which other agent ids this agent may query transcripts for.
@@ -634,7 +699,9 @@ export const shoggothSessionQueryConfigSchema = z
   })
   .strict();
 
-export type ShoggothSessionQueryConfig = z.infer<typeof shoggothSessionQueryConfigSchema>;
+export type ShoggothSessionQueryConfig = z.infer<
+  typeof shoggothSessionQueryConfigSchema
+>;
 
 /**
  * Which logical agent ids subagent sessions may be spawned for (merged global + `agents.list.<senderId>`),
@@ -648,7 +715,9 @@ export const shoggothSubagentSpawnAllowSchema = z
   })
   .strict();
 
-export type ShoggothSubagentSpawnAllowConfig = z.infer<typeof shoggothSubagentSpawnAllowSchema>;
+export type ShoggothSubagentSpawnAllowConfig = z.infer<
+  typeof shoggothSubagentSpawnAllowSchema
+>;
 
 // ---------------------------------------------------------------------------
 // Tool Discovery
@@ -668,17 +737,34 @@ const shoggothToolDiscoveryConfigSchema = z
     /** When true, tool discovery/collapse is active. Default: false (all tools advertised). */
     enabled: z.boolean().optional(),
     /** Tool IDs that are never collapsed (always in the tools array). */
-    alwaysOn: z.array(z.string().min(1)).default([
-      "builtin-read", "builtin-write", "builtin-exec", "builtin-memory-search", "builtin-session-query",
-      "builtin-poll", "builtin-skills", "builtin-show", "builtin-fs", "builtin-ls", "builtin-fetch", "builtin-kv", "builtin-timer",
-      "builtin-search-replace", "builtin-cd",
-    ]),
+    alwaysOn: z
+      .array(z.string().min(1))
+      .default([
+        "builtin-read",
+        "builtin-write",
+        "builtin-exec",
+        "builtin-memory-search",
+        "builtin-session-query",
+        "builtin-poll",
+        "builtin-skills",
+        "builtin-show",
+        "builtin-fs",
+        "builtin-ls",
+        "builtin-fetch",
+        "builtin-kv",
+        "builtin-timer",
+        "builtin-search-replace",
+        "builtin-cd",
+      ]),
     /** Trigger phrases: when a user message contains the match string (case-insensitive), the listed tool IDs are auto-enabled for that turn. */
     triggers: z.array(toolDiscoveryTriggerSchema).optional(),
   })
   .strict();
 
-type ShoggothToolDiscoveryConfig = z.infer<typeof shoggothToolDiscoveryConfigSchema>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothToolDiscoveryConfig = z.infer<
+  typeof shoggothToolDiscoveryConfigSchema
+>;
 
 const shoggothAgentToolDiscoveryConfigSchema = z
   .object({
@@ -691,7 +777,10 @@ const shoggothAgentToolDiscoveryConfigSchema = z
   })
   .strict();
 
-type ShoggothAgentToolDiscoveryConfig = z.infer<typeof shoggothAgentToolDiscoveryConfigSchema>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothAgentToolDiscoveryConfig = z.infer<
+  typeof shoggothAgentToolDiscoveryConfigSchema
+>;
 
 const shoggothAgentIdKeySchema = z
   .string()
@@ -709,9 +798,16 @@ export const shoggothAgentEntrySchema = z
     emoji: z.string().min(1).optional(),
     models: shoggothAgentModelsOverrideSchema.optional(),
     /** Per-agent platform overrides — each key is a platform id. */
-    platforms: z.record(z.string(), z.object({
-      routes: z.unknown().optional(),
-    }).passthrough()).optional(),
+    platforms: z
+      .record(
+        z.string(),
+        z
+          .object({
+            routes: z.unknown().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
     /** Extra memory roots (merged after global `memory.paths` for this agent's sessions). */
     memory: z
       .object({
@@ -764,9 +860,15 @@ export const shoggothAgentEntrySchema = z
     /** Override the model used by subagents spawned by this agent. Format: "providerId/model". The referenced provider must exist in models.providers. */
     subagentModel: z.string().min(1).optional(),
     /** Per-agent MCP server rules for top-level sessions. */
-    mcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
+    mcp: z
+      .object({ serverRules: mcpServerRulesSchema.optional() })
+      .strict()
+      .optional(),
     /** Per-agent MCP server rules for subagent sessions spawned by this agent. */
-    subagentMcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
+    subagentMcp: z
+      .object({ serverRules: mcpServerRulesSchema.optional() })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -775,7 +877,9 @@ export type ShoggothAgentEntry = z.infer<typeof shoggothAgentEntrySchema>;
 export const shoggothAgentsConfigSchema = z
   .object({
     /** Map of logical agent id → per-agent overrides (key must match session URN `agent:<id>:…`). */
-    list: z.record(shoggothAgentIdKeySchema, shoggothAgentEntrySchema).optional(),
+    list: z
+      .record(shoggothAgentIdKeySchema, shoggothAgentEntrySchema)
+      .optional(),
     /** Default context level for top-level agent sessions. Default: "full". */
     contextLevel: contextLevelSchema.optional(),
     /** Default context level for subagent sessions. Default: "light". */
@@ -785,7 +889,10 @@ export const shoggothAgentsConfigSchema = z
     /** Default model for all agents' subagents. Format: "providerId/model". Per-agent override in agents.list.<id>.subagentModel. */
     subagentModel: z.string().min(1).optional(),
     /** Global MCP server rules for all subagent sessions. */
-    subagentMcp: z.object({ serverRules: mcpServerRulesSchema.optional() }).strict().optional(),
+    subagentMcp: z
+      .object({ serverRules: mcpServerRulesSchema.optional() })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -857,9 +964,8 @@ const shoggothSearxngConfigSchema = z
   })
   .strict();
 
-type ShoggothSearxngConfig = z.infer<typeof shoggothSearxngConfigSchema>;
-
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ShoggothSearxngConfig = z.infer<typeof shoggothSearxngConfigSchema>;
 
 /** Layered JSON fragments must satisfy this shape after merge; defaults fill the rest. */
 export const shoggothConfigFragmentSchema = z
@@ -941,7 +1047,9 @@ export const shoggothConfigFragmentSchema = z
   })
   .strict();
 
-export type ShoggothConfigFragment = z.infer<typeof shoggothConfigFragmentSchema>;
+export type ShoggothConfigFragment = z.infer<
+  typeof shoggothConfigFragmentSchema
+>;
 
 export const shoggothConfigSchema = z
   .object({

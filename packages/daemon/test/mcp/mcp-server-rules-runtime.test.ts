@@ -14,10 +14,6 @@ import assert from "node:assert";
 import Database from "better-sqlite3";
 import { afterEach, describe, it } from "vitest";
 import {
-  DEFAULT_HITL_CONFIG,
-  DEFAULT_MEMORY_CONFIG,
-  DEFAULT_POLICY_CONFIG,
-  DEFAULT_SKILLS_CONFIG,
   defaultConfig,
   formatAgentSessionUrn,
   type ShoggothConfig,
@@ -44,7 +40,10 @@ function makeDb(): Database.Database {
 }
 
 /** Fake MCP source catalog for a server with one tool. */
-function fakeSourceCatalog(serverId: string, toolName: string): McpSourceCatalog {
+function fakeSourceCatalog(
+  serverId: string,
+  toolName: string,
+): McpSourceCatalog {
   return {
     sourceId: serverId,
     tools: [
@@ -89,8 +88,16 @@ function buildConfig(overrides?: Partial<ShoggothConfig>): ShoggothConfig {
     ...base,
     mcp: {
       servers: [
-        { id: "allowed-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
-        { id: "denied-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
+        {
+          id: "allowed-server",
+          transport: "stdio",
+          command: "true",
+        } as ShoggothMcpServerEntry,
+        {
+          id: "denied-server",
+          transport: "stdio",
+          command: "true",
+        } as ShoggothMcpServerEntry,
       ],
       poolScope: "global",
     },
@@ -98,7 +105,12 @@ function buildConfig(overrides?: Partial<ShoggothConfig>): ShoggothConfig {
   } as ShoggothConfig;
 }
 
-const SESSION_ID = formatAgentSessionUrn("main", "test", "channel", "00000000-0000-4000-8000-000000000001");
+const SESSION_ID = formatAgentSessionUrn(
+  "main",
+  "test",
+  "channel",
+  "00000000-0000-4000-8000-000000000001",
+);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -128,8 +140,16 @@ describe("MCP server rules — runtime filtering", () => {
     const config = buildConfig({
       mcp: {
         servers: [
-          { id: "allowed-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
-          { id: "denied-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
+          {
+            id: "allowed-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
+          {
+            id: "denied-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
         ],
         poolScope: "global",
         serverRules: { allow: ["*"], deny: ["denied-server"] },
@@ -140,19 +160,30 @@ describe("MCP server rules — runtime filtering", () => {
       config,
       env: {},
       db,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       deps: { connectShoggothMcpServers: mock.connect as any },
     });
 
     const ctx = await runtime.resolveContext(SESSION_ID);
 
     // The denied server's tool should NOT appear
-    const externalTools = ctx.aggregated.tools.filter((t) => t.sourceId !== "builtin");
+    const externalTools = ctx.aggregated.tools.filter(
+      (t) => t.sourceId !== "builtin",
+    );
     const sourceIds = new Set(externalTools.map((t) => t.sourceId));
 
-    assert.ok(sourceIds.has("allowed-server"), "allowed-server tools should be present");
-    assert.ok(!sourceIds.has("denied-server"), "denied-server tools should be filtered out");
     assert.ok(
-      externalTools.some((t) => t.namespacedName === "allowed-server-good-tool"),
+      sourceIds.has("allowed-server"),
+      "allowed-server tools should be present",
+    );
+    assert.ok(
+      !sourceIds.has("denied-server"),
+      "denied-server tools should be filtered out",
+    );
+    assert.ok(
+      externalTools.some(
+        (t) => t.namespacedName === "allowed-server-good-tool",
+      ),
       "allowed-server-good-tool should be in the catalog",
     );
     assert.ok(
@@ -174,8 +205,16 @@ describe("MCP server rules — runtime filtering", () => {
     const config = buildConfig({
       mcp: {
         servers: [
-          { id: "allowed-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
-          { id: "denied-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
+          {
+            id: "allowed-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
+          {
+            id: "denied-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
         ],
         poolScope: "global",
         serverRules: { allow: ["*"], deny: ["denied-server"] },
@@ -186,6 +225,7 @@ describe("MCP server rules — runtime filtering", () => {
       config,
       env: {},
       db,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       deps: { connectShoggothMcpServers: mock.connect as any },
     });
 
@@ -229,8 +269,16 @@ describe("MCP server rules — runtime filtering", () => {
     const config = buildConfig({
       mcp: {
         servers: [
-          { id: "allowed-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
-          { id: "denied-server", transport: "stdio", command: "true" } as ShoggothMcpServerEntry,
+          {
+            id: "allowed-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
+          {
+            id: "denied-server",
+            transport: "stdio",
+            command: "true",
+          } as ShoggothMcpServerEntry,
         ],
         poolScope: "global",
         serverRules: { allow: ["*"], deny: ["denied-server"] },
@@ -241,6 +289,7 @@ describe("MCP server rules — runtime filtering", () => {
       config,
       env: {},
       db,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       deps: { connectShoggothMcpServers: mock.connect as any },
     });
 

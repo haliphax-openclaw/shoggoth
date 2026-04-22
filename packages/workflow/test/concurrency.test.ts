@@ -52,7 +52,9 @@ function mockPollAdapter(
   };
 }
 
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -62,7 +64,10 @@ function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: strin
   };
 }
 
-function defaultOpts(baseDir: string, concurrency?: number): OrchestratorOptions {
+function defaultOpts(
+  baseDir: string,
+  concurrency?: number,
+): OrchestratorOptions {
   return {
     stateDir: baseDir,
     currentDepth: 0,
@@ -101,7 +106,9 @@ describe("Orchestrator concurrency", () => {
     assert.equal(spawner.calls.length, 2);
 
     const status = orch.getWorkflowStatus()!;
-    const inProgress = status.tasks.filter((t) => t.status === "in_progress").length;
+    const inProgress = status.tasks.filter(
+      (t) => t.status === "in_progress",
+    ).length;
     assert.equal(inProgress, 2);
 
     const pending = status.tasks.filter((t) => t.status === "pending").length;

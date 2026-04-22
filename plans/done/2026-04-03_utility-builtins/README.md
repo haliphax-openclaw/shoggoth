@@ -29,7 +29,14 @@ A structured HTTP client tool with explicit parameters for method, URL, headers,
 ```ts
 interface FetchToolParams {
   /** HTTP method. Default: GET. */
-  readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+  readonly method?:
+    | "GET"
+    | "POST"
+    | "PUT"
+    | "PATCH"
+    | "DELETE"
+    | "HEAD"
+    | "OPTIONS";
   /** Target URL. Required. */
   readonly url: string;
   /** Request headers as key-value pairs. */
@@ -58,6 +65,7 @@ interface FetchToolResult {
 **Policy integration:** The policy engine can gate fetch calls by URL pattern, method, or domain. A new policy action `fetch` with resource = URL enables fine-grained control. Denied requests return a policy error result, not a throw.
 
 **Security:**
+
 - No redirect following by default. Optional `followRedirects: true` with a cap (default 5).
 - Request body size capped (default 10MB).
 - Response body capped and truncated (default 1MB returned to model).
@@ -65,6 +73,7 @@ interface FetchToolResult {
 - Private/internal IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1) are blocked by default. Configurable via `fetch.allowPrivateIps` (boolean, default `false`) and `fetch.privateIpAllowlist` (array of CIDR ranges or hostnames) in the runtime config. When `allowPrivateIps` is `true`, all private ranges are permitted. When `false`, only entries in `privateIpAllowlist` are allowed through.
 
 **Content-Type handling:**
+
 - When `body` is an object and no `Content-Type` header is set, auto-set `application/json` and JSON-serialize.
 - When response `Content-Type` is JSON, parse and pretty-print in the result for readability.
 
@@ -148,6 +157,7 @@ Each action returns a confirmation object:
 **Policy integration:** Each action maps to a policy action (`fs.move`, `fs.copy`, `fs.delete`, `fs.stat`, `fs.chmod`, `fs.rename`) with resource = path. Destructive actions (`delete`, `move`, `chmod`) can be gated independently from read-only ones (`stat`).
 
 **Security:**
+
 - All paths resolved within workspace sandbox. Symlink targets outside workspace are rejected for write operations.
 - `delete` without `recursive: true` refuses to delete non-empty directories.
 - `chmod` validates mode string format before applying.
@@ -280,6 +290,7 @@ The DB remains the source of truth for crash recovery — the in-memory heap is 
 ```
 
 **Edge cases:**
+
 - Timer fires while session is in a turn: queued as a pending user message.
 - Timer fires for a terminated session: marked as fired, no delivery. Logged to audit.
 - Daemon restart: `restore()` rescans on startup. Past-due timers fire immediately. No timers are lost.
@@ -290,6 +301,7 @@ The DB remains the source of truth for crash recovery — the in-memory heap is 
 ### Tool naming
 
 Following existing convention, tools are registered as:
+
 - `builtin-fetch`
 - `builtin-ls`
 - `builtin-fs`
@@ -307,6 +319,7 @@ All five tools use the existing `BuiltinToolRegistry` and `BuiltinToolContext` p
 The simplest tool with no external dependencies. Good warmup to validate the pattern.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/ls-handler.ts` — new: tool handler
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — tool schema definition
@@ -316,6 +329,7 @@ The simplest tool with no external dependencies. Good warmup to validate the pat
 Builds on the same sandbox infrastructure as `read`/`write`/`ls`.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/fs-handler.ts` — new: multi-action handler
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — tool schema definition
@@ -325,6 +339,7 @@ Builds on the same sandbox infrastructure as `read`/`write`/`ls`.
 The most complex tool. Needs policy integration for URL gating and private IP blocking.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/fetch-handler.ts` — new: HTTP client handler
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — tool schema definition
@@ -335,6 +350,7 @@ The most complex tool. Needs policy integration for URL gating and private IP bl
 Requires a DB migration for the `kv_store` table.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/kv-handler.ts` — new: KV handler
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — tool schema definition
@@ -347,6 +363,7 @@ Requires a DB migration for the `kv_store` table.
 Requires a DB migration, an in-process timer scheduler, and session message injection.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/timer-handler.ts` — new: timer handler
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — tool schema definition

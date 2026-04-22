@@ -1,7 +1,11 @@
 import { spawn } from "node:child_process";
 import { createConnection, type Socket } from "node:net";
 import type { Readable, Writable } from "node:stream";
-import type { ProcessManager, ManagedProcess, ProcessSpec } from "@shoggoth/procman";
+import type {
+  ProcessManager,
+  ManagedProcess,
+  ProcessSpec,
+} from "@shoggoth/procman";
 import type { JsonSchemaLike } from "./json-schema";
 import type { McpSourceCatalog } from "./aggregate";
 import type { McpToolDescriptor } from "./mcp-tool";
@@ -21,16 +25,23 @@ export interface McpToolListEntry {
 }
 
 function asRecord(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
 }
 
 /**
  * Maps one MCP `tools/list` tool entry to a Shoggoth descriptor (JSON Schema for args).
  */
-export function mcpToolListEntryToDescriptor(entry: McpToolListEntry): McpToolDescriptor {
+export function mcpToolListEntryToDescriptor(
+  entry: McpToolListEntry,
+): McpToolDescriptor {
   const schema = entry.inputSchema;
   const inputSchema: JsonSchemaLike =
-    schema !== undefined && typeof schema === "object" && schema !== null && !Array.isArray(schema)
+    schema !== undefined &&
+    typeof schema === "object" &&
+    schema !== null &&
+    !Array.isArray(schema)
       ? (schema as JsonSchemaLike)
       : { type: "object", properties: {} };
   return {
@@ -58,7 +69,9 @@ export async function mcpInitializeSession(
 /**
  * Collects all pages from `tools/list`.
  */
-export async function mcpFetchToolsList(session: McpJsonRpcSession): Promise<McpToolListEntry[]> {
+export async function mcpFetchToolsList(
+  session: McpJsonRpcSession,
+): Promise<McpToolListEntry[]> {
   const out: McpToolListEntry[] = [];
   let cursor: string | undefined;
   for (;;) {
@@ -75,7 +88,8 @@ export async function mcpFetchToolsList(session: McpJsonRpcSession): Promise<Mcp
         if (tr && typeof tr.name === "string") {
           out.push({
             name: tr.name,
-            description: typeof tr.description === "string" ? tr.description : undefined,
+            description:
+              typeof tr.description === "string" ? tr.description : undefined,
             inputSchema: tr.inputSchema,
           });
         }
@@ -92,7 +106,10 @@ export async function mcpFetchToolsList(session: McpJsonRpcSession): Promise<Mcp
 }
 
 /** Builds a {@link McpSourceCatalog} from live `tools/list` entries. */
-export function mcpToolsToSourceCatalog(sourceId: string, tools: readonly McpToolListEntry[]): McpSourceCatalog {
+export function mcpToolsToSourceCatalog(
+  sourceId: string,
+  tools: readonly McpToolListEntry[],
+): McpSourceCatalog {
   return {
     sourceId,
     tools: tools.map(mcpToolListEntryToDescriptor),
@@ -295,7 +312,9 @@ export interface McpTcpConnectOptions {
 }
 
 /** Spawn a subprocess and return an MCP session on its stdio (JSON-RPC lines). */
-export async function connectMcpStdioSession(opts: McpStdioConnectOptions): Promise<McpJsonRpcSession> {
+export async function connectMcpStdioSession(
+  opts: McpStdioConnectOptions,
+): Promise<McpJsonRpcSession> {
   if (opts.processManager) {
     return connectMcpStdioSessionViaProcman(opts, opts.processManager);
   }
@@ -303,7 +322,9 @@ export async function connectMcpStdioSession(opts: McpStdioConnectOptions): Prom
 }
 
 /** Direct spawn fallback (original behavior). */
-async function connectMcpStdioSessionDirect(opts: McpStdioConnectOptions): Promise<McpJsonRpcSession> {
+async function connectMcpStdioSessionDirect(
+  opts: McpStdioConnectOptions,
+): Promise<McpJsonRpcSession> {
   const proc = spawn(opts.command, opts.args ? [...opts.args] : [], {
     cwd: opts.cwd,
     env: opts.env ? { ...process.env, ...opts.env } : undefined,
@@ -350,7 +371,7 @@ async function connectMcpStdioSessionViaProcman(
     command: opts.command,
     args: opts.args ? [...opts.args] : undefined,
     cwd: opts.cwd,
-    env: opts.env ? { ...opts.env } as Record<string, string> : undefined,
+    env: opts.env ? ({ ...opts.env } as Record<string, string>) : undefined,
     restart: { mode: "on-failure", maxRetries: 5 },
     stdio: { capture: "pipe", stdin: true },
     shutdown: { signal: "SIGTERM", graceMs: 5000 },
@@ -398,9 +419,13 @@ async function connectMcpStdioSessionViaProcman(
 }
 
 /** TCP client: same newline-delimited JSON-RPC as MCP stdio transports. */
-export async function connectMcpTcpSession(opts: McpTcpConnectOptions): Promise<McpJsonRpcSession> {
+export async function connectMcpTcpSession(
+  opts: McpTcpConnectOptions,
+): Promise<McpJsonRpcSession> {
   const socket: Socket = await new Promise((resolve, reject) => {
-    const s = createConnection({ host: opts.host, port: opts.port }, () => resolve(s));
+    const s = createConnection({ host: opts.host, port: opts.port }, () =>
+      resolve(s),
+    );
     s.once("error", reject);
   });
   const session = createMcpJsonRpcSession(socket, socket);
@@ -418,7 +443,9 @@ export async function connectMcpTcpSession(opts: McpTcpConnectOptions): Promise<
 /**
  * Full connect handshake for stdio: spawn, initialize, ready for `tools/list` / `tools/call`.
  */
-export async function openMcpStdioClient(opts: McpStdioConnectOptions): Promise<McpJsonRpcSession> {
+export async function openMcpStdioClient(
+  opts: McpStdioConnectOptions,
+): Promise<McpJsonRpcSession> {
   const s = await connectMcpStdioSession(opts);
   await mcpInitializeSession(s);
   return s;
@@ -427,7 +454,9 @@ export async function openMcpStdioClient(opts: McpStdioConnectOptions): Promise<
 /**
  * Full connect handshake for TCP.
  */
-export async function openMcpTcpClient(opts: McpTcpConnectOptions): Promise<McpJsonRpcSession> {
+export async function openMcpTcpClient(
+  opts: McpTcpConnectOptions,
+): Promise<McpJsonRpcSession> {
   const s = await connectMcpTcpSession(opts);
   await mcpInitializeSession(s);
   return s;

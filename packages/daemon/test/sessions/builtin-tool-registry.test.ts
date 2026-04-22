@@ -7,10 +7,14 @@ import {
   type BuiltinToolHandler,
 } from "../../src/sessions/builtin-tool-registry";
 
-function stubCtx(overrides: Partial<BuiltinToolContext> = {}): BuiltinToolContext {
+function stubCtx(
+  overrides: Partial<BuiltinToolContext> = {},
+): BuiltinToolContext {
   return {
     sessionId: "sess-1",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     db: {} as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: {},
     workspacePath: "/tmp",
@@ -52,7 +56,10 @@ describe("BuiltinToolRegistry", () => {
     await assert.rejects(
       () => reg.execute("missing", {}, stubCtx()),
       (err: Error) => {
-        assert.match(err.message, /No handler registered for builtin tool: missing/);
+        assert.match(
+          err.message,
+          /No handler registered for builtin tool: missing/,
+        );
         return true;
       },
     );
@@ -92,7 +99,10 @@ describe("BuiltinToolRegistry", () => {
 describe("resolveUserPath", () => {
   it("returns absolute paths unchanged", () => {
     const ctx = stubCtx({ workspacePath: "/ws", workingDirectory: "/ws/sub" });
-    assert.strictEqual(resolveUserPath(ctx, "/ws/other/file.txt"), "/ws/other/file.txt");
+    assert.strictEqual(
+      resolveUserPath(ctx, "/ws/other/file.txt"),
+      "/ws/other/file.txt",
+    );
   });
 
   it("resolves relative paths against workingDirectory when set", () => {

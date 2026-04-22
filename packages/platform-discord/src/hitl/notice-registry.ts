@@ -13,13 +13,25 @@ export type HitlDiscordNoticeRegistry = {
   lookup(
     channelId: string,
     messageId: string,
-  ): { readonly pendingId: string; readonly sessionId: string; readonly toolName: string } | undefined;
+  ):
+    | {
+        readonly pendingId: string;
+        readonly sessionId: string;
+        readonly toolName: string;
+      }
+    | undefined;
 };
 
-const noticeKey = (channelId: string, messageId: string) => `${channelId}:${messageId}`;
+const noticeKey = (channelId: string, messageId: string) =>
+  `${channelId}:${messageId}`;
 
-export function createHitlDiscordNoticeRegistry(maxEntries = 2000): HitlDiscordNoticeRegistry {
-  const map = new Map<string, { pendingId: string; sessionId: string; toolName: string }>();
+export function createHitlDiscordNoticeRegistry(
+  maxEntries = 2000,
+): HitlDiscordNoticeRegistry {
+  const map = new Map<
+    string,
+    { pendingId: string; sessionId: string; toolName: string }
+  >();
   const order: string[] = [];
 
   return {

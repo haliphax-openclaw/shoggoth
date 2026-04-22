@@ -16,7 +16,10 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-hitl", workspacePath: "/w/sess-hitl" });
+    createSessionStore(db).create({
+      id: "sess-hitl",
+      workspacePath: "/w/sess-hitl",
+    });
     const hitlStack = createHitlPendingResolutionStack(db);
     const engine = createPolicyEngine({
       ...DEFAULT_POLICY_CONFIG,
@@ -74,7 +77,11 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
       hitl: {
         config: {
           defaultApprovalTimeoutMs: 300_000,
-          toolRisk: { "builtin-read": "safe", "builtin-write": "caution", "builtin-exec": "critical" },
+          toolRisk: {
+            "builtin-read": "safe",
+            "builtin-write": "caution",
+            "builtin-exec": "critical",
+          },
           bypassUpTo: "safe",
         },
         bypassUpTo: "safe",
@@ -103,7 +110,10 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-hitl-d", workspacePath: "/w/sess-hitl-d" });
+    createSessionStore(db).create({
+      id: "sess-hitl-d",
+      workspacePath: "/w/sess-hitl-d",
+    });
     const hitlStack = createHitlPendingResolutionStack(db);
     const engine = createPolicyEngine({
       ...DEFAULT_POLICY_CONFIG,
@@ -161,7 +171,11 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
       hitl: {
         config: {
           defaultApprovalTimeoutMs: 300_000,
-          toolRisk: { "builtin-read": "safe", "builtin-write": "caution", "builtin-exec": "critical" },
+          toolRisk: {
+            "builtin-read": "safe",
+            "builtin-write": "caution",
+            "builtin-exec": "critical",
+          },
           bypassUpTo: "safe",
         },
         bypassUpTo: "safe",
@@ -184,7 +198,9 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
     assert.ok(denied);
     assert.match(denied!.content, /hitl_denied/);
     const deniedAudits = db
-      .prepare(`SELECT action, outcome FROM audit_log WHERE action = 'hitl.denied'`)
+      .prepare(
+        `SELECT action, outcome FROM audit_log WHERE action = 'hitl.denied'`,
+      )
       .all() as { action: string; outcome: string }[];
     assert.equal(deniedAudits.length, 1);
     db.close();

@@ -11,7 +11,9 @@ export interface MessagePoster {
  * The messaging function handles platform-specific delivery (Discord, Slack, etc).
  */
 export class GenericMessagePoster implements MessagePoster {
-  constructor(private messagingFn: (target: string, message: string) => Promise<void>) {}
+  constructor(
+    private messagingFn: (target: string, message: string) => Promise<void>,
+  ) {}
 
   async post(target: string, message: string): Promise<void> {
     await this.messagingFn(target, message);

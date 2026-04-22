@@ -82,7 +82,9 @@ export interface DefaultHeartbeatHandlerOptions {
   readonly heartbeatContextLevel?: ContextLevel;
 }
 
-export function createDefaultHeartbeatHandlers(options?: DefaultHeartbeatHandlerOptions): Record<string, HeartbeatHandler> {
+export function createDefaultHeartbeatHandlers(
+  options?: DefaultHeartbeatHandlerOptions,
+): Record<string, HeartbeatHandler> {
   const heartbeatContextLevel = options?.heartbeatContextLevel ?? "light";
   return {
     "cron.fire": (row) => {
@@ -95,13 +97,23 @@ export function createDefaultHeartbeatHandlers(options?: DefaultHeartbeatHandler
       if (m?.[1]) {
         const payload = row.payload as { contextLevel?: string } | undefined;
         const contextLevel = payload?.contextLevel ?? undefined;
-        pushSystemContext(m[1], `Scheduled cron job invocation.${contextLevel ? ` [contextLevel=${contextLevel}]` : ""}`);
+        pushSystemContext(
+          m[1],
+          `Scheduled cron job invocation.${contextLevel ? ` [contextLevel=${contextLevel}]` : ""}`,
+        );
       }
     },
     "heartbeat.check": (row) => {
-      log.debug("heartbeat.check consumed", { eventId: row.id, scope: row.scope });
+      log.debug("heartbeat.check consumed", {
+        eventId: row.id,
+        scope: row.scope,
+      });
       const m = /^session:(.+)$/.exec(row.scope ?? "");
-      if (m?.[1]) pushSystemContext(m[1], `Scheduled heartbeat check. [contextLevel=${heartbeatContextLevel}]`);
+      if (m?.[1])
+        pushSystemContext(
+          m[1],
+          `Scheduled heartbeat check. [contextLevel=${heartbeatContextLevel}]`,
+        );
     },
   };
 }

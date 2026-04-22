@@ -7,7 +7,11 @@ describe("parseMcpCancelCliArgs", () => {
     const out = parseMcpCancelCliArgs(["__global__", "my_mcp", "42"]);
     assert.deepStrictEqual(out, {
       ok: true,
-      payload: { session_id: "__global__", source_id: "my_mcp", request_id: 42 },
+      payload: {
+        session_id: "__global__",
+        source_id: "my_mcp",
+        request_id: 42,
+      },
     });
   });
 

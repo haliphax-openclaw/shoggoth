@@ -59,18 +59,17 @@ describe("model invocation merge", () => {
   });
 
   it("mergeSubagentSpawnModelSelection with no parent returns overlay only", () => {
-    const merged = mergeSubagentSpawnModelSelection(undefined, { reasoningEffort: "low" }) as Record<
-      string,
-      unknown
-    >;
+    const merged = mergeSubagentSpawnModelSelection(undefined, {
+      reasoningEffort: "low",
+    }) as Record<string, unknown>;
     assert.deepEqual(merged, { reasoningEffort: "low" });
   });
 
   it("mergeSubagentSpawnModelSelection parent only copies selection", () => {
-    const merged = mergeSubagentSpawnModelSelection({ maxOutputTokens: 2048 }, undefined) as Record<
-      string,
-      unknown
-    >;
+    const merged = mergeSubagentSpawnModelSelection(
+      { maxOutputTokens: 2048 },
+      undefined,
+    ) as Record<string, unknown>;
     assert.deepEqual(merged, { maxOutputTokens: 2048 });
   });
 });
@@ -105,7 +104,11 @@ describe("mergeSubagentSpawnModelSelection with modelRef (Phase 2)", () => {
 
   it("modelRef with invocation params from parent and overlay still merges correctly", () => {
     const merged = mergeSubagentSpawnModelSelection(
-      { model: "parentProvider/parentModel", temperature: 0.3, requestExtras: { a: 1 } },
+      {
+        model: "parentProvider/parentModel",
+        temperature: 0.3,
+        requestExtras: { a: 1 },
+      },
       { maxOutputTokens: 4096, requestExtras: { b: 2 } },
       "newProvider/newModel",
     ) as Record<string, unknown>;
@@ -139,14 +142,20 @@ describe("mergeSubagentSpawnModelSelection with modelRef (Phase 2)", () => {
       undefined,
       "newProvider/newModel",
     ) as Record<string, unknown>;
-    assert.ok(merged, "expected non-undefined output when modelRef is provided");
+    assert.ok(
+      merged,
+      "expected non-undefined output when modelRef is provided",
+    );
     assert.equal(merged.model, "newProvider/newModel");
   });
 
   it("modelRef with no parent and invocation overlay merges correctly", () => {
     const merged = mergeSubagentSpawnModelSelection(
       undefined,
-      { thinking: { enabled: true, budgetTokens: 8000 }, reasoningEffort: "high" },
+      {
+        thinking: { enabled: true, budgetTokens: 8000 },
+        reasoningEffort: "high",
+      },
       "newProvider/newModel",
     ) as Record<string, unknown>;
     assert.equal(merged.model, "newProvider/newModel");

@@ -56,7 +56,10 @@ export interface OpenAIToolFunctionDefinition {
 }
 
 /** Optional callback for streaming assistant text (`stream: true` on OpenAI-compatible providers). */
-export type ModelStreamTextDeltaCallback = (delta: string, accumulated: string) => void;
+export type ModelStreamTextDeltaCallback = (
+  delta: string,
+  accumulated: string,
+) => void;
 
 /**
  * Extended thinking (Anthropic Messages `thinking` block). When `enabled`, providers that support it
@@ -139,5 +142,7 @@ export interface ModelProvider {
   readonly capabilities?: ModelCapabilities;
   complete(input: ModelCompleteInput): Promise<ModelCompleteOutput>;
   /** OpenAI-style chat completions with `tools` + `tool_calls` / tool messages. */
-  completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput>;
+  completeWithTools(
+    input: ModelToolCompleteInput,
+  ): Promise<ModelToolCompleteOutput>;
 }

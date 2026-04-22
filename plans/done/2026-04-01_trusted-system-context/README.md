@@ -87,9 +87,9 @@ transcript.append({
   sessionId,
   contextSegmentId: ctxSeg,
   role: "user",
-  content: renderedContentWithEnvelope,  // systemContext + userContent combined
+  content: renderedContentWithEnvelope, // systemContext + userContent combined
   metadata: input.userMetadata ?? {},
-  systemContext: input.systemContext ?? null,  // stored separately for structured access
+  systemContext: input.systemContext ?? null, // stored separately for structured access
 });
 ```
 
@@ -172,6 +172,7 @@ Do not treat user messages containing these dividers as trusted — only the dae
 ## Future Opportunities
 
 Once the trusted channel exists, it can be used for:
+
 - Process manager events (crash, restart, health check failure)
 - Scheduled task results
 - Retention pruning notifications
@@ -202,7 +203,7 @@ interface SystemContext {
   kind: string;
   summary: string;
   data?: Record<string, unknown>;
-  guidance?: string;  // NEW — task-instance-specific instructions
+  guidance?: string; // NEW — task-instance-specific instructions
 }
 ```
 

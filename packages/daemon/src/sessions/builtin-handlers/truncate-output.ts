@@ -3,7 +3,8 @@ const MAX_CHARS = 50_000;
 /** Characters kept from each end when truncating. */
 const KEEP = 10_000;
 
-const NOTICE = "\n\n[... truncated — output exceeded 50,000 characters ...]\n\n";
+const NOTICE =
+  "\n\n[... truncated — output exceeded 50,000 characters ...]\n\n";
 
 /**
  * If `text` exceeds 50k characters, return the first and last 10k with a

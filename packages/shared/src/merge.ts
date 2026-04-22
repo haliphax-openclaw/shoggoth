@@ -14,7 +14,10 @@ export function deepMerge(
     if (val === undefined) continue;
     const prev = out[k];
     if (isPlainObject(val) && isPlainObject(prev)) {
-      out[k] = deepMerge(prev as ShoggothConfigFragment, val as ShoggothConfigFragment);
+      out[k] = deepMerge(
+        prev as ShoggothConfigFragment,
+        val as ShoggothConfigFragment,
+      );
     } else {
       out[k] = val;
     }

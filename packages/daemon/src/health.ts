@@ -1,6 +1,9 @@
 import { access, constants } from "node:fs/promises";
 import { dirname } from "node:path";
-import { setModelMetadataFromProvider, getOpenAIKnownContextWindow } from "./model-metadata";
+import {
+  setModelMetadataFromProvider,
+  getOpenAIKnownContextWindow,
+} from "./model-metadata";
 
 export type HealthStatus = "pass" | "fail" | "warn" | "skipped";
 
@@ -36,7 +39,8 @@ async function probeSqliteFilesystem(dbPath: string): Promise<DependencyCheck> {
       return {
         name,
         status: "pass",
-        detail: "parent directory writable; database file created on first open",
+        detail:
+          "parent directory writable; database file created on first open",
       };
     } catch {
       return {
@@ -144,20 +148,29 @@ function stripTrailingSlash(s: string): string {
 function isAnthropicModelProbeBase(normalizedBase: string): boolean {
   const a = process.env.ANTHROPIC_BASE_URL?.trim();
   if (!a) return false;
-  return stripTrailingSlash(normalizeModelBaseUrl(a)) === stripTrailingSlash(normalizedBase);
+  return (
+    stripTrailingSlash(normalizeModelBaseUrl(a)) ===
+    stripTrailingSlash(normalizedBase)
+  );
 }
 
 /** True when the URL is a Google Generative AI endpoint (uses ?key= auth, native /v1beta/models path). */
 function isGoogleGenAI(normalizedBase: string): boolean {
   try {
-    return new URL(normalizedBase).hostname.includes("generativelanguage.googleapis.com");
+    return new URL(normalizedBase).hostname.includes(
+      "generativelanguage.googleapis.com",
+    );
   } catch {
     return false;
   }
 }
 
 /** OpenAI-style roots use `/v1/models`; Anthropic origins probe `/`; Google GenAI uses native `/v1beta/models`. */
-function resolveModelProbeUrl(normalizedBase: string, apiKey?: string, providerKind?: string): string {
+function resolveModelProbeUrl(
+  normalizedBase: string,
+  apiKey?: string,
+  providerKind?: string,
+): string {
   const u = new URL(normalizedBase);
   const p = u.pathname.replace(/\/+$/, "") || "/";
 
@@ -168,7 +181,11 @@ function resolveModelProbeUrl(normalizedBase: string, apiKey?: string, providerK
     return modelsUrl.href;
   }
 
-  if (p === "/" && (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages")) {
+  if (
+    p === "/" &&
+    (isAnthropicModelProbeBase(normalizedBase) ||
+      providerKind === "anthropic-messages")
+  ) {
     return `${u.origin}/`;
   }
   if (p === "/") {
@@ -178,10 +195,18 @@ function resolveModelProbeUrl(normalizedBase: string, apiKey?: string, providerK
   return new URL(`${p}/models`, u.origin).href;
 }
 
-async function fetchModelEndpoint(probeUrl: string, extraHeaders?: Record<string, string>): Promise<Response> {
+async function fetchModelEndpoint(
+  probeUrl: string,
+  extraHeaders?: Record<string, string>,
+): Promise<Response> {
   const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
   const headers = { ...extraHeaders };
-  let res = await fetch(probeUrl, { method: "HEAD", signal, redirect: "manual", headers });
+  let res = await fetch(probeUrl, {
+    method: "HEAD",
+    signal,
+    redirect: "manual",
+    headers,
+  });
   if (res.status === 405 || res.status === 404) {
     const signal2 = AbortSignal.timeout(PROBE_TIMEOUT_MS);
     res = await fetch(probeUrl, {
@@ -205,7 +230,10 @@ function buildModelProbeAuthHeaders(
   providerKind?: string,
 ): Record<string, string> {
   if (isGoogleGenAI(normalizedBase)) return {};
-  if (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages") {
+  if (
+    isAnthropicModelProbeBase(normalizedBase) ||
+    providerKind === "anthropic-messages"
+  ) {
     return { "x-api-key": apiKey };
   }
   return { Authorization: `Bearer ${apiKey}` };
@@ -220,20 +248,32 @@ async function fetchGeminiModelMetadata(
   apiVersion: string,
   model: string,
   apiKey: string,
-): Promise<{ inputTokenLimit?: number; outputTokenLimit?: number } | undefined> {
+): Promise<
+  { inputTokenLimit?: number; outputTokenLimit?: number } | undefined
+> {
   try {
     const origin = baseUrl.replace(/\/+$/, "");
     const url = `${origin}/${apiVersion}/models/${model}?key=${encodeURIComponent(apiKey)}`;
     const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS);
-    const res = await fetch(url, { method: "GET", signal, headers: { Accept: "application/json" } });
+    const res = await fetch(url, {
+      method: "GET",
+      signal,
+      headers: { Accept: "application/json" },
+    });
     if (!res.ok) return undefined;
     const json = (await res.json()) as {
       inputTokenLimit?: number;
       outputTokenLimit?: number;
     };
     return {
-      inputTokenLimit: typeof json.inputTokenLimit === "number" ? json.inputTokenLimit : undefined,
-      outputTokenLimit: typeof json.outputTokenLimit === "number" ? json.outputTokenLimit : undefined,
+      inputTokenLimit:
+        typeof json.inputTokenLimit === "number"
+          ? json.inputTokenLimit
+          : undefined,
+      outputTokenLimit:
+        typeof json.outputTokenLimit === "number"
+          ? json.outputTokenLimit
+          : undefined,
     };
   } catch {
     return undefined;
@@ -245,15 +285,20 @@ async function fetchGeminiModelMetadata(
  * Call after the initial health check passes for the model endpoint.
  */
 export async function fetchGeminiMetadataForProviders(
-  providers: ReadonlyArray<{ id: string; kind: string; baseUrl?: string; apiKey?: string; apiKeyEnv?: string; apiVersion?: string }>,
+  providers: ReadonlyArray<{
+    id: string;
+    kind: string;
+    baseUrl?: string;
+    apiKey?: string;
+    apiKeyEnv?: string;
+    apiVersion?: string;
+  }>,
   failoverChain: ReadonlyArray<string>,
   env: NodeJS.ProcessEnv,
   logger: { warn(msg: string, meta?: Record<string, unknown>): void },
 ): Promise<void> {
   const geminiProviders = new Map(
-    providers
-      .filter((p) => p.kind === "gemini")
-      .map((p) => [p.id, p]),
+    providers.filter((p) => p.kind === "gemini").map((p) => [p.id, p]),
   );
 
   for (const entry of failoverChain) {
@@ -264,15 +309,27 @@ export async function fetchGeminiMetadataForProviders(
     const provider = geminiProviders.get(providerId);
     if (!provider) continue;
 
-    const apiKey = provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined);
+    const apiKey =
+      provider.apiKey ??
+      (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined);
     if (!apiKey) continue;
 
-    const baseUrl = provider.baseUrl ?? "https://generativelanguage.googleapis.com";
+    const baseUrl =
+      provider.baseUrl ?? "https://generativelanguage.googleapis.com";
     const apiVersion = provider.apiVersion ?? "v1beta";
 
-    const meta = await fetchGeminiModelMetadata(baseUrl, apiVersion, model, apiKey);
+    const meta = await fetchGeminiModelMetadata(
+      baseUrl,
+      apiVersion,
+      model,
+      apiKey,
+    );
     if (meta?.inputTokenLimit != null) {
-      const warning = setModelMetadataFromProvider(providerId, model, meta.inputTokenLimit);
+      const warning = setModelMetadataFromProvider(
+        providerId,
+        model,
+        meta.inputTokenLimit,
+      );
       if (warning) logger.warn(warning);
     }
   }
@@ -303,7 +360,12 @@ async function fetchOpenAIModelMetadata(
       // - max_model_len (vLLM)
       // - context_window (LiteLLM)
       // - max_context_length
-      for (const field of ["context_length", "max_model_len", "context_window", "max_context_length"]) {
+      for (const field of [
+        "context_length",
+        "max_model_len",
+        "context_window",
+        "max_context_length",
+      ]) {
         const val = json[field];
         if (typeof val === "number" && val > 0) {
           return { contextWindow: val };
@@ -326,7 +388,13 @@ async function fetchOpenAIModelMetadata(
  * and update the metadata store. Call after the initial health check passes.
  */
 export async function fetchOpenAIMetadataForProviders(
-  providers: ReadonlyArray<{ id: string; kind: string; baseUrl?: string; apiKey?: string; apiKeyEnv?: string }>,
+  providers: ReadonlyArray<{
+    id: string;
+    kind: string;
+    baseUrl?: string;
+    apiKey?: string;
+    apiKeyEnv?: string;
+  }>,
   failoverChain: ReadonlyArray<string>,
   env: NodeJS.ProcessEnv,
   logger: { warn(msg: string, meta?: Record<string, unknown>): void },
@@ -345,13 +413,20 @@ export async function fetchOpenAIMetadataForProviders(
     const provider = openaiProviders.get(providerId);
     if (!provider) continue;
 
-    const apiKey = provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined) ?? "";
+    const apiKey =
+      provider.apiKey ??
+      (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined) ??
+      "";
     const baseUrl = provider.baseUrl;
     if (!baseUrl) continue;
 
     const meta = await fetchOpenAIModelMetadata(baseUrl, model, apiKey);
     if (meta?.contextWindow != null) {
-      const warning = setModelMetadataFromProvider(providerId, model, meta.contextWindow);
+      const warning = setModelMetadataFromProvider(
+        providerId,
+        model,
+        meta.contextWindow,
+      );
       if (warning) logger.warn(warning);
     }
   }
@@ -378,7 +453,11 @@ export function createModelEndpointProbe(options: {
       try {
         normalized = normalizeModelBaseUrl(raw);
         if (!normalized) {
-          return { name: probeName, status: "skipped", detail: "not configured" };
+          return {
+            name: probeName,
+            status: "skipped",
+            detail: "not configured",
+          };
         }
         const apiKeyForUrl = options.getApiKey?.()?.trim();
         probeUrl = resolveModelProbeUrl(normalized, apiKeyForUrl, providerKind);
@@ -391,10 +470,16 @@ export function createModelEndpointProbe(options: {
       }
       try {
         const apiKey = options.getApiKey?.()?.trim();
-        const authHeaders = apiKey ? buildModelProbeAuthHeaders(normalized, apiKey, providerKind) : {};
+        const authHeaders = apiKey
+          ? buildModelProbeAuthHeaders(normalized, apiKey, providerKind)
+          : {};
         const res = await fetchModelEndpoint(probeUrl, authHeaders);
         if (res.status >= 200 && res.status < 400) {
-          return { name: probeName, status: "pass", detail: detailFromModelResponse(res) };
+          return {
+            name: probeName,
+            status: "pass",
+            detail: detailFromModelResponse(res),
+          };
         }
         if (res.status === 401) {
           return {

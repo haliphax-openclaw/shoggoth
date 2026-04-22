@@ -46,7 +46,9 @@ export async function runElevationCli(argv: string[]): Promise<void> {
   if (sub === "grant") {
     const sessionId = argv[1]?.trim();
     if (!sessionId) {
-      console.error("usage: shoggoth elevation grant <session-id> [--duration 5m]");
+      console.error(
+        "usage: shoggoth elevation grant <session-id> [--duration 5m]",
+      );
       process.exitCode = 1;
       return;
     }
@@ -96,7 +98,9 @@ export async function runElevationCli(argv: string[]): Promise<void> {
     }
     const sessionId = argv[1]?.trim();
     if (!sessionId) {
-      console.error("usage: shoggoth elevation revoke <session-id> | --id <grant-id>");
+      console.error(
+        "usage: shoggoth elevation revoke <session-id> | --id <grant-id>",
+      );
       process.exitCode = 1;
       return;
     }

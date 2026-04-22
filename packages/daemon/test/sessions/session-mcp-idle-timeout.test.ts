@@ -10,15 +10,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createSessionMcpRuntime,
-  type SessionMcpRuntime,
 } from "../../src/sessions/session-mcp-runtime";
 import {
   runInboundSessionTurn,
-  type RunInboundSessionTurnOptions,
 } from "../../src/messaging/inbound-session-turn";
 import type { McpServerPool } from "../../src/mcp/mcp-server-pool";
 import type { ShoggothConfig, ShoggothMcpServerEntry } from "@shoggoth/shared";
-import { defaultConfig, SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS } from "@shoggoth/shared";
+import {
+  defaultConfig,
+  SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS,
+} from "@shoggoth/shared";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -110,36 +111,50 @@ describe("per-session MCP idle timeout — turn lifecycle wiring", () => {
       buildTurn: async () => ({
         db,
         sessionId: "sess-1",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         session: { id: "sess-1", workspacePath: tmp } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         transcript: { append: vi.fn(), getAll: vi.fn(() => []) } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toolRuns: { append: vi.fn() } as any,
         userContent: "hello",
         userMetadata: undefined,
         systemPrompt: "test",
         env: process.env,
         config: defaultConfig(tmp),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         policyEngine: { evaluate: vi.fn() } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getHitlConfig: () => ({}) as any,
         hitl: {
           bypassUpTo: "safe",
-          pending: { add: vi.fn(), remove: vi.fn(), getAll: vi.fn(() => []) } as any,
+          pending: {
+            add: vi.fn(),
+            remove: vi.fn(),
+            getAll: vi.fn(() => []),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
           clock: { nowMs: () => Date.now() },
           newPendingId: () => "id",
           waitForHitlResolution: vi.fn(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
         loopImpl: vi.fn(async () => ({
           latestAssistantText: "reply",
           failoverMeta: undefined,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
-        createToolCallingClient: () => ({
-          completeWithTools: vi.fn(async () => ({
-            content: "reply",
-            toolCalls: [],
-            usedModel: "stub",
-            usedProviderId: "stub",
-            degraded: false,
-          })),
-        }) as any,
+        createToolCallingClient: () =>
+          ({
+            completeWithTools: vi.fn(async () => ({
+              content: "reply",
+              toolCalls: [],
+              usedModel: "stub",
+              usedProviderId: "stub",
+              degraded: false,
+            })),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
         resolveMcpContext: async () => ({
           aggregated: { tools: [] },
           toolsOpenAi: [],
@@ -198,13 +213,14 @@ describe("per-session MCP idle timeout — turn lifecycle wiring", () => {
     });
 
     // Spy on the runtime's notify methods
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const beginSpy = vi.spyOn(runtime, "notifyTurnBegin" as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const endSpy = vi.spyOn(runtime, "notifyTurnEnd" as any);
 
     // Import and use the PresentationTurnOrchestrator
-    const { PresentationTurnOrchestrator } = await import(
-      "../../src/presentation/turn-orchestrator"
-    );
+    const { PresentationTurnOrchestrator } =
+      await import("../../src/presentation/turn-orchestrator");
 
     const orchestrator = new PresentationTurnOrchestrator({
       config,
@@ -213,6 +229,7 @@ describe("per-session MCP idle timeout — turn lifecycle wiring", () => {
         maxBodyLength: 4000,
         sendBody: vi.fn(async () => {}),
         sendError: vi.fn(async () => {}),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     });
 
@@ -223,36 +240,50 @@ describe("per-session MCP idle timeout — turn lifecycle wiring", () => {
       buildTurn: async () => ({
         db,
         sessionId: "sess-wiring",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         session: { id: "sess-wiring", workspacePath: tmp } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         transcript: { append: vi.fn(), getAll: vi.fn(() => []) } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         toolRuns: { append: vi.fn() } as any,
         userContent: "hello",
         userMetadata: undefined,
         systemPrompt: "test",
         env: process.env,
         config,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         policyEngine: { evaluate: vi.fn() } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getHitlConfig: () => ({}) as any,
         hitl: {
           bypassUpTo: "safe",
-          pending: { add: vi.fn(), remove: vi.fn(), getAll: vi.fn(() => []) } as any,
+          pending: {
+            add: vi.fn(),
+            remove: vi.fn(),
+            getAll: vi.fn(() => []),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
           clock: { nowMs: () => Date.now() },
           newPendingId: () => "id",
           waitForHitlResolution: vi.fn(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
         loopImpl: vi.fn(async () => ({
           latestAssistantText: "reply",
           failoverMeta: undefined,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
-        createToolCallingClient: () => ({
-          completeWithTools: vi.fn(async () => ({
-            content: "reply",
-            toolCalls: [],
-            usedModel: "stub",
-            usedProviderId: "stub",
-            degraded: false,
-          })),
-        }) as any,
+        createToolCallingClient: () =>
+          ({
+            completeWithTools: vi.fn(async () => ({
+              content: "reply",
+              toolCalls: [],
+              usedModel: "stub",
+              usedProviderId: "stub",
+              degraded: false,
+            })),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
         resolveMcpContext: async () => ({
           aggregated: { tools: [] },
           toolsOpenAi: [],
@@ -308,7 +339,7 @@ describe("per-session MCP idle timeout — timer and eviction", () => {
     expect(runtime.trackPerSessionIdle).toBe(true);
 
     // Trigger lazy connect by resolving context
-    const ctx1 = await runtime.resolveContext("sess-idle");
+    const _ctx1 = await runtime.resolveContext("sess-idle");
     expect(mockMcp.connectShoggothMcpServers).toHaveBeenCalledTimes(1);
 
     // Simulate turn end — should schedule idle timer
@@ -321,7 +352,7 @@ describe("per-session MCP idle timeout — timer and eviction", () => {
     expect(mockMcp.closeFns[0]).toHaveBeenCalled();
 
     // Resolving context again should trigger a fresh connect
-    const ctx2 = await runtime.resolveContext("sess-idle");
+    const _ctx2 = await runtime.resolveContext("sess-idle");
     expect(mockMcp.connectShoggothMcpServers).toHaveBeenCalledTimes(2);
 
     await runtime.shutdown();

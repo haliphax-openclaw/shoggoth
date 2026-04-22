@@ -1,5 +1,9 @@
 import type { ShoggothConfig } from "@shoggoth/shared";
-import { assertValidAgentId, parseAgentSessionUrn, resolveAgentDefaultPlatform } from "@shoggoth/shared";
+import {
+  assertValidAgentId,
+  parseAgentSessionUrn,
+  resolveAgentDefaultPlatform,
+} from "@shoggoth/shared";
 import { resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
 
 /**
@@ -9,7 +13,10 @@ import { resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
  *
  * Platform is derived from the target agent's platform bindings in `agents.list.<agentId>.platforms`.
  */
-export function resolveSessionTargetFromCliArg(raw: string, cfg: ShoggothConfig): string {
+export function resolveSessionTargetFromCliArg(
+  raw: string,
+  cfg: ShoggothConfig,
+): string {
   const t = raw.trim();
   if (!t) {
     throw new Error("session or agent id must be non-empty");
@@ -23,6 +30,7 @@ export function resolveSessionTargetFromCliArg(raw: string, cfg: ShoggothConfig)
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(
       `not a valid session URN or agent id (${msg}); expected agent:<agentId>:<platform>:… or an agent id matching /^[a-zA-Z0-9._-]+$/`,
+      { cause: e },
     );
   }
   const platform = resolveAgentDefaultPlatform(cfg, t);

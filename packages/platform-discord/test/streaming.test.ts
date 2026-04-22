@@ -32,6 +32,7 @@ describe("DiscordStreamingOutbound", () => {
     await handle.setFullContent(longText);
 
     expect(transport.editMessage).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const createCalls = (transport.createMessage as any).mock.calls;
     // First call is the "…" placeholder, subsequent calls are overflow
     expect(createCalls.length).toBeGreaterThanOrEqual(2);
@@ -76,7 +77,9 @@ describe("DiscordStreamingOutbound", () => {
     await handle.setFullContent(sliced);
 
     // Reset mocks to isolate the final call
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (transport.editMessage as any).mockClear();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (transport.createMessage as any).mockClear();
 
     // Final setFullContent with full body (mirrors inbound-session-turn)
@@ -85,6 +88,9 @@ describe("DiscordStreamingOutbound", () => {
     // Should edit original with first chunk
     expect(transport.editMessage).toHaveBeenCalledTimes(1);
     // Should create overflow message(s) for remaining content
-    expect((transport.createMessage as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (transport.createMessage as any).mock.calls.length,
+    ).toBeGreaterThanOrEqual(1);
   });
 });

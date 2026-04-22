@@ -12,7 +12,9 @@ export interface McpToolsListPayload {
   }>;
 }
 
-export function toMcpToolsListPayload(aggregated: AggregateMcpCatalogResult): McpToolsListPayload {
+export function toMcpToolsListPayload(
+  aggregated: AggregateMcpCatalogResult,
+): McpToolsListPayload {
   return {
     tools: aggregated.tools.map((t) => ({
       name: t.namespacedName,

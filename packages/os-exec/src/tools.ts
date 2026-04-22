@@ -8,7 +8,11 @@ import {
   type BackgroundHandle,
 } from "./subprocess";
 import { resolvePathForRead, resolvePathForWrite } from "./workspace-path";
-import type { ProcessManager, ManagedProcess, ProcessSpec } from "@shoggoth/procman";
+import type {
+  ProcessManager,
+  ManagedProcess,
+  ProcessSpec,
+} from "@shoggoth/procman";
 
 export interface AgentCredentials {
   uid: number;
@@ -146,7 +150,9 @@ export async function toolRead(
     env: { [ENV_READ]: abs },
   });
   if (r.exitCode !== 0) {
-    throw new Error(`toolRead failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`);
+    throw new Error(
+      `toolRead failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`,
+    );
   }
   return r.stdout;
 }
@@ -165,18 +171,22 @@ export async function toolReadBinary(
   const cwd = realpathSync(workspaceRoot);
   const r = await runAsUser({
     file: process.execPath,
-    args: ["-e", `process.stdout.write(require("fs").readFileSync(process.env.${ENV_READ}).toString("base64"));`],
+    args: [
+      "-e",
+      `process.stdout.write(require("fs").readFileSync(process.env.${ENV_READ}).toString("base64"));`,
+    ],
     cwd,
     uid: creds.uid,
     gid: creds.gid,
     env: { [ENV_READ]: abs },
   });
   if (r.exitCode !== 0) {
-    throw new Error(`toolReadBinary failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`);
+    throw new Error(
+      `toolReadBinary failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`,
+    );
   }
   return Buffer.from(r.stdout, "base64");
 }
-
 
 // ---------------------------------------------------------------------------
 // Extended write helpers
@@ -315,7 +325,8 @@ function validateWriteOptions(opts: WriteOptions): void {
   }
 
   const hasAppend = opts.append === true;
-  const hasLineRange = opts.startLine !== undefined || opts.endLine !== undefined;
+  const hasLineRange =
+    opts.startLine !== undefined || opts.endLine !== undefined;
   const hasInsert = opts.insertAfter !== undefined;
 
   // Mutual exclusivity: append, startLine/endLine, insertAfter
@@ -342,7 +353,11 @@ function validateWriteOptions(opts: WriteOptions): void {
   }
 
   // endLine >= startLine
-  if (opts.startLine !== undefined && opts.endLine !== undefined && opts.endLine < opts.startLine) {
+  if (
+    opts.startLine !== undefined &&
+    opts.endLine !== undefined &&
+    opts.endLine < opts.startLine
+  ) {
     throw new Error(
       `\`endLine\` (${opts.endLine}) must be >= \`startLine\` (${opts.startLine}).`,
     );
@@ -418,12 +433,17 @@ export async function toolWrite(
   });
 
   if (r.exitCode !== 0) {
-    throw new Error(`toolWrite failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`);
+    throw new Error(
+      `toolWrite failed: ${r.stderr.trim() || `exit ${r.exitCode}`}`,
+    );
   }
 
   // Parse result metadata from subprocess stdout
   try {
-    const result = JSON.parse(r.stdout) as { bytesWritten: number; dirCreated: boolean };
+    const result = JSON.parse(r.stdout) as {
+      bytesWritten: number;
+      dirCreated: boolean;
+    };
     return {
       path: abs,
       bytesWritten: result.bytesWritten,
@@ -493,7 +513,8 @@ const PER_FILE_MAX_LINES = 2000;
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -565,9 +586,20 @@ async function toolStatRaw(
 }
 
 /** Build a FileStat from raw subprocess output. */
-function buildFileStat(relPath: string, raw: Record<string, unknown>): FileStat {
+function buildFileStat(
+  relPath: string,
+  raw: Record<string, unknown>,
+): FileStat {
   if (raw.error) {
-    return { path: relPath, size: 0, sizeHuman: "0 B", mtime: "", type: "other", permissions: "---------", error: String(raw.error) };
+    return {
+      path: relPath,
+      size: 0,
+      sizeHuman: "0 B",
+      mtime: "",
+      type: "other",
+      permissions: "---------",
+      error: String(raw.error),
+    };
   }
   const size = raw.size as number;
   const result: FileStat = {
@@ -602,7 +634,7 @@ function resolvePathList(
 
   for (const pattern of patterns) {
     // Check if the pattern contains glob characters
-    const isGlob = /[*?{}\[\]]/.test(pattern);
+    const isGlob = /[*?{}[\]]/.test(pattern);
     if (isGlob) {
       const matches = globSync(pattern, { cwd: rootReal });
       const sorted = (matches as string[]).sort();
@@ -671,7 +703,10 @@ function sliceLines(
  * Truncate content to per-file limits (line count and byte size).
  * Returns { content, truncated }.
  */
-function truncateContent(content: string): { content: string; truncated: boolean } {
+function truncateContent(content: string): {
+  content: string;
+  truncated: boolean;
+} {
   const lines = content.split("\n");
   let truncated = false;
 
@@ -702,7 +737,9 @@ function isBinaryContent(content: string): boolean {
 function validateReadOptions(opts: ReadExtendedOptions): void {
   // path vs paths mutual exclusivity
   if (opts.path && opts.paths?.length) {
-    throw new Error("Cannot specify both `path` and `paths` — use one or the other.");
+    throw new Error(
+      "Cannot specify both `path` and `paths` — use one or the other.",
+    );
   }
   if (!opts.path && (!opts.paths || opts.paths.length === 0)) {
     throw new Error("Either `path` or `paths` must be provided.");
@@ -712,12 +749,20 @@ function validateReadOptions(opts: ReadExtendedOptions): void {
   const hasFromTo = opts.fromLine !== undefined || opts.toLine !== undefined;
   const hasOffsetLimit = opts.offset !== undefined || opts.limit !== undefined;
   if (hasFromTo && hasOffsetLimit) {
-    throw new Error("Cannot combine `fromLine`/`toLine` with `offset`/`limit` — use one pair or the other.");
+    throw new Error(
+      "Cannot combine `fromLine`/`toLine` with `offset`/`limit` — use one pair or the other.",
+    );
   }
 
   // fromLine > toLine validation
-  if (opts.fromLine !== undefined && opts.toLine !== undefined && opts.fromLine > opts.toLine) {
-    throw new Error(`\`fromLine\` (${opts.fromLine}) must be <= \`toLine\` (${opts.toLine}).`);
+  if (
+    opts.fromLine !== undefined &&
+    opts.toLine !== undefined &&
+    opts.fromLine > opts.toLine
+  ) {
+    throw new Error(
+      `\`fromLine\` (${opts.fromLine}) must be <= \`toLine\` (${opts.toLine}).`,
+    );
   }
 
   // Negative values
@@ -744,9 +789,17 @@ export async function toolReadExtended(
 
   const maxFiles = opts.maxFiles ?? 20;
   const isStat = opts.stat === true;
-  const lineOpts = { fromLine: opts.fromLine, toLine: opts.toLine, offset: opts.offset, limit: opts.limit };
-  const hasLineRange = opts.fromLine !== undefined || opts.toLine !== undefined
-    || opts.offset !== undefined || opts.limit !== undefined;
+  const lineOpts = {
+    fromLine: opts.fromLine,
+    toLine: opts.toLine,
+    offset: opts.offset,
+    limit: opts.limit,
+  };
+  const hasLineRange =
+    opts.fromLine !== undefined ||
+    opts.toLine !== undefined ||
+    opts.offset !== undefined ||
+    opts.limit !== undefined;
 
   // --- Single-path mode ---
   if (opts.path) {
@@ -769,7 +822,11 @@ export async function toolReadExtended(
 
   // --- Multi-path / glob mode ---
   const patterns = opts.paths!;
-  const { relativePaths, truncated } = resolvePathList(workspaceRoot, patterns, maxFiles);
+  const { relativePaths, truncated } = resolvePathList(
+    workspaceRoot,
+    patterns,
+    maxFiles,
+  );
   const rootReal = realpathSync(workspaceRoot);
 
   if (isStat) {
@@ -784,8 +841,13 @@ export async function toolReadExtended(
         stats.push(buildFileStat(relPath, raw));
       } catch (e) {
         stats.push({
-          path: relPath, size: 0, sizeHuman: "0 B", mtime: "", type: "other",
-          permissions: "---------", error: (e as Error).message,
+          path: relPath,
+          size: 0,
+          sizeHuman: "0 B",
+          mtime: "",
+          type: "other",
+          permissions: "---------",
+          error: (e as Error).message,
         });
       }
     }
@@ -814,20 +876,27 @@ export async function toolReadExtended(
       }
 
       // Truncate per-file
-      const { content: trimmed, truncated: fileTruncated } = truncateContent(content);
+      const { content: trimmed, truncated: fileTruncated } =
+        truncateContent(content);
       content = trimmed;
       if (fileTruncated) {
-        notices.push(`${relPath}: truncated to ${PER_FILE_MAX_LINES} lines / ${formatSize(PER_FILE_MAX_BYTES)}`);
+        notices.push(
+          `${relPath}: truncated to ${PER_FILE_MAX_LINES} lines / ${formatSize(PER_FILE_MAX_BYTES)}`,
+        );
       }
 
       // Check total response budget
       const contentBytes = Buffer.byteLength(content, "utf8");
       if (totalBytes + contentBytes > PER_FILE_MAX_BYTES) {
-        notices.push(`${relPath}: omitted (total response size would exceed ${formatSize(PER_FILE_MAX_BYTES)})`);
+        notices.push(
+          `${relPath}: omitted (total response size would exceed ${formatSize(PER_FILE_MAX_BYTES)})`,
+        );
         // Mark remaining files as omitted
         const idx = relativePaths.indexOf(relPath);
         for (let i = idx + 1; i < relativePaths.length; i++) {
-          notices.push(`${relativePaths[i]}: omitted (total response size budget exhausted)`);
+          notices.push(
+            `${relativePaths[i]}: omitted (total response size budget exhausted)`,
+          );
         }
         break;
       }
@@ -848,7 +917,11 @@ export async function toolReadExtended(
     notices.push("No files matched the provided patterns.");
   }
 
-  return { kind: "multi", files, notices: notices.length > 0 ? notices : undefined };
+  return {
+    kind: "multi",
+    files,
+    notices: notices.length > 0 ? notices : undefined,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -948,19 +1021,26 @@ function truncateOutput(
   switch (mode) {
     case "head":
       return {
-        text: raw.slice(0, maxChars) + `\n[... truncated ${raw.length - maxChars} characters ...]`,
+        text:
+          raw.slice(0, maxChars) +
+          `\n[... truncated ${raw.length - maxChars} characters ...]`,
         truncated: true,
       };
     case "tail":
       return {
-        text: `[... truncated ${raw.length - maxChars} characters ...]\n` + raw.slice(-maxChars),
+        text:
+          `[... truncated ${raw.length - maxChars} characters ...]\n` +
+          raw.slice(-maxChars),
         truncated: true,
       };
     case "both": {
       const half = Math.floor(maxChars / 2);
       const gap = raw.length - maxChars;
       return {
-        text: raw.slice(0, half) + `\n[... truncated ${gap} characters ...]\n` + raw.slice(-half),
+        text:
+          raw.slice(0, half) +
+          `\n[... truncated ${gap} characters ...]\n` +
+          raw.slice(-half),
         truncated: true,
       };
     }
@@ -1005,7 +1085,9 @@ function nextProcmanId(): string {
  * When a ProcessManager is set, checks procman first.
  * Falls back to the legacy Map.
  */
-export function getExecSession(sessionId: string): BackgroundHandle | undefined {
+export function getExecSession(
+  sessionId: string,
+): BackgroundHandle | undefined {
   return backgroundSessions.get(sessionId);
 }
 
@@ -1013,7 +1095,9 @@ export function getExecSession(sessionId: string): BackgroundHandle | undefined 
  * Get a procman-managed process by session ID.
  * Returns undefined when no ProcessManager is set or the ID is not found.
  */
-export function getManagedExecSession(sessionId: string): ManagedProcess | undefined {
+export function getManagedExecSession(
+  sessionId: string,
+): ManagedProcess | undefined {
   return _processManager?.get(sessionId);
 }
 
@@ -1052,16 +1136,28 @@ function validateExecOptions(opts: ExecExtendedOptions): void {
   if (!opts.command || opts.command.trim().length === 0) {
     throw new Error("`command` is required and must be non-empty.");
   }
-  if (opts.timeout !== undefined && (typeof opts.timeout !== "number" || opts.timeout <= 0)) {
+  if (
+    opts.timeout !== undefined &&
+    (typeof opts.timeout !== "number" || opts.timeout <= 0)
+  ) {
     throw new Error("`timeout` must be a positive number (seconds).");
   }
-  if (opts.maxOutput !== undefined && (typeof opts.maxOutput !== "number" || opts.maxOutput <= 0)) {
+  if (
+    opts.maxOutput !== undefined &&
+    (typeof opts.maxOutput !== "number" || opts.maxOutput <= 0)
+  ) {
     throw new Error("`maxOutput` must be a positive number.");
   }
-  if (opts.truncation !== undefined && !["head", "tail", "both"].includes(opts.truncation)) {
+  if (
+    opts.truncation !== undefined &&
+    !["head", "tail", "both"].includes(opts.truncation)
+  ) {
     throw new Error('`truncation` must be "head", "tail", or "both".');
   }
-  if (opts.yieldMs !== undefined && (typeof opts.yieldMs !== "number" || opts.yieldMs < 0)) {
+  if (
+    opts.yieldMs !== undefined &&
+    (typeof opts.yieldMs !== "number" || opts.yieldMs < 0)
+  ) {
     throw new Error("`yieldMs` must be a non-negative number.");
   }
 }
@@ -1104,7 +1200,10 @@ export async function toolExecExtended(
   };
 
   // Resolve output limits
-  const maxOutput = Math.min(opts.maxOutput ?? MAX_OUTPUT_DEFAULT, MAX_OUTPUT_SYSTEM_CAP);
+  const maxOutput = Math.min(
+    opts.maxOutput ?? MAX_OUTPUT_DEFAULT,
+    MAX_OUTPUT_SYSTEM_CAP,
+  );
   const truncationMode: TruncationMode = opts.truncation ?? "tail";
   const splitStreams = opts.splitStreams ?? false;
 
@@ -1193,7 +1292,9 @@ export async function toolExecExtended(
           // Already dead?
           if (mp.state === "dead" || mp.state === "exited") resolve(true);
         }),
-        new Promise<false>((resolve) => setTimeout(() => resolve(false), opts.yieldMs)),
+        new Promise<false>((resolve) =>
+          setTimeout(() => resolve(false), opts.yieldMs),
+        ),
       ]);
 
       if (finished) {
@@ -1203,16 +1304,22 @@ export async function toolExecExtended(
         // Clean up from procman since we're returning a foreground result
         _processManager.stop(specId).catch(() => {});
         return buildForegroundResultFromParts(
-          stdout, stderr,
-          mp.lastExitCode, mp.lastSignal, false,
-          splitStreams, maxOutput, truncationMode,
+          stdout,
+          stderr,
+          mp.lastExitCode,
+          mp.lastSignal,
+          false,
+          splitStreams,
+          maxOutput,
+          truncationMode,
         );
       }
 
       // Still running — keep in procman, return background handle
       const partialStdout = mp.readOutput("stdout");
       const partialStderr = mp.readOutput("stderr");
-      const partialOutput = (partialStdout + partialStderr).slice(0, maxOutput) || undefined;
+      const partialOutput =
+        (partialStdout + partialStderr).slice(0, maxOutput) || undefined;
 
       return {
         kind: "background",
@@ -1229,12 +1336,19 @@ export async function toolExecExtended(
     // Wait up to yieldMs for the process to finish
     const finished = await Promise.race([
       handle.done.then(() => true),
-      new Promise<false>((resolve) => setTimeout(() => resolve(false), opts.yieldMs)),
+      new Promise<false>((resolve) =>
+        setTimeout(() => resolve(false), opts.yieldMs),
+      ),
     ]);
 
     if (finished) {
       // Process completed within the yield window — return full result
-      return buildForegroundResult(handle, splitStreams, maxOutput, truncationMode);
+      return buildForegroundResult(
+        handle,
+        splitStreams,
+        maxOutput,
+        truncationMode,
+      );
     }
 
     // Still running — register and return background handle
@@ -1242,7 +1356,8 @@ export async function toolExecExtended(
 
     const partialStdout = readHandleOutput(handle, "stdout");
     const partialStderr = readHandleOutput(handle, "stderr");
-    const partialOutput = (partialStdout + partialStderr).slice(0, maxOutput) || undefined;
+    const partialOutput =
+      (partialStdout + partialStderr).slice(0, maxOutput) || undefined;
 
     return {
       kind: "background",
@@ -1256,7 +1371,12 @@ export async function toolExecExtended(
 
   // --- Foreground (default) ---
   const result = await runAsUser(spawnOpts);
-  return buildForegroundResultFromRaw(result, splitStreams, maxOutput, truncationMode);
+  return buildForegroundResultFromRaw(
+    result,
+    splitStreams,
+    maxOutput,
+    truncationMode,
+  );
 }
 
 /**
@@ -1272,9 +1392,14 @@ function buildForegroundResult(
   const stderr = readHandleOutput(handle, "stderr");
 
   return buildForegroundResultFromParts(
-    stdout, stderr,
-    handle.exitCode, handle.signal, handle.timedOut,
-    splitStreams, maxOutput, truncationMode,
+    stdout,
+    stderr,
+    handle.exitCode,
+    handle.signal,
+    handle.timedOut,
+    splitStreams,
+    maxOutput,
+    truncationMode,
   );
 }
 
@@ -1288,9 +1413,14 @@ function buildForegroundResultFromRaw(
   truncationMode: TruncationMode,
 ): ExecForegroundResult {
   return buildForegroundResultFromParts(
-    r.stdout, r.stderr,
-    r.exitCode, r.signal, r.timedOut ?? false,
-    splitStreams, maxOutput, truncationMode,
+    r.stdout,
+    r.stderr,
+    r.exitCode,
+    r.signal,
+    r.timedOut ?? false,
+    splitStreams,
+    maxOutput,
+    truncationMode,
   );
 }
 

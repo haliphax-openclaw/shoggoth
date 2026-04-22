@@ -28,6 +28,7 @@ External MCP servers are fully wired (stdio, TCP, streamable HTTP), but three ga
 **Current state:** The timer infrastructure works. The gap is that platform turn orchestrators must call `notifyTurnBegin` / `notifyTurnEnd` at the right points. Verify that `turn-orchestrator.ts` (or equivalent) calls these hooks around every inbound turn, including error paths and aborts. If not, wire them in.
 
 **Eviction behavior on fire:**
+
 - Close all MCP sessions in the per-session pool for that `sessionId`.
 - Unregister the cancel handler.
 - Clear the cached `SessionMcpToolContext` so the next turn reconnects lazily.
@@ -44,6 +45,7 @@ In `mcp-streamable-http-transport.ts`, `runStandingGetLoop` reconnects after err
 - This mirrors the POST retry behavior already implemented in `readSseRpcFromPostBodyWithRetry`.
 
 **Edge cases:**
+
 - Servers that never send `id:` fields: no header sent, behavior unchanged.
 - Servers that don't honor `Last-Event-ID` on GET: they replay from their own cursor; client dispatches as normal (duplicate responses hit `pending` map misses and route to `onServerMessage`).
 
@@ -54,10 +56,12 @@ In `mcp-streamable-http-transport.ts`, `runStandingGetLoop` reconnects after err
 A new `McpServerRules` type, analogous to `ShoggothToolRules` but simpler (no `review` tier):
 
 ```typescript
-const mcpServerRulesSchema = z.object({
-  allow: z.array(z.string()),  // MCP server ids or "*"
-  deny: z.array(z.string()),   // MCP server ids or "*"
-}).strict();
+const mcpServerRulesSchema = z
+  .object({
+    allow: z.array(z.string()), // MCP server ids or "*"
+    deny: z.array(z.string()), // MCP server ids or "*"
+  })
+  .strict();
 
 type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 ```
@@ -65,6 +69,7 @@ type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 Default: `{ allow: ["*"], deny: [] }` — all servers available.
 
 Evaluation follows the same deny-wins pattern as `evaluateRules` in `policy/engine.ts`:
+
 1. If `deny` matches → excluded.
 2. If `allow` matches → included.
 3. Otherwise → excluded (default-deny).
@@ -73,12 +78,12 @@ Evaluation follows the same deny-wins pattern as `evaluateRules` in `policy/engi
 
 Four levels, each optional. When omitted, the level inherits the parent's effective rules.
 
-| Level | Config path | Applies to |
-|---|---|---|
-| Global | `mcp.serverRules` | All sessions (top-level and subagent) |
-| Per-agent | `agents.list.<id>.mcp.serverRules` | That agent's top-level sessions |
-| Global subagents | `agents.subagentMcp.serverRules` | All subagent sessions (default) |
-| Per-agent subagents | `agents.list.<id>.subagentMcp.serverRules` | Subagents spawned by that agent |
+| Level               | Config path                                | Applies to                            |
+| ------------------- | ------------------------------------------ | ------------------------------------- |
+| Global              | `mcp.serverRules`                          | All sessions (top-level and subagent) |
+| Per-agent           | `agents.list.<id>.mcp.serverRules`         | That agent's top-level sessions       |
+| Global subagents    | `agents.subagentMcp.serverRules`           | All subagent sessions (default)       |
+| Per-agent subagents | `agents.list.<id>.subagentMcp.serverRules` | Subagents spawned by that agent       |
 
 #### 3.3 Resolution order
 
@@ -105,7 +110,7 @@ allExternalSources → filter by effective rules → buildSessionMcpToolContext(
 
 The `ExternalMcpInvoke` callback also checks the rules: if a `tools/call` targets a denied `sourceId`, it returns `mcp_server_denied` without hitting the MCP session.
 
-**Important:** Filtering does not affect which servers are *connected* — only which are *advertised and callable*. This keeps pool management simple (connect everything configured; filter at the context layer). A denied server's pool stays warm so re-enabling it via dynamic config doesn't require a reconnect.
+**Important:** Filtering does not affect which servers are _connected_ — only which are _advertised and callable_. This keeps pool management simple (connect everything configured; filter at the context layer). A denied server's pool stays warm so re-enabling it via dynamic config doesn't require a reconnect.
 
 #### 3.5 Schema changes
 
@@ -113,10 +118,12 @@ In `packages/shared/src/schema.ts`:
 
 ```typescript
 // New schema
-export const mcpServerRulesSchema = z.object({
-  allow: z.array(z.string()),
-  deny: z.array(z.string()),
-}).strict();
+export const mcpServerRulesSchema = z
+  .object({
+    allow: z.array(z.string()),
+    deny: z.array(z.string()),
+  })
+  .strict();
 
 export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 
@@ -136,6 +143,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 #### 3.6 Example configurations
 
 **Globally disable a server:**
+
 ```json
 {
   "mcp": {
@@ -149,6 +157,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 ```
 
 **Restrict an agent to specific servers:**
+
 ```json
 {
   "agents": {
@@ -164,6 +173,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 ```
 
 **Deny all external MCP for subagents globally:**
+
 ```json
 {
   "agents": {
@@ -175,6 +185,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 ```
 
 **Per-agent subagent override (allow one server):**
+
 ```json
 {
   "agents": {
@@ -202,6 +213,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 - Verify reconnect works after eviction.
 
 **Files:**
+
 - `packages/daemon/src/presentation/turn-orchestrator.ts`
 - `packages/daemon/src/sessions/session-mcp-runtime.ts`
 - `packages/daemon/test/sessions/session-mcp-runtime.test.ts` (new or extend)
@@ -212,6 +224,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 - Add a test with a mock HTTP server that sends `id:` fields on SSE events, disconnects, and verifies the client reconnects with the correct `Last-Event-ID` header.
 
 **Files:**
+
 - `packages/mcp-integration/src/mcp-streamable-http-transport.ts`
 - `packages/mcp-integration/test/mcp-streamable-http-transport.test.ts` (extend)
 
@@ -226,6 +239,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 - Unit test the resolution and evaluation functions.
 
 **Files:**
+
 - `packages/shared/src/schema.ts`
 - `packages/shared/src/index.ts` (re-export)
 - `packages/shared/src/resolve.ts` (or equivalent — wherever `resolveEffectiveModelsConfig` etc. live)
@@ -239,6 +253,7 @@ export type McpServerRules = z.infer<typeof mcpServerRulesSchema>;
 - Integration test: configure two MCP servers, deny one for an agent, verify only the allowed server's tools appear and `tools/call` to the denied server returns the error.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-mcp-runtime.ts`
 - `packages/daemon/src/sessions/session-mcp-tool-context.ts`
 - `packages/daemon/test/sessions/session-mcp-runtime.test.ts` (extend)

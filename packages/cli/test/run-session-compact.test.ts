@@ -19,7 +19,11 @@ describe("runSessionCompact", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-1", workspacePath: "/w", status: "active" });
+    createSessionStore(db).create({
+      id: "sess-1",
+      workspacePath: "/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "sess-1");
     const big = "z".repeat(80);
     for (const [seq, role, content] of [
@@ -46,7 +50,11 @@ describe("runSessionCompact", () => {
       stateDbPath: dbPath,
       models: {
         providers: [
-          { id: "p", kind: "openai-compatible", baseUrl: "https://example.invalid/v1" },
+          {
+            id: "p",
+            kind: "openai-compatible",
+            baseUrl: "https://example.invalid/v1",
+          },
         ],
         failoverChain: ["p/m"],
         compaction: { preserveRecentMessages: 2 },
@@ -59,9 +67,11 @@ describe("runSessionCompact", () => {
     assert.equal(out.compacted, true);
 
     const verify = new Database(dbPath);
-    const n = verify.prepare(`SELECT COUNT(*) as c FROM transcript_messages WHERE session_id = ?`).get(
-      "sess-1",
-    ) as { c: number };
+    const n = verify
+      .prepare(
+        `SELECT COUNT(*) as c FROM transcript_messages WHERE session_id = ?`,
+      )
+      .get("sess-1") as { c: number };
     assert.equal(n.c, 3);
     verify.close();
     rmSync(dir, { recursive: true, force: true });

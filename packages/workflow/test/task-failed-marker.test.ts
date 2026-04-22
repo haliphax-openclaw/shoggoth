@@ -17,7 +17,9 @@ import {
 } from "../src/orchestrator.js";
 
 function makeTmpDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "task-failed-marker-test-"));
+  const dir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "task-failed-marker-test-"),
+  );
   fs.chmodSync(dir, 0o777);
   return dir;
 }
@@ -25,7 +27,9 @@ function makeTmpDir(): string {
 function makeTask(
   id: number,
   prompt = `do task ${id}`,
-  opts: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">> = {},
+  opts: Partial<
+    Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">
+  > = {},
 ): TaskDef {
   return {
     kind: "agent",
@@ -59,7 +63,9 @@ function mockPollAdapter(
   };
 }
 
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -69,7 +75,9 @@ function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: strin
   };
 }
 
-function mockNotificationAdapter(): NotificationAdapter & { calls: Array<{ target: string; message: string }> } {
+function mockNotificationAdapter(): NotificationAdapter & {
+  calls: Array<{ target: string; message: string }>;
+} {
   const calls: Array<{ target: string; message: string }> = [];
   return {
     calls,
@@ -117,7 +125,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1)];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -125,7 +140,8 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     // Subagent "completes" but includes the failure marker at the end
     pollResults.set("session-1", {
       status: "done",
-      output: "I tried to do the task but couldn't find the file.\nERROR:TASK_FAILED",
+      output:
+        "I tried to do the task but couldn't find the file.\nERROR:TASK_FAILED",
     });
     await orch.tick();
 
@@ -140,7 +156,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1)];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -162,7 +185,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1)];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -184,12 +214,20 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1)];
     await orch.start(tasks, "1", defaultOpts(baseDir));
 
-    const fullResponse = "I tried but the API returned 403 Forbidden.\nERROR:TASK_FAILED";
+    const fullResponse =
+      "I tried but the API returned 403 Forbidden.\nERROR:TASK_FAILED";
     pollResults.set("session-1", {
       status: "done",
       output: fullResponse,
@@ -200,7 +238,9 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const task1 = wf.tasks.find((t) => t.taskDef.id === 1)!;
     assert.equal(task1.status, "failed");
     // The error should contain the full subagent response text
-    assert.ok(task1.error!.includes("I tried but the API returned 403 Forbidden."));
+    assert.ok(
+      task1.error!.includes("I tried but the API returned 403 Forbidden."),
+    );
   });
 
   it("does not mark task as failed when output does not contain the marker", async () => {
@@ -209,7 +249,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1)];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -223,7 +270,10 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const wf = orch.getWorkflowStatus()!;
     const task1 = wf.tasks.find((t) => t.taskDef.id === 1)!;
     assert.equal(task1.status, "done");
-    assert.equal(task1.output, "Task completed successfully. All files updated.");
+    assert.equal(
+      task1.output,
+      "Task completed successfully. All files updated.",
+    );
   });
 
   it("is case-sensitive — does not match lowercase or mixed case variants", async () => {
@@ -232,7 +282,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     const tasks = [makeTask(1), makeTask(2), makeTask(3)];
     await orch.start(tasks, "1 2 3", defaultOpts(baseDir));
@@ -276,15 +333,25 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const notifier = mockNotifyAdapter();
     const notifications = mockNotificationAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      notifications,
+      killer,
+    );
 
     const tasks = [
-      makeTask(1, "do task 1", { failureNotification: { kind: "notify-parent" } }),
+      makeTask(1, "do task 1", {
+        failureNotification: { kind: "notify-parent" },
+      }),
     ];
     const opts = defaultOpts(baseDir);
     await orch.start(tasks, "1", opts);
 
-    const fullResponse = "Could not complete: missing credentials for the API.\nERROR:TASK_FAILED";
+    const fullResponse =
+      "Could not complete: missing credentials for the API.\nERROR:TASK_FAILED";
     pollResults.set("session-1", {
       status: "done",
       output: fullResponse,
@@ -304,7 +371,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     // Chain: 1 > 2
     const tasks = [makeTask(1), makeTask(2)];
@@ -333,7 +407,14 @@ describe("ERROR:TASK_FAILED marker detection", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const killer = mockKillAdapter();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      killer,
+    );
 
     // Task 1 has abort behavior, task 2 is independent
     const tasks = [

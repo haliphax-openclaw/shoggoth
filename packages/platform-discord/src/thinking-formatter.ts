@@ -2,25 +2,24 @@
  * Formats thinking blocks in Discord messages based on display mode.
  */
 
-export type ThinkingDisplayMode = 'full' | 'indicator' | 'none';
+export type ThinkingDisplayMode = "full" | "indicator" | "none";
 
-interface FormattedThinking {
-  thinking: string;
-  response: string;
-}
 
 /**
  * Extract thinking and response content from a message body.
  * Assumes thinking is wrapped in <thinking>...</thinking> tags.
  */
-function extractThinkingAndResponse(body: string): { thinking: string; response: string } {
+function extractThinkingAndResponse(body: string): {
+  thinking: string;
+  response: string;
+} {
   const thinkingMatch = body.match(/<thinking>([\s\S]*?)<\/thinking>/);
   if (!thinkingMatch) {
-    return { thinking: '', response: body };
+    return { thinking: "", response: body };
   }
 
   const thinking = thinkingMatch[1];
-  const response = body.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+  const response = body.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim();
   return { thinking, response };
 }
 
@@ -28,15 +27,15 @@ function extractThinkingAndResponse(body: string): { thinking: string; response:
  * Format thinking content as a Discord blockquote with 💭 prefix.
  */
 function formatThinkingFull(thinking: string): string {
-  const lines = thinking.split('\n');
-  return lines.map(line => `> 💭 ${line}`).join('\n');
+  const lines = thinking.split("\n");
+  return lines.map((line) => `> 💭 ${line}`).join("\n");
 }
 
 /**
  * Format thinking as a single indicator line.
  */
 function formatThinkingIndicator(): string {
-  return '> 💭 Thinking...';
+  return "> 💭 Thinking...";
 }
 
 /**
@@ -46,9 +45,9 @@ export function formatMessageWithThinking(
   body: string,
   mode: ThinkingDisplayMode,
 ): string {
-  if (mode === 'none') {
+  if (mode === "none") {
     // Strip thinking entirely
-    return body.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+    return body.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim();
   }
 
   const { thinking, response } = extractThinkingAndResponse(body);
@@ -57,17 +56,17 @@ export function formatMessageWithThinking(
     return body;
   }
 
-  let formatted = '';
+  let formatted = "";
 
-  if (mode === 'full') {
+  if (mode === "full") {
     formatted = formatThinkingFull(thinking);
     if (response) {
-      formatted += '\n\n' + response;
+      formatted += "\n\n" + response;
     }
-  } else if (mode === 'indicator') {
+  } else if (mode === "indicator") {
     formatted = formatThinkingIndicator();
     if (response) {
-      formatted += '\n\n' + response;
+      formatted += "\n\n" + response;
     }
   }
 
@@ -78,7 +77,8 @@ export function formatMessageWithThinking(
  * Check if a chunk contains a thinking→response transition.
  * Returns true if the chunk has both thinking content and response content.
  */
-function hasThinkingTransition(chunk: string): boolean {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _hasThinkingTransition(chunk: string): boolean {
   const hasThinking = /<thinking>[\s\S]*?<\/thinking>/.test(chunk);
   const { thinking, response } = extractThinkingAndResponse(chunk);
   return hasThinking && thinking.length > 0 && response.length > 0;
@@ -88,12 +88,13 @@ function hasThinkingTransition(chunk: string): boolean {
  * Format a chunk that may contain a thinking→response transition.
  * Ensures proper formatting with blockquote closure before response.
  */
-function formatChunkWithTransition(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _formatChunkWithTransition(
   chunk: string,
   mode: ThinkingDisplayMode,
 ): string {
-  if (mode === 'none') {
-    return chunk.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+  if (mode === "none") {
+    return chunk.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim();
   }
 
   const { thinking, response } = extractThinkingAndResponse(chunk);
@@ -102,18 +103,18 @@ function formatChunkWithTransition(
     return chunk;
   }
 
-  let formatted = '';
+  let formatted = "";
 
-  if (mode === 'full') {
+  if (mode === "full") {
     formatted = formatThinkingFull(thinking);
     if (response) {
       // Ensure proper transition: end blockquote, then response
-      formatted += '\n\n' + response;
+      formatted += "\n\n" + response;
     }
-  } else if (mode === 'indicator') {
+  } else if (mode === "indicator") {
     formatted = formatThinkingIndicator();
     if (response) {
-      formatted += '\n\n' + response;
+      formatted += "\n\n" + response;
     }
   }
 

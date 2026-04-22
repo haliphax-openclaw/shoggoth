@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
-import type { ChatMessage, ChatToolCall, ChatContentPart, ImageBlockCodec } from "@shoggoth/models";
+import type {
+  ChatMessage,
+  ChatToolCall,
+  ChatContentPart,
+  ImageBlockCodec,
+} from "@shoggoth/models";
 import type { TranscriptMessageRow } from "./transcript-store";
 import { createTranscriptStore } from "./transcript-store";
 
@@ -11,10 +16,16 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.type === "string") {
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        typeof parsed[0]?.type === "string"
+      ) {
         return parsed as ChatContentPart[];
       }
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   return raw;
 }
@@ -23,10 +34,12 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
  * Strip thinking blocks from content parts.
  * Returns the original content if it's a string, or filters out thinking parts if it's an array.
  */
-function stripThinkingBlocks(content: string | ChatContentPart[]): string | ChatContentPart[] {
+function stripThinkingBlocks(
+  content: string | ChatContentPart[],
+): string | ChatContentPart[] {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return content;
-  
+
   const filtered = content.filter((part) => part.type !== "thinking");
   return filtered.length > 0 ? filtered : content;
 }
@@ -97,7 +110,12 @@ function loadTranscriptPage(
   let after = 0;
   const cap = 2000;
   for (;;) {
-    const page = tr.listPage({ sessionId, contextSegmentId, afterSeq: after, limit: 200 });
+    const page = tr.listPage({
+      sessionId,
+      contextSegmentId,
+      afterSeq: after,
+      limit: 200,
+    });
     all.push(...page.messages);
     if (!page.nextCursor || all.length >= cap) break;
     after = page.nextCursor;
@@ -111,7 +129,9 @@ export function loadSessionTranscriptAsModelChat(
   sessionId: string,
   contextSegmentId: string,
 ): ChatMessage[] {
-  return transcriptRowsToModelChatMessages(loadTranscriptPage(db, sessionId, contextSegmentId));
+  return transcriptRowsToModelChatMessages(
+    loadTranscriptPage(db, sessionId, contextSegmentId),
+  );
 }
 
 /** Last non–tool-call assistant content in the transcript (final visible reply). */
@@ -124,7 +144,12 @@ export function extractLatestTranscriptAssistantText(
   let after = 0;
   let last: string | undefined;
   for (;;) {
-    const page = tr.listPage({ sessionId, contextSegmentId, afterSeq: after, limit: 200 });
+    const page = tr.listPage({
+      sessionId,
+      contextSegmentId,
+      afterSeq: after,
+      limit: 200,
+    });
     for (const m of page.messages) {
       if (m.role === "assistant" && m.content) {
         if (!m.toolCalls?.length) {
@@ -165,7 +190,10 @@ function formatBytes(bytes: number): string {
 function sanitizeContentParts(parts: ChatContentPart[]): ChatContentPart[] {
   let hasImage = false;
   for (const p of parts) {
-    if (p.type === "image") { hasImage = true; break; }
+    if (p.type === "image") {
+      hasImage = true;
+      break;
+    }
   }
   if (!hasImage) return parts;
 

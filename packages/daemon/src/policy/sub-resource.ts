@@ -7,7 +7,9 @@
  */
 
 /** Extractor signature: returns a sub-resource string, or undefined to fall back to bare tool name. */
-export type SubResourceExtractor = (args: Record<string, unknown>) => string | undefined;
+export type SubResourceExtractor = (
+  args: Record<string, unknown>,
+) => string | undefined;
 
 /** Registry mapping tool names to their sub-resource extractors. */
 export type SubResourceExtractorRegistry = Map<string, SubResourceExtractor>;
@@ -21,8 +23,10 @@ export type SubResourceExtractorRegistry = Map<string, SubResourceExtractor>;
  *   "bash -c 'echo hello'"           → "bash"
  *   ""                                → "unknown"
  */
-export function execSubResourceExtractor(args: Record<string, unknown>): string {
-  let firstToken = "";
+export function execSubResourceExtractor(
+  args: Record<string, unknown>,
+): string {
+  let firstToken: string;
   if (Array.isArray(args.argv) && args.argv.length > 0) {
     // exec handler uses argv: string[]
     firstToken = String(args.argv[0]).trim();

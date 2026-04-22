@@ -18,7 +18,10 @@ const pathArg = {
 const writeArgs = {
   type: "object",
   properties: {
-    path: { type: "string", description: "File path relative to session workspace" },
+    path: {
+      type: "string",
+      description: "File path relative to session workspace",
+    },
     content: { type: "string", description: "Content to write to the file" },
   },
   required: ["path", "content"],
@@ -34,7 +37,8 @@ const execArgs = {
     },
     timeout: {
       type: "integer",
-      description: "Maximum milliseconds before the process is killed. Omit for no timeout.",
+      description:
+        "Maximum milliseconds before the process is killed. Omit for no timeout.",
       minimum: 0,
     },
     stdin: {
@@ -43,30 +47,36 @@ const execArgs = {
     },
     workdir: {
       type: "string",
-      description: "Working directory for the command. Defaults to workspace root.",
+      description:
+        "Working directory for the command. Defaults to workspace root.",
     },
     env: {
       type: "object",
       additionalProperties: true,
-      description: "Environment variable overrides (string values, merged with existing env).",
+      description:
+        "Environment variable overrides (string values, merged with existing env).",
     },
     splitStreams: {
       type: "boolean",
-      description: "When true, return stdout and stderr as separate fields instead of combined output.",
+      description:
+        "When true, return stdout and stderr as separate fields instead of combined output.",
     },
     maxOutput: {
       type: "integer",
-      description: "Maximum bytes of output to capture. Excess is truncated per the truncation strategy.",
+      description:
+        "Maximum bytes of output to capture. Excess is truncated per the truncation strategy.",
       minimum: 0,
     },
     truncation: {
       type: "string",
       enum: ["head", "tail", "both"],
-      description: "Truncation strategy when output exceeds maxOutput. Default: tail.",
+      description:
+        "Truncation strategy when output exceeds maxOutput. Default: tail.",
     },
     background: {
       type: "boolean",
-      description: "When true, start the process in the background immediately and return a session handle.",
+      description:
+        "When true, start the process in the background immediately and return a session handle.",
     },
     yieldMs: {
       type: "integer",
@@ -106,22 +116,46 @@ const subagentToolArgs = {
   properties: {
     action: {
       type: "string",
-      enum: ["spawn_one_shot", "spawn_persistent", "inspect", "steer", "abort", "kill", "wait", "result"],
+      enum: [
+        "spawn_one_shot",
+        "spawn_persistent",
+        "inspect",
+        "steer",
+        "abort",
+        "kill",
+        "wait",
+        "result",
+      ],
       description:
         "spawn_one_shot / spawn_persistent / inspect / steer / abort / kill / wait / result — use fields below as required for each action.",
     },
     prompt: {
       type: "string",
-      description: "spawn_one_shot, spawn_persistent, steer: task or steer text",
+      description:
+        "spawn_one_shot, spawn_persistent, steer: task or steer text",
     },
-    thread_id: { type: "string", description: "spawn_persistent: optional platform thread / channel identifier (omit for A2A-only)" },
+    thread_id: {
+      type: "string",
+      description:
+        "spawn_persistent: optional platform thread / channel identifier (omit for A2A-only)",
+    },
     model_options: {
       type: "object",
-      description: "spawn_*: optional overlay merged into inherited model_selection",
+      description:
+        "spawn_*: optional overlay merged into inherited model_selection",
     },
-    platform_user_id: { type: "string", description: "spawn_persistent, steer: optional messaging user id" },
-    reply_to_message_id: { type: "string", description: "spawn_persistent, steer: optional reply reference" },
-    lifetime_ms: { type: "integer", description: "spawn_persistent: optional persistent lifetime in ms" },
+    platform_user_id: {
+      type: "string",
+      description: "spawn_persistent, steer: optional messaging user id",
+    },
+    reply_to_message_id: {
+      type: "string",
+      description: "spawn_persistent, steer: optional reply reference",
+    },
+    lifetime_ms: {
+      type: "integer",
+      description: "spawn_persistent: optional persistent lifetime in ms",
+    },
     session_id: {
       type: "string",
       description:
@@ -134,28 +168,34 @@ const subagentToolArgs = {
     },
     timeout_ms: {
       type: "integer",
-      description: "wait: max wait time in ms before returning with timeout status (default 300000)",
+      description:
+        "wait: max wait time in ms before returning with timeout status (default 300000)",
     },
     mode: {
       type: "string",
       enum: ["all", "any"],
-      description: "wait: 'all' waits for every ID, 'any' returns on first completion (default 'all')",
+      description:
+        "wait: 'all' waits for every ID, 'any' returns on first completion (default 'all')",
     },
     include_results: {
       type: "boolean",
-      description: "wait: when true, embed each completed agent's final output in the response (default false)",
+      description:
+        "wait: when true, embed each completed agent's final output in the response (default false)",
     },
     max_chars: {
       type: "integer",
-      description: "result: truncate output to this many characters (default 8000). wait+include_results: per-agent limit (default 4000)",
+      description:
+        "result: truncate output to this many characters (default 8000). wait+include_results: per-agent limit (default 4000)",
     },
     respond_to: {
       type: "string",
-      description: "spawn_one_shot, spawn_persistent: session ID where the subagent's completion result should be delivered (default: spawning session)",
+      description:
+        "spawn_one_shot, spawn_persistent: session ID where the subagent's completion result should be delivered (default: spawning session)",
     },
     internal: {
       type: "boolean",
-      description: "spawn_one_shot, spawn_persistent: if true (default), deliver response as internal session message; if false, surface to the respondTo session's message platform binding",
+      description:
+        "spawn_one_shot, spawn_persistent: if true (default), deliver response as internal session message; if false, surface to the respondTo session's message platform binding",
     },
     delivery: {
       type: "string",
@@ -172,7 +212,10 @@ const sessionListArgs = {
   description:
     "List sessions from the daemon state DB. Agents only see sessions for their own agent id (from the calling session URN).",
   properties: {
-    status: { type: "string", description: "Optional status filter (e.g. active, terminated)" },
+    status: {
+      type: "string",
+      description: "Optional status filter (e.g. active, terminated)",
+    },
     agent_id: {
       type: "string",
       description:
@@ -196,7 +239,8 @@ const sessionListArgs = {
     },
     limit: {
       type: "integer",
-      description: "Maximum number of sessions to return (applied after sort). Must be a positive integer.",
+      description:
+        "Maximum number of sessions to return (applied after sort). Must be a positive integer.",
       minimum: 1,
     },
   },
@@ -207,16 +251,33 @@ const sessionSendArgs = {
   description:
     "Deliver a user message to a session and run one model turn. Use session_id or agent_id (main session); not both. When silent is true, the assistant reply is not posted to the bound messaging surface (internal delivery only).",
   properties: {
-    message: { type: "string", description: "User message content for the target session" },
+    message: {
+      type: "string",
+      description: "User message content for the target session",
+    },
     silent: {
       type: "boolean",
       description:
         "If true, do not post the assistant reply to the session bound channel; turn still runs internally",
     },
-    session_id: { type: "string", description: "Target session URN (omit if agent_id is set)" },
-    agent_id: { type: "string", description: "Logical agent id; targets that agent's bootstrap main session" },
-    platform_user_id: { type: "string", description: "When not silent, optional outbound user id for messaging_surface" },
-    reply_to_message_id: { type: "string", description: "When not silent, optional reply reference" },
+    session_id: {
+      type: "string",
+      description: "Target session URN (omit if agent_id is set)",
+    },
+    agent_id: {
+      type: "string",
+      description:
+        "Logical agent id; targets that agent's bootstrap main session",
+    },
+    platform_user_id: {
+      type: "string",
+      description:
+        "When not silent, optional outbound user id for messaging_surface",
+    },
+    reply_to_message_id: {
+      type: "string",
+      description: "When not silent, optional reply reference",
+    },
   },
   required: ["message"],
 } as const;
@@ -262,15 +323,18 @@ const configRequestArgs = {
   properties: {
     key: {
       type: "string",
-      description: "Top-level config key (e.g. \"toolDiscovery\", \"hitl\", \"agents\"). Used as the filename in the dynamic config directory. Only one key per request.",
+      description:
+        'Top-level config key (e.g. "toolDiscovery", "hitl", "agents"). Used as the filename in the dynamic config directory. Only one key per request.',
     },
     fragment: {
-      description: "The value to set for the given key. Can be any valid value for that config key (object, array, string, etc.).",
+      description:
+        "The value to set for the given key. Can be any valid value for that config key (object, array, string, etc.).",
     },
     mode: {
       type: "string",
       enum: ["merge", "overwrite"],
-      description: "merge (default): deep-merge with existing fragment for this key. overwrite: replace the entire key's value.",
+      description:
+        "merge (default): deep-merge with existing fragment for this key. overwrite: replace the entire key's value.",
     },
   },
   required: ["key", "fragment"],
@@ -300,22 +364,68 @@ const sessionQueryArgs = {
   description:
     "Read-only query of session transcript messages. Agents can only query sessions belonging to their own agent id unless explicitly allowed via sessionQuery config.",
   properties: {
-    session_id: { type: "string", description: "Specific session URN to query (optional; without it, queries all allowed sessions)" },
-    agent_id: { type: "string", description: "Filter by agent id (defaults to calling agent's own id; must be in allowed list)" },
-    limit: { type: "integer", description: "Max messages to return (default 50, max 200)", minimum: 1, maximum: 200 },
-    offset: { type: "integer", description: "Pagination offset (seq cursor; messages with seq > offset are returned)", minimum: 0 },
+    session_id: {
+      type: "string",
+      description:
+        "Specific session URN to query (optional; without it, queries all allowed sessions)",
+    },
+    agent_id: {
+      type: "string",
+      description:
+        "Filter by agent id (defaults to calling agent's own id; must be in allowed list)",
+    },
+    limit: {
+      type: "integer",
+      description: "Max messages to return (default 50, max 200)",
+      minimum: 1,
+      maximum: 200,
+    },
+    offset: {
+      type: "integer",
+      description:
+        "Pagination offset (seq cursor; messages with seq > offset are returned)",
+      minimum: 0,
+    },
     role: {
       oneOf: [
         { type: "string", enum: ["user", "assistant", "system", "tool"] },
-        { type: "array", items: { type: "string", enum: ["user", "assistant", "system", "tool"] } },
+        {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["user", "assistant", "system", "tool"],
+          },
+        },
       ],
-      description: "Filter to messages matching the given role(s). Accepts a single role string or an array. Empty array means no filter (all roles).",
+      description:
+        "Filter to messages matching the given role(s). Accepts a single role string or an array. Empty array means no filter (all roles).",
     },
-    query: { type: "string", description: "Case-insensitive substring search across message content. Only messages containing the query string are returned. Mutually exclusive with queryRegex." },
-    queryRegex: { type: "string", description: "Regex pattern to match against message content. Mutually exclusive with query." },
-    includeMetadata: { type: "boolean", description: "When true, each returned message includes _meta with timestamp (ISO 8601), tokenCount (approximate), and index (absolute position). Default false." },
-    metadataOnly: { type: "boolean", description: "When true, return only role and _meta (no content). Implies includeMetadata. Useful for session size analysis without consuming context. Default false." },
-    order: { type: "string", enum: ["asc", "desc"], description: "Traversal order by seq. 'desc' (default) returns newest first; 'asc' returns oldest first. When desc, offset defaults to the most recent message." },
+    query: {
+      type: "string",
+      description:
+        "Case-insensitive substring search across message content. Only messages containing the query string are returned. Mutually exclusive with queryRegex.",
+    },
+    queryRegex: {
+      type: "string",
+      description:
+        "Regex pattern to match against message content. Mutually exclusive with query.",
+    },
+    includeMetadata: {
+      type: "boolean",
+      description:
+        "When true, each returned message includes _meta with timestamp (ISO 8601), tokenCount (approximate), and index (absolute position). Default false.",
+    },
+    metadataOnly: {
+      type: "boolean",
+      description:
+        "When true, return only role and _meta (no content). Implies includeMetadata. Useful for session size analysis without consuming context. Default false.",
+    },
+    order: {
+      type: "string",
+      enum: ["asc", "desc"],
+      description:
+        "Traversal order by seq. 'desc' (default) returns newest first; 'asc' returns oldest first. When desc, offset defaults to the most recent message.",
+    },
   },
 } as const;
 
@@ -343,7 +453,8 @@ const showToolArgs = {
     },
     mediaType: {
       type: "string",
-      description: "MIME type (e.g. image/png). Required with base64; inferred for path/url.",
+      description:
+        "MIME type (e.g. image/png). Required with base64; inferred for path/url.",
     },
     filename: {
       type: "string",
@@ -365,15 +476,17 @@ const fsArgs = {
     },
     path: {
       type: "string",
-      description: "Source path (workspace-relative). Required for all actions.",
+      description:
+        "Source path (workspace-relative). Required for all actions.",
     },
     dest: {
       type: "string",
-      description: "Destination path (workspace-relative). Required for move, copy.",
+      description:
+        "Destination path (workspace-relative). Required for move, copy.",
     },
     mode: {
       type: "string",
-      description: "File mode string (e.g. \"755\", \"644\"). Required for chmod.",
+      description: 'File mode string (e.g. "755", "644"). Required for chmod.',
     },
     recursive: {
       type: "boolean",
@@ -390,11 +503,11 @@ const lsArgs = {
   properties: {
     path: {
       type: "string",
-      description: "Directory path (workspace-relative). Default: \".\"",
+      description: 'Directory path (workspace-relative). Default: "."',
     },
     all: {
       type: "boolean",
-      description: "Include entries starting with \".\". Default: false.",
+      description: 'Include entries starting with ".". Default: false.',
     },
     recursive: {
       type: "boolean",
@@ -442,15 +555,18 @@ const fetchArgs = {
       description: "Request headers as key-value pairs.",
     },
     body: {
-      description: "Request body. String or JSON object. When an object and no Content-Type is set, auto-sets application/json.",
+      description:
+        "Request body. String or JSON object. When an object and no Content-Type is set, auto-sets application/json.",
     },
     binary: {
       type: "boolean",
-      description: "When true, return response body as base64 instead of text. For binary responses. Default: false.",
+      description:
+        "When true, return response body as base64 instead of text. For binary responses. Default: false.",
     },
     maxResponseBytes: {
       type: "integer",
-      description: "Maximum response body bytes to return. Default: 1048576 (1MB). Truncates with a marker.",
+      description:
+        "Maximum response body bytes to return. Default: 1048576 (1MB). Truncates with a marker.",
       minimum: 0,
     },
     timeoutMs: {
@@ -477,7 +593,8 @@ const kvArgs = {
       description: "Key name. Required for get, set, delete. Max 256 chars.",
     },
     value: {
-      description: "Value to store. Required for set. Any JSON-serializable value. Max 64KB when serialized.",
+      description:
+        "Value to store. Required for set. Any JSON-serializable value. Max 64KB when serialized.",
     },
     prefix: {
       type: "string",
@@ -514,7 +631,8 @@ const timerArgs = {
     },
     message: {
       type: "string",
-      description: "Message content delivered when the timer fires. Default: the label.",
+      description:
+        "Message content delivered when the timer fires. Default: the label.",
     },
     id: {
       type: "string",
@@ -526,7 +644,9 @@ const timerArgs = {
 /** Canonical builtin source id. */
 export const BUILTIN_SOURCE_ID = "builtin";
 
-export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSourceCatalog {
+export function builtinShoggothToolsCatalog(
+  sourceId = BUILTIN_SOURCE_ID,
+): McpSourceCatalog {
   return {
     sourceId,
     tools: [
@@ -572,7 +692,7 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
       {
         name: "session-send",
         description:
-          "Send a message to another session (session_id or agent_id for main session). Cross-agent sends require agentToAgent.allow and/or agents.list.<senderId>.agentToAgent.allow in Shoggoth config (\"*\" allows any target). silent skips posting the reply to the bound channel.",
+          'Send a message to another session (session_id or agent_id for main session). Cross-agent sends require agentToAgent.allow and/or agents.list.<senderId>.agentToAgent.allow in Shoggoth config ("*" allows any target). silent skips posting the reply to the bound channel.',
         inputSchema: sessionSendArgs,
       },
       {
@@ -608,7 +728,8 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
           properties: {
             dynamic: {
               type: "boolean",
-              description: "When true, show only dynamic configuration fragments (written by config-request) instead of the full merged config.",
+              description:
+                "When true, show only dynamic configuration fragments (written by config-request) instead of the full merged config.",
             },
           },
         },
@@ -656,9 +777,21 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
         inputSchema: {
           type: "object" as const,
           properties: {
-            enable: { type: "array", items: { type: "string" }, description: "Tool IDs to enable for this session." },
-            disable: { type: "array", items: { type: "string" }, description: "Tool IDs to disable (collapse) for this session." },
-            list: { type: "boolean", description: "When true, list all available tools with their current state." },
+            enable: {
+              type: "array",
+              items: { type: "string" },
+              description: "Tool IDs to enable for this session.",
+            },
+            disable: {
+              type: "array",
+              items: { type: "string" },
+              description: "Tool IDs to disable (collapse) for this session.",
+            },
+            list: {
+              type: "boolean",
+              description:
+                "When true, list all available tools with their current state.",
+            },
           },
         },
       },
@@ -672,23 +805,75 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
             action: {
               type: "string",
               enum: ["search", "replace"],
-              description: "search: find text in files using ripgrep. replace: regex replace in a single file.",
+              description:
+                "search: find text in files using ripgrep. replace: regex replace in a single file.",
             },
-            pattern: { type: "string", description: "search: regex pattern to search for." },
-            path: { type: "string", description: "search: file or directory to search (workspace-relative). Default: \".\"" },
-            fileType: { type: "string", description: "search: ripgrep type filter (e.g. \"ts\", \"json\")." },
-            glob: { type: "string", description: "search: glob pattern for file filtering (e.g. \"*.ts\", \"!*.test.ts\")." },
-            caseSensitive: { type: "boolean", description: "search: case-sensitive search. Default: true." },
-            fixedStrings: { type: "boolean", description: "search/replace: treat pattern as literal string, not regex. Default: false." },
-            contextLines: { type: "integer", description: "search: lines of context around matches." },
-            maxCount: { type: "integer", description: "search: max matches per file." },
-            maxResults: { type: "integer", description: "search: total max result lines. Default: 200." },
-            includeHidden: { type: "boolean", description: "search: include hidden files/dirs. Default: false." },
-            multiline: { type: "boolean", description: "search/replace: enable multiline matching (required when pattern spans multiple lines). Default: false." },
-            file: { type: "string", description: "replace: path to file (workspace-relative)." },
-            match: { type: "string", description: "replace: regex pattern to find." },
-            replacement: { type: "string", description: "replace: replacement string (supports $1, $2 capture groups)." },
-            count: { type: "integer", description: "replace: max occurrences to replace. Omit to replace all." },
+            pattern: {
+              type: "string",
+              description: "search: regex pattern to search for.",
+            },
+            path: {
+              type: "string",
+              description:
+                'search: file or directory to search (workspace-relative). Default: "."',
+            },
+            fileType: {
+              type: "string",
+              description: 'search: ripgrep type filter (e.g. "ts", "json").',
+            },
+            glob: {
+              type: "string",
+              description:
+                'search: glob pattern for file filtering (e.g. "*.ts", "!*.test.ts").',
+            },
+            caseSensitive: {
+              type: "boolean",
+              description: "search: case-sensitive search. Default: true.",
+            },
+            fixedStrings: {
+              type: "boolean",
+              description:
+                "search/replace: treat pattern as literal string, not regex. Default: false.",
+            },
+            contextLines: {
+              type: "integer",
+              description: "search: lines of context around matches.",
+            },
+            maxCount: {
+              type: "integer",
+              description: "search: max matches per file.",
+            },
+            maxResults: {
+              type: "integer",
+              description: "search: total max result lines. Default: 200.",
+            },
+            includeHidden: {
+              type: "boolean",
+              description: "search: include hidden files/dirs. Default: false.",
+            },
+            multiline: {
+              type: "boolean",
+              description:
+                "search/replace: enable multiline matching (required when pattern spans multiple lines). Default: false.",
+            },
+            file: {
+              type: "string",
+              description: "replace: path to file (workspace-relative).",
+            },
+            match: {
+              type: "string",
+              description: "replace: regex pattern to find.",
+            },
+            replacement: {
+              type: "string",
+              description:
+                "replace: replacement string (supports $1, $2 capture groups).",
+            },
+            count: {
+              type: "integer",
+              description:
+                "replace: max occurrences to replace. Omit to replace all.",
+            },
           },
           required: ["action"],
         },

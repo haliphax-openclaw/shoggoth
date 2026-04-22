@@ -1,9 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { hostname } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import {
-  type MessagingAdapterCapabilities,
-} from "@shoggoth/messaging";
+import { type MessagingAdapterCapabilities } from "@shoggoth/messaging";
 import {
   LAYOUT,
   OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME,
@@ -13,7 +11,11 @@ import {
 } from "@shoggoth/shared";
 import type Database from "better-sqlite3";
 import { daemonPrompt } from "../prompts/load-prompts";
-import { getSessionStats, estimateTokens, buildFormattedStats } from "./session-stats-store";
+import {
+  getSessionStats,
+  estimateTokens,
+  buildFormattedStats,
+} from "./session-stats-store";
 import { getTurnQueue } from "./session-turn-queue-singleton";
 
 /** Max bytes read per workspace template file (UTF-8). */
@@ -23,7 +25,7 @@ const DEFAULT_MAX_BYTES_PER_FILE = 8192;
 const DEFAULT_MAX_TOTAL_TEMPLATE_BYTES = 24576;
 
 /** Baked into the container image (`Dockerfile`); same tree as the repo `docs/` directory. */
-const SHOGGOTH_REFERENCE_DOCS_DIR = "/app/docs";
+
 
 /**
  * Workspace-relative basenames only (allowlist). Order follows OpenClaw bootstrap file order.
@@ -79,12 +81,18 @@ export interface BuildSessionSystemContextInput {
   /** Optional state database for session stats lookup. */
   readonly stateDb?: Database.Database;
   /** Current transcript messages for estimating this turn's token usage. */
-  readonly transcriptMessages?: readonly { role: string; content: string | null }[];
+  readonly transcriptMessages?: readonly {
+    role: string;
+    content: string | null;
+  }[];
   /** Session-unique anti-spoofing token for trusted system context dividers. */
   readonly systemContextToken: string;
 }
 
-function isPathInsideResolvedRoot(rootReal: string, resolvedTarget: string): boolean {
+function isPathInsideResolvedRoot(
+  rootReal: string,
+  resolvedTarget: string,
+): boolean {
   const base = resolve(rootReal);
   const target = resolve(resolvedTarget);
   const prefix = base.endsWith(sep) ? base : base + sep;
@@ -145,7 +153,10 @@ function tryResolveWorkspaceRoot(raw: string | undefined): string | undefined {
   }
 }
 
-function resolveOperatorInstructionsCandidatePath(operatorRootReal: string, chosen: string): string {
+function resolveOperatorInstructionsCandidatePath(
+  operatorRootReal: string,
+  chosen: string,
+): string {
   const t = chosen.trim();
   if (!t) return join(operatorRootReal, OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME);
   return isAbsolute(t) ? resolve(t) : resolve(operatorRootReal, t);
@@ -162,7 +173,9 @@ function safeReadOperatorGlobalInstructions(
 ): string | undefined {
   if (maxBytes <= 0) return undefined;
 
-  const opRootRaw = (input.config?.operatorDirectory?.trim() || LAYOUT.operatorDir).trim();
+  const opRootRaw = (
+    input.config?.operatorDirectory?.trim() || LAYOUT.operatorDir
+  ).trim();
   let operatorRootReal: string;
   try {
     operatorRootReal = realpathSync(resolve(opRootRaw));
@@ -172,9 +185,15 @@ function safeReadOperatorGlobalInstructions(
 
   const envOverride = env.SHOGGOTH_GLOBAL_INSTRUCTIONS_PATH?.trim();
   const cfgPath = input.config?.globalInstructionsPath?.trim();
-  const defaultRel = join(operatorRootReal, OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME);
+  const defaultRel = join(
+    operatorRootReal,
+    OPERATOR_GLOBAL_INSTRUCTIONS_BASENAME,
+  );
   const chosen = envOverride ?? cfgPath ?? defaultRel;
-  const candidate = resolveOperatorInstructionsCandidatePath(operatorRootReal, chosen);
+  const candidate = resolveOperatorInstructionsCandidatePath(
+    operatorRootReal,
+    chosen,
+  );
 
   if (!existsSync(candidate)) return undefined;
 
@@ -185,7 +204,8 @@ function safeReadOperatorGlobalInstructions(
     return undefined;
   }
 
-  if (!isPathInsideResolvedRoot(operatorRootReal, resolvedFile)) return undefined;
+  if (!isPathInsideResolvedRoot(operatorRootReal, resolvedFile))
+    return undefined;
 
   try {
     const buf = readFileSync(resolvedFile);
@@ -220,12 +240,10 @@ function formatPrimaryModelLabel(
   return `${model} (openai-compatible / env)`;
 }
 
-
-
-
-
 function buildTrustedSystemContextGuidance(token: string): string {
-  return "# System Context\n\n" + daemonPrompt("system-trusted-context", { token });
+  return (
+    "# System Context\n\n" + daemonPrompt("system-trusted-context", { token })
+  );
 }
 
 function buildWorkspaceSection(
@@ -243,7 +261,6 @@ function buildWorkspaceSection(
   }
   return daemonPrompt("system-workspace-none", { sandboxLine });
 }
-
 
 function buildProjectContextSection(
   operatorGlobal: string | undefined,
@@ -264,9 +281,6 @@ function buildProjectContextSection(
   return s;
 }
 
-
-
-
 function buildRuntimeSection(input: {
   readonly sessionId: string | undefined;
   readonly contextSegmentId: string | undefined;
@@ -284,9 +298,13 @@ function buildRuntimeSection(input: {
   ].join("; ");
   const parts = [
     `session=${input.sessionId ?? "unknown"}`,
-    input.contextSegmentId ? `context_segment=${input.contextSegmentId}` : undefined,
+    input.contextSegmentId
+      ? `context_segment=${input.contextSegmentId}`
+      : undefined,
     input.channel ? `channel=${input.channel}` : undefined,
-    input.resolvedWorkspace ? `workspace=${input.resolvedWorkspace}` : "workspace=(none)",
+    input.resolvedWorkspace
+      ? `workspace=${input.resolvedWorkspace}`
+      : "workspace=(none)",
     input.workingDirectory && input.workingDirectory !== input.resolvedWorkspace
       ? `workdir=${input.workingDirectory}`
       : undefined,
@@ -297,10 +315,6 @@ function buildRuntimeSection(input: {
     `capabilities=${caps}`,
   ].filter(Boolean);
   return daemonPrompt("system-runtime", { runtimeSummary: parts.join(" · ") });
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString("en-US");
 }
 
 function buildSessionStatsSection(
@@ -330,7 +344,9 @@ function buildSessionStatsSection(
   try {
     const depth = getTurnQueue().getDepth(sessionId);
     queueLine = ` · Queue: ${depth.system}S / ${depth.user}U`;
-  } catch { /* queue not initialized yet */ }
+  } catch {
+    /* queue not initialized yet */
+  }
 
   return [
     "## Session Stats\n",
@@ -338,7 +354,10 @@ function buildSessionStatsSection(
   ].join("\n");
 }
 
-function appendEnvSystemPrompt(base: string, env: NodeJS.ProcessEnv | undefined): string {
+function appendEnvSystemPrompt(
+  base: string,
+  env: NodeJS.ProcessEnv | undefined,
+): string {
   const extra = env?.SHOGGOTH_SESSION_SYSTEM_PROMPT?.trim();
   if (!extra) return base;
   return `${base}\n\n${daemonPrompt("system-env-session-appendix", { extra })}`;
@@ -353,7 +372,9 @@ function joinSections(sections: (string | undefined)[]): string {
  * context (operator global instructions before workspace templates), heartbeats / silent-reply
  * notes, runtime metadata, and optional `SHOGGOTH_SESSION_SYSTEM_PROMPT`.
  */
-export function buildSessionSystemContext(input: BuildSessionSystemContextInput): string {
+export function buildSessionSystemContext(
+  input: BuildSessionSystemContextInput,
+): string {
   const level: ContextLevel = input.contextLevel ?? "full";
 
   // `none` — raw model, no Shoggoth framing at all.
@@ -372,7 +393,8 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
   let operatorGlobal: string | undefined;
   let totalPayloadBytes = 0;
   if (atLeast("light")) {
-    const remainingForGlobal = DEFAULT_MAX_TOTAL_TEMPLATE_BYTES - totalPayloadBytes;
+    const remainingForGlobal =
+      DEFAULT_MAX_TOTAL_TEMPLATE_BYTES - totalPayloadBytes;
     const globalCap = Math.min(DEFAULT_MAX_BYTES_PER_FILE, remainingForGlobal);
     operatorGlobal = safeReadOperatorGlobalInstructions(input, env, globalCap);
     if (operatorGlobal) {
@@ -388,13 +410,19 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
   // the agent to start a conversation with the operator to fill out template files.
   // For non-full context levels, BOOTSTRAP.md is never injected.
   if (root && level === "full") {
-    const bootstrapBody = safeReadWorkspaceTemplate(root, "BOOTSTRAP.md", DEFAULT_MAX_BYTES_PER_FILE);
+    const bootstrapBody = safeReadWorkspaceTemplate(
+      root,
+      "BOOTSTRAP.md",
+      DEFAULT_MAX_BYTES_PER_FILE,
+    );
     if (bootstrapBody) {
       allowedFiles = new Set(["BOOTSTRAP.md"]);
     }
   }
   if (level !== "full") {
-    allowedFiles = new Set([...allowedFiles].filter((f) => f !== "BOOTSTRAP.md"));
+    allowedFiles = new Set(
+      [...allowedFiles].filter((f) => f !== "BOOTSTRAP.md"),
+    );
   }
 
   if (root && allowedFiles.size > 0) {
@@ -428,7 +456,9 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
     // Workspace root: light+
     workspaceBody,
     // Project context (operator global + template files): light+
-    atLeast("light") ? buildProjectContextSection(operatorGlobal, fileBlocks) : undefined,
+    atLeast("light")
+      ? buildProjectContextSection(operatorGlobal, fileBlocks)
+      : undefined,
     // Heartbeats: light+
     // Runtime: minimal+
     buildRuntimeSection({
@@ -439,7 +469,8 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
       workingDirectory: input.workingDirectory,
       modelLabel: formatPrimaryModelLabel(
         input.sessionId && input.config
-          ? resolveEffectiveModelsConfig(input.config, input.sessionId) ?? input.config.models
+          ? (resolveEffectiveModelsConfig(input.config, input.sessionId) ??
+              input.config.models)
           : input.config?.models,
         env,
       ),
@@ -458,7 +489,9 @@ export function buildSessionSystemContext(input: BuildSessionSystemContextInput)
         )
       : undefined;
 
-  const core = statsSection ? `${coreSansStats}\n\n${statsSection}` : coreSansStats;
+  const core = statsSection
+    ? `${coreSansStats}\n\n${statsSection}`
+    : coreSansStats;
 
   // Env appendix: light+
   return atLeast("light") ? appendEnvSystemPrompt(core, env) : core;

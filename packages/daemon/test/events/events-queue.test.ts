@@ -54,7 +54,9 @@ describe("events queue", () => {
       payload: { t: "hi" },
     });
     assert.equal(s.ok, true);
-    const rows = db.prepare("SELECT scope, event_type, status FROM events ORDER BY id").all() as {
+    const rows = db
+      .prepare("SELECT scope, event_type, status FROM events ORDER BY id")
+      .all() as {
       scope: string;
       event_type: string;
       status: string;
@@ -82,7 +84,9 @@ describe("events queue", () => {
     assert.equal(b.ok, false);
     assert.equal(b.duplicate, true);
     assert.equal(b.existingId, a.id);
-    const n = db.prepare("SELECT COUNT(*) AS c FROM events").get() as { c: number };
+    const n = db.prepare("SELECT COUNT(*) AS c FROM events").get() as {
+      c: number;
+    };
     assert.equal(n.c, 1);
   });
 
@@ -91,11 +95,15 @@ describe("events queue", () => {
     emitEvent(db, { scope: EVENT_SCOPE_GLOBAL, eventType: "b", payload: {} });
     const batch = claimPendingEvents(db, { limit: 10 });
     assert.equal(batch.length, 2);
-    const pending = db.prepare("SELECT COUNT(*) AS c FROM events WHERE status = 'pending'").get() as {
+    const pending = db
+      .prepare("SELECT COUNT(*) AS c FROM events WHERE status = 'pending'")
+      .get() as {
       c: number;
     };
     assert.equal(pending.c, 0);
-    const proc = db.prepare("SELECT COUNT(*) AS c FROM events WHERE status = 'processing'").get() as {
+    const proc = db
+      .prepare("SELECT COUNT(*) AS c FROM events WHERE status = 'processing'")
+      .get() as {
       c: number;
     };
     assert.equal(proc.c, 2);
@@ -106,7 +114,9 @@ describe("events queue", () => {
     const [row] = claimPendingEvents(db, { limit: 1 }) as EventQueueRow[];
     assert.equal(hasEventProcessingRecord(db, row!.id), false);
     markEventCompleted(db, row!.id);
-    const st = db.prepare("SELECT status FROM events WHERE id = ?").get(row!.id) as { status: string };
+    const st = db
+      .prepare("SELECT status FROM events WHERE id = ?")
+      .get(row!.id) as { status: string };
     assert.equal(st.status, "completed");
     assert.equal(hasEventProcessingRecord(db, row!.id), true);
   });
@@ -121,7 +131,11 @@ describe("events queue", () => {
     const [row] = claimPendingEvents(db, { limit: 1 }) as EventQueueRow[];
     const id = row!.id;
     markEventFailed(db, id, "e1");
-    let r = db.prepare("SELECT status, attempts, next_attempt_at FROM events WHERE id = ?").get(id) as {
+    let r = db
+      .prepare(
+        "SELECT status, attempts, next_attempt_at FROM events WHERE id = ?",
+      )
+      .get(id) as {
       status: string;
       attempts: number;
       next_attempt_at: string | null;
@@ -131,14 +145,18 @@ describe("events queue", () => {
     assert.ok(r.next_attempt_at);
     claimPendingEvents(db, { limit: 10 });
     markEventFailed(db, id, "e2");
-    r = db.prepare("SELECT status, attempts FROM events WHERE id = ?").get(id) as {
+    r = db
+      .prepare("SELECT status, attempts FROM events WHERE id = ?")
+      .get(id) as {
       status: string;
       attempts: number;
     };
     assert.equal(r.attempts, 2);
     claimPendingEvents(db, { limit: 10 });
     markEventFailed(db, id, "e3");
-    r = db.prepare("SELECT status, attempts, last_error FROM events WHERE id = ?").get(id) as {
+    r = db
+      .prepare("SELECT status, attempts, last_error FROM events WHERE id = ?")
+      .get(id) as {
       status: string;
       attempts: number;
       last_error: string | null;
@@ -152,10 +170,15 @@ describe("events queue", () => {
     emitEvent(db, { scope: EVENT_SCOPE_GLOBAL, eventType: "a", payload: {} });
     const [row] = claimPendingEvents(db, { limit: 1 }) as EventQueueRow[];
     const past = new Date(Date.now() - 120_000).toISOString();
-    db.prepare("UPDATE events SET claimed_at = ? WHERE id = ?").run(past, row!.id);
+    db.prepare("UPDATE events SET claimed_at = ? WHERE id = ?").run(
+      past,
+      row!.id,
+    );
     const n = reconcileStaleProcessing(db, { staleMs: 60_000 });
     assert.equal(n, 1);
-    const st = db.prepare("SELECT status, claimed_at FROM events WHERE id = ?").get(row!.id) as {
+    const st = db
+      .prepare("SELECT status, claimed_at FROM events WHERE id = ?")
+      .get(row!.id) as {
       status: string;
       claimed_at: string | null;
     };

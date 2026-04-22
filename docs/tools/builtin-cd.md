@@ -4,28 +4,32 @@ Change the session's working directory. Paths are sandboxed to the workspace roo
 
 ## Parameters
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `path` | string | no | Relative or absolute directory path. Omit to reset to workspace root. |
+| Param  | Type   | Required | Notes                                                                 |
+| ------ | ------ | -------- | --------------------------------------------------------------------- |
+| `path` | string | no       | Relative or absolute directory path. Omit to reset to workspace root. |
 
 ## Examples
 
 **Move into a subdirectory:**
+
 ```json
 { "path": "src/components" }
 ```
 
 **Go up one level:**
+
 ```json
 { "path": ".." }
 ```
 
 **Absolute path (must be within workspace):**
+
 ```json
 { "path": "/workspace/project/src" }
 ```
 
 **Reset to workspace root:**
+
 ```json
 {}
 ```

@@ -8,7 +8,10 @@ const baseConfig = defaultConfig("/tmp/test-config");
 describe("resolveSessionBypassUpTo", () => {
   it("returns root hitl.bypassUpTo when no per-agent override exists", () => {
     assert.equal(
-      resolveSessionBypassUpTo("agent:main:discord:channel:00000000-0000-4000-8000-000000000001", baseConfig),
+      resolveSessionBypassUpTo(
+        "agent:main:discord:channel:00000000-0000-4000-8000-000000000001",
+        baseConfig,
+      ),
       "safe",
     );
   });
@@ -19,7 +22,10 @@ describe("resolveSessionBypassUpTo", () => {
       agents: { list: { main: { hitl: { bypassUpTo: "critical" as const } } } },
     };
     assert.equal(
-      resolveSessionBypassUpTo("agent:main:discord:channel:00000000-0000-4000-8000-000000000001", config),
+      resolveSessionBypassUpTo(
+        "agent:main:discord:channel:00000000-0000-4000-8000-000000000001",
+        config,
+      ),
       "critical",
     );
   });
@@ -27,10 +33,15 @@ describe("resolveSessionBypassUpTo", () => {
   it("falls back to root default for unknown agent", () => {
     const config = {
       ...baseConfig,
-      agents: { list: { other: { hitl: { bypassUpTo: "critical" as const } } } },
+      agents: {
+        list: { other: { hitl: { bypassUpTo: "critical" as const } } },
+      },
     };
     assert.equal(
-      resolveSessionBypassUpTo("agent:main:discord:channel:00000000-0000-4000-8000-000000000001", config),
+      resolveSessionBypassUpTo(
+        "agent:main:discord:channel:00000000-0000-4000-8000-000000000001",
+        config,
+      ),
       "safe",
     );
   });
@@ -42,7 +53,9 @@ describe("resolveSessionBypassUpTo", () => {
   it("uses same agent id for subagent URNs", () => {
     const config = {
       ...baseConfig,
-      agents: { list: { pytest: { hitl: { bypassUpTo: "caution" as const } } } },
+      agents: {
+        list: { pytest: { hitl: { bypassUpTo: "caution" as const } } },
+      },
     };
     assert.equal(
       resolveSessionBypassUpTo(

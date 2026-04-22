@@ -24,7 +24,9 @@ export interface MessageToolPlatformSlice {
  * `oneOf`/`anyOf`/`allOf`) so Anthropic Messages and compatible gateways accept `input_schema`.
  * Per-action requirements are enforced by the executor.
  */
-export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | undefined): McpToolDescriptor | undefined {
+export function buildMessageToolDescriptor(
+  slice: MessageToolPlatformSlice | undefined,
+): McpToolDescriptor | undefined {
   if (!slice) return undefined;
 
   const actions: string[] = ["post"];
@@ -48,7 +50,8 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     },
     content: {
       type: "string",
-      description: "post/choice: message body (preamble text before the choice legend for choice action). edit: replacement text.",
+      description:
+        "post/choice: message body (preamble text before the choice legend for choice action). edit: replacement text.",
     },
     message_id: {
       type: "string",
@@ -130,15 +133,21 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
   if (slice.react) {
     properties.remove = {
       type: "boolean",
-      description: "react only: if true, remove the reaction instead of adding it. Default false.",
+      description:
+        "react only: if true, remove the reaction instead of adding it. Default false.",
     };
     properties.choices = {
       type: "array",
-      description: "choice only: array of emoji + label pairs for the reaction choice prompt.",
+      description:
+        "choice only: array of emoji + label pairs for the reaction choice prompt.",
       items: {
         type: "object",
         properties: {
-          emoji: { type: "string", description: "Emoji for this choice (Unicode or platform shortcode)." },
+          emoji: {
+            type: "string",
+            description:
+              "Emoji for this choice (Unicode or platform shortcode).",
+          },
           label: { type: "string", description: "Label text for this choice." },
         },
         required: ["emoji", "label"],
@@ -163,20 +172,24 @@ export function buildMessageToolDescriptor(slice: MessageToolPlatformSlice | und
     };
     properties.before = {
       type: "string",
-      description: "search: only messages before this message id or ISO timestamp.",
+      description:
+        "search: only messages before this message id or ISO timestamp.",
     };
     properties.after = {
       type: "string",
-      description: "search: only messages after this message id or ISO timestamp.",
+      description:
+        "search: only messages after this message id or ISO timestamp.",
     };
     properties.from_me = {
       type: "boolean",
-      description: "search: filter to messages sent by the bot/agent itself (requires author_id).",
+      description:
+        "search: filter to messages sent by the bot/agent itself (requires author_id).",
     };
     properties.channel_ids = {
       type: "array",
       items: { type: "string" },
-      description: "search: search across multiple channels. Defaults to the bound channel.",
+      description:
+        "search: search across multiple channels. Defaults to the bound channel.",
     };
     // Extend limit description for search (max 25 for some platform search APIs)
     if (!properties.limit) {

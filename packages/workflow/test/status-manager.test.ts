@@ -1,13 +1,24 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type { TaskList, TaskState, TaskDef, DependencyGraph } from "../src/types.js";
+import type {
+  TaskList,
+  TaskState,
+  TaskDef,
+  DependencyGraph,
+} from "../src/types.js";
 import type { MessageAdapter } from "../src/message-adapter.js";
 import { StatusManager } from "../src/status-manager.js";
 
 // --- Helpers ---
 
 function makeDef(id: number, prompt: string): TaskDef {
-  return { kind: "agent", id, prompt, failureBehavior: "continue", failureNotification: "silent" };
+  return {
+    kind: "agent",
+    id,
+    prompt,
+    failureBehavior: "continue",
+    failureNotification: "silent",
+  };
 }
 
 function makeTask(
@@ -68,15 +79,18 @@ describe("StatusManager", () => {
         [1, new Set()],
         [2, new Set([1])],
       ]);
-      const wf = makeWorkflow("test-wf", [
-        makeTask(1, "First", "pending"),
-        makeTask(2, "Second", "pending"),
-      ], graph);
+      const wf = makeWorkflow(
+        "test-wf",
+        [makeTask(1, "First", "pending"), makeTask(2, "Second", "pending")],
+        graph,
+      );
 
       await manager.postInitialStatus(wf);
 
       assert.equal(adapter.posted.length, 1);
-      assert.ok(adapter.posted[0].content.includes("**Task workflow:** test-wf"));
+      assert.ok(
+        adapter.posted[0].content.includes("**Task workflow:** test-wf"),
+      );
       assert.ok(adapter.posted[0].content.includes("⏳ 1 - First"));
       assert.ok(adapter.posted[0].content.includes("⏳ 2 [1] - Second"));
     });
@@ -166,16 +180,22 @@ describe("StatusManager", () => {
         [1, new Set()],
         [2, new Set()],
       ]);
-      const wf = makeWorkflow("wf", [
-        makeTask(1, "A", "done", { startedAt: 0, completedAt: 60_000 }),
-        makeTask(2, "B", "done", { startedAt: 0, completedAt: 120_000 }),
-      ], graph);
+      const wf = makeWorkflow(
+        "wf",
+        [
+          makeTask(1, "A", "done", { startedAt: 0, completedAt: 60_000 }),
+          makeTask(2, "B", "done", { startedAt: 0, completedAt: 120_000 }),
+        ],
+        graph,
+      );
       wf.createdAt = 0;
 
       await manager.postSummary(wf);
 
       assert.equal(adapter.posted.length, 1);
-      assert.ok(adapter.posted[0].content.includes("**Task workflow complete:** wf"));
+      assert.ok(
+        adapter.posted[0].content.includes("**Task workflow complete:** wf"),
+      );
       assert.ok(adapter.posted[0].content.includes("✅ **Completed:** 2/2"));
     });
 
@@ -184,10 +204,14 @@ describe("StatusManager", () => {
         [1, new Set()],
         [2, new Set()],
       ]);
-      const wf = makeWorkflow("wf", [
-        makeTask(1, "Good", "done", { startedAt: 0, completedAt: 60_000 }),
-        makeTask(2, "Bad", "failed", { startedAt: 0, completedAt: 3_000 }),
-      ], graph);
+      const wf = makeWorkflow(
+        "wf",
+        [
+          makeTask(1, "Good", "done", { startedAt: 0, completedAt: 60_000 }),
+          makeTask(2, "Bad", "failed", { startedAt: 0, completedAt: 3_000 }),
+        ],
+        graph,
+      );
       wf.createdAt = 0;
 
       await manager.postSummary(wf);

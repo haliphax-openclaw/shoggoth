@@ -1,7 +1,5 @@
 import type Database from "better-sqlite3";
-import { execSync } from "node:child_process";
-import { join } from "node:path";
-import type { ShoggothConfig } from "@shoggoth/shared";
+import { execSync } from "node:child_process";\nimport type { ShoggothConfig } from "@shoggoth/shared";
 import {
   resolveAgentPlatformConfig,
   resolveAgentWorkspacePath,
@@ -28,7 +26,9 @@ interface BootstrapMainSessionOptions {
  * Backward-compatible: if no agents are configured, falls back to bootstrapping
  * a single "main" agent using `config.runtime?.agentId`.
  */
-export async function bootstrapMainSession(opts: BootstrapMainSessionOptions): Promise<void> {
+export async function bootstrapMainSession(
+  opts: BootstrapMainSessionOptions,
+): Promise<void> {
   const log = getLogger("bootstrap");
   const { db, config } = opts;
 
@@ -72,7 +72,9 @@ async function bootstrapAgent(
   const agentPlatform = agentEntry
     ? resolveAgentPlatformConfig(agentEntry, platform)
     : undefined;
-  const firstRoute = (agentPlatform?.routes as Array<{ sessionId?: string }> | undefined)?.[0];
+  const firstRoute = (
+    agentPlatform?.routes as Array<{ sessionId?: string }> | undefined
+  )?.[0];
   const id =
     firstRoute?.sessionId?.trim() ||
     resolveBootstrapPrimarySessionUrn(agentId, platform);
@@ -108,5 +110,9 @@ async function bootstrapAgent(
   });
 
   pushSystemContext(id, "Fresh session. No prior conversation history.");
-  log.info("bootstrap.agent.session_created", { sessionId: id, agentId, workspacePath: dir });
+  log.info("bootstrap.agent.session_created", {
+    sessionId: id,
+    agentId,
+    workspacePath: dir,
+  });
 }

@@ -7,7 +7,9 @@ import {
 } from "../src/platform-registry";
 
 /** Minimal valid registration for tests. */
-function makeReg(overrides?: Partial<PlatformRegistration>): PlatformRegistration {
+function makeReg(
+  overrides?: Partial<PlatformRegistration>,
+): PlatformRegistration {
   return {
     platformId: "test-platform",
     resourceTypes: ["channel"],
@@ -57,26 +59,39 @@ describe("Platform Registry", () => {
 
   it("throws on duplicate registration regardless of case", () => {
     registerPlatform(makeReg({ platformId: "Discord" }));
-    expect(() => registerPlatform(makeReg({ platformId: "discord" }))).toThrow(/already registered/i);
+    expect(() => registerPlatform(makeReg({ platformId: "discord" }))).toThrow(
+      /already registered/i,
+    );
   });
 
   // ---- shape validation ----
 
   it("throws when platformId is empty", () => {
-    expect(() => registerPlatform(makeReg({ platformId: "" }))).toThrow(/platformId/i);
+    expect(() => registerPlatform(makeReg({ platformId: "" }))).toThrow(
+      /platformId/i,
+    );
   });
 
   it("throws when platformId is whitespace-only", () => {
-    expect(() => registerPlatform(makeReg({ platformId: "   " }))).toThrow(/platformId/i);
+    expect(() => registerPlatform(makeReg({ platformId: "   " }))).toThrow(
+      /platformId/i,
+    );
   });
 
   it("throws when resourceTypes is empty", () => {
-    expect(() => registerPlatform(makeReg({ resourceTypes: [] }))).toThrow(/resourceTypes/i);
+    expect(() => registerPlatform(makeReg({ resourceTypes: [] }))).toThrow(
+      /resourceTypes/i,
+    );
   });
 
   it("throws when urnPolicy is missing", () => {
     expect(() =>
-      registerPlatform({ platformId: "x", resourceTypes: ["ch"], urnPolicy: undefined as any }),
+      registerPlatform({
+        platformId: "x",
+        resourceTypes: ["ch"],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        urnPolicy: undefined as any,
+      }),
     ).toThrow(/urnPolicy/i);
   });
 

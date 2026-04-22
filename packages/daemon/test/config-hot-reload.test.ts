@@ -1,9 +1,17 @@
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import assert from "node:assert";
 import { describe, it } from "vitest";
-import { DEFAULT_POLICY_CONFIG, defaultConfig, type ShoggothConfig } from "@shoggoth/shared";
+import {
+  DEFAULT_POLICY_CONFIG,
+  defaultConfig,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
 import { diffRestartRequiredKeys } from "../src/config-hot-reload";
-import { createDelegatingPolicyEngine, createPolicyEngine, emptyPolicyConfig } from "../src/policy/engine";
+import {
+  createDelegatingPolicyEngine,
+  createPolicyEngine,
+  emptyPolicyConfig,
+} from "../src/policy/engine";
 
 function baseConfig(overrides: Partial<ShoggothConfig> = {}): ShoggothConfig {
   return { ...defaultConfig("/tmp/cfg"), ...overrides };
@@ -37,7 +45,10 @@ describe("config-hot-reload", () => {
         controlOps: { allow: ["ping"], deny: [] },
         tools: { allow: [], deny: [] },
       },
-      agent: { controlOps: { allow: [], deny: [] }, tools: { allow: [], deny: [] } },
+      agent: {
+        controlOps: { allow: [], deny: [] },
+        tools: { allow: [], deny: [] },
+      },
       auditRedaction: { jsonPaths: [] },
     });
     const ref = { engine: strict };
@@ -50,7 +61,11 @@ describe("config-hot-reload", () => {
       source: "cli_operator_token",
       peer: { uid: 1, gid: 1, pid: 1 },
     };
-    const r = del.check({ principal: op, action: "control.invoke", resource: "version" });
+    const r = del.check({
+      principal: op,
+      action: "control.invoke",
+      resource: "version",
+    });
     assert.strictEqual(r.allow, true);
   });
 });

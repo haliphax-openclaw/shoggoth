@@ -42,7 +42,9 @@ describe("createFailoverClientFromModelsConfig", () => {
     assert.throws(() =>
       createFailoverClientFromModelsConfig(
         {
-          providers: [{ id: "a", kind: "openai-compatible", baseUrl: "https://x/v1" }],
+          providers: [
+            { id: "a", kind: "openai-compatible", baseUrl: "https://x/v1" },
+          ],
           failoverChain: ["nope/m"],
         },
         {},
@@ -83,7 +85,12 @@ describe("createFailoverClientFromModelsConfig", () => {
   it("uses bare apiKey for openai-compatible provider", async () => {
     const cfg: ShoggothModelsConfig = {
       providers: [
-        { id: "oai", kind: "openai-compatible", baseUrl: "https://x/v1", apiKey: "bare-key" },
+        {
+          id: "oai",
+          kind: "openai-compatible",
+          baseUrl: "https://x/v1",
+          apiKey: "bare-key",
+        },
       ],
       failoverChain: ["oai/m"],
     };
@@ -91,9 +98,12 @@ describe("createFailoverClientFromModelsConfig", () => {
     const c = createFailoverClientFromModelsConfig(cfg, {
       env: {},
       fetchImpl: async (_u, init) => {
-        authHeader = (init?.headers as Record<string, string>)?.authorization ?? "";
+        authHeader =
+          (init?.headers as Record<string, string>)?.authorization ?? "";
         return new Response(
-          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
+          JSON.stringify({
+            choices: [{ message: { role: "assistant", content: "ok" } }],
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       },
@@ -105,7 +115,12 @@ describe("createFailoverClientFromModelsConfig", () => {
   it("uses bare apiKey for anthropic-messages provider", async () => {
     const cfg: ShoggothModelsConfig = {
       providers: [
-        { id: "anth", kind: "anthropic-messages", baseUrl: "http://localhost:8000", apiKey: "bare-key" },
+        {
+          id: "anth",
+          kind: "anthropic-messages",
+          baseUrl: "http://localhost:8000",
+          apiKey: "bare-key",
+        },
       ],
       failoverChain: ["anth/m"],
     };
@@ -113,9 +128,13 @@ describe("createFailoverClientFromModelsConfig", () => {
     const c = createFailoverClientFromModelsConfig(cfg, {
       env: {},
       fetchImpl: async (_u, init) => {
-        apiKeyHeader = (init?.headers as Record<string, string>)?.["x-api-key"] ?? "";
+        apiKeyHeader =
+          (init?.headers as Record<string, string>)?.["x-api-key"] ?? "";
         return new Response(
-          JSON.stringify({ role: "assistant", content: [{ type: "text", text: "ok" }] }),
+          JSON.stringify({
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       },
@@ -127,7 +146,13 @@ describe("createFailoverClientFromModelsConfig", () => {
   it("bare apiKey takes precedence over apiKeyEnv", async () => {
     const cfg: ShoggothModelsConfig = {
       providers: [
-        { id: "oai", kind: "openai-compatible", baseUrl: "https://x/v1", apiKey: "bare", apiKeyEnv: "MY_KEY" },
+        {
+          id: "oai",
+          kind: "openai-compatible",
+          baseUrl: "https://x/v1",
+          apiKey: "bare",
+          apiKeyEnv: "MY_KEY",
+        },
       ],
       failoverChain: ["oai/m"],
     };
@@ -135,9 +160,12 @@ describe("createFailoverClientFromModelsConfig", () => {
     const c = createFailoverClientFromModelsConfig(cfg, {
       env: { MY_KEY: "from-env" },
       fetchImpl: async (_u, init) => {
-        authHeader = (init?.headers as Record<string, string>)?.authorization ?? "";
+        authHeader =
+          (init?.headers as Record<string, string>)?.authorization ?? "";
         return new Response(
-          JSON.stringify({ choices: [{ message: { role: "assistant", content: "ok" } }] }),
+          JSON.stringify({
+            choices: [{ message: { role: "assistant", content: "ok" } }],
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       },

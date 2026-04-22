@@ -97,8 +97,17 @@ describe("context level spawn wiring", () => {
     });
 
     // Create a parent session first
-    const parent = formatAgentSessionUrn("tester", "discord", "channel", "20000000-0000-4000-8000-000000000001");
-    sessions.create({ id: parent, workspacePath: join(workspacesRoot, "tester"), status: "active" });
+    const parent = formatAgentSessionUrn(
+      "tester",
+      "discord",
+      "channel",
+      "20000000-0000-4000-8000-000000000001",
+    );
+    sessions.create({
+      id: parent,
+      workspacePath: join(workspacesRoot, "tester"),
+      status: "active",
+    });
     agentTokens.register(parent, "parent-tok");
 
     const out = mgr.spawn({ parentSessionId: parent });
@@ -122,8 +131,17 @@ describe("context level spawn wiring", () => {
       mintToken: () => "tok",
     });
 
-    const parent = formatAgentSessionUrn("tester", "discord", "channel", "20000000-0000-4000-8000-000000000002");
-    sessions.create({ id: parent, workspacePath: join(workspacesRoot, "tester"), status: "active" });
+    const parent = formatAgentSessionUrn(
+      "tester",
+      "discord",
+      "channel",
+      "20000000-0000-4000-8000-000000000002",
+    );
+    sessions.create({
+      id: parent,
+      workspacePath: join(workspacesRoot, "tester"),
+      status: "active",
+    });
     agentTokens.register(parent, "parent-tok");
 
     const out = mgr.spawn({ parentSessionId: parent, contextLevel: "none" });

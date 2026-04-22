@@ -36,10 +36,10 @@ Key characteristics:
 
 The `shoggothPlugin` property bag fields:
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `kind` | `"messaging-platform" \| "observability" \| "general"` | No | Defaults to `"general"`. `messaging-platform` plugins must implement required platform hooks. |
-| `entrypoint` | `string` | Yes | Module that exports the plugin factory or plugin object. |
+| Field        | Type                                                   | Required | Description                                                                                   |
+| ------------ | ------------------------------------------------------ | -------- | --------------------------------------------------------------------------------------------- |
+| `kind`       | `"messaging-platform" \| "observability" \| "general"` | No       | Defaults to `"general"`. `messaging-platform` plugins must implement required platform hooks. |
+| `entrypoint` | `string`                                               | Yes      | Module that exports the plugin factory or plugin object.                                      |
 
 ### 2. Write the plugin entrypoint
 
@@ -70,9 +70,7 @@ By local path (resolved relative to config directory):
 
 ```json
 {
-  "plugins": [
-    { "path": "./plugins/shoggoth-plugin-example" }
-  ]
+  "plugins": [{ "path": "./plugins/shoggoth-plugin-example" }]
 }
 ```
 
@@ -80,9 +78,7 @@ By npm package name:
 
 ```json
 {
-  "plugins": [
-    { "package": "shoggoth-plugin-example" }
-  ]
+  "plugins": [{ "package": "shoggoth-plugin-example" }]
 }
 ```
 
@@ -92,41 +88,41 @@ By npm package name:
 
 ### Daemon Lifecycle
 
-| Hook | Type | Context | Description |
-|---|---|---|---|
+| Hook               | Type                | Context              | Description                                                                       |
+| ------------------ | ------------------- | -------------------- | --------------------------------------------------------------------------------- |
 | `daemon.configure` | `SyncWaterfallHook` | `DaemonConfigureCtx` | After config load, before subsystems start. Plugins can inspect/transform config. |
-| `daemon.startup` | `AsyncHook` | `DaemonStartupCtx` | After DB and core subsystems init. Plugins perform async setup. |
-| `daemon.ready` | `AsyncHook` | `DaemonReadyCtx` | All plugins started, platforms connected. System is live. |
-| `daemon.shutdown` | `AsyncHook` | `DaemonShutdownCtx` | Graceful shutdown. Plugins release resources. |
+| `daemon.startup`   | `AsyncHook`         | `DaemonStartupCtx`   | After DB and core subsystems init. Plugins perform async setup.                   |
+| `daemon.ready`     | `AsyncHook`         | `DaemonReadyCtx`     | All plugins started, platforms connected. System is live.                         |
+| `daemon.shutdown`  | `AsyncHook`         | `DaemonShutdownCtx`  | Graceful shutdown. Plugins release resources.                                     |
 
 ### Platform Lifecycle
 
-| Hook | Type | Context | Description |
-|---|---|---|---|
-| `platform.register` | `SyncHook` | `PlatformRegisterCtx` | Platforms register URN policy, capabilities, and runtime. |
-| `platform.start` | `AsyncHook` | `PlatformStartCtx` | Platforms connect to external services (gateway, API, webhook). |
-| `platform.stop` | `AsyncHook` | `PlatformStopCtx` | Platforms disconnect gracefully. |
+| Hook                | Type        | Context               | Description                                                     |
+| ------------------- | ----------- | --------------------- | --------------------------------------------------------------- |
+| `platform.register` | `SyncHook`  | `PlatformRegisterCtx` | Platforms register URN policy, capabilities, and runtime.       |
+| `platform.start`    | `AsyncHook` | `PlatformStartCtx`    | Platforms connect to external services (gateway, API, webhook). |
+| `platform.stop`     | `AsyncHook` | `PlatformStopCtx`     | Platforms disconnect gracefully.                                |
 
 ### Messaging
 
-| Hook | Type | Context | Description |
-|---|---|---|---|
-| `message.inbound` | `AsyncHook` | `MessageInboundCtx` | Normalized inbound message ready for dispatch. |
+| Hook               | Type                 | Context              | Description                                                            |
+| ------------------ | -------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `message.inbound`  | `AsyncHook`          | `MessageInboundCtx`  | Normalized inbound message ready for dispatch.                         |
 | `message.outbound` | `AsyncWaterfallHook` | `MessageOutboundCtx` | Outbound message about to be delivered. Plugins can transform content. |
-| `message.reaction` | `AsyncHook` | `MessageReactionCtx` | Reaction event received from a platform. |
+| `message.reaction` | `AsyncHook`          | `MessageReactionCtx` | Reaction event received from a platform.                               |
 
 ### Session
 
-| Hook | Type | Context | Description |
-|---|---|---|---|
-| `session.turn.before` | `AsyncHook` | `SessionTurnBeforeCtx` | Before a model turn executes. |
-| `session.turn.after` | `AsyncHook` | `SessionTurnAfterCtx` | After a model turn completes (success or failure). |
-| `session.segment.change` | `SyncHook` | `SessionSegmentChangeCtx` | Session context segment changes (new/reset). |
+| Hook                     | Type        | Context                   | Description                                        |
+| ------------------------ | ----------- | ------------------------- | -------------------------------------------------- |
+| `session.turn.before`    | `AsyncHook` | `SessionTurnBeforeCtx`    | Before a model turn executes.                      |
+| `session.turn.after`     | `AsyncHook` | `SessionTurnAfterCtx`     | After a model turn completes (success or failure). |
+| `session.segment.change` | `SyncHook`  | `SessionSegmentChangeCtx` | Session context segment changes (new/reset).       |
 
 ### Health
 
-| Hook | Type | Context | Description |
-|---|---|---|---|
+| Hook              | Type       | Context             | Description                                    |
+| ----------------- | ---------- | ------------------- | ---------------------------------------------- |
 | `health.register` | `SyncHook` | `HealthRegisterCtx` | Plugins register health probes during startup. |
 
 ### Hook Types Explained
@@ -144,12 +140,12 @@ To add a new messaging platform (e.g. Slack, Telegram), create a plugin with `ki
 
 ### Required Hooks
 
-| Hook | Purpose |
-|---|---|
-| `platform.register` | Register URN policy and platform capabilities |
-| `platform.start` | Connect to the external service, wire message handlers |
-| `platform.stop` | Disconnect and clean up resources |
-| `health.register` | Register a health probe for the platform |
+| Hook                | Purpose                                                |
+| ------------------- | ------------------------------------------------------ |
+| `platform.register` | Register URN policy and platform capabilities          |
+| `platform.start`    | Connect to the external service, wire message handlers |
+| `platform.stop`     | Disconnect and clean up resources                      |
+| `health.register`   | Register a health probe for the platform               |
 
 ### Example
 
@@ -196,6 +192,7 @@ export default function createSlackPlugin() {
 ```
 
 **package.json:**
+
 ```json
 {
   "name": "@shoggoth/platform-slack",
@@ -213,11 +210,11 @@ export default function createSlackPlugin() {
 
 The `platform.start` context provides shared daemon dependencies via `ctx.deps`:
 
-| Dependency | Type | Description |
-|---|---|---|
-| `hitlStack` | `HitlPendingStack` | Shared HITL pending stack |
-| `policyEngine` | `PolicyEngine` | Policy engine access |
-| `hitlConfigRef` | `HitlConfigRef` | HITL configuration reference |
+| Dependency            | Type                   | Description                     |
+| --------------------- | ---------------------- | ------------------------------- |
+| `hitlStack`           | `HitlPendingStack`     | Shared HITL pending stack       |
+| `policyEngine`        | `PolicyEngine`         | Policy engine access            |
+| `hitlConfigRef`       | `HitlConfigRef`        | HITL configuration reference    |
 | `hitlAutoApproveGate` | `HitlAutoApproveGate?` | Optional HITL auto-approve gate |
 
 Additional setters on the context: `setSubagentRuntimeExtension`, `setMessageToolContext`, `setPlatformAdapter`.
@@ -241,11 +238,11 @@ system.listenError((event) => {
 
 Error behavior by hook:
 
-| Hook Phase | Behavior |
-|---|---|
-| `platform.start` | Fatal for that platform, daemon continues without it |
-| `daemon.startup` | Non-fatal — logged and audited |
-| `daemon.shutdown` / `platform.stop` | Logged, does not block shutdown |
+| Hook Phase                          | Behavior                                             |
+| ----------------------------------- | ---------------------------------------------------- |
+| `platform.start`                    | Fatal for that platform, daemon continues without it |
+| `daemon.startup`                    | Non-fatal — logged and audited                       |
+| `daemon.shutdown` / `platform.stop` | Logged, does not block shutdown                      |
 
 ---
 

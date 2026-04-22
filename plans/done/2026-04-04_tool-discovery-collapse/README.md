@@ -89,29 +89,42 @@ toolDiscovery: z.object({
   alwaysOn: z.array(z.string().min(1)).optional(),
   /** Trigger phrases: when a user message contains the key string (case-insensitive),
    *  the listed tool IDs are auto-enabled for that turn. */
-  triggers: z.array(z.object({
-    /** Case-insensitive substring or /regex/ pattern to match in user messages. */
-    match: z.string().min(1),
-    /** Tool IDs to auto-enable when matched. */
-    tools: z.array(z.string().min(1)),
-  })).optional(),
-}).strict().optional();
+  triggers: z
+    .array(
+      z.object({
+        /** Case-insensitive substring or /regex/ pattern to match in user messages. */
+        match: z.string().min(1),
+        /** Tool IDs to auto-enable when matched. */
+        tools: z.array(z.string().min(1)),
+      }),
+    )
+    .optional(),
+})
+  .strict()
+  .optional();
 
 // In shoggothAgentEntrySchema
 toolDiscovery: z.object({
   /** Per-agent always-on additions (merged with global). */
   alwaysOn: z.array(z.string().min(1)).optional(),
   /** Per-agent trigger additions (merged with global). */
-  triggers: z.array(z.object({
-    match: z.string().min(1),
-    tools: z.array(z.string().min(1)),
-  })).optional(),
+  triggers: z
+    .array(
+      z.object({
+        match: z.string().min(1),
+        tools: z.array(z.string().min(1)),
+      }),
+    )
+    .optional(),
   /** Per-agent override: set false to disable discovery for this agent even when globally enabled. */
   enabled: z.boolean().optional(),
-}).strict().optional();
+})
+  .strict()
+  .optional();
 ```
 
 **Resolution order** (layered, matching existing patterns):
+
 1. Global `toolDiscovery.enabled` → per-agent `toolDiscovery.enabled` (per-agent wins when set).
 2. Always-on: global set ∪ per-agent set ∪ implicit (`builtin-discover`).
 3. Triggers: global list ++ per-agent list (concatenated; all evaluated).
@@ -156,6 +169,7 @@ buildAggregatedMcpCatalog → context finalizers → applyToolDiscovery → Sess
 6. Returns a new `SessionMcpToolContext` with only enabled tools + the discover tool.
 
 **Important**: the full aggregated catalog (all tools) must remain available to the **executor/router** so that when a tool is enabled mid-loop, it can be dispatched. The split is:
+
 - `toolsOpenAi` / `toolsLoop` → only enabled tools (what the model sees).
 - `aggregated` → full catalog (what the executor can route to).
 
@@ -206,6 +220,7 @@ Policy is enforced at execution time in `runToolLoop`, not at advertisement time
 Add the `toolDiscovery` config schema, per-agent override, and the `session_tool_state` migration.
 
 **Files:**
+
 - `packages/shared/src/schema.ts` — add `toolDiscovery` to config and agent entry schemas
 - `migrations/0008_session_tool_state.sql` — new migration
 
@@ -214,6 +229,7 @@ Add the `toolDiscovery` config schema, per-agent override, and the `session_tool
 Implement the `applyToolDiscovery` finalizer that partitions tools into enabled/collapsed and builds the dynamic `builtin-discover` descriptor.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-tool-discovery.ts` — new: resolver logic, state read/write helpers, trigger evaluation
 - `packages/daemon/src/sessions/session-mcp-runtime.ts` — register the new finalizer
 - `packages/daemon/src/sessions/session-mcp-tool-context.ts` — extend `SessionMcpToolContext` with `fullAggregated` field (all tools for executor routing)
@@ -223,6 +239,7 @@ Implement the `applyToolDiscovery` finalizer that partitions tools into enabled/
 Implement the tool handler that enables/disables/lists tools and signals a mid-loop refresh.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/discover-handler.ts` — new: handler implementation
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` — register
 - `packages/mcp-integration/src/builtin-shoggoth-tools.ts` — base tool descriptor (description is dynamic, but the schema is static)
@@ -232,6 +249,7 @@ Implement the tool handler that enables/disables/lists tools and signals a mid-l
 Make the model client's tool list refreshable and wire the refresh signal from the discover handler through the tool loop.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-tool-loop-model-client.ts` — change `tools` to getter; add `refreshTools()` method
 - `packages/daemon/src/sessions/tool-loop.ts` — add refresh hook after tool execution; update `allowedNames` to re-evaluate on refresh
 - `packages/daemon/src/sessions/session-agent-turn.ts` — wire refresh callback that re-runs discovery resolver and updates model client
@@ -241,6 +259,7 @@ Make the model client's tool list refreshable and wire the refresh signal from t
 Wire trigger phrase matching into the turn entry point so matched tools are auto-enabled before the first `complete()`.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-tool-discovery.ts` — add `evaluateTriggers()` export
 - `packages/daemon/src/sessions/session-agent-turn.ts` — call `evaluateTriggers()` before tool loop, pass user content
 

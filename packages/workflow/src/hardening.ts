@@ -31,7 +31,10 @@ export function isValidTransition(from: TaskStatus, to: TaskStatus): boolean {
 /**
  * Attempt a guarded status transition. Returns true if the transition was applied.
  */
-export function guardedTransition(task: TaskState, newStatus: TaskStatus): boolean {
+export function guardedTransition(
+  task: TaskState,
+  newStatus: TaskStatus,
+): boolean {
   if (!isValidTransition(task.status, newStatus)) return false;
   task.status = newStatus;
   return true;
@@ -43,7 +46,11 @@ export function guardedTransition(task: TaskState, newStatus: TaskStatus): boole
  * Creates a simple async mutex for protecting tick execution.
  * If a tick is already running, subsequent calls are skipped (not queued).
  */
-export function createTickLock(): { acquire(): boolean; release(): void; isLocked(): boolean } {
+export function createTickLock(): {
+  acquire(): boolean;
+  release(): void;
+  isLocked(): boolean;
+} {
   let locked = false;
   return {
     acquire(): boolean {

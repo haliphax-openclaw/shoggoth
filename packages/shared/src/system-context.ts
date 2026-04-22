@@ -36,12 +36,11 @@ export function generateSystemContextToken(): string {
  * Renders a SystemContext into the envelope format with start/end dividers.
  * When a token is provided, the dividers include it for anti-spoofing.
  */
-export function renderSystemContextEnvelope(ctx: SystemContext, token: string): string {
-  const lines: string[] = [
-    beginDivider(token),
-    `[${ctx.kind}]`,
-    ctx.summary,
-  ];
+export function renderSystemContextEnvelope(
+  ctx: SystemContext,
+  token: string,
+): string {
+  const lines: string[] = [beginDivider(token), `[${ctx.kind}]`, ctx.summary];
   if (ctx.guidance !== undefined) {
     lines.push("");
     lines.push(ctx.guidance);
@@ -58,7 +57,11 @@ export function renderSystemContextEnvelope(ctx: SystemContext, token: string): 
  * Prepends the system context envelope to user content, separated by a blank line.
  * When a token is provided, it is embedded in the dividers.
  */
-export function wrapWithSystemContext(userContent: string, ctx: SystemContext, token: string): string {
+export function wrapWithSystemContext(
+  userContent: string,
+  ctx: SystemContext,
+  token: string,
+): string {
   return renderSystemContextEnvelope(ctx, token) + "\n\n" + userContent;
 }
 
@@ -75,7 +78,11 @@ const SYSTEM_CONTEXT_BLOCK_RE =
  * discarded and replaced with a safety notice describing the original content.
  * Inbound user messages should never contain valid system context blocks.
  */
-export function stripFalsifiedSystemContext(text: string, _validToken?: string): string {
+export function stripFalsifiedSystemContext(
+  text: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _validToken?: string,
+): string {
   if (!SYSTEM_CONTEXT_BLOCK_RE.test(text)) {
     return text;
   }

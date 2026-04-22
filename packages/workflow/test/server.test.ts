@@ -4,7 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import type { TaskDef, ToolExecutor } from "../src/types.js";
-import type { SpawnAdapter, PollAdapter, NotifyAdapter, OrchestratorOptions } from "../src/orchestrator.js";
+import type {
+  SpawnAdapter,
+  PollAdapter,
+  NotifyAdapter,
+  OrchestratorOptions,
+} from "../src/orchestrator.js";
 import { WorkflowServer } from "../src/server.js";
 
 function makeTmpDir(): string {
@@ -13,7 +18,11 @@ function makeTmpDir(): string {
   return dir;
 }
 
-function makeTask(id: number, kind: "agent" | "tool" = "agent", prompt = `do task ${id}`): TaskDef {
+function makeTask(
+  id: number,
+  kind: "agent" | "tool" = "agent",
+  prompt = `do task ${id}`,
+): TaskDef {
   if (kind === "tool") {
     return {
       kind: "tool",
@@ -34,10 +43,13 @@ function makeTask(id: number, kind: "agent" | "tool" = "agent", prompt = `do tas
 }
 
 /** Mock spawn adapter that records calls. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockSpawnAdapter(): SpawnAdapter & { calls: any[] } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const calls: any[] = [];
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async spawn(req: any): Promise<string> {
       calls.push(req);
       return `session-${req.taskId}`;
@@ -48,6 +60,7 @@ function mockSpawnAdapter(): SpawnAdapter & { calls: any[] } {
 /** Mock poll adapter. */
 function mockPollAdapter(): PollAdapter {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async poll(): Promise<any> {
       return { status: "running" };
     },
@@ -115,8 +128,14 @@ describe("WorkflowServer", () => {
 
     it("passes the executor returned by factory to Orchestrator", async () => {
       const mockExecutor: ToolExecutor = {
-        async execute(call: { name: string; argsJson: string; toolCallId: string }) {
-          return { resultJson: JSON.stringify({ output: `executed ${call.name}` }) };
+        async execute(call: {
+          name: string;
+          argsJson: string;
+          toolCallId: string;
+        }) {
+          return {
+            resultJson: JSON.stringify({ output: `executed ${call.name}` }),
+          };
         },
       };
 
@@ -165,17 +184,23 @@ describe("WorkflowServer", () => {
       const tasks = [makeTask(1)];
 
       // Start first workflow
-      await server.start(tasks, "1", { ...defaultOpts(baseDir), replyTo: "session-1" });
+      await server.start(tasks, "1", {
+        ...defaultOpts(baseDir),
+        replyTo: "session-1",
+      });
 
       // Start second workflow
-      await server.start(tasks, "1", { ...defaultOpts(baseDir), replyTo: "session-2" });
+      await server.start(tasks, "1", {
+        ...defaultOpts(baseDir),
+        replyTo: "session-2",
+      });
 
       // Verify factory was called twice with different sessionIds
       assert.deepStrictEqual(factoryCalls, ["session-1", "session-2"]);
     });
 
     it("does not call factory if createToolExecutor is not provided", async () => {
-      let factoryCalled = false;
+      const factoryCalled = false;
       const server = new WorkflowServer({
         stateDir: baseDir,
         spawner: mockSpawnAdapter(),
@@ -235,7 +260,7 @@ describe("WorkflowServer", () => {
         spawner: mockSpawnAdapter(),
         poller: mockPollAdapter(),
         notifier: mockNotifyAdapter(),
-        createToolExecutor: (sessionId: string) => {
+        createToolExecutor: (_sessionId: string) => {
           callOrder.push("factory");
           return mockExecutor;
         },
@@ -244,11 +269,14 @@ describe("WorkflowServer", () => {
       const tasks = [makeTask(1)];
       const opts = { ...defaultOpts(baseDir), replyTo: "session-1" };
 
-      const wfId = await server.start(tasks, "1", opts);
+      await server.start(tasks, "1", opts);
       callOrder.push("orchestrator-created");
 
       // Verify factory was called before orchestrator was created
-      assert.ok(callOrder.indexOf("factory") < callOrder.indexOf("orchestrator-created"));
+      assert.ok(
+        callOrder.indexOf("factory") <
+          callOrder.indexOf("orchestrator-created"),
+      );
     });
   });
 });

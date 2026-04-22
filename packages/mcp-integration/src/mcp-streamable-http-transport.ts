@@ -18,7 +18,9 @@ export type McpStreamableHttpSession = McpJsonRpcSession & {
 };
 
 function asRecord(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
 }
 
 function jsonRpcErrorToError(err: unknown): Error {
@@ -68,7 +70,10 @@ function mergeHeaders(
 
 const SSE_EVENT_BOUNDARY = /\r\n\r\n|\n\n/;
 
-function parseSseEventBlock(raw: string): { eventId?: string; dataPayload: string | undefined } {
+function parseSseEventBlock(raw: string): {
+  eventId?: string;
+  dataPayload: string | undefined;
+} {
   const dataParts: string[] = [];
   let eventId: string | undefined;
   for (const line of raw.split(/\r?\n/)) {
@@ -96,7 +101,9 @@ function parseSseEventBlock(raw: string): { eventId?: string; dataPayload: strin
 /**
  * Parses `text/event-stream` bodies: events separated by a blank line, `data:` joined per spec, optional `id:` per event.
  */
-export async function* iterateSseDataJson(body: ReadableStream<Uint8Array> | null): AsyncGenerator<McpSseJsonEvent> {
+export async function* iterateSseDataJson(
+  body: ReadableStream<Uint8Array> | null,
+): AsyncGenerator<McpSseJsonEvent> {
   if (!body) return;
   const decoder = new TextDecoderStream();
   const reader = body.pipeThrough(decoder).getReader();
@@ -142,7 +149,10 @@ function normalizeJsonRpcNumericId(idRaw: unknown): number | null {
  * MCP 2025-11-25 cancellation: `notifications/cancelled` with `params.requestId` (+ optional `reason`).
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation
  */
-function tryRejectPendingFromCancelledNotification(m: Record<string, unknown>, pending: Map<number, Pending>): boolean {
+function tryRejectPendingFromCancelledNotification(
+  m: Record<string, unknown>,
+  pending: Map<number, Pending>,
+): boolean {
   if (m.method !== "notifications/cancelled") return false;
   const params = asRecord(m.params);
   if (!params) return false;
@@ -151,8 +161,17 @@ function tryRejectPendingFromCancelledNotification(m: Record<string, unknown>, p
   const p = pending.get(rid);
   if (!p) return false;
   pending.delete(rid);
-  const reason = typeof params.reason === "string" && params.reason.length > 0 ? params.reason : undefined;
-  p.reject(new Error(reason !== undefined ? `MCP request cancelled: ${reason}` : "MCP request cancelled"));
+  const reason =
+    typeof params.reason === "string" && params.reason.length > 0
+      ? params.reason
+      : undefined;
+  p.reject(
+    new Error(
+      reason !== undefined
+        ? `MCP request cancelled: ${reason}`
+        : "MCP request cancelled",
+    ),
+  );
   return true;
 }
 
@@ -208,12 +227,15 @@ function dispatchIncomingMessage(
  * If `GET` returns 405/404, the client disables the standing stream and uses POST-only behavior.
  * Uses `fetch` and Web Streams only.
  */
-export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOptions): McpStreamableHttpSession {
+export function connectMcpStreamableHttpSession(
+  opts: McpStreamableHttpConnectOptions,
+): McpStreamableHttpSession {
   const endpoint = normalizeBaseUrl(opts.url);
   const baseHeaders = opts.headers ?? {};
   const serverMessageHandler = opts.onServerMessage;
   let mcpSessionId: string | undefined;
-  let mcpProtocolVersionHeader = opts.initialMcpProtocolVersionHeader ?? "2025-11-25";
+  let mcpProtocolVersionHeader =
+    opts.initialMcpProtocolVersionHeader ?? "2025-11-25";
   let closed = false;
   const pending = new Map<number, Pending>();
   let nextId = 1;
@@ -242,7 +264,8 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
   }
 
   function applySessionHeaders(res: Response): void {
-    const sid = res.headers.get("mcp-session-id") ?? res.headers.get("MCP-Session-Id");
+    const sid =
+      res.headers.get("mcp-session-id") ?? res.headers.get("MCP-Session-Id");
     if (sid) {
       const t = sid.trim();
       if (t !== mcpSessionId) {
@@ -258,10 +281,12 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
    */
   async function runStandingGetLoop(): Promise<void> {
     while (!closed && !standingGetDisabled) {
-      let resumeHeader: string | undefined = lastSseEventId;
+      const resumeHeader: string | undefined = lastSseEventId;
       try {
         const getHeaders = mergeHeaders(buildRequestHeaders(), {
-          ...(resumeHeader !== undefined && resumeHeader !== "" ? { "Last-Event-ID": resumeHeader } : {}),
+          ...(resumeHeader !== undefined && resumeHeader !== ""
+            ? { "Last-Event-ID": resumeHeader }
+            : {}),
         });
         const res = await fetch(endpoint, {
           method: "GET",
@@ -325,7 +350,9 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
               method: "POST",
               headers: mergeHeaders(buildRequestHeaders(), {
                 "Content-Type": "application/json",
-                ...(resumeLastEventId !== undefined ? { "Last-Event-ID": resumeLastEventId } : {}),
+                ...(resumeLastEventId !== undefined
+                  ? { "Last-Event-ID": resumeLastEventId }
+                  : {}),
               }),
               body: JSON.stringify(rpcBody),
               signal: abortGlobal.signal,
@@ -338,7 +365,9 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
         }
         const ct2 = sseRes.headers.get("content-type") ?? "";
         if (!ct2.includes("text/event-stream")) {
-          throw new Error(`Unsupported MCP HTTP Content-Type after SSE resume: ${ct2 || "(empty)"}`);
+          throw new Error(
+            `Unsupported MCP HTTP Content-Type after SSE resume: ${ct2 || "(empty)"}`,
+          );
         }
       }
       let lastEventIdThisAttempt: string | undefined;
@@ -391,7 +420,9 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
     if (closed) {
       throw new Error("MCP session is closed");
     }
-    const jsonHeaders = mergeHeaders(buildRequestHeaders(), { "Content-Type": "application/json" });
+    const jsonHeaders = mergeHeaders(buildRequestHeaders(), {
+      "Content-Type": "application/json",
+    });
     if (options.isNotification) {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -461,14 +492,20 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
             } catch (e) {
               if (pending.has(rid)) {
                 pending.delete(rid);
-                reject(new Error(`MCP HTTP response is not JSON: ${String(e)}`));
+                reject(
+                  new Error(`MCP HTTP response is not JSON: ${String(e)}`),
+                );
               }
               return;
             }
             dispatchIncomingMessage(msg, pending, serverMessageHandler);
             if (pending.has(rid)) {
               pending.delete(rid);
-              reject(new Error("MCP HTTP JSON response missing matching JSON-RPC id"));
+              reject(
+                new Error(
+                  "MCP HTTP JSON response missing matching JSON-RPC id",
+                ),
+              );
             }
             return;
           }
@@ -478,7 +515,11 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
           }
           if (pending.has(rid)) {
             pending.delete(rid);
-            reject(new Error(`Unsupported MCP HTTP Content-Type: ${ct || "(empty)"}`));
+            reject(
+              new Error(
+                `Unsupported MCP HTTP Content-Type: ${ct || "(empty)"}`,
+              ),
+            );
           }
         } catch (e) {
           if (pending.has(rid)) {
@@ -553,7 +594,9 @@ export function connectMcpStreamableHttpSession(opts: McpStreamableHttpConnectOp
   };
 }
 
-export async function openMcpStreamableHttpClient(opts: McpStreamableHttpConnectOptions): Promise<McpStreamableHttpSession> {
+export async function openMcpStreamableHttpClient(
+  opts: McpStreamableHttpConnectOptions,
+): Promise<McpStreamableHttpSession> {
   const session = connectMcpStreamableHttpSession(opts);
   await mcpInitializeSession(session, {
     protocolVersion: opts.protocolVersion ?? "2025-11-25",

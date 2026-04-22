@@ -66,7 +66,7 @@ async function resolveImage(
   const fetchFn = ctx.fetchImpl ?? globalThis.fetch;
 
   let buf: Buffer;
-  let declaredMediaType = params.mediaType;
+  const declaredMediaType = params.mediaType;
   let filename = params.filename;
 
   if (params.path) {
@@ -107,7 +107,8 @@ async function resolveImage(
 
   // Detect actual media type from magic bytes; prefer detected over declared
   const detected = detectMediaTypeFromBytes(buf);
-  const finalMediaType = detected ?? declaredMediaType ?? "application/octet-stream";
+  const finalMediaType =
+    detected ?? declaredMediaType ?? "application/octet-stream";
 
   if (detected && declaredMediaType && detected !== declaredMediaType) {
     log.debug("show_image.mediatype_corrected", {
@@ -117,7 +118,9 @@ async function resolveImage(
   }
 
   if (!finalMediaType.startsWith("image/")) {
-    throw new Error(`unsupported_format: detected type ${finalMediaType} is not an image`);
+    throw new Error(
+      `unsupported_format: detected type ${finalMediaType} is not an image`,
+    );
   }
 
   const base64 = buf.toString("base64");
@@ -194,7 +197,11 @@ export function extractShowBlocks(
     // Extract image blocks and convert to OutboundAttachment
     for (const part of parts) {
       if (part.type !== "image") continue;
-      const imgPart = part as ChatContentPart & { type: "image"; base64?: string; mediaType?: string };
+      const imgPart = part as ChatContentPart & {
+        type: "image";
+        base64?: string;
+        mediaType?: string;
+      };
       if (!imgPart.base64) continue;
 
       const mediaType = imgPart.mediaType ?? "image/png";
@@ -205,7 +212,9 @@ export function extractShowBlocks(
       const idx = parts.indexOf(part);
       const next = parts[idx + 1];
       if (next?.type === "text") {
-        const match = (next as { text: string }).text.match(/^\[show:\s*(.+)\]$/);
+        const match = (next as { text: string }).text.match(
+          /^\[show:\s*(.+)\]$/,
+        );
         if (match) filename = match[1];
       }
 

@@ -16,17 +16,28 @@ import {
   createLogger,
   createHitlAutoApproveGate,
 } from "@shoggoth/daemon/lib";
-import { parseAgentSessionUrn } from "@shoggoth/shared";
-import type { Logger, HitlAutoApproveGate } from "../src/daemon-types";
+
 
 describe("classifyHitlDiscordReaction", () => {
   it("classifies unicode HITL emojis", () => {
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "1️⃣" }), "once");
-    assert.equal(classifyHitlDiscordReaction({ id: null, name: "✅" }), "session");
-    assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾️" }), "agent");
+    assert.equal(
+      classifyHitlDiscordReaction({ id: null, name: "✅" }),
+      "session",
+    );
+    assert.equal(
+      classifyHitlDiscordReaction({ id: null, name: "♾️" }),
+      "agent",
+    );
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "♾" }), "agent");
-    assert.equal(classifyHitlDiscordReaction({ id: null, name: "\u267E" }), "agent");
-    assert.equal(classifyHitlDiscordReaction({ id: null, name: "\u267E\uFE0F" }), "agent");
+    assert.equal(
+      classifyHitlDiscordReaction({ id: null, name: "\u267E" }),
+      "agent",
+    );
+    assert.equal(
+      classifyHitlDiscordReaction({ id: null, name: "\u267E\uFE0F" }),
+      "agent",
+    );
     assert.equal(classifyHitlDiscordReaction({ id: null, name: "❌" }), "deny");
   });
 
@@ -46,7 +57,8 @@ describe("handleDiscordHitlReactionAdd", () => {
       const id = "pend-r1";
       pending.enqueue({
         id,
-        sessionId: "agent:main:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId:
+          "agent:main:discord:channel:10000000-0000-4000-8000-000000000001",
         toolName: "builtin-write",
         payload: {},
         riskTier: "caution",

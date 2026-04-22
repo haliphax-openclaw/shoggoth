@@ -39,7 +39,9 @@ describe("ToolRunStore", () => {
     const n = tr.markAllRunningFailed("shutdown:sigterm");
     assert.equal(n, 1);
     const row = db
-      .prepare(`SELECT status, failure_reason FROM tool_runs WHERE id = 'run-1'`)
+      .prepare(
+        `SELECT status, failure_reason FROM tool_runs WHERE id = 'run-1'`,
+      )
       .get() as { status: string; failure_reason: string | null };
     assert.equal(row.status, "failed");
     assert.equal(row.failure_reason, "shutdown:sigterm");

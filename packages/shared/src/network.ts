@@ -59,7 +59,8 @@ export function isPrivateIp(hostname: string): boolean {
 
 function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return false;
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255))
+    return false;
 
   const [a, b] = parts;
 

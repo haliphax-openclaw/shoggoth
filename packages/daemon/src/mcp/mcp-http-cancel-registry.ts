@@ -14,7 +14,10 @@ const handlers = new Map<string, CancelHandler>();
  * Registers a pool's cancel handler for `sessionId` (or {@link SHOGGOTH_GLOBAL_MCP_SESSION_KEY}).
  * Call the returned function before or when the pool closes to avoid leaks.
  */
-export function registerMcpHttpCancelHandler(sessionId: string, handler: CancelHandler): () => void {
+export function registerMcpHttpCancelHandler(
+  sessionId: string,
+  handler: CancelHandler,
+): () => void {
   handlers.set(sessionId, handler);
   return () => {
     if (handlers.get(sessionId) === handler) {

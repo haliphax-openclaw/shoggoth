@@ -6,9 +6,7 @@ import { mkdirSync } from "node:fs";
 import {
   WorkflowServer,
   ControlPlane,
-  StatusManager,
-  GenericMessagePoster,
-  handleWorkflowToolCall,
+  StatusManager,\n  handleWorkflowToolCall,
   type WorkflowToolArgs,
   type WorkflowToolResult,
   type SpawnAdapter,
@@ -43,14 +41,18 @@ interface WorkflowSingletonOptions {
 }
 
 /** Initialize the workflow singleton. Call once at daemon startup. */
-export function initWorkflow(opts: WorkflowSingletonOptions): { server: WorkflowServer; controlPlane: ControlPlane } {
+export function initWorkflow(opts: WorkflowSingletonOptions): {
+  server: WorkflowServer;
+  controlPlane: ControlPlane;
+} {
   if (server && controlPlane) return { server, controlPlane };
 
   stateDir = opts.stateDir;
   mkdirSync(stateDir, { recursive: true });
 
   const createStatusManager = opts.createMessageAdapter
-    ? (sessionId: string) => new StatusManager(opts.createMessageAdapter!(sessionId))
+    ? (sessionId: string) =>
+        new StatusManager(opts.createMessageAdapter!(sessionId))
     : undefined;
 
   server = new WorkflowServer({

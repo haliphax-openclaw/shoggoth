@@ -51,7 +51,12 @@ describe("createFailoverToolCallingClient", () => {
     ]);
     const r = await c.completeWithTools({
       messages: [{ role: "user", content: "go" }],
-      tools: [{ type: "function", function: { name: "builtin-read", parameters: {} } }],
+      tools: [
+        {
+          type: "function",
+          function: { name: "builtin-read", parameters: {} },
+        },
+      ],
     });
     assert.equal(r.toolCalls.length, 1);
     assert.equal(r.toolCalls[0]!.name, "builtin-read");
@@ -61,7 +66,9 @@ describe("createFailoverToolCallingClient", () => {
     it("propagates thinkingFormat from active hop provider", async () => {
       const c = createFailoverToolCallingClient([
         {
-          provider: mockToolProvider("a", "ok", "x", [], { thinkingFormat: "native" }),
+          provider: mockToolProvider("a", "ok", "x", [], {
+            thinkingFormat: "native",
+          }),
           model: "m1",
         },
       ]);
@@ -76,7 +83,9 @@ describe("createFailoverToolCallingClient", () => {
       const c = createFailoverToolCallingClient([
         { provider: mockToolProvider("a", "503"), model: "m1" },
         {
-          provider: mockToolProvider("b", "ok", "backup", [], { thinkingFormat: "xml-tags" }),
+          provider: mockToolProvider("b", "ok", "backup", [], {
+            thinkingFormat: "xml-tags",
+          }),
           model: "m2",
         },
       ]);
@@ -91,7 +100,9 @@ describe("createFailoverToolCallingClient", () => {
     it("propagates thinkingFormat from chain entry over provider capabilities", async () => {
       const c = createFailoverToolCallingClient([
         {
-          provider: mockToolProvider("a", "ok", "x", [], { thinkingFormat: "none" }),
+          provider: mockToolProvider("a", "ok", "x", [], {
+            thinkingFormat: "none",
+          }),
           model: "m1",
           thinkingFormat: "xml-tags",
         },
@@ -106,7 +117,9 @@ describe("createFailoverToolCallingClient", () => {
     it("falls back to provider capabilities when chain entry has no thinkingFormat", async () => {
       const c = createFailoverToolCallingClient([
         {
-          provider: mockToolProvider("a", "ok", "x", [], { thinkingFormat: "xml-tags" }),
+          provider: mockToolProvider("a", "ok", "x", [], {
+            thinkingFormat: "xml-tags",
+          }),
           model: "m1",
         },
       ]);
@@ -120,7 +133,9 @@ describe("createFailoverToolCallingClient", () => {
     it("input thinkingFormat takes priority over chain entry and provider", async () => {
       const c = createFailoverToolCallingClient([
         {
-          provider: mockToolProvider("a", "ok", "x", [], { thinkingFormat: "none" }),
+          provider: mockToolProvider("a", "ok", "x", [], {
+            thinkingFormat: "none",
+          }),
           model: "m1",
           thinkingFormat: "none",
         },

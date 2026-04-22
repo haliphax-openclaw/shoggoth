@@ -1,6 +1,10 @@
 import type { MessageAttachment } from "@shoggoth/messaging";
 import type { ImageBlock, ImageBlockCodec } from "@shoggoth/models";
-import { IMAGE_MIME_TYPES, IMAGE_EXTENSION_TO_MIME, MAX_IMAGE_BLOCK_BYTES } from "@shoggoth/shared";
+import {
+  IMAGE_MIME_TYPES,
+  IMAGE_EXTENSION_TO_MIME,
+  MAX_IMAGE_BLOCK_BYTES,
+} from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
 
 const log = getLogger("image-ingest");
@@ -81,7 +85,11 @@ export async function ingestAttachmentImage(
     const detectedType = detectMediaTypeFromBytes(buf);
     const finalMediaType = detectedType ?? mediaType;
 
-    return { type: "image", mediaType: finalMediaType, base64: buf.toString("base64") };
+    return {
+      type: "image",
+      mediaType: finalMediaType,
+      base64: buf.toString("base64"),
+    };
   } catch (err) {
     log.warn("image_ingest.fetch_error", {
       url: attachment.url,
@@ -99,15 +107,33 @@ export async function ingestAttachmentImage(
 export function detectMediaTypeFromBytes(buf: Buffer): string | undefined {
   if (buf.length < 12) return undefined;
   // PNG: 0x89 P N G
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
+    return "image/png";
   // JPEG: 0xFF 0xD8 0xFF
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+    return "image/jpeg";
   // WebP: RIFF....WEBP
-  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
-      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return "image/webp";
+  if (
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  )
+    return "image/webp";
   // GIF: GIF87a or GIF89a
-  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38 &&
-      (buf[4] === 0x37 || buf[4] === 0x39) && buf[5] === 0x61) return "image/gif";
+  if (
+    buf[0] === 0x47 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x38 &&
+    (buf[4] === 0x37 || buf[4] === 0x39) &&
+    buf[5] === 0x61
+  )
+    return "image/gif";
   return undefined;
 }
 

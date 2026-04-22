@@ -3,9 +3,20 @@
 // -------------------------------------------------------------------------------
 
 import type { ShoggothConfig } from "@shoggoth/shared";
-import type { ShoggothPluginSystem, PlatformDeps, PlatformDeliveryRegistry } from "@shoggoth/plugins";
-import type { PlatformRegistration, PlatformRuntime } from "@shoggoth/messaging";
-import type { SubagentRuntimeExtension, MessageToolContext, PlatformAdapter } from "@shoggoth/shared";
+import type {
+  ShoggothPluginSystem,
+  PlatformDeps,
+  PlatformDeliveryRegistry,
+} from "@shoggoth/plugins";
+import type {
+  PlatformRegistration,
+  PlatformRuntime,
+} from "@shoggoth/messaging";
+import type {
+  SubagentRuntimeExtension,
+  MessageToolContext,
+  PlatformAdapter,
+} from "@shoggoth/shared";
 import type { HealthProbe } from "@shoggoth/plugins";
 
 interface DaemonHooksContext {
@@ -20,7 +31,9 @@ interface DaemonHooksContext {
   setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
   registerProbe: (probe: HealthProbe) => void;
   deps: PlatformDeps;
-  setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension | undefined) => void;
+  setSubagentRuntimeExtension: (
+    ext: SubagentRuntimeExtension | undefined,
+  ) => void;
   setMessageToolContext: (ctx: MessageToolContext) => void;
   setPlatformAdapter: (adapter: PlatformAdapter) => void;
 }

@@ -74,7 +74,11 @@ export type { MessagePoster } from "./message-poster.js";
 export { GenericMessagePoster } from "./message-poster.js";
 
 // Control plane
-export { ControlPlane, type ControlPlaneOptions, type WorkflowSummary } from "./control.js";
+export {
+  ControlPlane,
+  type ControlPlaneOptions,
+  type WorkflowSummary,
+} from "./control.js";
 
 // Retention
 export {
@@ -88,7 +92,10 @@ export {
 } from "./retention.js";
 
 // Tool descriptor & handler
-export { buildWorkflowToolDescriptor, type WorkflowToolDescriptor } from "./tool-descriptor.js";
+export {
+  buildWorkflowToolDescriptor,
+  type WorkflowToolDescriptor,
+} from "./tool-descriptor.js";
 export {
   handleWorkflowToolCall,
   type WorkflowToolArgs,

@@ -18,10 +18,16 @@ function openMigratedDb(): { db: Database.Database; dir: string } {
   return { db, dir };
 }
 
-function makeCtx(db: Database.Database, sessionId: string, workspacePath: string, workingDirectory?: string) {
+function makeCtx(
+  db: Database.Database,
+  sessionId: string,
+  workspacePath: string,
+  workingDirectory?: string,
+) {
   return {
     sessionId,
     db,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: process.env,
     workspacePath,
@@ -31,6 +37,7 @@ function makeCtx(db: Database.Database, sessionId: string, workspacePath: string
     getAgentIntegrationInvoker: () => undefined,
     getProcessManager: () => undefined,
     messageToolCtx: undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     memoryConfig: {} as any,
     runtimeOpenaiBaseUrl: undefined,
     isSubagentSession: false,
@@ -71,7 +78,11 @@ describe("builtin-cd handler", () => {
     registerCd(registry);
 
     const subdir = join(wsPath, "subdir");
-    const result = await registry.execute("cd", { path: subdir }, makeCtx(db, "s1", wsPath));
+    const result = await registry.execute(
+      "cd",
+      { path: subdir },
+      makeCtx(db, "s1", wsPath),
+    );
     const json = JSON.parse(result.resultJson);
     assert.equal(json.workingDirectory, subdir);
 
@@ -101,7 +112,11 @@ describe("builtin-cd handler", () => {
     const registry = new BuiltinToolRegistry();
     registerCd(registry);
 
-    const result = await registry.execute("cd", { path: "/tmp" }, makeCtx(db, "s1", wsPath));
+    const result = await registry.execute(
+      "cd",
+      { path: "/tmp" },
+      makeCtx(db, "s1", wsPath),
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(json.error);
   });
@@ -113,7 +128,11 @@ describe("builtin-cd handler", () => {
     const registry = new BuiltinToolRegistry();
     registerCd(registry);
 
-    const result = await registry.execute("cd", { path: "../../.." }, makeCtx(db, "s1", wsPath));
+    const result = await registry.execute(
+      "cd",
+      { path: "../../.." },
+      makeCtx(db, "s1", wsPath),
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(json.error);
   });
@@ -126,7 +145,11 @@ describe("builtin-cd handler", () => {
     const registry = new BuiltinToolRegistry();
     registerCd(registry);
 
-    const result = await registry.execute("cd", { path: "" }, makeCtx(db, "s1", wsPath, join(wsPath, "subdir")));
+    const result = await registry.execute(
+      "cd",
+      { path: "" },
+      makeCtx(db, "s1", wsPath, join(wsPath, "subdir")),
+    );
     const json = JSON.parse(result.resultJson);
     assert.equal(json.workingDirectory, wsPath);
 
@@ -142,7 +165,11 @@ describe("builtin-cd handler", () => {
     const registry = new BuiltinToolRegistry();
     registerCd(registry);
 
-    const result = await registry.execute("cd", {}, makeCtx(db, "s1", wsPath, join(wsPath, "subdir")));
+    const result = await registry.execute(
+      "cd",
+      {},
+      makeCtx(db, "s1", wsPath, join(wsPath, "subdir")),
+    );
     const json = JSON.parse(result.resultJson);
     assert.equal(json.workingDirectory, wsPath);
   });
@@ -154,7 +181,11 @@ describe("builtin-cd handler", () => {
     const registry = new BuiltinToolRegistry();
     registerCd(registry);
 
-    const result = await registry.execute("cd", { path: "nonexistent" }, makeCtx(db, "s1", wsPath));
+    const result = await registry.execute(
+      "cd",
+      { path: "nonexistent" },
+      makeCtx(db, "s1", wsPath),
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(json.error);
   });

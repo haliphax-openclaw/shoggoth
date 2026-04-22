@@ -1,4 +1,8 @@
-import { parseAgentSessionUrn, type HitlRiskTier, type ShoggothConfig } from "@shoggoth/shared";
+import {
+  parseAgentSessionUrn,
+  type HitlRiskTier,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
 
 /**
  * Resolve the effective HITL bypass tier for a session.

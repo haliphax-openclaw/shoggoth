@@ -6,7 +6,9 @@ import {
 } from "../../src/memory/memory-embeddings-resolve";
 import type { ShoggothMemoryConfig } from "@shoggoth/shared";
 
-function memCfg(overrides: Partial<ShoggothMemoryConfig["embeddings"]> = {}): ShoggothMemoryConfig {
+function memCfg(
+  overrides: Partial<ShoggothMemoryConfig["embeddings"]> = {},
+): ShoggothMemoryConfig {
   return {
     paths: ["/tmp/memory"],
     embeddings: { enabled: true, ...overrides },
@@ -15,12 +17,17 @@ function memCfg(overrides: Partial<ShoggothMemoryConfig["embeddings"]> = {}): Sh
 
 describe("resolveMemoryEmbeddingApiKey", () => {
   it("returns bare apiKey when set", () => {
-    const key = resolveMemoryEmbeddingApiKey(memCfg({ apiKey: "bare-key" }), {});
+    const key = resolveMemoryEmbeddingApiKey(
+      memCfg({ apiKey: "bare-key" }),
+      {},
+    );
     assert.equal(key, "bare-key");
   });
 
   it("falls back to apiKeyEnv from env", () => {
-    const key = resolveMemoryEmbeddingApiKey(memCfg({ apiKeyEnv: "MY_KEY" }), { MY_KEY: "env-val" });
+    const key = resolveMemoryEmbeddingApiKey(memCfg({ apiKeyEnv: "MY_KEY" }), {
+      MY_KEY: "env-val",
+    });
     assert.equal(key, "env-val");
   });
 
@@ -33,7 +40,9 @@ describe("resolveMemoryEmbeddingApiKey", () => {
   });
 
   it("falls back to OPENAI_API_KEY when neither apiKey nor apiKeyEnv set", () => {
-    const key = resolveMemoryEmbeddingApiKey(memCfg(), { OPENAI_API_KEY: "default-key" });
+    const key = resolveMemoryEmbeddingApiKey(memCfg(), {
+      OPENAI_API_KEY: "default-key",
+    });
     assert.equal(key, "default-key");
   });
 
@@ -45,7 +54,10 @@ describe("resolveMemoryEmbeddingApiKey", () => {
 
 describe("resolveMemoryEmbeddingApiKeyEnv", () => {
   it("returns configured env var name", () => {
-    assert.equal(resolveMemoryEmbeddingApiKeyEnv(memCfg({ apiKeyEnv: "CUSTOM" })), "CUSTOM");
+    assert.equal(
+      resolveMemoryEmbeddingApiKeyEnv(memCfg({ apiKeyEnv: "CUSTOM" })),
+      "CUSTOM",
+    );
   });
 
   it("defaults to OPENAI_API_KEY", () => {

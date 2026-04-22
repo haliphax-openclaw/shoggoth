@@ -23,13 +23,21 @@ export interface PlatformDeliveryResolver {
    * Given a session URN owned by this platform, return delivery metadata
    * for reaching the operator. Return undefined if no operator delivery is configured.
    */
-  resolveOperatorDelivery(sessionId: string, config: any): OperatorDelivery | undefined;
+  resolveOperatorDelivery(
+    sessionId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: any,
+  ): OperatorDelivery | undefined;
 
   /**
    * Given platform-specific inbound identifiers, resolve to a session ID.
    * The shape of `identifiers` is platform-specific and opaque to the daemon.
    */
-  resolveSessionForInbound?(identifiers: Record<string, string>, config: any): string | undefined;
+  resolveSessionForInbound?(
+    identifiers: Record<string, string>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: any,
+  ): string | undefined;
 }
 
 /**
@@ -47,14 +55,23 @@ export class PlatformDeliveryRegistry {
    * Resolve operator delivery for a session URN.
    * Extracts the platform segment from the URN and delegates to the registered resolver.
    */
-  resolveOperatorDelivery(sessionId: string, config: any): OperatorDelivery | undefined {
+  resolveOperatorDelivery(
+    sessionId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: any,
+  ): OperatorDelivery | undefined {
     const segment = extractPlatformSegment(sessionId);
     if (!segment) return undefined;
     const resolver = this.resolvers.get(segment);
     return resolver?.resolveOperatorDelivery(sessionId, config);
   }
 
-  resolveSessionForInbound(platformSegment: string, identifiers: Record<string, string>, config: any): string | undefined {
+  resolveSessionForInbound(
+    platformSegment: string,
+    identifiers: Record<string, string>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: any,
+  ): string | undefined {
     const resolver = this.resolvers.get(platformSegment);
     return resolver?.resolveSessionForInbound?.(identifiers, config);
   }

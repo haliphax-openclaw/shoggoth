@@ -54,7 +54,9 @@ export async function runProcmanCli(argv: string[]): Promise<void> {
       payload: {},
     });
     if (!res.ok) {
-      console.error(`error: ${(res.error as { message?: string })?.message ?? "unknown"}`);
+      console.error(
+        `error: ${(res.error as { message?: string })?.message ?? "unknown"}`,
+      );
       process.exitCode = 1;
       return;
     }
@@ -110,7 +112,9 @@ export async function runProcmanCli(argv: string[]): Promise<void> {
       payload: { id },
     });
     if (!res.ok) {
-      console.error(`error: ${(res.error as { message?: string })?.message ?? "unknown"}`);
+      console.error(
+        `error: ${(res.error as { message?: string })?.message ?? "unknown"}`,
+      );
       process.exitCode = 1;
       return;
     }
@@ -132,7 +136,9 @@ export async function runProcmanCli(argv: string[]): Promise<void> {
       payload: { id },
     });
     if (!res.ok) {
-      console.error(`error: ${(res.error as { message?: string })?.message ?? "unknown"}`);
+      console.error(
+        `error: ${(res.error as { message?: string })?.message ?? "unknown"}`,
+      );
       process.exitCode = 1;
       return;
     }

@@ -1,5 +1,9 @@
 import assert from "node:assert";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { describe, it } from "vitest";
 import { mcpFetchToolsList, mcpInvokeTool } from "../src/mcp-jsonrpc-transport";
 import {
@@ -66,7 +70,10 @@ describe("mcp-streamable-http-transport", () => {
               tools: [
                 {
                   name: "echo",
-                  inputSchema: { type: "object", properties: { text: { type: "string" } } },
+                  inputSchema: {
+                    type: "object",
+                    properties: { text: { type: "string" } },
+                  },
                 },
               ],
             },
@@ -149,7 +156,14 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "ping", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                {
+                  name: "ping",
+                  inputSchema: { type: "object", properties: {} },
+                },
+              ],
+            },
           }),
         );
         return;
@@ -196,7 +210,9 @@ describe("mcp-streamable-http-transport", () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
-          enc.encode("id: alpha\r\ndata: {\"x\":1}\r\n\r\nid: beta\ndata: {\"y\":2}\n\n"),
+          enc.encode(
+            'id: alpha\r\ndata: {"x":1}\r\n\r\nid: beta\ndata: {"y":2}\n\n',
+          ),
         );
         controller.close();
       },
@@ -246,7 +262,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "t", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -350,7 +370,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "g", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "g", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -424,7 +448,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "u", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "u", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -525,7 +553,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "c", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "c", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -604,7 +636,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "x", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "x", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -699,7 +735,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "t", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         setImmediate(() => {
@@ -748,10 +788,13 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect sends Last-Event-ID after disconnect when server sent id: fields", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
+      [];
     let getCount = 0;
     let resolveToolCallId1: ((id: number) => void) | undefined;
-    const toolCallIdPromise1 = new Promise<number>((r) => { resolveToolCallId1 = r; });
+    const toolCallIdPromise1 = new Promise<number>((r) => {
+      resolveToolCallId1 = r;
+    });
     const server = createServer(async (req, res: ServerResponse) => {
       if (req.method === "GET") {
         getCount++;
@@ -762,8 +805,12 @@ describe("mcp-streamable-http-transport", () => {
         });
         if (getCount === 1) {
           // First GET: send an event with id, then close (simulate disconnect)
-          res.write(`id: evt-100\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping", params: {} })}\n\n`);
-          res.write(`id: evt-200\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping2", params: {} })}\n\n`);
+          res.write(
+            `id: evt-100\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping", params: {} })}\n\n`,
+          );
+          res.write(
+            `id: evt-200\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/ping2", params: {} })}\n\n`,
+          );
           // Close the stream to simulate a disconnect
           res.end();
           return;
@@ -776,11 +823,15 @@ describe("mcp-streamable-http-transport", () => {
             `id: evt-300\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { reconnected: true } })}\n\n`,
           );
           // Keep open briefly then end
-          req.on("close", () => { /* noop */ });
+          req.on("close", () => {
+            /* noop */
+          });
           return;
         }
         // Further reconnects: just stay open
-        req.on("close", () => { /* noop */ });
+        req.on("close", () => {
+          /* noop */
+        });
         return;
       }
       if (req.method !== "POST") {
@@ -817,7 +868,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "r", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "r", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -865,10 +920,13 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect does NOT send Last-Event-ID when server never sent id: fields", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
+      [];
     let getCount = 0;
     let resolveToolCallId2: ((id: number) => void) | undefined;
-    const toolCallIdPromise2 = new Promise<number>((r) => { resolveToolCallId2 = r; });
+    const toolCallIdPromise2 = new Promise<number>((r) => {
+      resolveToolCallId2 = r;
+    });
     const server = createServer(async (req, res: ServerResponse) => {
       if (req.method === "GET") {
         getCount++;
@@ -879,7 +937,9 @@ describe("mcp-streamable-http-transport", () => {
         });
         if (getCount === 1) {
           // First GET: send events WITHOUT id: fields, then close
-          res.write(`data: ${JSON.stringify({ jsonrpc: "2.0", method: "test/noid", params: {} })}\n\n`);
+          res.write(
+            `data: ${JSON.stringify({ jsonrpc: "2.0", method: "test/noid", params: {} })}\n\n`,
+          );
           res.end();
           return;
         }
@@ -889,10 +949,14 @@ describe("mcp-streamable-http-transport", () => {
           res.write(
             `data: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { noId: true } })}\n\n`,
           );
-          req.on("close", () => { /* noop */ });
+          req.on("close", () => {
+            /* noop */
+          });
           return;
         }
-        req.on("close", () => { /* noop */ });
+        req.on("close", () => {
+          /* noop */
+        });
         return;
       }
       if (req.method !== "POST") {
@@ -929,7 +993,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "n", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "n", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -980,10 +1048,13 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect updates Last-Event-ID across multiple disconnects", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
+      [];
     let getCount = 0;
     let resolveToolCallId3: ((id: number) => void) | undefined;
-    const toolCallIdPromise3 = new Promise<number>((r) => { resolveToolCallId3 = r; });
+    const toolCallIdPromise3 = new Promise<number>((r) => {
+      resolveToolCallId3 = r;
+    });
     const server = createServer(async (req, res: ServerResponse) => {
       if (req.method === "GET") {
         getCount++;
@@ -994,13 +1065,17 @@ describe("mcp-streamable-http-transport", () => {
         });
         if (getCount === 1) {
           // First GET: send event with id, then disconnect
-          res.write(`id: first-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/a", params: {} })}\n\n`);
+          res.write(
+            `id: first-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/a", params: {} })}\n\n`,
+          );
           res.end();
           return;
         }
         if (getCount === 2) {
           // Second GET: send event with a new id, then disconnect again
-          res.write(`id: second-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/b", params: {} })}\n\n`);
+          res.write(
+            `id: second-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "test/b", params: {} })}\n\n`,
+          );
           res.end();
           return;
         }
@@ -1010,10 +1085,14 @@ describe("mcp-streamable-http-transport", () => {
           res.write(
             `id: third-batch\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: toolCallId, result: { multi: true } })}\n\n`,
           );
-          req.on("close", () => { /* noop */ });
+          req.on("close", () => {
+            /* noop */
+          });
           return;
         }
-        req.on("close", () => { /* noop */ });
+        req.on("close", () => {
+          /* noop */
+        });
         return;
       }
       if (req.method !== "POST") {
@@ -1050,7 +1129,11 @@ describe("mcp-streamable-http-transport", () => {
           JSON.stringify({
             jsonrpc: "2.0",
             id,
-            result: { tools: [{ name: "m", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "m", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           }),
         );
         return;
@@ -1082,11 +1165,23 @@ describe("mcp-streamable-http-transport", () => {
       assert.deepEqual(r, { multi: true });
       assert.ok(getCount >= 3, `expected at least 3 GET requests, got `);
       // First GET: no Last-Event-ID
-      assert.equal(getRequestHeaders[0]!["last-event-id"], undefined, "first GET: no Last-Event-ID");
+      assert.equal(
+        getRequestHeaders[0]!["last-event-id"],
+        undefined,
+        "first GET: no Last-Event-ID",
+      );
       // Second GET: should carry "first-batch"
-      assert.equal(getRequestHeaders[1]!["last-event-id"], "first-batch", "second GET: Last-Event-ID should be first-batch");
+      assert.equal(
+        getRequestHeaders[1]!["last-event-id"],
+        "first-batch",
+        "second GET: Last-Event-ID should be first-batch",
+      );
       // Third GET: should carry "second-batch"
-      assert.equal(getRequestHeaders[2]!["last-event-id"], "second-batch", "third GET: Last-Event-ID should be second-batch");
+      assert.equal(
+        getRequestHeaders[2]!["last-event-id"],
+        "second-batch",
+        "third GET: Last-Event-ID should be second-batch",
+      );
     } finally {
       await session.close();
       server.close();
@@ -1100,7 +1195,11 @@ describe("mcp-streamable-http-transport", () => {
         res.writeHead(405).end();
         return;
       }
-      const msg = (await readJsonBody(req)) as { method?: string; id?: number; params?: unknown };
+      const msg = (await readJsonBody(req)) as {
+        method?: string;
+        id?: number;
+        params?: unknown;
+      };
       const { method, id } = msg;
       if (method === "initialize") {
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -1117,7 +1216,10 @@ describe("mcp-streamable-http-transport", () => {
         );
         return;
       }
-      if (method === "notifications/initialized" || method === "notifications/cancelled") {
+      if (
+        method === "notifications/initialized" ||
+        method === "notifications/cancelled"
+      ) {
         lastNotification = msg;
         res.writeHead(202).end();
         return;
@@ -1140,7 +1242,10 @@ describe("mcp-streamable-http-transport", () => {
       await mcpInitializeSession(session, { protocolVersion: "2025-11-25" });
       session.cancelRequest(42);
       await new Promise((r) => setTimeout(r, 30));
-      const n = lastNotification as { method?: string; params?: { requestId?: number } };
+      const n = lastNotification as {
+        method?: string;
+        params?: { requestId?: number };
+      };
       assert.equal(n.method, "notifications/cancelled");
       assert.equal(n.params?.requestId, 42);
     } finally {

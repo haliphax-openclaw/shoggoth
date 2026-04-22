@@ -1,4 +1,8 @@
-import { BackoffState, DEFAULT_BACKOFF_CONFIG, type BackoffConfig } from "./backoff.js";
+import {
+  BackoffState,
+  DEFAULT_BACKOFF_CONFIG,
+  type BackoffConfig,
+} from "./backoff.js";
 import type { ParsedRateLimitHeaders } from "./headers.js";
 
 export interface ProviderResilienceConfig {

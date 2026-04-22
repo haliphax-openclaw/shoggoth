@@ -28,7 +28,9 @@ import { register as registerElevate } from "./elevate-handler";
 /**
  * Register all builtin tool handlers on the given registry.
  */
-export function registerAllBuiltinHandlers(registry: BuiltinToolRegistry): void {
+export function registerAllBuiltinHandlers(
+  registry: BuiltinToolRegistry,
+): void {
   registerConfig(registry);
   registerMessage(registry);
   registerProcman(registry);

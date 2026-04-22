@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 import { Orchestrator } from "../src/orchestrator.js";
-import type { SpawnAdapter, PollAdapter, NotifyAdapter, MessagePoster } from "../src/orchestrator.js";
+import type {
+  SpawnAdapter,
+  PollAdapter,
+  NotifyAdapter,
+  MessagePoster,
+} from "../src/orchestrator.js";
 import type { TaskDef, ToolExecutor } from "../src/types.js";
 
 describe("Message task integration with all task types", () => {
@@ -50,9 +55,15 @@ describe("Message task integration with all task types", () => {
     };
 
     const toolExecutor: ToolExecutor = {
-      execute: async (call: { name: string; argsJson: string; toolCallId: string }) => {
+      execute: async (call: {
+        name: string;
+        argsJson: string;
+        toolCallId: string;
+      }) => {
         executedTasks.push(`tool:${call.name}`);
-        return { resultJson: JSON.stringify({ output: `tool-output-${call.name}` }) };
+        return {
+          resultJson: JSON.stringify({ output: `tool-output-${call.name}` }),
+        };
       },
     };
 
@@ -70,19 +81,51 @@ describe("Message task integration with all task types", () => {
     // Define workflow with all task types
     const tasks: TaskDef[] = [
       // Task 1: Agent (root)
-      { id: 1, kind: "agent", prompt: "Do initial work", failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 1,
+        kind: "agent",
+        prompt: "Do initial work",
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
 
       // Task 2: Tool (depends on 1, can run in parallel with 3)
-      { id: 2, kind: "tool", tool: "fetch-data", args: { url: "https://example.com" }, failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 2,
+        kind: "tool",
+        tool: "fetch-data",
+        args: { url: "https://example.com" },
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
 
       // Task 3: Gate (depends on 1, can run in parallel with 2)
-      { id: 3, kind: "gate", condition: "true", failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 3,
+        kind: "gate",
+        condition: "true",
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
 
       // Task 4: Transform (depends on 2 and 3)
-      { id: 4, kind: "transform", template: "Combined: {{task:2:output}} and {{task:3:output}}", failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 4,
+        kind: "transform",
+        template: "Combined: {{task:2:output}} and {{task:3:output}}",
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
 
       // Task 5: Message (depends on 4, uses template)
-      { id: 5, kind: "message", message: "Workflow result: {{task:4:output}}", channel: "channel:results", failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 5,
+        kind: "message",
+        message: "Workflow result: {{task:4:output}}",
+        channel: "channel:results",
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
     ];
 
     const graphDsl = "1 2,3>4>5";
@@ -170,8 +213,21 @@ describe("Message task integration with all task types", () => {
     );
 
     const tasks: TaskDef[] = [
-      { id: 1, kind: "agent", prompt: "Task 1", failureBehavior: "continue", failureNotification: "silent" },
-      { id: 2, kind: "tool", tool: "process", args: {}, failureBehavior: "continue", failureNotification: "silent" },
+      {
+        id: 1,
+        kind: "agent",
+        prompt: "Task 1",
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
+      {
+        id: 2,
+        kind: "tool",
+        tool: "process",
+        args: {},
+        failureBehavior: "continue",
+        failureNotification: "silent",
+      },
       {
         id: 3,
         kind: "message",
@@ -200,6 +256,9 @@ describe("Message task integration with all task types", () => {
 
     assert.ok(orchestrator.isComplete());
     assert.equal(postedMessages.length, 1);
-    assert.equal(postedMessages[0].message, "Results: Agent=agent-output, Tool=tool-output");
+    assert.equal(
+      postedMessages[0].message,
+      "Results: Agent=agent-output, Tool=tool-output",
+    );
   });
 });

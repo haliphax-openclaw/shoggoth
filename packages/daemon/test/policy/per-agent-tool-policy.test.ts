@@ -1,6 +1,10 @@
 import assert from "node:assert";
 import { describe, it } from "vitest";
-import { DEFAULT_POLICY_CONFIG, type ShoggothConfig, type ShoggothToolRules } from "@shoggoth/shared";
+import {
+  DEFAULT_POLICY_CONFIG,
+  type ShoggothConfig,
+  type ShoggothToolRules,
+} from "@shoggoth/shared";
 import {
   createPolicyEngine,
   evaluateRules,
@@ -25,7 +29,9 @@ describe("resolveEffectiveToolRules", () => {
   });
 
   it("per-agent allow replaces global allow, inherits other fields", () => {
-    const effective = resolveEffectiveToolRules(globalRules, { allow: ["builtin-read"] });
+    const effective = resolveEffectiveToolRules(globalRules, {
+      allow: ["builtin-read"],
+    });
     assert.deepStrictEqual(effective, {
       allow: ["builtin-read"],
       deny: [],
@@ -34,7 +40,9 @@ describe("resolveEffectiveToolRules", () => {
   });
 
   it("per-agent deny replaces global deny, inherits other fields", () => {
-    const effective = resolveEffectiveToolRules(globalRules, { deny: ["builtin-exec"] });
+    const effective = resolveEffectiveToolRules(globalRules, {
+      deny: ["builtin-exec"],
+    });
     assert.deepStrictEqual(effective, {
       allow: ["*"],
       deny: ["builtin-exec"],
@@ -58,13 +66,24 @@ describe("resolveEffectiveToolRules", () => {
 
 describe("evaluateRules – review takes precedence over allow", () => {
   it("review match blocks even when allow:* is set", () => {
-    const rules: ShoggothToolRules = { allow: ["*"], deny: [], review: ["builtin-exec:bash"] };
+    const rules: ShoggothToolRules = {
+      allow: ["*"],
+      deny: [],
+      review: ["builtin-exec:bash"],
+    };
     const decision = evaluateRules("builtin-exec:bash", rules);
-    assert.deepStrictEqual(decision, { allow: false, reason: "requires_review" });
+    assert.deepStrictEqual(decision, {
+      allow: false,
+      reason: "requires_review",
+    });
   });
 
   it("non-reviewed tool still allowed", () => {
-    const rules: ShoggothToolRules = { allow: ["*"], deny: [], review: ["builtin-exec:bash"] };
+    const rules: ShoggothToolRules = {
+      allow: ["*"],
+      deny: [],
+      review: ["builtin-exec:bash"],
+    };
     const decision = evaluateRules("builtin-read", rules);
     assert.deepStrictEqual(decision, { allow: true });
   });
@@ -76,7 +95,11 @@ describe("policy engine – per-agent tool rules via config", () => {
       ...DEFAULT_POLICY_CONFIG,
       agent: {
         ...DEFAULT_POLICY_CONFIG.agent,
-        tools: { allow: ["*"], deny: [], review: ["builtin-exec:bash", "builtin-exec:sh"] },
+        tools: {
+          allow: ["*"],
+          deny: [],
+          review: ["builtin-exec:bash", "builtin-exec:sh"],
+        },
       },
     };
     const agentsConfig: ShoggothConfig["agents"] = {
@@ -88,7 +111,11 @@ describe("policy engine – per-agent tool rules via config", () => {
     };
     const engine = createPolicyEngine(config, agentsConfig);
     const decision = engine.check({
-      principal: { kind: "agent", sessionId: "agent:main:discord:ch:123", source: "agent" },
+      principal: {
+        kind: "agent",
+        sessionId: "agent:main:discord:ch:123",
+        source: "agent",
+      },
       action: "tool.invoke",
       resource: "builtin-exec:bash",
     });
@@ -105,11 +132,18 @@ describe("policy engine – per-agent tool rules via config", () => {
     };
     const engine = createPolicyEngine(config);
     const decision = engine.check({
-      principal: { kind: "agent", sessionId: "agent:helper:discord:ch:456", source: "agent" },
+      principal: {
+        kind: "agent",
+        sessionId: "agent:helper:discord:ch:456",
+        source: "agent",
+      },
       action: "tool.invoke",
       resource: "builtin-exec:bash",
     });
-    assert.deepStrictEqual(decision, { allow: false, reason: "requires_review" });
+    assert.deepStrictEqual(decision, {
+      allow: false,
+      reason: "requires_review",
+    });
   });
 
   it("unknown agent id falls back to global", () => {
@@ -130,11 +164,18 @@ describe("policy engine – per-agent tool rules via config", () => {
     const engine = createPolicyEngine(config, agentsConfig);
     // Agent "other" has no per-agent config, falls back to global
     const decision = engine.check({
-      principal: { kind: "agent", sessionId: "agent:other:discord:ch:789", source: "agent" },
+      principal: {
+        kind: "agent",
+        sessionId: "agent:other:discord:ch:789",
+        source: "agent",
+      },
       action: "tool.invoke",
       resource: "builtin-exec:bash",
     });
-    assert.deepStrictEqual(decision, { allow: false, reason: "requires_review" });
+    assert.deepStrictEqual(decision, {
+      allow: false,
+      reason: "requires_review",
+    });
   });
 
   it("operator is unaffected by per-agent config", () => {

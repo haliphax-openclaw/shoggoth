@@ -17,7 +17,10 @@ describe("runToolLoop HITL", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s-hitl-ok", workspacePath: "/w/s-hitl-ok" });
+    createSessionStore(db).create({
+      id: "s-hitl-ok",
+      workspacePath: "/w/s-hitl-ok",
+    });
 
     const stack = createHitlPendingResolutionStack(db);
     const engine = createPolicyEngine(DEFAULT_POLICY_CONFIG);
@@ -100,7 +103,10 @@ describe("runToolLoop HITL", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s-hitl-deny", workspacePath: "/w/s-hitl-deny" });
+    createSessionStore(db).create({
+      id: "s-hitl-deny",
+      workspacePath: "/w/s-hitl-deny",
+    });
 
     const stack = createHitlPendingResolutionStack(db);
     const engine = createPolicyEngine(DEFAULT_POLICY_CONFIG);

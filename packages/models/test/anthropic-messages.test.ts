@@ -33,18 +33,18 @@ function anthropicSseResponse(lines: readonly string[]): Response {
 /** Minimal Anthropic-style stream: text only (matches public SSE examples). */
 function fixtureTextOnlyStream(): string[] {
   return [
-    'event: message_start',
+    "event: message_start",
     'data: {"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"claude-test","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":1}}}',
     "",
-    'event: content_block_start',
+    "event: content_block_start",
     'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
-    'event: content_block_delta',
+    "event: content_block_delta",
     'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi "}}',
-    'event: content_block_delta',
+    "event: content_block_delta",
     'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"there"}}',
-    'event: content_block_stop',
+    "event: content_block_stop",
     'data: {"type":"content_block_stop","index":0}',
-    'event: message_stop',
+    "event: message_stop",
     'data: {"type":"message_stop"}',
   ];
 }
@@ -67,8 +67,14 @@ function fixtureTextThenToolStream(): string[] {
 describe("normalizeAnthropicWireModelId", () => {
   it("strips through the first slash for vendor-prefixed ids", () => {
     assert.equal(normalizeAnthropicWireModelId("acme/auto"), "auto");
-    assert.equal(normalizeAnthropicWireModelId("acme/claude-sonnet-4.5"), "claude-sonnet-4.5");
-    assert.equal(normalizeAnthropicWireModelId("claude-sonnet-4.5"), "claude-sonnet-4.5");
+    assert.equal(
+      normalizeAnthropicWireModelId("acme/claude-sonnet-4.5"),
+      "claude-sonnet-4.5",
+    );
+    assert.equal(
+      normalizeAnthropicWireModelId("claude-sonnet-4.5"),
+      "claude-sonnet-4.5",
+    );
   });
 
   it("only removes the first segment when multiple slashes remain", () => {
@@ -85,7 +91,10 @@ describe("normalizeAnthropicMessagesOrigin", () => {
   });
 
   it("keeps host:port origin", () => {
-    assert.equal(normalizeAnthropicMessagesOrigin("http://127.0.0.1:8000"), "http://127.0.0.1:8000");
+    assert.equal(
+      normalizeAnthropicMessagesOrigin("http://127.0.0.1:8000"),
+      "http://127.0.0.1:8000",
+    );
   });
 });
 
@@ -103,14 +112,18 @@ describe("mapChatMessagesToAnthropicPayload", () => {
       { role: "tool", toolCallId: "tu_1", content: "out" },
       { role: "user", content: "next" },
     ];
-    const { system, messages: out } = mapChatMessagesToAnthropicPayload(messages);
+    const { system, messages: out } =
+      mapChatMessagesToAnthropicPayload(messages);
     assert.equal(system, "A\n\nB");
     assert.equal((out[0] as { role: string }).role, "user");
     assert.equal((out[1] as { role: string }).role, "assistant");
     const userTool = out[2] as { role: string; content: unknown[] };
     assert.equal(userTool.role, "user");
     assert.equal(userTool.content[0]?.type, "tool_result");
-    assert.equal((userTool.content[0] as { tool_use_id: string }).tool_use_id, "tu_1");
+    assert.equal(
+      (userTool.content[0] as { tool_use_id: string }).tool_use_id,
+      "tu_1",
+    );
   });
 
   it("throws ModelHttpError on invalid tool arguments JSON", () => {
@@ -131,7 +144,11 @@ describe("mapChatMessagesToAnthropicPayload", () => {
     const tools = [
       {
         type: "function" as const,
-        function: { name: "builtin-read", description: "d", parameters: { type: "object" as const, properties: {} } },
+        function: {
+          name: "builtin-read",
+          description: "d",
+          parameters: { type: "object" as const, properties: {} },
+        },
       },
     ];
     const m = buildOpenAiToAnthropicToolNameMap(tools);
@@ -218,7 +235,9 @@ describe("createAnthropicMessagesProvider", () => {
       messages: [{ role: "user", content: "hi" }],
       thinking: { enabled: true, budgetTokens: 1234 },
     });
-    const req = JSON.parse(capturedBody ?? "{}") as { thinking?: { type: string; budget_tokens: number } };
+    const req = JSON.parse(capturedBody ?? "{}") as {
+      thinking?: { type: string; budget_tokens: number };
+    };
     assert.equal(req.thinking?.type, "enabled");
     assert.equal(req.thinking?.budget_tokens, 1234);
   });
@@ -240,7 +259,10 @@ describe("createAnthropicMessagesProvider", () => {
       apiKey: "k",
       fetchImpl,
     });
-    await p.complete({ model: "acme/auto", messages: [{ role: "user", content: "h" }] });
+    await p.complete({
+      model: "acme/auto",
+      messages: [{ role: "user", content: "h" }],
+    });
     const req = JSON.parse(capturedBody ?? "{}") as { model?: string };
     assert.equal(req.model, "auto");
   });
@@ -269,7 +291,10 @@ describe("createAnthropicMessagesProvider", () => {
       fetchImpl,
     });
 
-    await p.complete({ model: "m", messages: [{ role: "user", content: "x" }] });
+    await p.complete({
+      model: "m",
+      messages: [{ role: "user", content: "x" }],
+    });
     assert.equal(authorization, "Bearer tok");
     assert.equal(xApiKey, null);
   });
@@ -309,7 +334,10 @@ describe("createAnthropicMessagesProvider", () => {
           function: {
             name: "builtin-read",
             description: "read",
-            parameters: { type: "object", properties: { path: { type: "string" } } },
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+            },
           },
         },
       ],
@@ -319,7 +347,9 @@ describe("createAnthropicMessagesProvider", () => {
     assert.equal(out.toolCalls[0]!.name, "builtin-read");
     assert.match(out.toolCalls[0]!.arguments, /"path"\s*:\s*"a"/);
     assert.equal(out.content, null);
-    const req = JSON.parse(capturedBody ?? "{}") as { tools?: { name: string }[] };
+    const req = JSON.parse(capturedBody ?? "{}") as {
+      tools?: { name: string }[];
+    };
     assert.equal(req.tools?.[0]?.name, "builtin-read");
   });
 
@@ -357,7 +387,9 @@ describe("createAnthropicMessagesProvider", () => {
 
   it("throws ModelHttpError on non-OK response", async () => {
     const fetchImpl = async () =>
-      new Response(JSON.stringify({ error: { message: "rate limited" } }), { status: 429 });
+      new Response(JSON.stringify({ error: { message: "rate limited" } }), {
+        status: 429,
+      });
 
     const p = createAnthropicMessagesProvider({
       id: "a",
@@ -366,9 +398,12 @@ describe("createAnthropicMessagesProvider", () => {
     });
 
     await assert.rejects(
-      () => p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
+      () =>
+        p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
       (e: unknown) =>
-        e instanceof ModelHttpError && e.status === 429 && String(e.bodySnippet).includes("rate"),
+        e instanceof ModelHttpError &&
+        e.status === 429 &&
+        String(e.bodySnippet).includes("rate"),
     );
   });
 
@@ -404,7 +439,8 @@ describe("createAnthropicMessagesProvider", () => {
   });
 
   it("completeWithTools streams text, onTextDelta, and split tool input JSON", async () => {
-    const fetchImpl = async () => anthropicSseResponse(fixtureTextThenToolStream());
+    const fetchImpl = async () =>
+      anthropicSseResponse(fixtureTextThenToolStream());
 
     const p = createAnthropicMessagesProvider({
       id: "a",
@@ -422,7 +458,10 @@ describe("createAnthropicMessagesProvider", () => {
           function: {
             name: "builtin-read",
             description: "read",
-            parameters: { type: "object", properties: { path: { type: "string" } } },
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+            },
           },
         },
       ],
@@ -493,12 +532,13 @@ describe("createAnthropicMessagesProvider", () => {
       },
     });
 
-    const out = await consumeAnthropicMessagesStream(body, { accumulateTools: false });
+    const out = await consumeAnthropicMessagesStream(body, {
+      accumulateTools: false,
+    });
     assert.equal(out.content, "Hi there");
     assert.equal(out.toolCalls.length, 0);
   });
 });
-
 
 describe("mapChatMessagesToAnthropicPayload with ChatContentPart[]", () => {
   it("serializes user message with mixed text + image content parts", () => {
@@ -516,7 +556,10 @@ describe("mapChatMessagesToAnthropicPayload with ChatContentPart[]", () => {
     assert.equal(user.role, "user");
     assert.ok(Array.isArray(user.content));
     assert.equal(user.content.length, 2);
-    assert.deepStrictEqual(user.content[0], { type: "text", text: "What is in this image?" });
+    assert.deepStrictEqual(user.content[0], {
+      type: "text",
+      text: "What is in this image?",
+    });
     assert.deepStrictEqual(user.content[1], {
       type: "image",
       source: { type: "base64", media_type: "image/png", data: "iVBOR" },
@@ -529,7 +572,11 @@ describe("mapChatMessagesToAnthropicPayload with ChatContentPart[]", () => {
         role: "user",
         content: [
           { type: "text", text: "Describe" },
-          { type: "image", mediaType: "image/jpeg", url: "https://example.com/photo.jpg" },
+          {
+            type: "image",
+            mediaType: "image/jpeg",
+            url: "https://example.com/photo.jpg",
+          },
         ],
       },
     ];
@@ -545,15 +592,16 @@ describe("mapChatMessagesToAnthropicPayload with ChatContentPart[]", () => {
     const messages: ChatMessage[] = [
       {
         role: "assistant",
-        content: [
-          { type: "text", text: "Here is my analysis" },
-        ],
+        content: [{ type: "text", text: "Here is my analysis" }],
       },
     ];
     const { messages: out } = mapChatMessagesToAnthropicPayload(messages);
     const assistant = out[0] as { role: string; content: unknown[] };
     assert.equal(assistant.role, "assistant");
-    assert.deepStrictEqual(assistant.content[0], { type: "text", text: "Here is my analysis" });
+    assert.deepStrictEqual(assistant.content[0], {
+      type: "text",
+      text: "Here is my analysis",
+    });
   });
 
   it("plain string user content still serializes identically", () => {

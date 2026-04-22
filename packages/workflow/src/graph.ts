@@ -128,7 +128,9 @@ export function validateGraph(
 
 /** Detect cycles using iterative DFS with coloring. Throws on cycle. */
 function detectCycles(graph: DependencyGraph): void {
-  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const WHITE = 0,
+    GRAY = 1,
+    BLACK = 2;
   const color = new Map<number, number>();
 
   for (const id of graph.keys()) color.set(id, WHITE);
@@ -139,7 +141,10 @@ function detectCycles(graph: DependencyGraph): void {
     // Iterative DFS using explicit stack
     const stack: Array<{ id: number; iter: Iterator<number> }> = [];
     color.set(startId, GRAY);
-    stack.push({ id: startId, iter: (graph.get(startId) ?? new Set()).values() });
+    stack.push({
+      id: startId,
+      iter: (graph.get(startId) ?? new Set()).values(),
+    });
 
     while (stack.length > 0) {
       const top = stack[stack.length - 1];

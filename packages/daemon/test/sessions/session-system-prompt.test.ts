@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { discordCapabilityDescriptor } from "@shoggoth/platform-discord";
 import type { ContextLevel } from "@shoggoth/shared";
-import { buildSessionSystemContext, TEMPLATE_FILES_BY_LEVEL } from "../../src/sessions/session-system-prompt";
+import {
+  buildSessionSystemContext,
+  TEMPLATE_FILES_BY_LEVEL,
+} from "../../src/sessions/session-system-prompt";
 
 describe("buildSessionSystemContext", () => {
   let dir: string;
@@ -46,7 +49,9 @@ describe("buildSessionSystemContext", () => {
       writeFileSync(join(dir, "AGENTS.md"), "agents-body");
       const s = buildSessionSystemContext({
         workspacePath: dir,
-        config: { operatorDirectory: opDir } as unknown as import("@shoggoth/shared").ShoggothConfig,
+        config: {
+          operatorDirectory: opDir,
+        } as unknown as import("@shoggoth/shared").ShoggothConfig,
         systemContextToken: "test0001",
       });
       assert.match(s, /## Global instructions \(operator-managed\)/);
@@ -54,7 +59,10 @@ describe("buildSessionSystemContext", () => {
       assert.match(s, /agents-body/);
       const g = s.indexOf("operator-global-body");
       const a = s.indexOf("--- workspace: AGENTS.md ---");
-      assert.ok(g >= 0 && a >= 0 && g < a, "operator global precedes AGENTS block");
+      assert.ok(
+        g >= 0 && a >= 0 && g < a,
+        "operator global precedes AGENTS block",
+      );
     } finally {
       rmSync(opDir, { recursive: true, force: true });
     }
@@ -66,9 +74,11 @@ describe("buildSessionSystemContext", () => {
       writeFileSync(join(opDir, "custom.md"), "from-env-path");
       const s = buildSessionSystemContext({
         workspacePath: undefined,
-      workingDirectory: undefined,
+        workingDirectory: undefined,
         env: { SHOGGOTH_GLOBAL_INSTRUCTIONS_PATH: join(opDir, "custom.md") },
-        config: { operatorDirectory: opDir } as unknown as import("@shoggoth/shared").ShoggothConfig,
+        config: {
+          operatorDirectory: opDir,
+        } as unknown as import("@shoggoth/shared").ShoggothConfig,
         systemContextToken: "test0001",
       });
       assert.match(s, /from-env-path/);
@@ -83,8 +93,10 @@ describe("buildSessionSystemContext", () => {
       symlinkSync("/etc/passwd", join(opDir, "GLOBAL.md"));
       const s = buildSessionSystemContext({
         workspacePath: undefined,
-      workingDirectory: undefined,
-        config: { operatorDirectory: opDir } as unknown as import("@shoggoth/shared").ShoggothConfig,
+        workingDirectory: undefined,
+        config: {
+          operatorDirectory: opDir,
+        } as unknown as import("@shoggoth/shared").ShoggothConfig,
         systemContextToken: "test0001",
       });
       assert.doesNotMatch(s, /## Global instructions \(operator-managed\)/);
@@ -437,7 +449,14 @@ describe("buildSessionSystemContext — context levels", () => {
   it("TEMPLATE_FILES_BY_LEVEL: full contains all workspace template files", () => {
     const full = TEMPLATE_FILES_BY_LEVEL.full;
     assert.strictEqual(full.size, 6);
-    for (const f of ["AGENTS.md", "TOOLS.md", "IDENTITY.md", "USER.md", "BOOTSTRAP.md", "MEMORY.md"]) {
+    for (const f of [
+      "AGENTS.md",
+      "TOOLS.md",
+      "IDENTITY.md",
+      "USER.md",
+      "BOOTSTRAP.md",
+      "MEMORY.md",
+    ]) {
       assert.ok(full.has(f), `full should contain ${f}`);
     }
   });

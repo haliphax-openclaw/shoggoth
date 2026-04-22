@@ -6,9 +6,14 @@ import { EventEmitter } from "node:events";
 import type { ProcessSpec, ProcessOwner } from "./types.js";
 import { ManagedProcess } from "./managed-process.js";
 
-function log(level: string, msg: string, fields: Record<string, unknown> = {}): void {
+function log(
+  level: string,
+  msg: string,
+  fields: Record<string, unknown> = {},
+): void {
   process.stderr.write(
-    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) + "\n",
+    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) +
+      "\n",
   );
 }
 
@@ -25,6 +30,7 @@ export class ProcessManager extends EventEmitter {
     this.processes.set(spec.id, mp);
 
     // Forward lifecycle events
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     mp.on("state-change", (newState: string, _oldState: string) => {
       if (newState === "running") {
         this.emit("process-started", mp);
@@ -39,7 +45,10 @@ export class ProcessManager extends EventEmitter {
       await mp.start();
     } catch (err) {
       // Process failed to start — keep it registered so it can be inspected
-      log("error", "process failed to start", { processId: spec.id, error: String(err) });
+      log("error", "process failed to start", {
+        processId: spec.id,
+        error: String(err),
+      });
       this.emit("process-failed", mp, err);
     }
 
@@ -98,7 +107,8 @@ export class ProcessManager extends EventEmitter {
   listByOwner(owner: Partial<ProcessOwner>): ManagedProcess[] {
     return this.list().filter((mp) => {
       if (owner.kind != null && mp.spec.owner.kind !== owner.kind) return false;
-      if (owner.scopeId != null && mp.spec.owner.scopeId !== owner.scopeId) return false;
+      if (owner.scopeId != null && mp.spec.owner.scopeId !== owner.scopeId)
+        return false;
       return true;
     });
   }

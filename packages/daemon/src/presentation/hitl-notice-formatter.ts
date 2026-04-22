@@ -37,10 +37,16 @@ export function formatHitlPayloadExcerpt(
 }
 
 /** Platform-agnostic notice lines for a queued HITL action. */
-export function buildHitlQueuedNoticeLines(row: HitlPendingActionRow): string[] {
-  const correlationLine = row.correlationId ? `run: \`${row.correlationId}\`\n` : "";
+export function buildHitlQueuedNoticeLines(
+  row: HitlPendingActionRow,
+): string[] {
+  const correlationLine = row.correlationId
+    ? `run: \`${row.correlationId}\`\n`
+    : "";
   const payloadExcerpt = formatHitlPayloadExcerpt(row.payload);
-  const payloadLine = payloadExcerpt ? `payload (truncated): \`${payloadExcerpt}\`\n` : "";
+  const payloadLine = payloadExcerpt
+    ? `payload (truncated): \`${payloadExcerpt}\`\n`
+    : "";
   const text = daemonNotice("hitl-queued-notice", {
     id: row.id,
     sessionId: row.sessionId,

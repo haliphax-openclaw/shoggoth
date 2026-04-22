@@ -2,7 +2,11 @@ import type { ShoggothConfig } from "@shoggoth/shared";
 import type { MessageAttachment } from "@shoggoth/messaging";
 import type { ImageBlockCodec, ChatContentPart } from "@shoggoth/models";
 import type { SessionToolLoopFailoverState } from "../sessions/session-tool-loop-model-client.js";
-import type { PlatformAdapter, StreamHandle, OutboundAttachment } from "./platform-adapter.js";
+import type {
+  PlatformAdapter,
+  StreamHandle,
+  OutboundAttachment,
+} from "./platform-adapter.js";
 import type { InboundSessionTurnInput } from "../messaging/inbound-session-turn.js";
 import {
   runInboundSessionTurn,
@@ -54,7 +58,9 @@ export interface OrchestrateTurnInput {
    * non-image attachments are silently ignored by the orchestrator
    * (caller is expected to have already handled them in userContent).
    */
-  readonly formatAttachmentMetadata?: (attachments: readonly MessageAttachment[]) => string;
+  readonly formatAttachmentMetadata?: (
+    attachments: readonly MessageAttachment[],
+  ) => string;
   /**
    * When true and the codec supports URL sources, pass image URLs directly
    * to the provider instead of fetching and base64-encoding. Default false.
@@ -102,16 +108,24 @@ export class PresentationTurnOrchestrator {
   }
 
   async orchestrateInboundTurn(input: OrchestrateTurnInput): Promise<void> {
-    const { sessionId, replyToMessageId, buildTurn, logContext, onTurnExecutionFailed } = input;
+    const {
+      sessionId,
+      replyToMessageId,
+      buildTurn,
+      logContext,
+      onTurnExecutionFailed,
+    } = input;
     // Auto-wire mcpLifecycle from the singleton runtime when the caller doesn't provide it.
-    const mcpLifecycle: RunInboundSessionTurnOptions["mcpLifecycle"] = input.mcpLifecycle ?? (() => {
-      const rt = getSessionMcpRuntimeRef();
-      if (!rt) return undefined;
-      return {
-        onTurnBegin: () => rt.notifyTurnBegin(sessionId),
-        onTurnEnd: () => rt.notifyTurnEnd(sessionId),
-      };
-    })();
+    const mcpLifecycle: RunInboundSessionTurnOptions["mcpLifecycle"] =
+      input.mcpLifecycle ??
+      (() => {
+        const rt = getSessionMcpRuntimeRef();
+        if (!rt) return undefined;
+        return {
+          onTurnBegin: () => rt.notifyTurnBegin(sessionId),
+          onTurnEnd: () => rt.notifyTurnEnd(sessionId),
+        };
+      })();
     const { adapter, config, env } = this;
     const maxLen = adapter.maxBodyLength;
     const errorPrefix = this.deps.errorReplyPrefix ?? "";
@@ -131,7 +145,8 @@ export class PresentationTurnOrchestrator {
     } else if (adapter.startStream && this.streamingIntervalMs > 0) {
       streaming = {
         minIntervalMs: this.streamingIntervalMs,
-        start: () => adapter.startStream!(sessionId, { replyTo: replyToMessageId }),
+        start: () =>
+          adapter.startStream!(sessionId, { replyTo: replyToMessageId }),
         onStartFailed: input.onStreamStartFailed,
       };
     }
@@ -150,7 +165,10 @@ export class PresentationTurnOrchestrator {
         if (input.formatAttachmentMetadata) {
           return {
             ...turn,
-            userContent: turn.userContent + "\n\n" + input.formatAttachmentMetadata(attachments),
+            userContent:
+              turn.userContent +
+              "\n\n" +
+              input.formatAttachmentMetadata(attachments),
           };
         }
         return turn;
@@ -169,16 +187,27 @@ export class PresentationTurnOrchestrator {
       buildTurn: wrappedBuildTurn,
       streaming,
       sliceDisplayText,
-      formatAssistantReply: (latestText: string, failoverMeta: SessionToolLoopFailoverState | undefined) =>
+      formatAssistantReply: (
+        latestText: string,
+        failoverMeta: SessionToolLoopFailoverState | undefined,
+      ) =>
         formatAssistantReply(config, sessionId, env, latestText, failoverMeta),
-      formatErrorReply: (err: unknown) => `${errorPrefix}${formatErrorUserText(err)}`,
-      sendAssistantBody: (body: string, opts?: { attachments?: readonly OutboundAttachment[] }) =>
+      formatErrorReply: (err: unknown) =>
+        `${errorPrefix}${formatErrorUserText(err)}`,
+      sendAssistantBody: (
+        body: string,
+        opts?: { attachments?: readonly OutboundAttachment[] },
+      ) =>
         adapter.sendBody(sessionId, body, {
           replyTo: replyToMessageId,
           attachments: opts?.attachments as OutboundAttachment[] | undefined,
           thinkingDisplay,
         }),
-      sendErrorBody: (body: string) => adapter.sendError(sessionId, body, { replyTo: replyToMessageId, thinkingDisplay }),
+      sendErrorBody: (body: string) =>
+        adapter.sendError(sessionId, body, {
+          replyTo: replyToMessageId,
+          thinkingDisplay,
+        }),
       // Follow-up message for attachments when streaming (stream edits can't carry files).
       sendAttachments: (attachments: readonly OutboundAttachment[]) =>
         adapter.sendBody(sessionId, "", {

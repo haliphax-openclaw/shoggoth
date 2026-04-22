@@ -33,7 +33,11 @@ function makeTask(id: number, prompt = `do task ${id}`): TaskDef {
   };
 }
 
-function makeTaskState(id: number, status: TaskStatus, extra?: Partial<TaskState>): TaskState {
+function makeTaskState(
+  id: number,
+  status: TaskStatus,
+  extra?: Partial<TaskState>,
+): TaskState {
   return {
     taskDef: makeTask(id),
     status,
@@ -41,7 +45,11 @@ function makeTaskState(id: number, status: TaskStatus, extra?: Partial<TaskState
   };
 }
 
-function makeWorkflow(id: string, tasks: TaskState[], graphDsl: string): TaskList {
+function makeWorkflow(
+  id: string,
+  tasks: TaskState[],
+  graphDsl: string,
+): TaskList {
   return {
     id,
     name: `workflow-${id}`,
@@ -184,10 +192,17 @@ describe("createTickLock", () => {
 
 describe("detectOrphans", () => {
   it("marks tasks as failed when poll throws (session gone)", async () => {
-    const wf = makeWorkflow("wf-orphan", [
-      makeTaskState(1, "in_progress", { sessionKey: "dead-session", startedAt: 1000 }),
-      makeTaskState(2, "pending"),
-    ], "1>2");
+    const wf = makeWorkflow(
+      "wf-orphan",
+      [
+        makeTaskState(1, "in_progress", {
+          sessionKey: "dead-session",
+          startedAt: 1000,
+        }),
+        makeTaskState(2, "pending"),
+      ],
+      "1>2",
+    );
 
     const poller: PollAdapter = {
       async poll(sessionKey: string): Promise<PollResult> {
@@ -207,9 +222,16 @@ describe("detectOrphans", () => {
   });
 
   it("does not mark tasks when poll returns normally", async () => {
-    const wf = makeWorkflow("wf-alive", [
-      makeTaskState(1, "in_progress", { sessionKey: "alive-session", startedAt: 1000 }),
-    ], "1");
+    const wf = makeWorkflow(
+      "wf-alive",
+      [
+        makeTaskState(1, "in_progress", {
+          sessionKey: "alive-session",
+          startedAt: 1000,
+        }),
+      ],
+      "1",
+    );
 
     const poller: PollAdapter = {
       async poll(): Promise<PollResult> {
@@ -223,11 +245,15 @@ describe("detectOrphans", () => {
   });
 
   it("skips tasks that are not in_progress", async () => {
-    const wf = makeWorkflow("wf-skip", [
-      makeTaskState(1, "done", { output: "ok" }),
-      makeTaskState(2, "pending"),
-      makeTaskState(3, "failed", { error: "boom" }),
-    ], "1>2>3");
+    const wf = makeWorkflow(
+      "wf-skip",
+      [
+        makeTaskState(1, "done", { output: "ok" }),
+        makeTaskState(2, "pending"),
+        makeTaskState(3, "failed", { error: "boom" }),
+      ],
+      "1>2>3",
+    );
 
     let pollCalled = false;
     const poller: PollAdapter = {
@@ -239,15 +265,31 @@ describe("detectOrphans", () => {
 
     const result = await detectOrphans(wf, poller);
     assert.equal(result.orphanedCount, 0);
-    assert.ok(!pollCalled, "poll should not be called for non-in_progress tasks");
+    assert.ok(
+      !pollCalled,
+      "poll should not be called for non-in_progress tasks",
+    );
   });
 
   it("handles multiple orphaned tasks", async () => {
-    const wf = makeWorkflow("wf-multi-orphan", [
-      makeTaskState(1, "in_progress", { sessionKey: "dead-1", startedAt: 1000 }),
-      makeTaskState(2, "in_progress", { sessionKey: "dead-2", startedAt: 1000 }),
-      makeTaskState(3, "in_progress", { sessionKey: "alive-3", startedAt: 1000 }),
-    ], "1 2 3");
+    const wf = makeWorkflow(
+      "wf-multi-orphan",
+      [
+        makeTaskState(1, "in_progress", {
+          sessionKey: "dead-1",
+          startedAt: 1000,
+        }),
+        makeTaskState(2, "in_progress", {
+          sessionKey: "dead-2",
+          startedAt: 1000,
+        }),
+        makeTaskState(3, "in_progress", {
+          sessionKey: "alive-3",
+          startedAt: 1000,
+        }),
+      ],
+      "1 2 3",
+    );
 
     const poller: PollAdapter = {
       async poll(sessionKey: string): Promise<PollResult> {
@@ -266,13 +308,24 @@ describe("detectOrphans", () => {
 describe("detectAndPersistOrphans", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("persists state when orphans are found", async () => {
-    const wf = makeWorkflow("wf-persist-orphan", [
-      makeTaskState(1, "in_progress", { sessionKey: "dead-session", startedAt: 1000 }),
-    ], "1");
+    const wf = makeWorkflow(
+      "wf-persist-orphan",
+      [
+        makeTaskState(1, "in_progress", {
+          sessionKey: "dead-session",
+          startedAt: 1000,
+        }),
+      ],
+      "1",
+    );
     saveWorkflow(baseDir, wf);
 
     const poller: PollAdapter = {
@@ -291,9 +344,16 @@ describe("detectAndPersistOrphans", () => {
   });
 
   it("does not persist when no orphans found", async () => {
-    const wf = makeWorkflow("wf-no-orphan", [
-      makeTaskState(1, "in_progress", { sessionKey: "alive", startedAt: 1000 }),
-    ], "1");
+    const wf = makeWorkflow(
+      "wf-no-orphan",
+      [
+        makeTaskState(1, "in_progress", {
+          sessionKey: "alive",
+          startedAt: 1000,
+        }),
+      ],
+      "1",
+    );
     saveWorkflow(baseDir, wf);
 
     // Get the file's mtime before
@@ -312,23 +372,35 @@ describe("detectAndPersistOrphans", () => {
     assert.equal(result.orphanedCount, 0);
 
     const statAfter = fs.statSync(path.join(baseDir, "wf-no-orphan.json"));
-    assert.equal(statBefore.mtimeMs, statAfter.mtimeMs, "file should not be rewritten");
+    assert.equal(
+      statBefore.mtimeMs,
+      statAfter.mtimeMs,
+      "file should not be rewritten",
+    );
   });
 });
 
 describe("concurrent workflow isolation", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("state files for different workflows do not interfere", () => {
-    const wf1 = makeWorkflow("wf-iso-1", [
-      makeTaskState(1, "done", { output: "result-1" }),
-    ], "1");
-    const wf2 = makeWorkflow("wf-iso-2", [
-      makeTaskState(1, "failed", { error: "boom" }),
-    ], "1");
+    const wf1 = makeWorkflow(
+      "wf-iso-1",
+      [makeTaskState(1, "done", { output: "result-1" })],
+      "1",
+    );
+    const wf2 = makeWorkflow(
+      "wf-iso-2",
+      [makeTaskState(1, "failed", { error: "boom" })],
+      "1",
+    );
 
     saveWorkflow(baseDir, wf1);
     saveWorkflow(baseDir, wf2);
@@ -343,12 +415,12 @@ describe("concurrent workflow isolation", () => {
   });
 
   it("saving one workflow does not affect another", () => {
-    const wf1 = makeWorkflow("wf-iso-a", [
-      makeTaskState(1, "pending"),
-    ], "1");
-    const wf2 = makeWorkflow("wf-iso-b", [
-      makeTaskState(1, "done", { output: "ok" }),
-    ], "1");
+    const wf1 = makeWorkflow("wf-iso-a", [makeTaskState(1, "pending")], "1");
+    const wf2 = makeWorkflow(
+      "wf-iso-b",
+      [makeTaskState(1, "done", { output: "ok" })],
+      "1",
+    );
 
     saveWorkflow(baseDir, wf1);
     saveWorkflow(baseDir, wf2);

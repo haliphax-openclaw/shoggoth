@@ -1,6 +1,6 @@
 import type { ChatContentPart } from "./types";
 
-type State = 'text' | 'buffering-tag' | 'in-thinking';
+type State = "text" | "buffering-tag" | "in-thinking";
 
 interface ProcessResult {
   thinking?: string;
@@ -8,11 +8,14 @@ interface ProcessResult {
 }
 
 /** Opening tags recognized as thinking block starts. */
-const OPEN_TAGS = ['<thinking>', '<think>'];
+const OPEN_TAGS = ["<thinking>", "<think>"];
 /** Closing tags recognized as thinking block ends. */
-const CLOSE_TAGS = ['</thinking>', '</think>'];
+const CLOSE_TAGS = ["</thinking>", "</think>"];
 /** Max buffer needed to identify the longest tag. */
-const MAX_TAG_LEN = Math.max(...OPEN_TAGS.map(t => t.length), ...CLOSE_TAGS.map(t => t.length));
+const MAX_TAG_LEN = Math.max(
+  ...OPEN_TAGS.map((t) => t.length),
+  ...CLOSE_TAGS.map((t) => t.length),
+);
 
 function isOpenTag(buf: string): boolean {
   return OPEN_TAGS.includes(buf);
@@ -23,14 +26,14 @@ function isCloseTag(buf: string): boolean {
 }
 
 function couldBeTag(buf: string): boolean {
-  return [...OPEN_TAGS, ...CLOSE_TAGS].some(tag => tag.startsWith(buf));
+  return [...OPEN_TAGS, ...CLOSE_TAGS].some((tag) => tag.startsWith(buf));
 }
 
 export class ThinkingStreamNormalizer {
-  private state: State = 'text';
-  private buffer: string = '';
-  private thinkingContent: string = '';
-  private textContent: string = '';
+  private state: State = "text";
+  private buffer: string = "";
+  private thinkingContent: string = "";
+  private textContent: string = "";
 
   processChunk(chunk: string): ProcessResult {
     const result: ProcessResult = {};
@@ -40,44 +43,47 @@ export class ThinkingStreamNormalizer {
       const char = chunk[i];
 
       switch (this.state) {
-        case 'text':
-          if (char === '<') {
-            this.state = 'buffering-tag';
-            this.buffer = '<';
+        case "text":
+          if (char === "<") {
+            this.state = "buffering-tag";
+            this.buffer = "<";
           } else {
             this.textContent += char;
           }
           i++;
           break;
 
-        case 'buffering-tag':
+        case "buffering-tag":
           this.buffer += char;
 
           if (isOpenTag(this.buffer)) {
-            this.state = 'in-thinking';
-            this.buffer = '';
+            this.state = "in-thinking";
+            this.buffer = "";
           } else if (isCloseTag(this.buffer)) {
-            this.state = 'text';
-            this.buffer = '';
+            this.state = "text";
+            this.buffer = "";
             if (this.thinkingContent) {
               result.thinking = this.thinkingContent;
-              this.thinkingContent = '';
+              this.thinkingContent = "";
             }
-          } else if (!couldBeTag(this.buffer) || this.buffer.length >= MAX_TAG_LEN) {
+          } else if (
+            !couldBeTag(this.buffer) ||
+            this.buffer.length >= MAX_TAG_LEN
+          ) {
             // Not a prefix of any known tag, or exceeded max length
-            if (this.state === 'buffering-tag') {
+            if (this.state === "buffering-tag") {
               this.textContent += this.buffer;
-              this.state = 'text';
+              this.state = "text";
             }
-            this.buffer = '';
+            this.buffer = "";
           }
           i++;
           break;
 
-        case 'in-thinking':
-          if (char === '<') {
-            this.state = 'buffering-tag';
-            this.buffer = '<';
+        case "in-thinking":
+          if (char === "<") {
+            this.state = "buffering-tag";
+            this.buffer = "<";
           } else {
             this.thinkingContent += char;
           }
@@ -88,7 +94,7 @@ export class ThinkingStreamNormalizer {
 
     if (this.textContent) {
       result.text = this.textContent;
-      this.textContent = '';
+      this.textContent = "";
     }
 
     return result;
@@ -98,32 +104,33 @@ export class ThinkingStreamNormalizer {
     const result: ProcessResult = {};
 
     if (this.buffer) {
-      if (this.state === 'in-thinking') {
+      if (this.state === "in-thinking") {
         this.thinkingContent += this.buffer;
       } else {
         this.textContent += this.buffer;
       }
-      this.buffer = '';
+      this.buffer = "";
     }
 
     if (this.thinkingContent) {
       result.thinking = this.thinkingContent;
-      this.thinkingContent = '';
+      this.thinkingContent = "";
     }
 
     if (this.textContent) {
       result.text = this.textContent;
-      this.textContent = '';
+      this.textContent = "";
     }
 
-    this.state = 'text';
+    this.state = "text";
 
     return result;
   }
 }
 
 /** Regex matching both `<thinking>` and `<think>` tag variants. */
-const THINKING_BLOCK_RE = /<(?:thinking|think)>([\s\S]*?)<\/(?:thinking|think)>/g;
+const THINKING_BLOCK_RE =
+  /<(?:thinking|think)>([\s\S]*?)<\/(?:thinking|think)>/g;
 
 /**
  * Extracts thinking blocks from content that uses XML-style tags.

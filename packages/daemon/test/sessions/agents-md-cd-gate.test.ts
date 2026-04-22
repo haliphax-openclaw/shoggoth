@@ -18,10 +18,16 @@ function openMigratedDb(): { db: Database.Database; dir: string } {
   return { db, dir };
 }
 
-function makeCtx(db: Database.Database, sessionId: string, workspacePath: string, workingDirectory?: string) {
+function makeCtx(
+  db: Database.Database,
+  sessionId: string,
+  workspacePath: string,
+  workingDirectory?: string,
+) {
   return {
     sessionId,
     db,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: process.env,
     workspacePath,
@@ -31,6 +37,7 @@ function makeCtx(db: Database.Database, sessionId: string, workspacePath: string
     getAgentIntegrationInvoker: () => undefined,
     getProcessManager: () => undefined,
     messageToolCtx: undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     memoryConfig: {} as any,
     runtimeOpenaiBaseUrl: undefined,
     isSubagentSession: false,
@@ -85,7 +92,11 @@ describe("cd handler AGENTS.md gate", () => {
     // First call — gated
     await registry.execute("cd", { path: "." }, ctx);
     // Second call — should proceed
-    const result = await registry.execute("cd", { path: join(wsPath, "sub") }, ctx);
+    const result = await registry.execute(
+      "cd",
+      { path: join(wsPath, "sub") },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(!json.gated);
     assert.ok(json.workingDirectory);

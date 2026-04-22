@@ -29,7 +29,10 @@ interface DaemonStartupCtx {
   readonly config: Readonly<ShoggothConfig>;
   readonly configRef: { readonly current: ShoggothConfig };
   /** Register a named drain function for graceful shutdown. */
-  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
+  readonly registerDrain: (
+    name: string,
+    fn: () => void | Promise<void>,
+  ) => void;
 }
 
 interface DaemonReadyCtx {
@@ -51,7 +54,10 @@ interface PlatformRegisterCtx {
   /** Call to register a platform's URN policy and capabilities. */
   readonly registerPlatform: (reg: PlatformRegistration) => void;
   /** Call to register a platform runtime after connection. */
-  readonly setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
+  readonly setPlatformRuntime: (
+    platformId: string,
+    runtime: PlatformRuntime,
+  ) => void;
 }
 
 /** Grouped platform dependencies — keeps PlatformStartCtx readable. */
@@ -74,7 +80,10 @@ interface PlatformStartCtx {
   /** Shared daemon dependencies for platform plugins. */
   readonly deps: PlatformDeps;
   /** Register a named drain function for graceful shutdown. */
-  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
+  readonly registerDrain: (
+    name: string,
+    fn: () => void | Promise<void>,
+  ) => void;
   /** Set the subagent runtime extension (runSessionModelTurn, etc.). */
   readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension) => void;
   /** Set the message tool context ref for builtin-message. */
@@ -307,7 +316,9 @@ function parseShoggothPluginBag(data: unknown): ShoggothPluginBag {
  * Read a plugin's package.json and extract metadata.
  * Throws if `shoggothPlugin` is missing or invalid.
  */
-function resolvePluginMeta(packageJson: Record<string, unknown>): ShoggothPluginMeta {
+function resolvePluginMeta(
+  packageJson: Record<string, unknown>,
+): ShoggothPluginMeta {
   const bag = parseShoggothPluginBag(packageJson.shoggothPlugin);
   return {
     name: z.string().min(1).parse(packageJson.name),
@@ -378,7 +389,9 @@ interface DiscordPluginState {
   platform?: DiscordPlatformHandle;
   hitlNoticeRegistry?: HitlDiscordNoticeRegistry;
   reactionBotUserIdRef: { current: string | undefined };
-  reactionPassthroughRef: { current: ((ev: DiscordReactionAddEvent) => void) | undefined };
+  reactionPassthroughRef: {
+    current: ((ev: DiscordReactionAddEvent) => void) | undefined;
+  };
 }
 
 export default function createDiscordPlugin(): MessagingPlatformPlugin {
@@ -418,9 +431,11 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
       },
 
       "health.register"(ctx) {
-        ctx.registerProbe(createDiscordProbe({
-          getToken: () => resolvedDiscordBotToken(),
-        }));
+        ctx.registerProbe(
+          createDiscordProbe({
+            getToken: () => resolvedDiscordBotToken(),
+          }),
+        );
       },
     },
   });
@@ -483,17 +498,31 @@ pluginSystem.lifecycle["health.register"].emit({
 
 // 9. Fire platform.start (async)
 await pluginSystem.lifecycle["platform.start"].emit({
-  db, config, configRef, env: process.env,
+  db,
+  config,
+  configRef,
+  env: process.env,
   registerDrain: (name, fn) => rt.shutdown.registerDrain(name, fn),
   setSubagentRuntimeExtension,
-  setMessageToolContext: (ctx) => { messageToolContextRef.current = ctx; },
-  setPlatformAdapter: (a) => { platformAdapterRef.current = a; },
-  deps: { hitlStack, policyEngine, hitlConfigRef: hitlRef, hitlAutoApproveGate },
+  setMessageToolContext: (ctx) => {
+    messageToolContextRef.current = ctx;
+  },
+  setPlatformAdapter: (a) => {
+    platformAdapterRef.current = a;
+  },
+  deps: {
+    hitlStack,
+    policyEngine,
+    hitlConfigRef: hitlRef,
+    hitlAutoApproveGate,
+  },
 });
 
 // 10. Fire daemon.startup (async — general plugins)
 await pluginSystem.lifecycle["daemon.startup"].emit({
-  db, config, configRef,
+  db,
+  config,
+  configRef,
   registerDrain: (name, fn) => rt.shutdown.registerDrain(name, fn),
 });
 

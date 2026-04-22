@@ -1,8 +1,20 @@
-import type { TaskDef, TaskList, TaskStatus, FailureBehavior, FailureNotification } from "./types.js";
-import type { Orchestrator, KillAdapter, SpawnAdapter } from "./orchestrator.js";
+import type {
+  TaskDef,
+  TaskList,
+  TaskStatus,
+} from "./types.js";
+import type {
+  Orchestrator,
+  KillAdapter,
+  SpawnAdapter,
+} from "./orchestrator.js";
 import { saveWorkflow, loadWorkflow } from "./state.js";
-import { retentionRun, type RetentionSummary, type RetentionOptions } from "./retention.js";
-import { getTransitiveDeps } from "./graph.js";
+import {
+  retentionRun,
+  type RetentionSummary,
+  type RetentionOptions,
+} from "./retention.js";
+
 import { getLogger } from "@shoggoth/shared";
 const log = getLogger("workflow");
 import fs from "node:fs";
@@ -199,10 +211,12 @@ export class ControlPlane {
   /**
    * List all workflows from disk with summary info.
    */
-  async list(agentChainId?: string): Promise<WorkflowSummary[]> {
+  async list(_agentChainId?: string): Promise<WorkflowSummary[]> {
     if (!fs.existsSync(this.stateDir)) return [];
 
-    const files = fs.readdirSync(this.stateDir).filter((f) => f.endsWith(".json"));
+    const files = fs
+      .readdirSync(this.stateDir)
+      .filter((f) => f.endsWith(".json"));
     const summaries: WorkflowSummary[] = [];
 
     for (const file of files) {
@@ -247,7 +261,12 @@ export class ControlPlane {
   async edit(
     workflowId: string,
     taskId: number,
-    updates: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs" | "title">> & { prompt?: string },
+    updates: Partial<
+      Pick<
+        TaskDef,
+        "failureBehavior" | "failureNotification" | "runtimeLimitMs" | "title"
+      >
+    > & { prompt?: string },
   ): Promise<void> {
     const orch = this.orchestrators.get(workflowId);
     let wf: TaskList;
@@ -262,7 +281,8 @@ export class ControlPlane {
     }
 
     const task = wf.tasks.find((t) => t.taskDef.id === taskId);
-    if (!task) throw new Error(`Task ${taskId} not found in workflow ${workflowId}`);
+    if (!task)
+      throw new Error(`Task ${taskId} not found in workflow ${workflowId}`);
 
     if (task.status === "in_progress") {
       throw new Error(
@@ -274,9 +294,12 @@ export class ControlPlane {
     if (updates.prompt !== undefined && "prompt" in task.taskDef) {
       (task.taskDef as { prompt: string }).prompt = updates.prompt;
     }
-    if (updates.failureBehavior !== undefined) task.taskDef.failureBehavior = updates.failureBehavior;
-    if (updates.failureNotification !== undefined) task.taskDef.failureNotification = updates.failureNotification;
-    if (updates.runtimeLimitMs !== undefined) task.taskDef.runtimeLimitMs = updates.runtimeLimitMs;
+    if (updates.failureBehavior !== undefined)
+      task.taskDef.failureBehavior = updates.failureBehavior;
+    if (updates.failureNotification !== undefined)
+      task.taskDef.failureNotification = updates.failureNotification;
+    if (updates.runtimeLimitMs !== undefined)
+      task.taskDef.runtimeLimitMs = updates.runtimeLimitMs;
 
     // Persist immediately
     saveWorkflow(this.stateDir, wf);
@@ -287,16 +310,23 @@ export class ControlPlane {
    * reset downstream blocked tasks, resume if paused.
    * If cascade=true, also reset completed downstream tasks.
    */
-  async retry(workflowId: string, taskId: number, cascade?: boolean): Promise<void> {
+  async retry(
+    workflowId: string,
+    taskId: number,
+    cascade?: boolean,
+  ): Promise<void> {
     const orch = this.requireOrchestrator(workflowId);
     const wf = orch.getWorkflowStatus();
     if (!wf) throw new Error(`Workflow not found: ${workflowId}`);
 
     const task = wf.tasks.find((t) => t.taskDef.id === taskId);
-    if (!task) throw new Error(`Task ${taskId} not found in workflow ${workflowId}`);
+    if (!task)
+      throw new Error(`Task ${taskId} not found in workflow ${workflowId}`);
 
     if (task.status !== "failed" && task.status !== "done") {
-      throw new Error(`Cannot retry task ${taskId}: status "${task.status}" is not retriable (must be failed or done)`);
+      throw new Error(
+        `Cannot retry task ${taskId}: status "${task.status}" is not retriable (must be failed or done)`,
+      );
     }
 
     // Reset the target task
@@ -338,7 +368,11 @@ export class ControlPlane {
 
     // Persist
     saveWorkflow(this.stateDir, wf);
-    log.info("workflow task retried", { workflowId, taskId, cascade: Boolean(cascade) });
+    log.info("workflow task retried", {
+      workflowId,
+      taskId,
+      cascade: Boolean(cascade),
+    });
   }
 
   /**
@@ -355,10 +389,15 @@ export class ControlPlane {
       if (allTerminal) return wf;
 
       if (Date.now() - start >= timeout) {
-        throw new Error(`wait timed out after ${timeout}ms for workflow ${workflowId}`);
+        throw new Error(
+          `wait timed out after ${timeout}ms for workflow ${workflowId}`,
+        );
       }
 
-      const pollMs = Math.min(wf.pollingIntervalMs, timeout - (Date.now() - start));
+      const pollMs = Math.min(
+        wf.pollingIntervalMs,
+        timeout - (Date.now() - start),
+      );
       await new Promise((r) => setTimeout(r, pollMs));
     }
   }
@@ -381,7 +420,15 @@ export class ControlPlane {
     return summary;
   }
 
-  private resetTask(task: { status: TaskStatus; error?: string; output?: string; startedAt?: number; completedAt?: number; sessionKey?: string; failureHandled?: boolean }): void {
+  private resetTask(task: {
+    status: TaskStatus;
+    error?: string;
+    output?: string;
+    startedAt?: number;
+    completedAt?: number;
+    sessionKey?: string;
+    failureHandled?: boolean;
+  }): void {
     task.status = "pending";
     task.error = undefined;
     task.output = undefined;

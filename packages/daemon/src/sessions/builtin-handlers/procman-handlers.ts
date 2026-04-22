@@ -2,7 +2,10 @@
 // procman handler
 // ---------------------------------------------------------------------------
 
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("procman", procman);
@@ -15,7 +18,9 @@ async function procman(
   const action = String(args.action ?? "").trim();
   const pm = ctx.getProcessManager();
   if (!pm) {
-    return { resultJson: JSON.stringify({ error: "process manager not available" }) };
+    return {
+      resultJson: JSON.stringify({ error: "process manager not available" }),
+    };
   }
   if (action === "list") {
     const processes = pm.list().map((mp) => ({
@@ -31,9 +36,15 @@ async function procman(
   }
   if (action === "inspect") {
     const id = String(args.id ?? "").trim();
-    if (!id) return { resultJson: JSON.stringify({ error: "id required for inspect" }) };
+    if (!id)
+      return {
+        resultJson: JSON.stringify({ error: "id required for inspect" }),
+      };
     const mp = pm.get(id);
-    if (!mp) return { resultJson: JSON.stringify({ error: `no process with id "${id}"` }) };
+    if (!mp)
+      return {
+        resultJson: JSON.stringify({ error: `no process with id "${id}"` }),
+      };
     const recentStdout = mp.readOutput("stdout");
     const recentStderr = mp.readOutput("stderr");
     return {
@@ -52,5 +63,7 @@ async function procman(
       }),
     };
   }
-  return { resultJson: JSON.stringify({ error: `unknown procman action: ${action}` }) };
+  return {
+    resultJson: JSON.stringify({ error: `unknown procman action: ${action}` }),
+  };
 }

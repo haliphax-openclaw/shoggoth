@@ -56,8 +56,7 @@ export function parseRequestLine(line: string): WireRequest {
     throw new WireParseError(`unsupported wire version: ${String(r.v)}`);
   if (typeof r.id !== "string" || !r.id)
     throw new WireParseError("missing request id");
-  if (typeof r.op !== "string" || !r.op)
-    throw new WireParseError("missing op");
+  if (typeof r.op !== "string" || !r.op) throw new WireParseError("missing op");
   // Auth is optional — ops like "health" are exempt
   if (r.auth && typeof r.auth === "object") {
     const auth = r.auth as Record<string, unknown>;
@@ -76,22 +75,6 @@ export function parseRequestLine(line: string): WireRequest {
         throw new WireParseError("agent auth requires auth.token");
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   return r as unknown as WireRequest;
 }

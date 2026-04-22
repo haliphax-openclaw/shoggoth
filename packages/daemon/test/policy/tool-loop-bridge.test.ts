@@ -41,7 +41,13 @@ describe("createToolLoopPolicyAndAudit", () => {
         if (calls++ === 0) {
           return {
             content: null,
-            toolCalls: [{ id: "t1", name: "builtin-exec", argsJson: '{"token":"secret"}' }],
+            toolCalls: [
+              {
+                id: "t1",
+                name: "builtin-exec",
+                argsJson: '{"token":"secret"}',
+              },
+            ],
           };
         }
         return { content: null, toolCalls: [] };
@@ -72,14 +78,18 @@ describe("createToolLoopPolicyAndAudit", () => {
     assert.strictEqual(deniedResult.error, "policy_denied");
 
     const rows = db
-      .prepare(`SELECT action, resource, outcome, args_redacted_json FROM audit_log ORDER BY id`)
+      .prepare(
+        `SELECT action, resource, outcome, args_redacted_json FROM audit_log ORDER BY id`,
+      )
       .all() as {
       action: string;
       resource: string;
       outcome: string;
       args_redacted_json: string | null;
     }[];
-    const denied = rows.find((r) => r.action === "authz.tool" && r.outcome === "denied");
+    const denied = rows.find(
+      (r) => r.action === "authz.tool" && r.outcome === "denied",
+    );
     assert.ok(denied);
     assert.strictEqual(denied!.resource, "builtin-exec");
     assert.match(denied!.args_redacted_json ?? "", /REDACTED/);

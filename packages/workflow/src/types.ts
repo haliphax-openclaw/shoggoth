@@ -1,5 +1,11 @@
 // Task status lifecycle
-export type TaskStatus = "pending" | "in_progress" | "done" | "failed" | "paused" | "skipped";
+export type TaskStatus =
+  | "pending"
+  | "in_progress"
+  | "done"
+  | "failed"
+  | "paused"
+  | "skipped";
 
 // What to do when a task fails
 export type FailureBehavior = "abort" | "pause" | "continue";
@@ -7,7 +13,10 @@ export type FailureBehavior = "abort" | "pause" | "continue";
 // Who to notify on failure
 export type FailureNotificationSilent = "silent";
 export type FailureNotificationParent = { kind: "notify-parent" };
-export type FailureNotificationTarget = { kind: "notify-target"; targetId: string };
+export type FailureNotificationTarget = {
+  kind: "notify-target";
+  targetId: string;
+};
 export type FailureNotification =
   | FailureNotificationSilent
   | FailureNotificationParent
@@ -60,7 +69,12 @@ export interface MessageTaskDef extends TaskDefBase {
 }
 
 /** Discriminated union of all task definition kinds. */
-export type TaskDef = AgentTaskDef | ToolTaskDef | GateTaskDef | TransformTaskDef | MessageTaskDef;
+export type TaskDef =
+  | AgentTaskDef
+  | ToolTaskDef
+  | GateTaskDef
+  | TransformTaskDef
+  | MessageTaskDef;
 
 /** Return a human-readable label for any TaskDef (prompt text for agent, tool name for tool, etc.). */
 export function getTaskPromptOrLabel(td: TaskDef): string {
@@ -80,7 +94,11 @@ export function getTaskPromptOrLabel(td: TaskDef): string {
 
 /** Adapter for executing tool calls directly (no subagent session). */
 export interface ToolExecutor {
-  execute(call: { name: string; argsJson: string; toolCallId: string }): Promise<{ resultJson: string }>;
+  execute(call: {
+    name: string;
+    argsJson: string;
+    toolCallId: string;
+  }): Promise<{ resultJson: string }>;
 }
 
 // Task runtime state

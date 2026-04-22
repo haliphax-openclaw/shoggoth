@@ -12,7 +12,9 @@ import { register as registerFs } from "../../src/sessions/builtin-handlers/fs-h
 function stubCtx(workspacePath: string): BuiltinToolContext {
   return {
     sessionId: "agent:test:discord:channel:123",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     db: {} as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: {},
     workspacePath,
@@ -43,7 +45,11 @@ describe("builtin-fs mkdir action", () => {
 
   it("creates a single directory", async () => {
     const ctx = stubCtx(workspace);
-    const result = await registry.execute("fs", { action: "mkdir", path: "newdir" }, ctx);
+    const result = await registry.execute(
+      "fs",
+      { action: "mkdir", path: "newdir" },
+      ctx,
+    );
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -71,8 +77,8 @@ describe("builtin-fs mkdir action", () => {
 
   it("fails for nested path without recursive: true", async () => {
     const ctx = stubCtx(workspace);
-    await assert.rejects(
-      () => registry.execute("fs", { action: "mkdir", path: "x/y/z" }, ctx),
+    await assert.rejects(() =>
+      registry.execute("fs", { action: "mkdir", path: "x/y/z" }, ctx),
     );
   });
 
@@ -81,15 +87,19 @@ describe("builtin-fs mkdir action", () => {
     // Create it first
     await registry.execute("fs", { action: "mkdir", path: "existing" }, ctx);
     // Create again — should not throw
-    const result = await registry.execute("fs", { action: "mkdir", path: "existing" }, ctx);
+    const result = await registry.execute(
+      "fs",
+      { action: "mkdir", path: "existing" },
+      ctx,
+    );
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.ok, true);
   });
 
   it("rejects paths that escape the workspace", async () => {
     const ctx = stubCtx(workspace);
-    await assert.rejects(
-      () => registry.execute("fs", { action: "mkdir", path: "../../escape" }, ctx),
+    await assert.rejects(() =>
+      registry.execute("fs", { action: "mkdir", path: "../../escape" }, ctx),
     );
   });
 

@@ -89,7 +89,9 @@ export async function connectDiscordGateway(
 
   // Resolved when the session is fully dead (intentional stop or max retries exhausted).
   let resolveSessionDone: (() => void) | undefined;
-  const sessionDonePromise = new Promise<void>((r) => { resolveSessionDone = r; });
+  const sessionDonePromise = new Promise<void>((r) => {
+    resolveSessionDone = r;
+  });
 
   function clearHeartbeat(): void {
     if (heartbeatTimer !== undefined) {
@@ -100,11 +102,19 @@ export async function connectDiscordGateway(
 
   function closeSocket(code = 1000, reason = "shoggoth"): void {
     clearHeartbeat();
-    try { ws?.close(code, reason); } catch { /* ignore */ }
+    try {
+      ws?.close(code, reason);
+    } catch {
+      /* ignore */
+    }
   }
 
   function sendPayload(payload: object): void {
-    try { ws?.send(JSON.stringify(payload)); } catch { /* ignore */ }
+    try {
+      ws?.send(JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
   }
 
   function startHeartbeat(intervalMs: number): void {
@@ -152,7 +162,9 @@ export async function connectDiscordGateway(
     }
     if (msg.t === "RESUMED") return;
     if (msg.t === "MESSAGE_CREATE") {
-      const ev = discordMessageCreateToInboundEvent(msg.d, { allowBotMessages: allowBot });
+      const ev = discordMessageCreateToInboundEvent(msg.d, {
+        allowBotMessages: allowBot,
+      });
       if (ev) options.onMessageCreate(ev);
     } else if (msg.t === "MESSAGE_REACTION_ADD") {
       const ev = discordMessageReactionAddToEvent(msg.d);
@@ -169,7 +181,8 @@ export async function connectDiscordGateway(
    * be driven by the message handler.
    */
   function openConnection(resume: boolean): Promise<void> {
-    const url = resume && resumeGatewayUrl ? resumeGatewayUrl : defaultGatewayUrl;
+    const url =
+      resume && resumeGatewayUrl ? resumeGatewayUrl : defaultGatewayUrl;
     const socket = WS(url);
     ws = socket;
     heartbeatAcked = true;
@@ -192,9 +205,13 @@ export async function connectDiscordGateway(
         resolve();
       }
 
-      socket.addEventListener("open", () => {
-        // Nothing to do — wait for HELLO (op 10).
-      }, { once: true });
+      socket.addEventListener(
+        "open",
+        () => {
+          // Nothing to do — wait for HELLO (op 10).
+        },
+        { once: true },
+      );
 
       socket.addEventListener("error", () => {
         if (!handshakeComplete) {
@@ -207,30 +224,42 @@ export async function connectDiscordGateway(
 
       let reconnectScheduled = false;
 
-      socket.addEventListener("close", () => {
-        clearHeartbeat();
-        if (!handshakeComplete) {
-          handshakeComplete = true;
-          clearTimeout(handshakeTimeout);
-          reject(new Error("Discord gateway WebSocket closed during handshake"));
-        }
-        if (!reconnectScheduled) {
-          reconnectScheduled = true;
-          if (!intentionallyStopped) {
-            scheduleReconnect();
-          } else {
-            resolveSessionDone?.();
+      socket.addEventListener(
+        "close",
+        () => {
+          clearHeartbeat();
+          if (!handshakeComplete) {
+            handshakeComplete = true;
+            clearTimeout(handshakeTimeout);
+            reject(
+              new Error("Discord gateway WebSocket closed during handshake"),
+            );
           }
-        }
-      }, { once: true });
+          if (!reconnectScheduled) {
+            reconnectScheduled = true;
+            if (!intentionallyStopped) {
+              scheduleReconnect();
+            } else {
+              resolveSessionDone?.();
+            }
+          }
+        },
+        { once: true },
+      );
 
       let helloReceived = false;
 
       socket.addEventListener("message", (ev: MessageEvent) => {
         const raw =
-          typeof ev.data === "string" ? ev.data : new TextDecoder().decode(ev.data as ArrayBuffer);
+          typeof ev.data === "string"
+            ? ev.data
+            : new TextDecoder().decode(ev.data as ArrayBuffer);
         let msg: GatewayPayload;
-        try { msg = JSON.parse(raw) as GatewayPayload; } catch { return; }
+        try {
+          msg = JSON.parse(raw) as GatewayPayload;
+        } catch {
+          return;
+        }
 
         if (typeof msg.s === "number") lastSeq = msg.s;
 
@@ -239,7 +268,9 @@ export async function connectDiscordGateway(
           helloReceived = true;
           const hello = msg.d as { heartbeat_interval?: number };
           const interval =
-            typeof hello.heartbeat_interval === "number" ? hello.heartbeat_interval : 41_250;
+            typeof hello.heartbeat_interval === "number"
+              ? hello.heartbeat_interval
+              : 41_250;
           startHeartbeat(interval);
           if (resume && sessionId) {
             sendResume();
@@ -297,7 +328,9 @@ export async function connectDiscordGateway(
       return;
     }
     if (consecutiveReconnects >= MAX_RECONNECT_ATTEMPTS) {
-      log.error("exhausted reconnect attempts, giving up", { maxAttempts: MAX_RECONNECT_ATTEMPTS });
+      log.error("exhausted reconnect attempts, giving up", {
+        maxAttempts: MAX_RECONNECT_ATTEMPTS,
+      });
       resolveSessionDone?.();
       return;
     }
@@ -305,7 +338,12 @@ export async function connectDiscordGateway(
     consecutiveReconnects++;
     const attempt = consecutiveReconnects;
     const canResume = !!(sessionId && lastSeq !== null);
-    log.info("scheduling reconnect", { attempt, maxAttempts: MAX_RECONNECT_ATTEMPTS, delayMs: delay, resume: canResume });
+    log.info("scheduling reconnect", {
+      attempt,
+      maxAttempts: MAX_RECONNECT_ATTEMPTS,
+      delayMs: delay,
+      resume: canResume,
+    });
     setTimeout(() => {
       reconnectPending = false;
       if (intentionallyStopped) {

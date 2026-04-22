@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { createDaemonToolExecutor } from "../src/workflow-adapters.js";
-import type { ToolExecutor } from "@shoggoth/workflow";
 
 /** Build an aggregated entry so routeMcpToolInvocation can find it by namespacedName. */
 function aggTool(namespacedName: string, sourceId = "external") {
@@ -15,6 +14,7 @@ function aggTool(namespacedName: string, sourceId = "external") {
 
 function mockContext(
   toolNames: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalFn?: (...args: any[]) => Promise<{ resultJson: string }>,
 ) {
   return {
@@ -32,7 +32,12 @@ describe("createDaemonToolExecutor", () => {
     });
     const ctx = mockContext(["test-tool"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
@@ -54,7 +59,12 @@ describe("createDaemonToolExecutor", () => {
 
   it("should handle missing context gracefully", async () => {
     const getToolContext = vi.fn().mockResolvedValue(undefined);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
@@ -73,10 +83,17 @@ describe("createDaemonToolExecutor", () => {
   });
 
   it("should log execution errors", async () => {
-    const externalFn = vi.fn().mockRejectedValue(new Error("Tool execution failed"));
+    const externalFn = vi
+      .fn()
+      .mockRejectedValue(new Error("Tool execution failed"));
     const ctx = mockContext(["failing-tool"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
@@ -101,7 +118,12 @@ describe("createDaemonToolExecutor", () => {
     });
     const ctx = mockContext(["logged-tool"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
@@ -126,20 +148,40 @@ describe("createDaemonToolExecutor", () => {
   });
 
   it("should handle concurrent tool executions", async () => {
-    const externalFn = vi.fn().mockImplementation(async ({ toolCallId }: any) => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      return { resultJson: JSON.stringify({ toolCallId, result: "done" }) };
-    });
+    const externalFn = vi
+      .fn()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation(async ({ toolCallId }: any) => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return { resultJson: JSON.stringify({ toolCallId, result: "done" }) };
+      });
     const ctx = mockContext(["tool-1", "tool-2", "tool-3"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
     const results = await Promise.all([
-      executor.execute({ name: "tool-1", argsJson: JSON.stringify({}), toolCallId: "concurrent-1" }),
-      executor.execute({ name: "tool-2", argsJson: JSON.stringify({}), toolCallId: "concurrent-2" }),
-      executor.execute({ name: "tool-3", argsJson: JSON.stringify({}), toolCallId: "concurrent-3" }),
+      executor.execute({
+        name: "tool-1",
+        argsJson: JSON.stringify({}),
+        toolCallId: "concurrent-1",
+      }),
+      executor.execute({
+        name: "tool-2",
+        argsJson: JSON.stringify({}),
+        toolCallId: "concurrent-2",
+      }),
+      executor.execute({
+        name: "tool-3",
+        argsJson: JSON.stringify({}),
+        toolCallId: "concurrent-3",
+      }),
     ]);
 
     expect(results).toHaveLength(3);
@@ -148,7 +190,12 @@ describe("createDaemonToolExecutor", () => {
 
   it("should return ToolExecutor interface", () => {
     const getToolContext = vi.fn();
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 
@@ -160,7 +207,12 @@ describe("createDaemonToolExecutor", () => {
     const externalFn = vi.fn().mockRejectedValue("string error");
     const ctx = mockContext(["tool"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
-    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
 
     const executor = createDaemonToolExecutor({ getToolContext, logger });
 

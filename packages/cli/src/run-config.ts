@@ -22,7 +22,9 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
-export async function runConfigShow(opts?: { dynamic?: boolean }): Promise<void> {
+export async function runConfigShow(opts?: {
+  dynamic?: boolean;
+}): Promise<void> {
   const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
   const socketPath = socketPathFromEnv(configDir);
   const auth = controlAuth();

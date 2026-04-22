@@ -45,8 +45,16 @@ export interface HitlNoticeData {
 
 export interface PlatformCapabilities {
   reactions?: {
-    addReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
-    removeReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+    addReaction(
+      channelId: string,
+      messageId: string,
+      emoji: string,
+    ): Promise<void>;
+    removeReaction(
+      channelId: string,
+      messageId: string,
+      emoji: string,
+    ): Promise<void>;
   };
   threads?: boolean;
   embeds?: boolean;
@@ -65,18 +73,29 @@ export interface PlatformAdapter {
   sendBody(
     sessionId: string,
     body: string,
-    opts?: { replyTo?: string; attachments?: OutboundAttachment[]; thinkingDisplay?: ThinkingDisplay },
+    opts?: {
+      replyTo?: string;
+      attachments?: OutboundAttachment[];
+      thinkingDisplay?: ThinkingDisplay;
+    },
   ): Promise<void>;
 
   /** Send an error message to the session's bound channel. */
   sendError(
     sessionId: string,
     body: string,
-    opts?: { replyTo?: string; attachments?: OutboundAttachment[]; thinkingDisplay?: ThinkingDisplay },
+    opts?: {
+      replyTo?: string;
+      attachments?: OutboundAttachment[];
+      thinkingDisplay?: ThinkingDisplay;
+    },
   ): Promise<void>;
 
   /** Begin a streaming message that can be updated incrementally. */
-  startStream?(sessionId: string, opts?: { replyTo?: string }): Promise<StreamHandle>;
+  startStream?(
+    sessionId: string,
+    opts?: { replyTo?: string },
+  ): Promise<StreamHandle>;
 
   /** Post a HITL approval notice (platform may render buttons, reactions, etc.). */
   sendHitlNotice?(

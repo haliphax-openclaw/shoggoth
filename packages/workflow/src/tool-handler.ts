@@ -1,4 +1,8 @@
-import type { TaskDef, AgentTaskDef, ToolTaskDef, FailureBehavior, FailureNotification } from "./types.js";
+import type {
+  TaskDef,
+  FailureBehavior,
+  FailureNotification,
+} from "./types.js";
 import type { WorkflowServer } from "./server.js";
 import type { ControlPlane } from "./control.js";
 import type { OrchestratorOptions } from "./orchestrator.js";
@@ -11,7 +15,10 @@ interface TaskInput {
   prompt?: string;
   title?: string;
   failure_behavior?: "abort" | "pause" | "continue";
-  failure_notification?: "silent" | { kind: "notify-parent" } | { kind: "notify-target"; target_id: string };
+  failure_notification?:
+    | "silent"
+    | { kind: "notify-parent" }
+    | { kind: "notify-target"; target_id: string };
   runtime_limit_ms?: number;
   tool?: string;
   args?: Record<string, unknown>;
@@ -23,7 +30,17 @@ interface TaskInput {
 }
 
 export interface WorkflowToolArgs {
-  action: "start" | "abort" | "pause" | "resume" | "status" | "list" | "post" | "edit" | "retry" | "retention";
+  action:
+    | "start"
+    | "abort"
+    | "pause"
+    | "resume"
+    | "status"
+    | "list"
+    | "post"
+    | "edit"
+    | "retry"
+    | "retention";
   // start
   name?: string;
   tasks?: TaskInput[];
@@ -38,7 +55,10 @@ export interface WorkflowToolArgs {
   task_id?: number;
   prompt?: string;
   failure_behavior?: "abort" | "pause" | "continue";
-  failure_notification?: "silent" | { kind: "notify-parent" } | { kind: "notify-target"; target_id: string };
+  failure_notification?:
+    | "silent"
+    | { kind: "notify-parent" }
+    | { kind: "notify-target"; target_id: string };
   // retry
   cascade?: boolean;
   // list
@@ -70,11 +90,15 @@ function requireField<T>(value: T | undefined, name: string): T {
 }
 
 function normalizeFailureNotification(
-  input?: "silent" | { kind: "notify-parent" } | { kind: "notify-target"; target_id: string },
+  input?:
+    | "silent"
+    | { kind: "notify-parent" }
+    | { kind: "notify-target"; target_id: string },
 ): FailureNotification {
   if (!input || input === "silent") return "silent";
   if (input.kind === "notify-parent") return { kind: "notify-parent" };
-  if (input.kind === "notify-target") return { kind: "notify-target", targetId: input.target_id };
+  if (input.kind === "notify-target")
+    return { kind: "notify-target", targetId: input.target_id };
   return "silent";
 }
 
@@ -92,25 +116,48 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
 
     switch (kind) {
       case "agent": {
-        const prompt = requireField(t.prompt, `tasks[${t.id}].prompt (required for agent task)`);
+        const prompt = requireField(
+          t.prompt,
+          `tasks[${t.id}].prompt (required for agent task)`,
+        );
         return { ...base, kind: "agent" as const, prompt };
       }
       case "tool": {
-        const tool = requireField(t.tool, `tasks[${t.id}].tool (required for tool task)`);
-        const args = requireField(t.args, `tasks[${t.id}].args (required for tool task)`);
+        const tool = requireField(
+          t.tool,
+          `tasks[${t.id}].tool (required for tool task)`,
+        );
+        const args = requireField(
+          t.args,
+          `tasks[${t.id}].args (required for tool task)`,
+        );
         return { ...base, kind: "tool" as const, tool, args };
       }
       case "gate": {
-        const condition = requireField(t.condition, `tasks[${t.id}].condition (required for gate task)`);
+        const condition = requireField(
+          t.condition,
+          `tasks[${t.id}].condition (required for gate task)`,
+        );
         return { ...base, kind: "gate" as const, condition };
       }
       case "transform": {
-        const template = requireField(t.template, `tasks[${t.id}].template (required for transform task)`);
+        const template = requireField(
+          t.template,
+          `tasks[${t.id}].template (required for transform task)`,
+        );
         return { ...base, kind: "transform" as const, template };
       }
       case "message": {
-        const message = requireField(t.message, `tasks[${t.id}].message (required for message task)`);
-        return { ...base, kind: "message" as const, message, ...(t.channel ? { channel: t.channel } : {}) };
+        const message = requireField(
+          t.message,
+          `tasks[${t.id}].message (required for message task)`,
+        );
+        return {
+          ...base,
+          kind: "message" as const,
+          message,
+          ...(t.channel ? { channel: t.channel } : {}),
+        };
       }
       default:
         throw new Error(`Unknown task kind: ${kind}`);
@@ -119,7 +166,9 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
 }
 
 /** Convert a DependencyGraph (Map<number, Set<number>>) to a JSON-safe object. */
-function serializeGraph(graph: Map<number, Set<number>>): Record<string, number[]> {
+function serializeGraph(
+  graph: Map<number, Set<number>>,
+): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   for (const [taskId, deps] of graph) {
     out[String(taskId)] = [...deps];
@@ -197,21 +246,36 @@ export async function handleWorkflowToolCall(
         const taskId = requireField(args.task_id, "task_id");
         const updates: Record<string, unknown> = {};
         if (args.prompt !== undefined) updates.prompt = args.prompt;
-        if (args.failure_behavior !== undefined) updates.failureBehavior = args.failure_behavior;
+        if (args.failure_behavior !== undefined)
+          updates.failureBehavior = args.failure_behavior;
         if (args.failure_notification !== undefined) {
-          updates.failureNotification = normalizeFailureNotification(args.failure_notification);
+          updates.failureNotification = normalizeFailureNotification(
+            args.failure_notification,
+          );
         }
-        if (args.runtime_limit_ms !== undefined) updates.runtimeLimitMs = args.runtime_limit_ms;
+        if (args.runtime_limit_ms !== undefined)
+          updates.runtimeLimitMs = args.runtime_limit_ms;
 
         await deps.controlPlane.edit(wfId, taskId, updates);
-        return { ok: true, data: { workflow_id: wfId, task_id: taskId, action: "edited" } };
+        return {
+          ok: true,
+          data: { workflow_id: wfId, task_id: taskId, action: "edited" },
+        };
       }
 
       case "retry": {
         const wfId = requireField(args.workflow_id, "workflow_id");
         const taskId = requireField(args.task_id, "task_id");
         await deps.controlPlane.retry(wfId, taskId, args.cascade);
-        return { ok: true, data: { workflow_id: wfId, task_id: taskId, cascade: !!args.cascade, action: "retried" } };
+        return {
+          ok: true,
+          data: {
+            workflow_id: wfId,
+            task_id: taskId,
+            cascade: !!args.cascade,
+            action: "retried",
+          },
+        };
       }
 
       case "retention": {
@@ -220,9 +284,15 @@ export async function handleWorkflowToolCall(
       }
 
       default:
-        return { ok: false, error: `Unknown action: ${(args as { action: string }).action}` };
+        return {
+          ok: false,
+          error: `Unknown action: ${(args as { action: string }).action}`,
+        };
     }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }

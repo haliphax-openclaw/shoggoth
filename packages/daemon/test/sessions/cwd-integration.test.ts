@@ -21,10 +21,16 @@ function openMigratedDb(): { db: Database.Database; dir: string } {
   return { db, dir };
 }
 
-function makeCtx(db: Database.Database, sessionId: string, workspacePath: string, workingDirectory?: string) {
+function makeCtx(
+  db: Database.Database,
+  sessionId: string,
+  workspacePath: string,
+  workingDirectory?: string,
+) {
   return {
     sessionId,
     db,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: process.env,
     workspacePath,
@@ -34,6 +40,7 @@ function makeCtx(db: Database.Database, sessionId: string, workspacePath: string
     getAgentIntegrationInvoker: () => undefined,
     getProcessManager: () => undefined,
     messageToolCtx: undefined,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     memoryConfig: {} as any,
     runtimeOpenaiBaseUrl: undefined,
     isSubagentSession: false,
@@ -84,7 +91,11 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     registerFsHandlers(registry);
 
     const ctx = makeCtx(db, "s1", wsPath, join(wsPath, "subdir"));
-    const result = await registry.execute("read", { path: join(wsPath, "root.txt") }, ctx);
+    const result = await registry.execute(
+      "read",
+      { path: join(wsPath, "root.txt") },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(!json.error, `unexpected error: ${json.error}`);
     assert.ok(json.content?.includes("root-content"));
@@ -98,7 +109,11 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     registerFsHandlers(registry);
 
     const ctx = makeCtx(db, "s1", wsPath, join(wsPath, "subdir"));
-    const result = await registry.execute("write", { path: "new.txt", content: "hello" }, ctx);
+    const result = await registry.execute(
+      "write",
+      { path: "new.txt", content: "hello" },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(json.ok, `unexpected error: ${JSON.stringify(json)}`);
 
@@ -119,7 +134,10 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     const result = await registry.execute("exec", { argv: ["pwd"] }, ctx);
     const json = JSON.parse(result.resultJson);
     assert.equal(json.exitCode, 0);
-    assert.ok(json.stdout?.trim().endsWith("subdir"), `expected cwd to be subdir, got: ${json.stdout}`);
+    assert.ok(
+      json.stdout?.trim().endsWith("subdir"),
+      `expected cwd to be subdir, got: ${json.stdout}`,
+    );
   });
 
   it("ls uses workingDirectory as default path", async () => {
@@ -133,8 +151,12 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     const result = await registry.execute("ls", { path: "." }, ctx);
     const json = JSON.parse(result.resultJson);
     assert.ok(!json.error, `unexpected error: ${json.error}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const names = json.entries?.map((e: any) => e.path) ?? [];
-    assert.ok(names.includes("child.txt"), `expected child.txt in ls output, got: ${JSON.stringify(names)}`);
+    assert.ok(
+      names.includes("child.txt"),
+      `expected child.txt in ls output, got: ${JSON.stringify(names)}`,
+    );
   });
 
   it("fs stat resolves relative path from workingDirectory", async () => {
@@ -145,7 +167,11 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     registerFs(registry);
 
     const ctx = makeCtx(db, "s1", wsPath, join(wsPath, "subdir"));
-    const result = await registry.execute("fs", { action: "stat", path: "child.txt" }, ctx);
+    const result = await registry.execute(
+      "fs",
+      { action: "stat", path: "child.txt" },
+      ctx,
+    );
     const json = JSON.parse(result.resultJson);
     assert.ok(json.ok, `unexpected error: ${JSON.stringify(json)}`);
     assert.equal(json.type, "file");
@@ -159,7 +185,9 @@ describe("BuiltinToolContext workingDirectory integration", () => {
     // Simulate subagent spawn: create child and copy parent's workingDirectory
     const parent = store.getById("parent")!;
     store.create({ id: "child", workspacePath: wsPath, status: "active" });
-    store.update("child", { workingDirectory: parent.workingDirectory ?? null });
+    store.update("child", {
+      workingDirectory: parent.workingDirectory ?? null,
+    });
 
     const child = store.getById("child")!;
     assert.equal(child.workingDirectory, join(wsPath, "subdir"));
@@ -171,7 +199,9 @@ describe("BuiltinToolContext workingDirectory integration", () => {
 
     const parent = store.getById("parent")!;
     store.create({ id: "child", workspacePath: wsPath, status: "active" });
-    store.update("child", { workingDirectory: parent.workingDirectory ?? null });
+    store.update("child", {
+      workingDirectory: parent.workingDirectory ?? null,
+    });
 
     const child = store.getById("child")!;
     assert.equal(child.workingDirectory, undefined);

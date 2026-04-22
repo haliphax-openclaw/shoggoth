@@ -73,14 +73,14 @@ presented to agents when they read the skill.
 
 ### Frontmatter Fields
 
-| Field         | Type              | Default                        | Description |
-|---------------|-------------------|--------------------------------|-------------|
-| `id`          | `string`          | Auto-derived from file path    | Unique identifier. If omitted, generated from the file's path relative to its scan root (e.g. `subdir/my-skill.md` → `subdir.my-skill`). |
-| `title`       | `string`          | Falls back to `name`, then `id`| Human-readable display title. The `name` field is accepted as an alias. |
-| `description` | `string`          | `null`                         | One-line description used for search relevance scoring. |
-| `enabled`     | `boolean`         | `true`                         | Set to `false` to disable the skill at the file level. Accepts `true`/`false`, `yes`/`no`, `1`/`0`. |
-| `tags`        | `string[]` (YAML) | `[]`                           | Freeform tags for filtering. Parsed from inline YAML array syntax `[tag1, tag2]` or comma-separated values. Normalized to lowercase. |
-| `category`    | `string`          | `null`                         | Broad grouping label (e.g. `utilities`, `dev-tools`, `integrations`). Normalized to lowercase. |
+| Field         | Type              | Default                         | Description                                                                                                                              |
+| ------------- | ----------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | `string`          | Auto-derived from file path     | Unique identifier. If omitted, generated from the file's path relative to its scan root (e.g. `subdir/my-skill.md` → `subdir.my-skill`). |
+| `title`       | `string`          | Falls back to `name`, then `id` | Human-readable display title. The `name` field is accepted as an alias.                                                                  |
+| `description` | `string`          | `null`                          | One-line description used for search relevance scoring.                                                                                  |
+| `enabled`     | `boolean`         | `true`                          | Set to `false` to disable the skill at the file level. Accepts `true`/`false`, `yes`/`no`, `1`/`0`.                                      |
+| `tags`        | `string[]` (YAML) | `[]`                            | Freeform tags for filtering. Parsed from inline YAML array syntax `[tag1, tag2]` or comma-separated values. Normalized to lowercase.     |
+| `category`    | `string`          | `null`                          | Broad grouping label (e.g. `utilities`, `dev-tools`, `integrations`). Normalized to lowercase.                                           |
 
 ### Frontmatter Parsing Rules
 
@@ -139,25 +139,25 @@ The `searchSkills()` function provides filtering and ranked search over a list o
 
 ```typescript
 interface SkillSearchParams {
-  query?: string | null;      // Free-text search
-  tags?: readonly string[];   // AND-logic tag filter
-  category?: string | null;   // Exact category match
-  limit?: number;             // Max results (default: 10)
-  offset?: number;            // Pagination offset (default: 0)
+  query?: string | null; // Free-text search
+  tags?: readonly string[]; // AND-logic tag filter
+  category?: string | null; // Exact category match
+  limit?: number; // Max results (default: 10)
+  offset?: number; // Pagination offset (default: 0)
 }
 ```
 
 ### Search Behavior
 
-- **Tag filter**: AND logic — a skill must have *all* specified tags to match.
+- **Tag filter**: AND logic — a skill must have _all_ specified tags to match.
 - **Category filter**: Exact match (case-insensitive after normalization).
 - **Query scoring**: When a `query` is provided, skills with zero relevance are excluded. Relevance is computed via case-insensitive substring matching with weighted fields:
 
-| Field              | Weight |
-|--------------------|--------|
-| `id` and `title`   | 3×     |
-| `description`      | 2×     |
-| `tags` and `category` | 1× |
+| Field                 | Weight |
+| --------------------- | ------ |
+| `id` and `title`      | 3×     |
+| `description`         | 2×     |
+| `tags` and `category` | 1×     |
 
 - Results are sorted by score descending, then by `id` ascending for stable ordering.
 - Pagination is applied via `offset` and `limit` after sorting.
@@ -167,7 +167,7 @@ interface SkillSearchParams {
 ```typescript
 interface SkillSearchResult {
   readonly skill: SkillRecord;
-  readonly score: number;       // 0 when no query provided
+  readonly score: number; // 0 when no query provided
 }
 ```
 
@@ -179,8 +179,8 @@ Skills are configured via the `ShoggothSkillsConfig` schema (defined in [`@shogg
 
 ```typescript
 interface ShoggothSkillsConfig {
-  scanRoots: string[];    // Directories scanned for *.md skill files
-  disabledIds: string[];  // Skill IDs to force-disable regardless of file-level enabled field
+  scanRoots: string[]; // Directories scanned for *.md skill files
+  disabledIds: string[]; // Skill IDs to force-disable regardless of file-level enabled field
 }
 ```
 
@@ -199,11 +199,11 @@ With the default `scanRoots: ["skills"]`, the resolved path is `/var/lib/shoggot
 
 ### Configuration Helpers
 
-| Function | Purpose |
-|----------|---------|
-| `resolveSkillScanRoots(config)` | Resolves `config.skills.scanRoots` paths relative to `/var/lib/shoggoth`. Appends the workspace `skills/` subfolder as the final root. |
-| `listSkillsForConfig(config)` | Full scan: resolves roots, applies `disabledIds`, returns all `SkillRecord`s. |
-| `skillAbsolutePathById(config, id)` | Looks up a single skill's absolute file path by its ID. Returns `undefined` if not found. |
+| Function                            | Purpose                                                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveSkillScanRoots(config)`     | Resolves `config.skills.scanRoots` paths relative to `/var/lib/shoggoth`. Appends the workspace `skills/` subfolder as the final root. |
+| `listSkillsForConfig(config)`       | Full scan: resolves roots, applies `disabledIds`, returns all `SkillRecord`s.                                                          |
+| `skillAbsolutePathById(config, id)` | Looks up a single skill's absolute file path by its ID. Returns `undefined` if not found.                                              |
 
 ### Disabling Skills via Config
 

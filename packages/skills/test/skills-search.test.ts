@@ -136,7 +136,10 @@ describe("searchSkills", () => {
   });
 
   test("tags AND logic requires all tags present", () => {
-    const results = searchSkills(catalog, { tags: ["mcp", "smart-home"], limit: 100 });
+    const results = searchSkills(catalog, {
+      tags: ["mcp", "smart-home"],
+      limit: 100,
+    });
     assert.strictEqual(results.length, 1);
     assert.strictEqual(results[0]!.skill.id, "mcp-hass");
   });
@@ -147,14 +150,20 @@ describe("searchSkills", () => {
   });
 
   test("category filter", () => {
-    const results = searchSkills(catalog, { category: "dev-tools", limit: 100 });
+    const results = searchSkills(catalog, {
+      category: "dev-tools",
+      limit: 100,
+    });
     assert.strictEqual(results.length, 2);
     const ids = results.map((r) => r.skill.id).sort();
     assert.deepStrictEqual(ids, ["github", "skill-creator"]);
   });
 
   test("category filter is case-insensitive", () => {
-    const results = searchSkills(catalog, { category: "Dev-Tools", limit: 100 });
+    const results = searchSkills(catalog, {
+      category: "Dev-Tools",
+      limit: 100,
+    });
     assert.strictEqual(results.length, 2);
   });
 
@@ -202,7 +211,11 @@ describe("searchSkills", () => {
 
   test("skills without tags/category still discoverable via query", () => {
     const bare = [
-      skill({ id: "plain", title: "Plain Skill", description: "A simple skill" }),
+      skill({
+        id: "plain",
+        title: "Plain Skill",
+        description: "A simple skill",
+      }),
     ];
     const results = searchSkills(bare, { query: "plain" });
     assert.strictEqual(results.length, 1);

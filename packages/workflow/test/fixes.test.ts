@@ -12,7 +12,6 @@ import assert from "node:assert/strict";
 // We test via the tool handler since that's the entry point agents use.
 import {
   handleWorkflowToolCall,
-  type WorkflowToolArgs,
   type WorkflowToolHandlerDeps,
 } from "../src/tool-handler.js";
 import type { WorkflowServer } from "../src/server.js";
@@ -42,9 +41,45 @@ function makeWorkflow(overrides: Partial<TaskList> = {}): TaskList {
     id: "wf-test",
     name: "my-workflow",
     tasks: [
-      { taskDef: { kind: "agent" as const, id: 1, prompt: "task one", failureBehavior: "continue" as const, failureNotification: "silent" as const }, status: "done" as const, output: "result-1", startedAt: 1000, completedAt: 2000 },
-      { taskDef: { kind: "agent" as const, id: 2, prompt: "task two", failureBehavior: "continue" as const, failureNotification: "silent" as const }, status: "done" as const, output: "result-2", startedAt: 1000, completedAt: 3000 },
-      { taskDef: { kind: "agent" as const, id: 3, prompt: "task three", failureBehavior: "continue" as const, failureNotification: "silent" as const }, status: "done" as const, output: "result-3", startedAt: 3000, completedAt: 5000 },
+      {
+        taskDef: {
+          kind: "agent" as const,
+          id: 1,
+          prompt: "task one",
+          failureBehavior: "continue" as const,
+          failureNotification: "silent" as const,
+        },
+        status: "done" as const,
+        output: "result-1",
+        startedAt: 1000,
+        completedAt: 2000,
+      },
+      {
+        taskDef: {
+          kind: "agent" as const,
+          id: 2,
+          prompt: "task two",
+          failureBehavior: "continue" as const,
+          failureNotification: "silent" as const,
+        },
+        status: "done" as const,
+        output: "result-2",
+        startedAt: 1000,
+        completedAt: 3000,
+      },
+      {
+        taskDef: {
+          kind: "agent" as const,
+          id: 3,
+          prompt: "task three",
+          failureBehavior: "continue" as const,
+          failureNotification: "silent" as const,
+        },
+        status: "done" as const,
+        output: "result-3",
+        startedAt: 3000,
+        completedAt: 5000,
+      },
     ],
     graph,
     pollingIntervalMs: 10000,
@@ -53,7 +88,9 @@ function makeWorkflow(overrides: Partial<TaskList> = {}): TaskList {
   };
 }
 
-function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): ControlPlane {
+function mockControlPlane(
+  overrides: Partial<Record<string, unknown>> = {},
+): ControlPlane {
   return {
     abort: async () => {},
     pause: async () => {},
@@ -68,7 +105,9 @@ function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): Con
   } as unknown as ControlPlane;
 }
 
-function makeDeps(overrides: Partial<WorkflowToolHandlerDeps> = {}): WorkflowToolHandlerDeps {
+function makeDeps(
+  overrides: Partial<WorkflowToolHandlerDeps> = {},
+): WorkflowToolHandlerDeps {
   return {
     server: mockServer(),
     controlPlane: mockControlPlane(),
@@ -86,18 +125,22 @@ describe("name passthrough", () => {
     let capturedName: string | undefined;
     const server = mockServer({
       start: async (_tasks, _graph, opts) => {
-        capturedName = (opts as unknown as Record<string, unknown>).name as string;
+        capturedName = (opts as unknown as Record<string, unknown>)
+          .name as string;
         return "wf-named";
       },
     });
     const deps = makeDeps({ server });
-    await handleWorkflowToolCall({
-      action: "start",
-      name: "my-cool-workflow",
-      tasks: [{ id: 1, prompt: "do stuff" }],
-      graph: "",
-      reply_to: "session:parent",
-    }, deps);
+    await handleWorkflowToolCall(
+      {
+        action: "start",
+        name: "my-cool-workflow",
+        tasks: [{ id: 1, prompt: "do stuff" }],
+        graph: "",
+        reply_to: "session:parent",
+      },
+      deps,
+    );
 
     assert.equal(capturedName, "my-cool-workflow");
   });
@@ -106,17 +149,21 @@ describe("name passthrough", () => {
     let capturedName: string | undefined;
     const server = mockServer({
       start: async (_tasks, _graph, opts) => {
-        capturedName = (opts as unknown as Record<string, unknown>).name as string;
+        capturedName = (opts as unknown as Record<string, unknown>)
+          .name as string;
         return "wf-default";
       },
     });
     const deps = makeDeps({ server });
-    await handleWorkflowToolCall({
-      action: "start",
-      tasks: [{ id: 1, prompt: "do stuff" }],
-      graph: "",
-      reply_to: "session:parent",
-    }, deps);
+    await handleWorkflowToolCall(
+      {
+        action: "start",
+        tasks: [{ id: 1, prompt: "do stuff" }],
+        graph: "",
+        reply_to: "session:parent",
+      },
+      deps,
+    );
 
     assert.equal(capturedName, "unnamed-workflow");
   });
@@ -130,7 +177,10 @@ describe("graph serialization in status", () => {
       status: async () => makeWorkflow(),
     });
     const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    const result = await handleWorkflowToolCall({ action: "status", workflow_id: "wf-test" }, deps);
+    const result = await handleWorkflowToolCall(
+      { action: "status", workflow_id: "wf-test" },
+      deps,
+    );
 
     assert.equal(result.ok, true);
     const data = result.data as Record<string, unknown>;

@@ -19,12 +19,12 @@ Workflow task subagents are the worst case: each spawned task pays the full syst
 
 ### Context Levels
 
-| Level | System Prompt Content | Tools |
-|---|---|---|
-| `none` | Empty — raw model, no Shoggoth framing | None |
-| `minimal` | Identity (basic), trusted system envelope, safety, runtime | Filtered (see below) |
-| `light` | Everything in `full` except bootstrap, personality-shaping, and memory template files | All tools |
-| `full` | Current behavior — all sections, all template files | All tools |
+| Level     | System Prompt Content                                                                 | Tools                |
+| --------- | ------------------------------------------------------------------------------------- | -------------------- |
+| `none`    | Empty — raw model, no Shoggoth framing                                                | None                 |
+| `minimal` | Identity (basic), trusted system envelope, safety, runtime                            | Filtered (see below) |
+| `light`   | Everything in `full` except bootstrap, personality-shaping, and memory template files | All tools            |
+| `full`    | Current behavior — all sections, all template files                                   | All tools            |
 
 #### `none`
 
@@ -181,12 +181,12 @@ Tool filtering is applied after the context level is resolved. The flow:
 
 Default exclusions by level:
 
-| Level | Default Excluded Tools |
-|---|---|
-| `none` | All tools |
+| Level     | Default Excluded Tools                                                     |
+| --------- | -------------------------------------------------------------------------- |
+| `none`    | All tools                                                                  |
 | `minimal` | `workflow`, `subagent`, `session-list`, `session-history`, `session-spawn` |
-| `light` | None |
-| `full` | None |
+| `light`   | None                                                                       |
+| `full`    | None                                                                       |
 
 ### System Prompt Builder Changes
 
@@ -212,23 +212,23 @@ const TEMPLATE_FILES_BY_LEVEL: Record<string, Set<string>> = {
 
 Section inclusion by level:
 
-| Section | `none` | `minimal` | `light` | `full` |
-|---|---|---|---|---|
-| Identity | — | ✓ | ✓ | ✓ |
-| CLI & docs | — | — | ✓ | ✓ |
-| Tooling | — | ✓ | ✓ | ✓ |
-| Safety | — | ✓ | ✓ | ✓ |
-| Trusted context | — | ✓ | ✓ | ✓ |
-| Workspace root | — | — | ✓ | ✓ |
-| Memory hint | — | — | — | ✓ |
-| Operator global | — | — | ✓ | ✓ |
-| Template files | — | — | filtered | all |
-| Heartbeats | — | — | ✓ | ✓ |
-| Silent replies | — | — | ✓ | ✓ |
-| Reaction guidance | — | — | ✓ | ✓ |
-| Runtime | — | ✓ | ✓ | ✓ |
-| Stats | — | — | — | ✓ |
-| Env appendix | — | — | ✓ | ✓ |
+| Section           | `none` | `minimal` | `light`  | `full` |
+| ----------------- | ------ | --------- | -------- | ------ |
+| Identity          | —      | ✓         | ✓        | ✓      |
+| CLI & docs        | —      | —         | ✓        | ✓      |
+| Tooling           | —      | ✓         | ✓        | ✓      |
+| Safety            | —      | ✓         | ✓        | ✓      |
+| Trusted context   | —      | ✓         | ✓        | ✓      |
+| Workspace root    | —      | —         | ✓        | ✓      |
+| Memory hint       | —      | —         | —        | ✓      |
+| Operator global   | —      | —         | ✓        | ✓      |
+| Template files    | —      | —         | filtered | all    |
+| Heartbeats        | —      | —         | ✓        | ✓      |
+| Silent replies    | —      | —         | ✓        | ✓      |
+| Reaction guidance | —      | —         | ✓        | ✓      |
+| Runtime           | —      | ✓         | ✓        | ✓      |
+| Stats             | —      | —         | —        | ✓      |
+| Env appendix      | —      | —         | ✓        | ✓      |
 
 ## Implementation Phases
 
@@ -242,6 +242,7 @@ Define the context level type, add it to the config schema, and implement the re
 - Validate config values at load time
 
 **Files:**
+
 - `packages/shared/src/schema.ts`
 - `packages/shared/src/config.ts` (or wherever config resolution lives)
 
@@ -255,6 +256,7 @@ Add `contextLevel` to `BuildSessionSystemContextInput` and gate section assembly
 - `none` returns empty string
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-system-prompt.ts`
 
 ### Phase 3: Tool Filtering
@@ -267,6 +269,7 @@ Apply tool exclusions based on context level and config overrides.
 - Apply config `contextLevelTools` allow/exclude overrides
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-mcp-tool-context.ts`
 - `packages/daemon/src/sessions/session-mcp-runtime.ts`
 
@@ -280,6 +283,7 @@ Add `contextLevel` to the subagent spawn interface and wire it through session c
 - Note: `platform-discord` now uses a consolidated `formatAssistantReply` helper and extracted `formatAdhocReactionEventContext`/`formatGlobalReactionEventContext` helpers (the inline `formatDegradedPrefix`/`formatModelTagFooter` calls no longer exist)
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-manager.ts`
 - `packages/daemon/src/sessions/session-store.ts`
 - `packages/platform-discord/src/platform.ts`
@@ -295,6 +299,7 @@ Wire context level into workflow task spawner, cron, and heartbeat.
 - Note: `createWorkflowNotifier`'s `notify` signature now accepts `{ replyTo: string; aborted?: boolean }` context and branches into success/aborted/failed paths with distinct guidance strings. Context level wiring must account for this three-way branching.
 
 **Files:**
+
 - `packages/daemon/src/workflow-adapters.ts`
 - `packages/daemon/src/sessions/session-agent-turn.ts`
 

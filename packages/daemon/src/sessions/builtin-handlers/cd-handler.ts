@@ -1,6 +1,10 @@
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute, resolve, relative, sep } from "node:path";
-import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+  BuiltinToolResult,
+} from "../builtin-tool-registry";
 import { createSessionStore } from "../session-store";
 import { checkAgentsMdGate } from "../agents-md-gate";
 
@@ -23,7 +27,9 @@ async function cdHandler(
   if (!pathArg) {
     const store = createSessionStore(ctx.db);
     store.update(ctx.sessionId, { workingDirectory: null });
-    return { resultJson: JSON.stringify({ workingDirectory: ctx.workspacePath }) };
+    return {
+      resultJson: JSON.stringify({ workingDirectory: ctx.workspacePath }),
+    };
   }
 
   const rootReal = realpathSync(ctx.workspacePath);
@@ -43,7 +49,9 @@ async function cdHandler(
   try {
     realTarget = realpathSync(resolved);
   } catch {
-    return { resultJson: JSON.stringify({ error: `path does not exist: ${pathArg}` }) };
+    return {
+      resultJson: JSON.stringify({ error: `path does not exist: ${pathArg}` }),
+    };
   }
 
   // Security: realpath must also be within workspace

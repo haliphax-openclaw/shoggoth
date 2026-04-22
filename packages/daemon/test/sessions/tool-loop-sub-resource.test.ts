@@ -17,7 +17,10 @@ function setupDb(sessionId: string) {
   const db = new Database(":memory:");
   db.pragma("foreign_keys = ON");
   migrate(db, defaultMigrationsDir());
-  createSessionStore(db).create({ id: sessionId, workspacePath: `/w/${sessionId}` });
+  createSessionStore(db).create({
+    id: sessionId,
+    workspacePath: `/w/${sessionId}`,
+  });
   return db;
 }
 
@@ -56,11 +59,15 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "curl https://example.com" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({
+                  command: "curl https://example.com",
+                }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -123,11 +130,15 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "curl https://example.com" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({
+                  command: "curl https://example.com",
+                }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -195,11 +206,13 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "rm -rf /tmp/foo" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({ command: "rm -rf /tmp/foo" }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -260,11 +273,13 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-write",
-              argsJson: JSON.stringify({ path: "/tmp/foo", content: "bar" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-write",
+                argsJson: JSON.stringify({ path: "/tmp/foo", content: "bar" }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -313,7 +328,7 @@ describe("tool-loop sub-resource extraction", () => {
 
   it("HITL bypass with bare 'exec' in allow list skips all exec sub-commands", async () => {
     const db = setupDb("s-bypass-bare");
-    const hitlStack = createHitlPendingResolutionStack(db);
+    const _hitlStack = createHitlPendingResolutionStack(db);
     // Policy allows exec (bare) — should allow exec:curl compound resource
     const engine = createPolicyEngine({
       ...DEFAULT_POLICY_CONFIG,
@@ -342,11 +357,15 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "curl https://example.com" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({
+                  command: "curl https://example.com",
+                }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -380,7 +399,7 @@ describe("tool-loop sub-resource extraction", () => {
 
   it("HITL bypass with 'exec:curl' only skips curl calls, not rm", async () => {
     const db = setupDb("s-bypass-specific");
-    const hitlStack = createHitlPendingResolutionStack(db);
+    const _hitlStack = createHitlPendingResolutionStack(db);
     // Policy allows exec:curl but not exec:rm
     const engine = createPolicyEngine({
       ...DEFAULT_POLICY_CONFIG,
@@ -410,11 +429,15 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "curl https://example.com" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({
+                  command: "curl https://example.com",
+                }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -450,11 +473,13 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn2++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc2",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "rm -rf /tmp/foo" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc2",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({ command: "rm -rf /tmp/foo" }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -499,11 +524,13 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "git status" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({ command: "git status" }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -546,13 +573,21 @@ describe("tool-loop sub-resource extraction", () => {
 
     // Check that audit records use the compound resource
     const auditRows = db
-      .prepare(`SELECT action, resource FROM audit_log WHERE resource LIKE 'builtin-exec:%' ORDER BY rowid`)
+      .prepare(
+        `SELECT action, resource FROM audit_log WHERE resource LIKE 'builtin-exec:%' ORDER BY rowid`,
+      )
       .all() as { action: string; resource: string }[];
 
     // Should have policy check, hitl queued, execute_start, execute_done all with exec:git
     const resources = auditRows.map((r) => r.resource);
-    assert.ok(resources.every((r) => r === "builtin-exec:git"), `Expected all resources to be exec:git, got: ${JSON.stringify(resources)}`);
-    assert.ok(resources.length >= 2, `Expected at least 2 audit rows with exec:git, got ${resources.length}`);
+    assert.ok(
+      resources.every((r) => r === "builtin-exec:git"),
+      `Expected all resources to be exec:git, got: ${JSON.stringify(resources)}`,
+    );
+    assert.ok(
+      resources.length >= 2,
+      `Expected at least 2 audit rows with exec:git, got ${resources.length}`,
+    );
     db.close();
   });
 
@@ -569,11 +604,15 @@ describe("tool-loop sub-resource extraction", () => {
         if (modelTurn++ === 0) {
           return {
             content: null,
-            toolCalls: [{
-              id: "tc1",
-              name: "builtin-exec",
-              argsJson: JSON.stringify({ command: "curl https://example.com" }),
-            }],
+            toolCalls: [
+              {
+                id: "tc1",
+                name: "builtin-exec",
+                argsJson: JSON.stringify({
+                  command: "curl https://example.com",
+                }),
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };

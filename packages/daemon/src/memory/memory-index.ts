@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync, realpathSync } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  realpathSync,
+} from "node:fs";
 import { extname, join, matchesGlob, relative } from "node:path";
 import type Database from "better-sqlite3";
 
@@ -56,7 +62,10 @@ export interface MemorySearchFilters {
 }
 
 /** Strip BOM, optional YAML frontmatter; title from frontmatter or first `#` line. */
-export function parseMarkdownForMemory(source: string): { title: string; body: string } {
+export function parseMarkdownForMemory(source: string): {
+  title: string;
+  body: string;
+} {
   let rest = source.replace(/^\uFEFF/, "");
   let title = "";
 
@@ -203,7 +212,10 @@ export function ingestMemoryRoots(
         const rel = relative(realRoot, abs);
 
         // Apply include/exclude filters when scoped.
-        if (isScoped && !fileMatchesFilters(rel, abs, includePats, excludePats)) {
+        if (
+          isScoped &&
+          !fileMatchesFilters(rel, abs, includePats, excludePats)
+        ) {
           continue;
         }
 
@@ -252,21 +264,34 @@ export function ingestMemoryRoots(
       // Only consider documents under one of the scanned roots.
       let underRoot = false;
       let docRelPath = "";
-      let docRealRoot = "";
+      let _docRealRoot = "";
       for (const root of roots) {
         const realRoot = realpathSync(root);
-        const normalizedRoot = realRoot.endsWith("/") ? realRoot : `${realRoot}/`;
-        if (doc.source_path === realRoot || doc.source_path.startsWith(normalizedRoot)) {
+        const normalizedRoot = realRoot.endsWith("/")
+          ? realRoot
+          : `${realRoot}/`;
+        if (
+          doc.source_path === realRoot ||
+          doc.source_path.startsWith(normalizedRoot)
+        ) {
           underRoot = true;
           docRelPath = relative(realRoot, doc.source_path);
-          docRealRoot = realRoot;
+          _docRealRoot = realRoot;
           break;
         }
       }
       if (!underRoot) continue;
 
       // For scoped ingests, only remove files that match the scope.
-      if (isScoped && !fileMatchesFilters(docRelPath, doc.source_path, includePats, excludePats)) {
+      if (
+        isScoped &&
+        !fileMatchesFilters(
+          docRelPath,
+          doc.source_path,
+          includePats,
+          excludePats,
+        )
+      ) {
         continue;
       }
 
@@ -292,7 +317,12 @@ export function ingestMemoryRoots(
 export function searchMemoryFts(
   db: Database.Database,
   query: string,
-  opts: { limit: number; includeScores?: boolean; minScore?: number; filters?: MemorySearchFilters },
+  opts: {
+    limit: number;
+    includeScores?: boolean;
+    minScore?: number;
+    filters?: MemorySearchFilters;
+  },
 ): MemoryHit[] {
   const fts = buildFtsQuery(query);
   if (!fts) return [];
@@ -303,7 +333,9 @@ export function searchMemoryFts(
 
   if (filters?.pathPrefix) {
     const prefix = filters.pathPrefix.replace(/\/+$/, "");
-    whereClauses.push("(d.source_path = @pathExact OR d.source_path LIKE @pathLike)");
+    whereClauses.push(
+      "(d.source_path = @pathExact OR d.source_path LIKE @pathLike)",
+    );
     params.pathExact = prefix;
     params.pathLike = `${prefix}/%`;
   }
@@ -326,7 +358,9 @@ export function searchMemoryFts(
     LIMIT @lim
   `;
 
-  const rows = db.prepare(sql).all(params) as (MemoryHit & { bm25Score: number })[];
+  const rows = db.prepare(sql).all(params) as (MemoryHit & {
+    bm25Score: number;
+  })[];
 
   // BM25 returns negative values (lower = better). Normalize to 0.0–1.0 range.
   const scores = rows.map((r) => r.bm25Score);
@@ -384,8 +418,13 @@ export function upsertMemoryEmbedding(
   embedding: Float32Array,
   contentSha256?: string | null,
 ): void {
-  const buf = Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength);
-  db.prepare(`
+  const buf = Buffer.from(
+    embedding.buffer,
+    embedding.byteOffset,
+    embedding.byteLength,
+  );
+  db.prepare(
+    `
     INSERT INTO memory_embeddings (document_id, model_id, embedding, dimensions, content_sha256)
     VALUES (@doc, @model, @emb, @dim, @hash)
     ON CONFLICT(document_id, model_id) DO UPDATE SET
@@ -393,7 +432,8 @@ export function upsertMemoryEmbedding(
       dimensions = excluded.dimensions,
       content_sha256 = excluded.content_sha256,
       updated_at = datetime('now')
-  `).run({
+  `,
+  ).run({
     doc: documentId,
     model: modelId,
     emb: buf,
@@ -426,7 +466,8 @@ export function searchMemoryWithOptionalEmbedding(
   const { textQuery, limit, includeScores, minScore, filters } = opts;
   const modelId = opts.embeddingModelId ?? "default";
   const qEmb = opts.queryEmbedding;
-  const embOn = opts.embeddingsEnabled === true && qEmb != null && qEmb.length > 0;
+  const embOn =
+    opts.embeddingsEnabled === true && qEmb != null && qEmb.length > 0;
   const embHealthy = opts.embeddingsHealthy !== false;
 
   const countEmb = db
@@ -434,7 +475,12 @@ export function searchMemoryWithOptionalEmbedding(
     .get({ m: modelId }) as { c: number };
 
   if (!embOn || countEmb.c === 0 || !embHealthy) {
-    return searchMemoryFts(db, textQuery, { limit, includeScores, minScore, filters });
+    return searchMemoryFts(db, textQuery, {
+      limit,
+      includeScores,
+      minScore,
+      filters,
+    });
   }
 
   // Build WHERE clauses for embedding-based search.
@@ -443,7 +489,9 @@ export function searchMemoryWithOptionalEmbedding(
 
   if (filters?.pathPrefix) {
     const prefix = filters.pathPrefix.replace(/\/+$/, "");
-    whereClauses.push("(d.source_path = @pathExact OR d.source_path LIKE @pathLike)");
+    whereClauses.push(
+      "(d.source_path = @pathExact OR d.source_path LIKE @pathLike)",
+    );
     params.pathExact = prefix;
     params.pathLike = `${prefix}/%`;
   }
@@ -512,7 +560,11 @@ interface SnippetOptions {
  * Extract the most relevant snippet from `body` for the given `query` terms.
  * Prefers sentence boundaries when possible. Highlights matched terms with `highlightTag`.
  */
-export function extractSnippet(body: string, query: string, opts: SnippetOptions): string {
+export function extractSnippet(
+  body: string,
+  query: string,
+  opts: SnippetOptions,
+): string {
   const { maxChars, highlightTag } = opts;
   const terms = query
     .trim()
@@ -573,7 +625,11 @@ export function extractSnippet(body: string, query: string, opts: SnippetOptions
 }
 
 /** Try to expand/contract the window to align with sentence boundaries. */
-function trimToSentenceBoundary(body: string, start: number, maxChars: number): string {
+function trimToSentenceBoundary(
+  body: string,
+  start: number,
+  maxChars: number,
+): string {
   let s = start;
   let e = Math.min(body.length, start + maxChars);
 
@@ -609,7 +665,8 @@ function trimToSentenceBoundary(body: string, start: number, maxChars: number): 
   }
 
   const prefix = s > 0 ? "…" : "";
-  const suffix = s + maxChars < body.length && raw.length >= maxChars * 0.8 ? "…" : "";
+  const suffix =
+    s + maxChars < body.length && raw.length >= maxChars * 0.8 ? "…" : "";
   return `${prefix}${raw.trim()}${suffix}`;
 }
 

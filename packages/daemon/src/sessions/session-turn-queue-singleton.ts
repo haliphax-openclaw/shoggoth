@@ -3,7 +3,10 @@ import type { TieredTurnQueue } from "./session-turn-queue";
 let instance: TieredTurnQueue | undefined;
 
 export function getTurnQueue(): TieredTurnQueue {
-  if (!instance) throw new Error("TieredTurnQueue not initialized — call setTurnQueue() first");
+  if (!instance)
+    throw new Error(
+      "TieredTurnQueue not initialized — call setTurnQueue() first",
+    );
   return instance;
 }
 

@@ -37,7 +37,13 @@ function makeWorkflow(id: string, overrides?: Partial<TaskList>): TaskList {
     id,
     name: `workflow-${id}`,
     tasks: [
-      { taskDef: makeTask(1), status: "done", output: "ok", startedAt: 1000, completedAt: 2000 },
+      {
+        taskDef: makeTask(1),
+        status: "done",
+        output: "ok",
+        startedAt: 1000,
+        completedAt: 2000,
+      },
     ],
     graph: parseGraph("1"),
     pollingIntervalMs: 50,
@@ -51,13 +57,24 @@ function makeWorkflow(id: string, overrides?: Partial<TaskList>): TaskList {
 describe("listAllWorkflows", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("returns all workflows including completed ones", () => {
     const wf1 = makeWorkflow("wf-1");
     const wf2 = makeWorkflow("wf-2", {
-      tasks: [{ taskDef: makeTask(1), status: "in_progress", sessionKey: "s-1", startedAt: 1000 }],
+      tasks: [
+        {
+          taskDef: makeTask(1),
+          status: "in_progress",
+          sessionKey: "s-1",
+          startedAt: 1000,
+        },
+      ],
     });
     saveWorkflow(baseDir, wf1);
     saveWorkflow(baseDir, wf2);
@@ -86,8 +103,12 @@ describe("listAllWorkflows", () => {
 describe("retentionRun", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("prunes completed workflows older than 48 hours", () => {
     const now = Date.now();
@@ -96,7 +117,13 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-old-done", {
       createdAt: oldCompletedAt - 10_000,
       tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: oldCompletedAt - 5_000, completedAt: oldCompletedAt },
+        {
+          taskDef: makeTask(1),
+          status: "done",
+          output: "ok",
+          startedAt: oldCompletedAt - 5_000,
+          completedAt: oldCompletedAt,
+        },
       ],
     });
     saveWorkflow(baseDir, wf);
@@ -114,7 +141,13 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-recent-done", {
       createdAt: recentCompletedAt - 10_000,
       tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: recentCompletedAt - 5_000, completedAt: recentCompletedAt },
+        {
+          taskDef: makeTask(1),
+          status: "done",
+          output: "ok",
+          startedAt: recentCompletedAt - 5_000,
+          completedAt: recentCompletedAt,
+        },
       ],
     });
     saveWorkflow(baseDir, wf);
@@ -131,7 +164,13 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-old-failed", {
       createdAt: oldCompletedAt - 10_000,
       tasks: [
-        { taskDef: makeTask(1), status: "failed", error: "boom", startedAt: oldCompletedAt - 5_000, completedAt: oldCompletedAt },
+        {
+          taskDef: makeTask(1),
+          status: "failed",
+          error: "boom",
+          startedAt: oldCompletedAt - 5_000,
+          completedAt: oldCompletedAt,
+        },
       ],
     });
     saveWorkflow(baseDir, wf);
@@ -148,7 +187,13 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-old-paused", {
       createdAt: oldCreatedAt,
       tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: oldCreatedAt + 1_000, completedAt: oldCreatedAt + 2_000 },
+        {
+          taskDef: makeTask(1),
+          status: "done",
+          output: "ok",
+          startedAt: oldCreatedAt + 1_000,
+          completedAt: oldCreatedAt + 2_000,
+        },
         { taskDef: makeTask(2), status: "pending" },
       ],
       graph: parseGraph("1>2"),
@@ -167,7 +212,13 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-recent-paused", {
       createdAt: recentCreatedAt,
       tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: recentCreatedAt + 1_000, completedAt: recentCreatedAt + 2_000 },
+        {
+          taskDef: makeTask(1),
+          status: "done",
+          output: "ok",
+          startedAt: recentCreatedAt + 1_000,
+          completedAt: recentCreatedAt + 2_000,
+        },
         { taskDef: makeTask(2), status: "pending" },
       ],
       graph: parseGraph("1>2"),
@@ -186,7 +237,12 @@ describe("retentionRun", () => {
     const wf = makeWorkflow("wf-in-progress", {
       createdAt: oldCreatedAt,
       tasks: [
-        { taskDef: makeTask(1), status: "in_progress", sessionKey: "s-1", startedAt: oldCreatedAt + 1_000 },
+        {
+          taskDef: makeTask(1),
+          status: "in_progress",
+          sessionKey: "s-1",
+          startedAt: oldCreatedAt + 1_000,
+        },
         { taskDef: makeTask(2), status: "pending" },
       ],
       graph: parseGraph("1>2"),
@@ -202,21 +258,39 @@ describe("retentionRun", () => {
     const oldTime = now - COMPLETED_MAX_AGE_MS - 1_000;
 
     for (let i = 1; i <= 3; i++) {
-      saveWorkflow(baseDir, makeWorkflow(`wf-old-${i}`, {
-        createdAt: oldTime - 10_000,
-        tasks: [
-          { taskDef: makeTask(1), status: "done", output: "ok", startedAt: oldTime - 5_000, completedAt: oldTime },
-        ],
-      }));
+      saveWorkflow(
+        baseDir,
+        makeWorkflow(`wf-old-${i}`, {
+          createdAt: oldTime - 10_000,
+          tasks: [
+            {
+              taskDef: makeTask(1),
+              status: "done",
+              output: "ok",
+              startedAt: oldTime - 5_000,
+              completedAt: oldTime,
+            },
+          ],
+        }),
+      );
     }
 
     // One recent workflow that should survive
-    saveWorkflow(baseDir, makeWorkflow("wf-recent", {
-      createdAt: now - 1_000,
-      tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: now - 500, completedAt: now },
-      ],
-    }));
+    saveWorkflow(
+      baseDir,
+      makeWorkflow("wf-recent", {
+        createdAt: now - 1_000,
+        tasks: [
+          {
+            taskDef: makeTask(1),
+            status: "done",
+            output: "ok",
+            startedAt: now - 500,
+            completedAt: now,
+          },
+        ],
+      }),
+    );
 
     const result = retentionRun(baseDir, { now });
     assert.equal(result.pruned, 3);
@@ -233,12 +307,21 @@ describe("retentionRun", () => {
     const now = Date.now();
     const completedAt = now - 10_000; // 10 seconds ago
 
-    saveWorkflow(baseDir, makeWorkflow("wf-custom", {
-      createdAt: completedAt - 5_000,
-      tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: completedAt - 2_000, completedAt },
-      ],
-    }));
+    saveWorkflow(
+      baseDir,
+      makeWorkflow("wf-custom", {
+        createdAt: completedAt - 5_000,
+        tasks: [
+          {
+            taskDef: makeTask(1),
+            status: "done",
+            output: "ok",
+            startedAt: completedAt - 2_000,
+            completedAt,
+          },
+        ],
+      }),
+    );
 
     // With default thresholds, 10s old workflow should NOT be pruned
     const result1 = retentionRun(baseDir, { now });
@@ -253,12 +336,13 @@ describe("retentionRun", () => {
     const now = Date.now();
     const oldCreatedAt = now - COMPLETED_MAX_AGE_MS - 1_000;
 
-    saveWorkflow(baseDir, makeWorkflow("wf-no-timestamps", {
-      createdAt: oldCreatedAt,
-      tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok" },
-      ],
-    }));
+    saveWorkflow(
+      baseDir,
+      makeWorkflow("wf-no-timestamps", {
+        createdAt: oldCreatedAt,
+        tasks: [{ taskDef: makeTask(1), status: "done", output: "ok" }],
+      }),
+    );
 
     const result = retentionRun(baseDir, { now });
     assert.equal(result.pruned, 1);
@@ -268,7 +352,9 @@ describe("retentionRun", () => {
 describe("retention schedule", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
   afterEach(() => {
     stopRetentionSchedule();
     fs.rmSync(baseDir, { recursive: true, force: true });
@@ -278,12 +364,21 @@ describe("retention schedule", () => {
     const now = Date.now();
     const oldTime = now - COMPLETED_MAX_AGE_MS - 1_000;
 
-    saveWorkflow(baseDir, makeWorkflow("wf-scheduled", {
-      createdAt: oldTime - 10_000,
-      tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: oldTime - 5_000, completedAt: oldTime },
-      ],
-    }));
+    saveWorkflow(
+      baseDir,
+      makeWorkflow("wf-scheduled", {
+        createdAt: oldTime - 10_000,
+        tasks: [
+          {
+            taskDef: makeTask(1),
+            status: "done",
+            output: "ok",
+            startedAt: oldTime - 5_000,
+            completedAt: oldTime,
+          },
+        ],
+      }),
+    );
 
     startRetentionSchedule(baseDir, 50);
 

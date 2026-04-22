@@ -14,7 +14,11 @@ interface ProviderFailureRow {
 }
 
 /** Upsert a provider failure. Increments retry_count on conflict. */
-export function markProviderFailed(db: Database.Database, providerId: string, error?: string): void {
+export function markProviderFailed(
+  db: Database.Database,
+  providerId: string,
+  error?: string,
+): void {
   db.prepare(
     `INSERT INTO provider_failures (provider_id, failed_at, error, retry_count)
      VALUES (@providerId, datetime('now'), @error, 1)
@@ -26,12 +30,20 @@ export function markProviderFailed(db: Database.Database, providerId: string, er
 }
 
 /** Delete a provider's failure record. */
-export function clearProviderFailure(db: Database.Database, providerId: string): void {
-  db.prepare("DELETE FROM provider_failures WHERE provider_id = @providerId").run({ providerId });
+export function clearProviderFailure(
+  db: Database.Database,
+  providerId: string,
+): void {
+  db.prepare(
+    "DELETE FROM provider_failures WHERE provider_id = @providerId",
+  ).run({ providerId });
 }
 
 /** Get a provider's failure record, or null if none exists. */
-export function getProviderFailure(db: Database.Database, providerId: string): ProviderFailure | null {
+export function getProviderFailure(
+  db: Database.Database,
+  providerId: string,
+): ProviderFailure | null {
   const row = db
     .prepare(
       `SELECT provider_id, failed_at, error, retry_count
@@ -51,7 +63,11 @@ export function getProviderFailure(db: Database.Database, providerId: string): P
  * A failure is stale when `now - failedAt >= markFailedDurationMs`.
  * Stale failures are automatically cleared.
  */
-export function isProviderFailed(db: Database.Database, providerId: string, markFailedDurationMs: number): boolean {
+export function isProviderFailed(
+  db: Database.Database,
+  providerId: string,
+  markFailedDurationMs: number,
+): boolean {
   const failure = getProviderFailure(db, providerId);
   if (!failure) return false;
 

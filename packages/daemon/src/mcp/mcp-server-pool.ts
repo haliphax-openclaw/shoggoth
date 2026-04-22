@@ -11,7 +11,10 @@ import {
   type McpStreamableHttpSession,
 } from "@shoggoth/mcp-integration";
 import { getProcessManager } from "../process-manager-singleton";
-import type { ShoggothMcpConfig, ShoggothMcpServerEntry } from "@shoggoth/shared";
+import type {
+  ShoggothMcpConfig,
+  ShoggothMcpServerEntry,
+} from "@shoggoth/shared";
 import type { ExternalMcpInvoke } from "./tool-loop-mcp";
 
 type EffectiveMcpPoolScope = "global" | "per_session";
@@ -30,7 +33,10 @@ function effectiveMcpPoolScope(
 export function partitionMcpServersByEffectiveScope(
   servers: readonly ShoggothMcpServerEntry[],
   topLevelPoolScope: ShoggothMcpConfig["poolScope"],
-): { globalServers: ShoggothMcpServerEntry[]; perSessionServers: ShoggothMcpServerEntry[] } {
+): {
+  globalServers: ShoggothMcpServerEntry[];
+  perSessionServers: ShoggothMcpServerEntry[];
+} {
   const globalServers: ShoggothMcpServerEntry[] = [];
   const perSessionServers: ShoggothMcpServerEntry[] = [];
   for (const s of servers) {
@@ -100,7 +106,11 @@ export async function connectShoggothMcpServers(
     sessions.set(s.id, session);
   }
 
-  const external: ExternalMcpInvoke = async ({ sourceId, originalName, argsJson }) => {
+  const external: ExternalMcpInvoke = async ({
+    sourceId,
+    originalName,
+    argsJson,
+  }) => {
     const session = sessions.get(sourceId);
     if (!session) {
       return {
@@ -117,7 +127,10 @@ export async function connectShoggothMcpServers(
       return { resultJson: JSON.stringify(result) };
     } catch (e) {
       return {
-        resultJson: JSON.stringify({ error: "mcp_tools_call_failed", message: String(e) }),
+        resultJson: JSON.stringify({
+          error: "mcp_tools_call_failed",
+          message: String(e),
+        }),
       };
     }
   };
@@ -131,7 +144,9 @@ export async function connectShoggothMcpServers(
       return true;
     },
     close: async () => {
-      await Promise.all([...sessions.values()].map((x) => x.close().catch(() => {})));
+      await Promise.all(
+        [...sessions.values()].map((x) => x.close().catch(() => {})),
+      );
     },
   };
 

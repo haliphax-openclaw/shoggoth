@@ -17,14 +17,21 @@ describe("redactDeep", () => {
     const obj = { a: { b: { token: "deep" }, token: "mid" }, token: "top" };
     const result = redactDeep(obj, ["token"]);
     assert.strictEqual(result.token, "[REDACTED]");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result.a as any).token, "[REDACTED]");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result.a as any).b.token, "[REDACTED]");
   });
 
   it("redacts multi-segment path at any depth", () => {
-    const obj = { env: { API_KEY: "k1" }, platforms: { env: { API_KEY: "k2" } } };
+    const obj = {
+      env: { API_KEY: "k1" },
+      platforms: { env: { API_KEY: "k2" } },
+    };
     const result = redactDeep(obj, ["env.API_KEY"]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result as any).env.API_KEY, "[REDACTED]");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result as any).platforms.env.API_KEY, "[REDACTED]");
   });
 
@@ -34,10 +41,15 @@ describe("redactDeep", () => {
   });
 
   it("handles nested arrays", () => {
-    const obj = { items: [{ token: "a" }, { token: "b", nested: { token: "c" } }] };
+    const obj = {
+      items: [{ token: "a" }, { token: "b", nested: { token: "c" } }],
+    };
     const result = redactDeep(obj, ["token"]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result.items as any)[0].token, "[REDACTED]");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result.items as any)[1].token, "[REDACTED]");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     assert.strictEqual((result.items as any)[1].nested.token, "[REDACTED]");
   });
 

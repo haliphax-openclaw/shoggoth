@@ -61,7 +61,10 @@ export function loadLayeredConfig(configDir: string): ShoggothConfig {
           console.warn(`[config] skipping ${file}: ${(e as Error).message}`);
           continue;
         }
-        throw new Error(`Cannot read config file ${file}: ${(e as Error).message}`);
+        throw new Error(
+          `Cannot read config file ${file}: ${(e as Error).message}`,
+          { cause: e },
+        );
       }
 
       let parsed: unknown;
@@ -69,10 +72,15 @@ export function loadLayeredConfig(configDir: string): ShoggothConfig {
         parsed = JSON.parse(raw) as unknown;
       } catch (e) {
         if (isDynamic) {
-          console.warn(`[config] skipping ${file}: invalid JSON — ${(e as Error).message}`);
+          console.warn(
+            `[config] skipping ${file}: invalid JSON — ${(e as Error).message}`,
+          );
           continue;
         }
-        throw new Error(`Invalid JSON in config file ${file}: ${(e as Error).message}`);
+        throw new Error(
+          `Invalid JSON in config file ${file}: ${(e as Error).message}`,
+          { cause: e },
+        );
       }
 
       let fragment;
@@ -80,10 +88,15 @@ export function loadLayeredConfig(configDir: string): ShoggothConfig {
         fragment = shoggothConfigFragmentSchema.parse(parsed);
       } catch (e) {
         if (isDynamic) {
-          console.warn(`[config] skipping ${file}: schema validation failed — ${(e as Error).message}`);
+          console.warn(
+            `[config] skipping ${file}: schema validation failed — ${(e as Error).message}`,
+          );
           continue;
         }
-        throw new Error(`Invalid config fragment in ${file}: ${(e as Error).message}`);
+        throw new Error(
+          `Invalid config fragment in ${file}: ${(e as Error).message}`,
+          { cause: e },
+        );
       }
 
       merged = deepMerge(merged as never, fragment) as Record<string, unknown>;

@@ -51,6 +51,7 @@ describe("installSignalHandlers", () => {
     const ee = new EventEmitter() as NodeJS.Process;
     (ee as unknown as { pid: number }).pid = 42;
     const log = createLogger({ component: "t", minLevel: "error" });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const onSignal = vi.fn(async (_s: NodeJS.Signals) => {});
     const dispose = installSignalHandlers({
       logger: log,

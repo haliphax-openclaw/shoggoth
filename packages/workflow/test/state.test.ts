@@ -8,7 +8,6 @@ import {
   loadWorkflow,
   deleteWorkflow,
   listIncompleteWorkflows,
-  type SerializedWorkflow,
 } from "../src/state.js";
 import type { TaskList, TaskState, TaskDef } from "../src/types.js";
 
@@ -28,7 +27,10 @@ function makeTaskDef(id: number, prompt = `task ${id}`): TaskDef {
   };
 }
 
-function makeTaskState(id: number, status: TaskState["status"] = "pending"): TaskState {
+function makeTaskState(
+  id: number,
+  status: TaskState["status"] = "pending",
+): TaskState {
   return { taskDef: makeTaskDef(id), status };
 }
 

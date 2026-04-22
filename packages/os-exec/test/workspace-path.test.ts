@@ -1,6 +1,13 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, realpathSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  symlinkSync,
+  rmSync,
+  realpathSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -39,7 +46,10 @@ describe("workspace path allowlist", () => {
       const p = resolvePathForWrite(ws, "d/new.txt");
       assert.ok(p.includes("d"));
       assert.ok(p.endsWith("new.txt"));
-      assert.throws(() => resolvePathForWrite(ws, "../../../tmp/x"), PathEscapeError);
+      assert.throws(
+        () => resolvePathForWrite(ws, "../../../tmp/x"),
+        PathEscapeError,
+      );
     });
 
     it("rejects symlink escape to outside path on read", () => {
@@ -75,7 +85,10 @@ describe("workspace path allowlist", () => {
       const outside = mkdtempSync(join(tmpdir(), "shoggoth-out-"));
       try {
         writeFileSync(join(outside, "secret"), "nope");
-        assert.throws(() => resolvePathForRead(ws, join(outside, "secret")), PathEscapeError);
+        assert.throws(
+          () => resolvePathForRead(ws, join(outside, "secret")),
+          PathEscapeError,
+        );
       } finally {
         rmSync(outside, { recursive: true, force: true });
       }
@@ -84,7 +97,10 @@ describe("workspace path allowlist", () => {
     it("rejects absolute paths outside workspace for write", () => {
       const outside = mkdtempSync(join(tmpdir(), "shoggoth-out-"));
       try {
-        assert.throws(() => resolvePathForWrite(ws, join(outside, "new.txt")), PathEscapeError);
+        assert.throws(
+          () => resolvePathForWrite(ws, join(outside, "new.txt")),
+          PathEscapeError,
+        );
       } finally {
         rmSync(outside, { recursive: true, force: true });
       }
@@ -109,7 +125,10 @@ describe("workspace path allowlist", () => {
     beforeEach(() => {
       appDir = mkdtempSync(join(tmpdir(), "shoggoth-app-"));
       mkdirSync(join(appDir, "packages/shared/src"), { recursive: true });
-      writeFileSync(join(appDir, "packages/shared/src/schema.ts"), "export type Schema = {}");
+      writeFileSync(
+        join(appDir, "packages/shared/src/schema.ts"),
+        "export type Schema = {}",
+      );
       writeFileSync(join(appDir, "README.md"), "hello");
     });
 
@@ -118,7 +137,11 @@ describe("workspace path allowlist", () => {
     });
 
     it("accepts paths under an additional read root", () => {
-      const p = resolvePathForRead(ws, join(appDir, "packages/shared/src/schema.ts"), [appDir]);
+      const p = resolvePathForRead(
+        ws,
+        join(appDir, "packages/shared/src/schema.ts"),
+        [appDir],
+      );
       assert.ok(p.endsWith("schema.ts"));
     });
 
@@ -164,7 +187,11 @@ describe("workspace path allowlist", () => {
 
     it("resolvePathForWrite rejects paths under additional read root", () => {
       assert.throws(
-        () => resolvePathForWrite(ws, join(appDir, "packages/shared/src/schema.ts")),
+        () =>
+          resolvePathForWrite(
+            ws,
+            join(appDir, "packages/shared/src/schema.ts"),
+          ),
         PathEscapeError,
       );
     });
@@ -182,8 +209,14 @@ describe("workspace path allowlist", () => {
 
   describe("NUL byte rejection", () => {
     it("rejects paths with NUL bytes", () => {
-      assert.throws(() => resolvePathForRead(ws, "file\0name"), PathEscapeError);
-      assert.throws(() => resolvePathForWrite(ws, "file\0name"), PathEscapeError);
+      assert.throws(
+        () => resolvePathForRead(ws, "file\0name"),
+        PathEscapeError,
+      );
+      assert.throws(
+        () => resolvePathForWrite(ws, "file\0name"),
+        PathEscapeError,
+      );
     });
   });
 });

@@ -6,7 +6,10 @@ describe("createDaemonRuntime", () => {
   it("exposes health and shutdown", async () => {
     const rt = createDaemonRuntime({
       logLevel: "error",
-      shutdown: { drainTimeoutMs: 100, markInterruptedRunsFailed: async () => {} },
+      shutdown: {
+        drainTimeoutMs: 100,
+        markInterruptedRunsFailed: async () => {},
+      },
     });
     const h = await rt.getHealth();
     assert.equal(h.live, true);

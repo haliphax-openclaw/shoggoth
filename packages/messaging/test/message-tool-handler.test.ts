@@ -3,13 +3,6 @@ import assert from "node:assert";
 import {
   executeMessageToolAction,
   type MessageToolTransport,
-  type MessageToolDeps,
-  type CreateMessageBody,
-  type EditMessageBody,
-  type MessageUploadFile,
-  type ChannelMessagesQuery,
-  type SearchQuery,
-  type AttachmentDownloadResult,
   summarizeApiMessage,
 } from "@shoggoth/messaging";
 import type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
@@ -44,10 +37,16 @@ function allCaps(): MessagingAdapterCapabilities {
   };
 }
 
-function mockTransport(overrides?: Partial<MessageToolTransport>): MessageToolTransport {
+function mockTransport(
+  overrides?: Partial<MessageToolTransport>,
+): MessageToolTransport {
   return {
-    async createMessage() { return { id: "x" }; },
-    async createMessageWithFiles() { return { id: "x" }; },
+    async createMessage() {
+      return { id: "x" };
+    },
+    async createMessageWithFiles() {
+      return { id: "x" };
+    },
     async editMessage() {},
     async deleteMessage() {},
     async getMessage(channelId, messageId) {
@@ -60,13 +59,21 @@ function mockTransport(overrides?: Partial<MessageToolTransport>): MessageToolTr
         attachments: [],
       };
     },
-    async getChannelMessages() { return []; },
-    async createThreadFromMessage() { return { id: "t" }; },
+    async getChannelMessages() {
+      return [];
+    },
+    async createThreadFromMessage() {
+      return { id: "t" };
+    },
     async deleteChannel() {},
     async createMessageReaction() {},
     async deleteMessageReaction() {},
-    async getMessageReactions() { return []; },
-    async searchMessages() { return { messages: [], total_results: 0 }; },
+    async getMessageReactions() {
+      return [];
+    },
+    async searchMessages() {
+      return { messages: [], total_results: 0 };
+    },
     ...overrides,
   };
 }
@@ -82,7 +89,9 @@ describe("executeMessageToolAction", () => {
         calls.push(`create:${ch}:${body.content}`);
         return { id: "m1" };
       },
-      async createMessageWithFiles() { throw new Error("unexpected multipart"); },
+      async createMessageWithFiles() {
+        throw new Error("unexpected multipart");
+      },
     });
     const r = await executeMessageToolAction(
       { capabilities: caps, transport, sessionToChannel: () => "chan-a" },
@@ -96,7 +105,9 @@ describe("executeMessageToolAction", () => {
   it("post: multipart when attachments present", async () => {
     let multipart = false;
     const transport = mockTransport({
-      async createMessage() { throw new Error("unexpected json"); },
+      async createMessage() {
+        throw new Error("unexpected json");
+      },
       async createMessageWithFiles(ch, body) {
         multipart = true;
         assert.equal(ch, "chan-b");
@@ -107,7 +118,11 @@ describe("executeMessageToolAction", () => {
     const r = await executeMessageToolAction(
       { capabilities: caps, transport, sessionToChannel: () => "chan-b" },
       "sess",
-      { action: "post", content: "f", attachments: [{ filename: "x.bin", content_base64: "YWI=" }] },
+      {
+        action: "post",
+        content: "f",
+        attachments: [{ filename: "x.bin", content_base64: "YWI=" }],
+      },
     );
     assert.deepEqual(r, { ok: true, message_id: "m2", channel_id: "chan-b" });
     assert.equal(multipart, true);
@@ -115,11 +130,18 @@ describe("executeMessageToolAction", () => {
 
   it("rejects attachments when capability off", async () => {
     const transport = mockTransport();
-    const noAtt = { ...caps, extensions: { ...caps.extensions, attachments: false } };
+    const noAtt = {
+      ...caps,
+      extensions: { ...caps.extensions, attachments: false },
+    };
     const r = await executeMessageToolAction(
       { capabilities: noAtt, transport, sessionToChannel: () => "c" },
       "sess",
-      { action: "post", content: "a", attachments: [{ filename: "f", content_base64: "QQ==" }] },
+      {
+        action: "post",
+        content: "a",
+        attachments: [{ filename: "f", content_base64: "QQ==" }],
+      },
     );
     assert.equal((r as { ok: boolean }).ok, false);
   });
@@ -140,7 +162,10 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage(ch, mid) {
         return {
-          id: mid, channel_id: ch, content: "hello", timestamp: "t",
+          id: mid,
+          channel_id: ch,
+          content: "hello",
+          timestamp: "t",
           author: { id: "a", username: "u", bot: false },
           attachments: [{ filename: "f.png" }],
         };
@@ -152,7 +177,9 @@ describe("executeMessageToolAction", () => {
       { action: "get", message_id: "snow1" },
     );
     assert.equal((r as { ok: boolean }).ok, true);
-    const msgs = (r as { messages: { content: string; attachment_count: number }[] }).messages;
+    const msgs = (
+      r as { messages: { content: string; attachment_count: number }[] }
+    ).messages;
     assert.equal(msgs.length, 1);
     assert.equal(msgs[0]!.content, "hello");
     assert.equal(msgs[0]!.attachment_count, 1);
@@ -164,10 +191,16 @@ describe("executeMessageToolAction", () => {
       async getChannelMessages(ch, q) {
         assert.equal(ch, "c99");
         lastQuery = q;
-        return [{
-          id: "m1", channel_id: ch, content: "a", timestamp: "t",
-          author: { id: "1", username: "x" }, attachments: [],
-        }];
+        return [
+          {
+            id: "m1",
+            channel_id: ch,
+            content: "a",
+            timestamp: "t",
+            author: { id: "1", username: "x" },
+            attachments: [],
+          },
+        ];
       },
     });
     const r = await executeMessageToolAction(
@@ -183,12 +216,20 @@ describe("executeMessageToolAction", () => {
   it("get: anchor + list_direction passes cursor", async () => {
     let lastQuery: unknown;
     const transport = mockTransport({
-      async getChannelMessages(_ch, q) { lastQuery = q; return []; },
+      async getChannelMessages(_ch, q) {
+        lastQuery = q;
+        return [];
+      },
     });
     await executeMessageToolAction(
       { capabilities: caps, transport, sessionToChannel: () => "c" },
       "sess",
-      { action: "get", anchor_message_id: "anchor1", list_direction: "before", limit: 3 },
+      {
+        action: "get",
+        anchor_message_id: "anchor1",
+        list_direction: "before",
+        limit: 3,
+      },
     );
     assert.deepEqual(lastQuery, { limit: 3, before: "anchor1" });
   });
@@ -197,7 +238,14 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage(ch) {
         assert.equal(ch, "explicit-ch");
-        return { id: "mid", channel_id: ch, content: "x", timestamp: "t", author: {}, attachments: [] };
+        return {
+          id: "mid",
+          channel_id: ch,
+          content: "x",
+          timestamp: "t",
+          author: {},
+          attachments: [],
+        };
       },
     });
     const r = await executeMessageToolAction(
@@ -210,7 +258,10 @@ describe("executeMessageToolAction", () => {
 
   it("get rejected when messageGet capability off", async () => {
     const transport = mockTransport();
-    const noGet = { ...caps, extensions: { ...caps.extensions, messageGet: false } };
+    const noGet = {
+      ...caps,
+      extensions: { ...caps.extensions, messageGet: false },
+    };
     const r = await executeMessageToolAction(
       { capabilities: noGet, transport, sessionToChannel: () => "c" },
       "sess",
@@ -223,34 +274,53 @@ describe("executeMessageToolAction", () => {
   it("react: adds a reaction", async () => {
     let reacted: { ch: string; mid: string; emoji: string } | undefined;
     const transport = mockTransport({
-      async createMessageReaction(ch, mid, emoji) { reacted = { ch, mid, emoji }; },
+      async createMessageReaction(ch, mid, emoji) {
+        reacted = { ch, mid, emoji };
+      },
     });
     const r = await executeMessageToolAction(
       { capabilities: caps, transport, sessionToChannel: () => "ch1" },
       "sess",
       { action: "react", message_id: "m1", emoji: "✅" },
     );
-    assert.deepEqual(r, { ok: true, message_id: "m1", channel_id: "ch1", emoji: "✅", removed: false });
+    assert.deepEqual(r, {
+      ok: true,
+      message_id: "m1",
+      channel_id: "ch1",
+      emoji: "✅",
+      removed: false,
+    });
     assert.deepEqual(reacted, { ch: "ch1", mid: "m1", emoji: "✅" });
   });
 
   it("react: removes a reaction when remove=true", async () => {
     let removed = false;
     const transport = mockTransport({
-      async deleteMessageReaction() { removed = true; },
+      async deleteMessageReaction() {
+        removed = true;
+      },
     });
     const r = await executeMessageToolAction(
       { capabilities: caps, transport, sessionToChannel: () => "ch1" },
       "sess",
       { action: "react", message_id: "m1", emoji: "👀", remove: true },
     );
-    assert.deepEqual(r, { ok: true, message_id: "m1", channel_id: "ch1", emoji: "👀", removed: true });
+    assert.deepEqual(r, {
+      ok: true,
+      message_id: "m1",
+      channel_id: "ch1",
+      emoji: "👀",
+      removed: true,
+    });
     assert.equal(removed, true);
   });
 
   it("react: rejected when capability off", async () => {
     const transport = mockTransport();
-    const noReact = { ...caps, extensions: { ...caps.extensions, react: false } };
+    const noReact = {
+      ...caps,
+      extensions: { ...caps.extensions, react: false },
+    };
     const r = await executeMessageToolAction(
       { capabilities: noReact, transport, sessionToChannel: () => "c" },
       "sess",
@@ -285,7 +355,9 @@ describe("executeMessageToolAction", () => {
       { action: "reactions", message_id: "m1", emoji: "✅" },
     );
     assert.equal((r as { ok: boolean }).ok, true);
-    const reactions = (r as { reactions: { emoji: string; count: number; users: unknown[] }[] }).reactions;
+    const reactions = (
+      r as { reactions: { emoji: string; count: number; users: unknown[] }[] }
+    ).reactions;
     assert.equal(reactions.length, 1);
     assert.equal(reactions[0]!.emoji, "✅");
     assert.equal(reactions[0]!.count, 2);
@@ -295,8 +367,12 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "test", timestamp: "t",
-          author: { id: "a", username: "u" }, attachments: [],
+          id: "m1",
+          channel_id: "ch1",
+          content: "test",
+          timestamp: "t",
+          author: { id: "a", username: "u" },
+          attachments: [],
           reactions: [
             { emoji: { name: "✅", id: null }, count: 3, me: true },
             { emoji: { name: "fire", id: "12345" }, count: 1, me: false },
@@ -309,7 +385,9 @@ describe("executeMessageToolAction", () => {
       "sess",
       { action: "reactions", message_id: "m1" },
     );
-    const reactions = (r as { reactions: { emoji: string; count: number; me: boolean }[] }).reactions;
+    const reactions = (
+      r as { reactions: { emoji: string; count: number; me: boolean }[] }
+    ).reactions;
     assert.equal(reactions.length, 2);
     assert.equal(reactions[0]!.emoji, "✅");
     assert.equal(reactions[1]!.emoji, "fire:12345");
@@ -317,7 +395,10 @@ describe("executeMessageToolAction", () => {
 
   it("reactions: rejected when capability off", async () => {
     const transport = mockTransport();
-    const noReactions = { ...caps, extensions: { ...caps.extensions, reactions: false } };
+    const noReactions = {
+      ...caps,
+      extensions: { ...caps.extensions, reactions: false },
+    };
     const r = await executeMessageToolAction(
       { capabilities: noReactions, transport, sessionToChannel: () => "c" },
       "sess",
@@ -334,22 +415,45 @@ describe("executeMessageToolAction", () => {
         capturedQuery = query;
         return {
           total_results: 1,
-          messages: [[{
-            id: "m1", channel_id: "ch1", content: "rollback deploy",
-            timestamp: "2026-03-30T12:00:00Z",
-            author: { id: "u1", username: "haliphax", bot: false }, attachments: [],
-          }]],
+          messages: [
+            [
+              {
+                id: "m1",
+                channel_id: "ch1",
+                content: "rollback deploy",
+                timestamp: "2026-03-30T12:00:00Z",
+                author: { id: "u1", username: "haliphax", bot: false },
+                attachments: [],
+              },
+            ],
+          ],
         };
       },
     });
     const r = await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "ch1", sessionToGuild: () => "guild1" },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        sessionToGuild: () => "guild1",
+      },
       "sess",
-      { action: "search", query: "rollback", author_id: "u1", after: "2026-03-30T00:00:00Z", limit: 10 },
+      {
+        action: "search",
+        query: "rollback",
+        author_id: "u1",
+        after: "2026-03-30T00:00:00Z",
+        limit: 10,
+      },
     );
     assert.equal((r as { ok: boolean }).ok, true);
     assert.equal((r as { total_results: number }).total_results, 1);
-    const q = capturedQuery as { content: string; author_id: string; min_id: string; limit: number };
+    const q = capturedQuery as {
+      content: string;
+      author_id: string;
+      min_id: string;
+      limit: number;
+    };
     assert.equal(q.content, "rollback");
     assert.equal(q.author_id, "u1");
     assert.equal(q.limit, 10);
@@ -368,9 +472,17 @@ describe("executeMessageToolAction", () => {
 
   it("search: rejected when capability off", async () => {
     const transport = mockTransport();
-    const noSearch = { ...caps, extensions: { ...caps.extensions, search: false } };
+    const noSearch = {
+      ...caps,
+      extensions: { ...caps.extensions, search: false },
+    };
     const r = await executeMessageToolAction(
-      { capabilities: noSearch, transport, sessionToChannel: () => "ch1", sessionToGuild: () => "guild1" },
+      {
+        capabilities: noSearch,
+        transport,
+        sessionToChannel: () => "ch1",
+        sessionToGuild: () => "guild1",
+      },
       "sess",
       { action: "search", query: "test" },
     );
@@ -386,11 +498,19 @@ describe("executeMessageToolAction", () => {
       },
     });
     await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "bound-ch", sessionToGuild: () => "g1" },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "bound-ch",
+        sessionToGuild: () => "g1",
+      },
       "sess",
       { action: "search", query: "hello" },
     );
-    assert.equal((capturedQuery as { channel_id: string }).channel_id, "bound-ch");
+    assert.equal(
+      (capturedQuery as { channel_id: string }).channel_id,
+      "bound-ch",
+    );
   });
 
   // --- attachment-download ---
@@ -399,20 +519,33 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "here's the log", timestamp: "t",
+          id: "m1",
+          channel_id: "ch1",
+          content: "here's the log",
+          timestamp: "t",
           author: { id: "u1", username: "tester" },
-          attachments: [{
-            id: "att1", filename: "error.log",
-            url: "https://cdn.example.com/att1/error.log",
-            content_type: "text/plain", size: 4096,
-          }],
+          attachments: [
+            {
+              id: "att1",
+              filename: "error.log",
+              url: "https://cdn.example.com/att1/error.log",
+              content_type: "text/plain",
+              size: 4096,
+            },
+          ],
         };
       },
     });
     const r = await executeMessageToolAction(
       {
-        capabilities: caps, transport, sessionToChannel: () => "ch1",
-        downloadFile: async (url, _path) => { downloadedUrl = url; return 4096; },
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        downloadFile: async (url, _path) => {
+          downloadedUrl = url;
+          return 4096;
+        },
       },
       "sess",
       { action: "attachment-download", message_id: "m1" },
@@ -427,18 +560,42 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "", timestamp: "t", author: {},
+          id: "m1",
+          channel_id: "ch1",
+          content: "",
+          timestamp: "t",
+          author: {},
           attachments: [
-            { id: "a1", filename: "first.txt", url: "https://cdn/first.txt", size: 100 },
-            { id: "a2", filename: "second.csv", url: "https://cdn/second.csv", content_type: "text/csv", size: 200 },
+            {
+              id: "a1",
+              filename: "first.txt",
+              url: "https://cdn/first.txt",
+              size: 100,
+            },
+            {
+              id: "a2",
+              filename: "second.csv",
+              url: "https://cdn/second.csv",
+              content_type: "text/csv",
+              size: 200,
+            },
           ],
         };
       },
     });
     const r = await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "ch1", downloadFile: async () => 200 },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        downloadFile: async () => 200,
+      },
       "sess",
-      { action: "attachment-download", message_id: "m1", filename: "second.csv" },
+      {
+        action: "attachment-download",
+        message_id: "m1",
+        filename: "second.csv",
+      },
     );
     assert.equal((r as { ok: boolean }).ok, true);
     assert.equal((r as { filename: string }).filename, "second.csv");
@@ -449,13 +606,29 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "", timestamp: "t", author: {},
-          attachments: [{ id: "a1", filename: "only.txt", url: "https://cdn/only.txt", size: 10 }],
+          id: "m1",
+          channel_id: "ch1",
+          content: "",
+          timestamp: "t",
+          author: {},
+          attachments: [
+            {
+              id: "a1",
+              filename: "only.txt",
+              url: "https://cdn/only.txt",
+              size: 10,
+            },
+          ],
         };
       },
     });
     const r = await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "ch1", downloadFile: async () => 0 },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        downloadFile: async () => 0,
+      },
       "sess",
       { action: "attachment-download", message_id: "m1", filename: "nope.txt" },
     );
@@ -466,11 +639,23 @@ describe("executeMessageToolAction", () => {
   it("attachment-download: returns error when no attachments", async () => {
     const transport = mockTransport({
       async getMessage() {
-        return { id: "m1", channel_id: "ch1", content: "no files", timestamp: "t", author: {}, attachments: [] };
+        return {
+          id: "m1",
+          channel_id: "ch1",
+          content: "no files",
+          timestamp: "t",
+          author: {},
+          attachments: [],
+        };
       },
     });
     const r = await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "ch1", downloadFile: async () => 0 },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        downloadFile: async () => 0,
+      },
       "sess",
       { action: "attachment-download", message_id: "m1" },
     );
@@ -482,13 +667,29 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "", timestamp: "t", author: {},
-          attachments: [{ id: "a1", filename: "huge.bin", url: "https://cdn/huge.bin", size: 30 * 1024 * 1024 }],
+          id: "m1",
+          channel_id: "ch1",
+          content: "",
+          timestamp: "t",
+          author: {},
+          attachments: [
+            {
+              id: "a1",
+              filename: "huge.bin",
+              url: "https://cdn/huge.bin",
+              size: 30 * 1024 * 1024,
+            },
+          ],
         };
       },
     });
     const r = await executeMessageToolAction(
-      { capabilities: caps, transport, sessionToChannel: () => "ch1", downloadFile: async () => 0 },
+      {
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        downloadFile: async () => 0,
+      },
       "sess",
       { action: "attachment-download", message_id: "m1" },
     );
@@ -498,7 +699,10 @@ describe("executeMessageToolAction", () => {
 
   it("attachment-download: rejected when capability off", async () => {
     const transport = mockTransport();
-    const noDownload = { ...caps, extensions: { ...caps.extensions, attachmentDownload: false } };
+    const noDownload = {
+      ...caps,
+      extensions: { ...caps.extensions, attachmentDownload: false },
+    };
     const r = await executeMessageToolAction(
       { capabilities: noDownload, transport, sessionToChannel: () => "c" },
       "sess",
@@ -511,8 +715,14 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "", timestamp: "t", author: {},
-          attachments: [{ id: "a1", filename: "f.txt", url: "https://cdn/f.txt", size: 10 }],
+          id: "m1",
+          channel_id: "ch1",
+          content: "",
+          timestamp: "t",
+          author: {},
+          attachments: [
+            { id: "a1", filename: "f.txt", url: "https://cdn/f.txt", size: 10 },
+          ],
         };
       },
     });
@@ -530,15 +740,31 @@ describe("executeMessageToolAction", () => {
     const transport = mockTransport({
       async getMessage() {
         return {
-          id: "m1", channel_id: "ch1", content: "", timestamp: "t", author: {},
-          attachments: [{ id: "a1", filename: "../../etc/passwd", url: "https://cdn/x", size: 10 }],
+          id: "m1",
+          channel_id: "ch1",
+          content: "",
+          timestamp: "t",
+          author: {},
+          attachments: [
+            {
+              id: "a1",
+              filename: "../../etc/passwd",
+              url: "https://cdn/x",
+              size: 10,
+            },
+          ],
         };
       },
     });
     const r = await executeMessageToolAction(
       {
-        capabilities: caps, transport, sessionToChannel: () => "ch1",
-        downloadFile: async (_url, path) => { savedPath = path; return 10; },
+        capabilities: caps,
+        transport,
+        sessionToChannel: () => "ch1",
+        downloadFile: async (_url, path) => {
+          savedPath = path;
+          return 10;
+        },
       },
       "sess",
       { action: "attachment-download", message_id: "m1" },
@@ -554,7 +780,10 @@ describe("executeMessageToolAction", () => {
   // --- summarizeApiMessage ---
   it("summarizeApiMessage extracts expected fields", () => {
     const raw = {
-      id: "m1", channel_id: "ch1", content: "hello", timestamp: "t",
+      id: "m1",
+      channel_id: "ch1",
+      content: "hello",
+      timestamp: "t",
       author: { id: "a1", username: "bob", bot: true },
       attachments: [{ filename: "f.png" }, { filename: "g.txt" }],
     };

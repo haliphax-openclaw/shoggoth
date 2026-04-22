@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { describe, it, beforeEach } from "vitest";
+import { describe, it } from "vitest";
 import {
   buildBuiltinOnlySessionMcpToolContext,
   openAiToolsFromCatalog,
@@ -7,7 +7,10 @@ import {
 } from "../../src/sessions/session-mcp-tool-context";
 import type { SessionMcpContextFinalizer } from "../../src/sessions/session-mcp-runtime";
 import { mcpToolsForToolLoop } from "../../src/mcp/tool-loop-mcp";
-import type { AggregateMcpCatalogResult, AggregatedTool } from "@shoggoth/mcp-integration";
+import type {
+  AggregateMcpCatalogResult,
+  AggregatedTool,
+} from "@shoggoth/mcp-integration";
 
 /**
  * Minimal pipeline runner extracted from the runtime module's `runContextFinalizers`.
@@ -42,7 +45,8 @@ function ctxWithTools(tools: AggregatedTool[]): SessionMcpToolContext {
 }
 
 describe("context-finalizer-pipeline", () => {
-  const sessionId = "urn:shoggoth:agent-session:main:discord:00000000-0000-4000-8000-000000000001";
+  const sessionId =
+    "urn:shoggoth:agent-session:main:discord:00000000-0000-4000-8000-000000000001";
 
   it("passes through with zero finalizers", () => {
     const base = buildBuiltinOnlySessionMcpToolContext();
@@ -52,14 +56,17 @@ describe("context-finalizer-pipeline", () => {
 
   it("calls finalizers in order, each receiving previous output", () => {
     const calls: number[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const f1: SessionMcpContextFinalizer = (ctx, _sid) => {
       calls.push(1);
       return ctx;
     };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const f2: SessionMcpContextFinalizer = (ctx, _sid) => {
       calls.push(2);
       return ctx;
     };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const f3: SessionMcpContextFinalizer = (ctx, _sid) => {
       calls.push(3);
       return ctx;
@@ -73,9 +80,11 @@ describe("context-finalizer-pipeline", () => {
     const toolA = makeDummyTool("a");
     const toolB = makeDummyTool("b");
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const addA: SessionMcpContextFinalizer = (ctx, _sid) => {
       return ctxWithTools([...ctx.aggregated.tools, toolA]);
     };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const addB: SessionMcpContextFinalizer = (ctx, _sid) => {
       assert.ok(
         ctx.aggregated.tools.some((t) => t.originalName === "a"),
@@ -96,8 +105,11 @@ describe("context-finalizer-pipeline", () => {
     const toolB = makeDummyTool("b");
     const base = ctxWithTools([toolA, toolB]);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const removeA: SessionMcpContextFinalizer = (ctx, _sid) => {
-      return ctxWithTools(ctx.aggregated.tools.filter((t) => t.originalName !== "a"));
+      return ctxWithTools(
+        ctx.aggregated.tools.filter((t) => t.originalName !== "a"),
+      );
     };
 
     const result = runPipeline([removeA], base, sessionId);
@@ -109,8 +121,12 @@ describe("context-finalizer-pipeline", () => {
     const tool = makeDummyTool("x");
     const base = ctxWithTools([tool]);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const modify: SessionMcpContextFinalizer = (ctx, _sid) => {
-      const tools = ctx.aggregated.tools.map((t) => ({ ...t, description: "modified" }));
+      const tools = ctx.aggregated.tools.map((t) => ({
+        ...t,
+        description: "modified",
+      }));
       const aggregated: AggregateMcpCatalogResult = { tools };
       return {
         aggregated,

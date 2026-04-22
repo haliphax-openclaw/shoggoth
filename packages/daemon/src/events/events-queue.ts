@@ -122,7 +122,10 @@ function mapRow(r: {
 /**
  * Claims up to `limit` pending events (ready by next_attempt_at), ordered FIFO.
  */
-export function claimPendingEvents(db: Database.Database, options: { limit: number }): EventQueueRow[] {
+export function claimPendingEvents(
+  db: Database.Database,
+  options: { limit: number },
+): EventQueueRow[] {
   const tx = db.transaction(() => {
     const ids = db
       .prepare(
@@ -169,14 +172,20 @@ export function claimPendingEvents(db: Database.Database, options: { limit: numb
 }
 
 /** True if this event id was already finished (at-least-once consumer idempotency). */
-export function hasEventProcessingRecord(db: Database.Database, eventId: number): boolean {
+export function hasEventProcessingRecord(
+  db: Database.Database,
+  eventId: number,
+): boolean {
   const r = db
     .prepare("SELECT 1 AS x FROM event_processing_done WHERE event_id = @id")
     .get({ id: eventId }) as { x: number } | undefined;
   return r !== undefined;
 }
 
-export function markEventCompleted(db: Database.Database, eventId: number): void {
+export function markEventCompleted(
+  db: Database.Database,
+  eventId: number,
+): void {
   db.prepare(
     `
     INSERT OR IGNORE INTO event_processing_done (event_id, finished_at)
@@ -191,14 +200,20 @@ export function markEventCompleted(db: Database.Database, eventId: number): void
   ).run({ id: eventId });
 }
 
-export function markEventFailed(db: Database.Database, eventId: number, errorMessage: string): void {
+export function markEventFailed(
+  db: Database.Database,
+  eventId: number,
+  errorMessage: string,
+): void {
   const row = db
     .prepare(
       `
     SELECT attempts, max_attempts FROM events WHERE id = @id
   `,
-  )
-    .get({ id: eventId }) as { attempts: number; max_attempts: number } | undefined;
+    )
+    .get({ id: eventId }) as
+    | { attempts: number; max_attempts: number }
+    | undefined;
   if (!row) return;
 
   const nextAttempts = row.attempts + 1;
@@ -230,13 +245,21 @@ export function markEventFailed(db: Database.Database, eventId: number, errorMes
       claimed_at = NULL
     WHERE id = @id
   `,
-  ).run({ id: eventId, attempts: nextAttempts, err: errorMessage, delay: delaySec });
+  ).run({
+    id: eventId,
+    attempts: nextAttempts,
+    err: errorMessage,
+    delay: delaySec,
+  });
 }
 
 /**
  * Heartbeat/restart safety: pending-ize events stuck in `processing` with an old claim.
  */
-export function reconcileStaleProcessing(db: Database.Database, options: { staleMs: number }): number {
+export function reconcileStaleProcessing(
+  db: Database.Database,
+  options: { staleMs: number },
+): number {
   const sec = Math.max(1, Math.floor(options.staleMs / 1000));
   const r = db
     .prepare(
@@ -249,7 +272,7 @@ export function reconcileStaleProcessing(db: Database.Database, options: { stale
       AND claimed_at IS NOT NULL
       AND datetime(claimed_at) < datetime('now', printf('-%d seconds', @sec))
   `,
-  )
+    )
     .run({ sec });
   return r.changes;
 }

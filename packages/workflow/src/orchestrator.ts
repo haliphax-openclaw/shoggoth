@@ -1,10 +1,20 @@
 import { randomUUID } from "node:crypto";
-import type { TaskDef, TaskState, TaskList, DependencyGraph, ToolExecutor } from "./types.js";
+import type {
+  TaskDef,
+  TaskState,
+  TaskList,
+  DependencyGraph,
+  ToolExecutor,
+} from "./types.js";
 import { getTaskPromptOrLabel } from "./types.js";
 import { parseGraph, validateGraph } from "./graph.js";
-import { parseTemplateRefs, validateTemplateRefs, resolveTemplates } from "./templates.js";
+import {
+  parseTemplateRefs,
+  validateTemplateRefs,
+  resolveTemplates,
+} from "./templates.js";
 import { canSpawn } from "./depth.js";
-import { saveWorkflow, loadWorkflow } from "./state.js";
+import { saveWorkflow } from "./state.js";
 import { buildGateContext, evaluateGateCondition } from "./gate-eval.js";
 import type { StatusManager } from "./status-manager.js";
 import { getLogger } from "@shoggoth/shared";
@@ -39,7 +49,11 @@ export interface PollAdapter {
 }
 
 export interface NotifyAdapter {
-  notify(workflowId: string, success: boolean, context?: { replyTo: string; aborted?: boolean }): Promise<void>;
+  notify(
+    workflowId: string,
+    success: boolean,
+    context?: { replyTo: string; aborted?: boolean },
+  ): Promise<void>;
 }
 
 export interface NotificationAdapter {
@@ -84,7 +98,11 @@ function taskMap(tasks: TaskState[]): Map<number, TaskState> {
  * blocking it). A task is blocked if any of its direct deps are failed,
  * or if any direct dep is pending and itself blocked.
  */
-function isBlocked(taskId: number, graph: DependencyGraph, tasks: Map<number, TaskState>): boolean {
+function isBlocked(
+  taskId: number,
+  graph: DependencyGraph,
+  tasks: Map<number, TaskState>,
+): boolean {
   const deps = graph.get(taskId);
   if (!deps || deps.size === 0) return false;
 
@@ -100,7 +118,11 @@ function isBlocked(taskId: number, graph: DependencyGraph, tasks: Map<number, Ta
 /**
  * Check if a task should be skipped because at least one dependency was skipped.
  */
-function shouldSkip(taskId: number, graph: DependencyGraph, tasks: Map<number, TaskState>): boolean {
+function shouldSkip(
+  taskId: number,
+  graph: DependencyGraph,
+  tasks: Map<number, TaskState>,
+): boolean {
   const deps = graph.get(taskId);
   if (!deps || deps.size === 0) return false;
 
@@ -108,7 +130,8 @@ function shouldSkip(taskId: number, graph: DependencyGraph, tasks: Map<number, T
     const dep = tasks.get(depId);
     if (!dep) continue;
     if (dep.status === "skipped") return true;
-    if (dep.status === "pending" && shouldSkip(depId, graph, tasks)) return true;
+    if (dep.status === "pending" && shouldSkip(depId, graph, tasks))
+      return true;
   }
   return false;
 }
@@ -116,7 +139,10 @@ function shouldSkip(taskId: number, graph: DependencyGraph, tasks: Map<number, T
 /**
  * Get all transitive dependents of a task (tasks that depend on it, directly or transitively).
  */
-function getTransitiveDependents(taskId: number, graph: DependencyGraph): Set<number> {
+function getTransitiveDependents(
+  taskId: number,
+  graph: DependencyGraph,
+): Set<number> {
   // Build reverse graph: for each task, which tasks depend on it
   const reverse = new Map<number, Set<number>>();
   for (const [tid, deps] of graph) {
@@ -211,7 +237,11 @@ export class Orchestrator {
   }
 
   /** Start a new workflow. Returns the workflow ID. */
-  async start(tasks: TaskDef[], graphDsl: string, opts: OrchestratorOptions): Promise<string> {
+  async start(
+    tasks: TaskDef[],
+    graphDsl: string,
+    opts: OrchestratorOptions,
+  ): Promise<string> {
     // Depth check
     if (!canSpawn(opts.currentDepth, opts.maxDepth)) {
       throw new Error("Cannot start workflow: spawn depth limit reached");
@@ -269,7 +299,11 @@ export class Orchestrator {
       await this.statusManager.postInitialStatus(workflow);
     }
 
-    log.info("workflow started", { workflowId: workflow.id, name: workflow.name, taskCount: tasks.length });
+    log.info("workflow started", {
+      workflowId: workflow.id,
+      name: workflow.name,
+      taskCount: tasks.length,
+    });
 
     return workflow.id;
   }
@@ -277,7 +311,11 @@ export class Orchestrator {
   /** Run a single poll/orchestration cycle. Used directly in tests. */
   async tick(): Promise<void> {
     if (!this.workflow || !this.opts || this.completed) {
-      log.debug("tick skipped", { hasWorkflow: !!this.workflow, hasOpts: !!this.opts, completed: this.completed });
+      log.debug("tick skipped", {
+        hasWorkflow: !!this.workflow,
+        hasOpts: !!this.opts,
+        completed: this.completed,
+      });
       return;
     }
 
@@ -315,7 +353,11 @@ export class Orchestrator {
     const wfId = this.workflow.id;
     for (const task of pendingNotifications) {
       this.routeFailureNotification(task).catch((err) => {
-        log.error("failure notification failed", { workflowId: wfId, taskId: task.taskDef.id, error: String(err) });
+        log.error("failure notification failed", {
+          workflowId: wfId,
+          taskId: task.taskDef.id,
+          error: String(err),
+        });
       });
     }
 
@@ -328,14 +370,20 @@ export class Orchestrator {
     if (!this.workflow || !this.opts) return;
     const scheduleNext = () => {
       if (!this.workflow || !this.opts) {
-        log.warn("polling loop stopped: missing workflow or opts", { hasWorkflow: !!this.workflow, hasOpts: !!this.opts });
+        log.warn("polling loop stopped: missing workflow or opts", {
+          hasWorkflow: !!this.workflow,
+          hasOpts: !!this.opts,
+        });
         return;
       }
       this.pollingTimer = setTimeout(async () => {
         try {
           await this.tick();
         } catch (err) {
-          log.error("tick failed", { workflowId: this.workflow?.id, error: String(err) });
+          log.error("tick failed", {
+            workflowId: this.workflow?.id,
+            error: String(err),
+          });
         }
         if (this.pollingTimer !== null) scheduleNext();
       }, this.opts.pollingIntervalMs);
@@ -350,7 +398,10 @@ export class Orchestrator {
     this.statusTimer = setInterval(() => {
       if (!this.workflow || !this.statusManager) return;
       this.statusManager.updateStatus(this.workflow).catch((err) => {
-        log.error("status timer updateStatus failed", { workflowId: this.workflow?.id, error: String(err) });
+        log.error("status timer updateStatus failed", {
+          workflowId: this.workflow?.id,
+          error: String(err),
+        });
       });
     }, this.opts.pollingIntervalMs);
   }
@@ -425,12 +476,18 @@ export class Orchestrator {
           task.status = "failed";
           task.error = `self-reported failure: ${result.output}`;
           task.completedAt = result.completedAt ?? Date.now();
-          log.debug("task self-reported failure via ERROR:TASK_FAILED marker", { workflowId: wf.id, taskId: task.taskDef.id });
+          log.debug("task self-reported failure via ERROR:TASK_FAILED marker", {
+            workflowId: wf.id,
+            taskId: task.taskDef.id,
+          });
         } else {
           task.status = "done";
           task.output = result.output;
           task.completedAt = result.completedAt ?? Date.now();
-          log.debug("task completed", { workflowId: wf.id, taskId: task.taskDef.id });
+          log.debug("task completed", {
+            workflowId: wf.id,
+            taskId: task.taskDef.id,
+          });
         }
         if (this.killer && task.sessionKey) {
           await this.killer.kill(task.sessionKey).catch(() => {});
@@ -439,7 +496,11 @@ export class Orchestrator {
         task.status = "failed";
         task.error = result.error;
         task.completedAt = result.completedAt ?? Date.now();
-        log.debug("task failed", { workflowId: wf.id, taskId: task.taskDef.id, error: result.error });
+        log.debug("task failed", {
+          workflowId: wf.id,
+          taskId: task.taskDef.id,
+          error: result.error,
+        });
         if (this.killer && task.sessionKey) {
           await this.killer.kill(task.sessionKey).catch(() => {});
         }
@@ -454,7 +515,8 @@ export class Orchestrator {
     const now = Date.now();
 
     for (const task of wf.tasks) {
-      if (task.status !== "in_progress" || !task.sessionKey || !task.startedAt) continue;
+      if (task.status !== "in_progress" || !task.sessionKey || !task.startedAt)
+        continue;
 
       const limit = task.taskDef.runtimeLimitMs ?? opts.runtimeLimitMs;
       const elapsed = now - task.startedAt;
@@ -471,7 +533,11 @@ export class Orchestrator {
         task.status = "failed";
         task.error = `timeout: task exceeded runtime limit of ${limit}ms`;
         task.completedAt = now;
-        log.debug("task timed out", { workflowId: wf.id, taskId: task.taskDef.id, limitMs: limit });
+        log.debug("task timed out", {
+          workflowId: wf.id,
+          taskId: task.taskDef.id,
+          limitMs: limit,
+        });
       }
     }
   }
@@ -479,7 +545,7 @@ export class Orchestrator {
   /** Process failure behaviors and notifications for any newly failed tasks. */
   private async handleFailures(): Promise<TaskState[]> {
     const wf = this.workflow!;
-    const opts = this.opts!;
+    const _opts = this.opts!;
     const notifyTasks: TaskState[] = [];
 
     // Collect tasks that just failed this tick (have completedAt set recently and are failed)
@@ -487,7 +553,12 @@ export class Orchestrator {
     // To avoid re-processing, we check for tasks that are failed and have no special marker.
     // Simple approach: iterate and handle based on behavior. The abort/pause actions are idempotent.
     const newlyFailed = wf.tasks.filter(
-      (t) => t.status === "failed" && t.completedAt !== undefined && !t.failureHandled && !t.error?.startsWith("blocked:") && !t.error?.startsWith("aborted:")
+      (t) =>
+        t.status === "failed" &&
+        t.completedAt !== undefined &&
+        !t.failureHandled &&
+        !t.error?.startsWith("blocked:") &&
+        !t.error?.startsWith("aborted:"),
     );
 
     for (const task of newlyFailed) {
@@ -527,7 +598,7 @@ export class Orchestrator {
     }
   }
 
-  private async abortWorkflow(triggerTask: TaskState): Promise<void> {
+  private async abortWorkflow(_triggerTask: TaskState): Promise<void> {
     const wf = this.workflow!;
 
     // Kill all in-progress tasks
@@ -586,7 +657,9 @@ export class Orchestrator {
 
       // Concurrency cap: count current in_progress tasks
       if (concurrency > 0) {
-        const inProgress = wf.tasks.filter((t) => t.status === "in_progress").length;
+        const inProgress = wf.tasks.filter(
+          (t) => t.status === "in_progress",
+        ).length;
         if (inProgress >= concurrency) break;
       }
 
@@ -614,15 +687,24 @@ export class Orchestrator {
             task.output = "pass";
             task.status = "done";
             task.completedAt = Date.now();
-            log.debug("gate task passed", { workflowId: wf.id, taskId: task.taskDef.id });
+            log.debug("gate task passed", {
+              workflowId: wf.id,
+              taskId: task.taskDef.id,
+            });
           } else {
             task.output = "skip";
             task.status = "done";
             task.completedAt = Date.now();
-            log.debug("gate task skipped", { workflowId: wf.id, taskId: task.taskDef.id });
+            log.debug("gate task skipped", {
+              workflowId: wf.id,
+              taskId: task.taskDef.id,
+            });
 
             // Propagate: mark all transitive dependents as skipped
-            const dependents = getTransitiveDependents(task.taskDef.id, wf.graph);
+            const dependents = getTransitiveDependents(
+              task.taskDef.id,
+              wf.graph,
+            );
             for (const depId of dependents) {
               const depTask = tm.get(depId);
               if (depTask && depTask.status === "pending") {
@@ -649,7 +731,10 @@ export class Orchestrator {
           task.output = resolved;
           task.status = "done";
           task.completedAt = Date.now();
-          log.debug("transform task completed", { workflowId: wf.id, taskId: task.taskDef.id });
+          log.debug("transform task completed", {
+            workflowId: wf.id,
+            taskId: task.taskDef.id,
+          });
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           task.status = "failed";
@@ -665,7 +750,8 @@ export class Orchestrator {
         task.startedAt = now;
         if (!this.messagePoster) {
           task.status = "failed";
-          task.error = "message task requires a MessagePoster but none was provided";
+          task.error =
+            "message task requires a MessagePoster but none was provided";
           task.completedAt = Date.now();
           continue;
         }
@@ -676,7 +762,11 @@ export class Orchestrator {
           task.output = resolvedMessage;
           task.status = "done";
           task.completedAt = Date.now();
-          log.debug("message task completed", { workflowId: wf.id, taskId: task.taskDef.id, target });
+          log.debug("message task completed", {
+            workflowId: wf.id,
+            taskId: task.taskDef.id,
+            target,
+          });
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           task.status = "failed";
@@ -691,7 +781,8 @@ export class Orchestrator {
         task.startedAt = now;
         if (!this.toolExecutor) {
           task.status = "failed";
-          task.error = "tool task requires a ToolExecutor but none was provided";
+          task.error =
+            "tool task requires a ToolExecutor but none was provided";
           task.completedAt = Date.now();
           continue;
         }
@@ -701,26 +792,41 @@ export class Orchestrator {
             if (Array.isArray(val)) return val.map(resolveArgsDeep);
             if (val !== null && typeof val === "object") {
               const out: Record<string, unknown> = {};
-              for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+              for (const [k, v] of Object.entries(
+                val as Record<string, unknown>,
+              )) {
                 out[k] = resolveArgsDeep(v);
               }
               return out;
             }
             return val;
           };
-          const resolvedArgs = resolveArgsDeep(task.taskDef.args ?? {}) as Record<string, unknown>;
+          const resolvedArgs = resolveArgsDeep(
+            task.taskDef.args ?? {},
+          ) as Record<string, unknown>;
           const toolCallId = randomUUID();
-          const result = await this.toolExecutor.execute({ name: task.taskDef.tool, argsJson: JSON.stringify(resolvedArgs), toolCallId });
+          const result = await this.toolExecutor.execute({
+            name: task.taskDef.tool,
+            argsJson: JSON.stringify(resolvedArgs),
+            toolCallId,
+          });
           const parsed = JSON.parse(result.resultJson);
           if (parsed.error) {
             task.status = "failed";
             task.error = parsed.error;
           } else {
-            task.output = typeof parsed.output === "string" ? parsed.output : result.resultJson;
+            task.output =
+              typeof parsed.output === "string"
+                ? parsed.output
+                : result.resultJson;
             task.status = "done";
           }
           task.completedAt = Date.now();
-          log.debug("tool task completed", { workflowId: wf.id, taskId: task.taskDef.id, status: task.status });
+          log.debug("tool task completed", {
+            workflowId: wf.id,
+            taskId: task.taskDef.id,
+            status: task.status,
+          });
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           task.status = "failed";
@@ -748,7 +854,11 @@ export class Orchestrator {
         task.status = "in_progress";
         task.sessionKey = sessionKey;
         task.startedAt = Date.now();
-        log.debug("task started", { workflowId: wf.id, taskId: task.taskDef.id, sessionKey });
+        log.debug("task started", {
+          workflowId: wf.id,
+          taskId: task.taskDef.id,
+          sessionKey,
+        });
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         task.status = "failed";
@@ -802,7 +912,9 @@ export class Orchestrator {
       const allSuccess = wf.tasks.every((t) => t.status === "done");
       const wasAborted = wf.tasks.some((t) => t.error?.startsWith("aborted:"));
       if (!wasAborted) {
-        this.notifier.notify(wf.id, allSuccess, { replyTo: this.opts?.replyTo ?? "" });
+        this.notifier.notify(wf.id, allSuccess, {
+          replyTo: this.opts?.replyTo ?? "",
+        });
       }
       if (allSuccess) {
         log.info("workflow completed", { workflowId: wf.id });

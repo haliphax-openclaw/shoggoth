@@ -76,20 +76,20 @@ interface ProviderResilienceManager {
 
 Not all errors are retryable. Classification:
 
-| HTTP Status | Classification | Action |
-|---|---|---|
-| 429 | Rate limited | Backoff using `Retry-After` header if present, else exponential |
-| 500 | Server error | Retry with backoff (may be transient) |
-| 502 | Gateway error | Retry with backoff |
-| 503 | Service unavailable | Retry with backoff, respect `Retry-After` |
-| 504 | Gateway timeout | Retry with backoff |
-| 408 | Request timeout | Retry with backoff |
-| Connection reset / ECONNRESET | Network error | Retry with backoff |
-| 400 | Bad request | NOT retryable (client error) |
-| 401 | Auth error | NOT retryable |
-| 403 | Forbidden | NOT retryable |
-| 404 | Not found | NOT retryable |
-| 422 | Validation error | NOT retryable |
+| HTTP Status                   | Classification      | Action                                                          |
+| ----------------------------- | ------------------- | --------------------------------------------------------------- |
+| 429                           | Rate limited        | Backoff using `Retry-After` header if present, else exponential |
+| 500                           | Server error        | Retry with backoff (may be transient)                           |
+| 502                           | Gateway error       | Retry with backoff                                              |
+| 503                           | Service unavailable | Retry with backoff, respect `Retry-After`                       |
+| 504                           | Gateway timeout     | Retry with backoff                                              |
+| 408                           | Request timeout     | Retry with backoff                                              |
+| Connection reset / ECONNRESET | Network error       | Retry with backoff                                              |
+| 400                           | Bad request         | NOT retryable (client error)                                    |
+| 401                           | Auth error          | NOT retryable                                                   |
+| 403                           | Forbidden           | NOT retryable                                                   |
+| 404                           | Not found           | NOT retryable                                                   |
+| 422                           | Validation error    | NOT retryable                                                   |
 
 ```ts
 type ErrorClassification = "retryable" | "rate_limited" | "non_retryable";
@@ -106,6 +106,7 @@ delay = min(maxDelay, baseDelay * 2^attempt) + random(0, jitter)
 ```
 
 Defaults:
+
 - `baseDelay`: 1000ms
 - `maxDelay`: 60000ms (1 minute)
 - `jitter`: 500ms
@@ -136,18 +137,21 @@ Per-provider semaphore limiting concurrent in-flight requests:
 Different providers use different rate limit headers:
 
 **Anthropic:**
+
 - `x-ratelimit-limit-requests`, `x-ratelimit-limit-tokens`
 - `x-ratelimit-remaining-requests`, `x-ratelimit-remaining-tokens`
 - `x-ratelimit-reset-requests`, `x-ratelimit-reset-tokens`
 - `retry-after`
 
 **OpenAI:**
+
 - `x-ratelimit-limit-requests`, `x-ratelimit-limit-tokens`
 - `x-ratelimit-remaining-requests`, `x-ratelimit-remaining-tokens`
 - `x-ratelimit-reset-requests`, `x-ratelimit-reset-tokens`
 - `retry-after`
 
 **Google/Gemini:**
+
 - `retry-after`
 - `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset`
 
@@ -162,7 +166,10 @@ interface ParsedRateLimitHeaders {
   retryAfterMs?: number;
 }
 
-function parseRateLimitHeaders(providerId: string, headers: Headers): ParsedRateLimitHeaders;
+function parseRateLimitHeaders(
+  providerId: string,
+  headers: Headers,
+): ParsedRateLimitHeaders;
 ```
 
 ## Config
@@ -203,11 +210,13 @@ Global and per-provider overrides:
 The resilience layer wraps the HTTP call inside the model provider's `completeWithTools` / `complete` method. Two options:
 
 **Option A: Wrap at the HTTP transport level**
+
 - Modify each provider's HTTP call to go through `executeWithResilience`
 - Minimal changes to model client / failover client
 - Provider ID is known at this level
 
 **Option B: Wrap at the failover client level**
+
 - The failover client already handles provider selection
 - Add resilience wrapping around each provider attempt
 - Natural place since failover already deals with provider failures

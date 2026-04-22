@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "vitest";
 import type { ShoggothConfig } from "@shoggoth/shared";
-import { formatSkillPathLine, formatSkillReadJson, formatSkillsListJson, formatSkillsSearchJson } from "../src/skills-cli";
+import {
+  formatSkillPathLine,
+  formatSkillReadJson,
+  formatSkillsListJson,
+  formatSkillsSearchJson,
+} from "../src/skills-cli";
 
 function cfg(
   configDirectory: string,
@@ -60,7 +65,10 @@ describe("skills-cli", () => {
     const body = "---\nid: cee\ntitle: C\n---\nHello skill";
     writeFileSync(fp, body);
     const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
-    const out = JSON.parse(formatSkillReadJson(c, "cee")) as { path: string; content: string };
+    const out = JSON.parse(formatSkillReadJson(c, "cee")) as {
+      path: string;
+      content: string;
+    };
     assert.strictEqual(out.path, fp);
     assert.strictEqual(out.content, body);
   });
@@ -80,8 +88,14 @@ describe("skills-cli", () => {
     const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
 
     // Search by query
-    const byQuery = JSON.parse(formatSkillsSearchJson(c, { query: "weather" })) as {
-      id: string; tags: string[]; category: string | null; description: string | null; score: number;
+    const byQuery = JSON.parse(
+      formatSkillsSearchJson(c, { query: "weather" }),
+    ) as {
+      id: string;
+      tags: string[];
+      category: string | null;
+      description: string | null;
+      score: number;
     }[];
     assert.strictEqual(byQuery.length, 1);
     assert.strictEqual(byQuery[0]!.id, "weather");
@@ -91,7 +105,9 @@ describe("skills-cli", () => {
     assert.ok(byQuery[0]!.score > 0);
 
     // Search by category
-    const byCat = JSON.parse(formatSkillsSearchJson(c, { category: "dev-tools" })) as { id: string }[];
+    const byCat = JSON.parse(
+      formatSkillsSearchJson(c, { category: "dev-tools" }),
+    ) as { id: string }[];
     assert.strictEqual(byCat.length, 1);
     assert.strictEqual(byCat[0]!.id, "github");
 

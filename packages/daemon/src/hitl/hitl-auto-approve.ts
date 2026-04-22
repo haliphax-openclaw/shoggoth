@@ -1,4 +1,7 @@
-import { parseAgentSessionUrn, resolveTopLevelSessionUrn } from "@shoggoth/shared";
+import {
+  parseAgentSessionUrn,
+  resolveTopLevelSessionUrn,
+} from "@shoggoth/shared";
 
 /**
  * In-memory gates: after ✅ / ♾️ approval, future calls for the **same tool name** in that scope
@@ -12,14 +15,20 @@ export type HitlAutoApproveGate = {
    * Daemon persisting gate only: drop in-process ♾️ entries (optional).
    * Used by `hitl_clear` so auto-approve state matches disk after a wipe.
    */
-  clearAutoApproveMemory?(input: { readonly agents: "all" | readonly string[] }): void;
+  clearAutoApproveMemory?(input: {
+    readonly agents: "all" | readonly string[];
+  }): void;
 };
 
 export function createHitlAutoApproveGate(): HitlAutoApproveGate {
   const sessionTools = new Map<string, Set<string>>();
   const agentTools = new Map<string, Set<string>>();
 
-  function addTo(map: Map<string, Set<string>>, key: string, tool: string): void {
+  function addTo(
+    map: Map<string, Set<string>>,
+    key: string,
+    tool: string,
+  ): void {
     let s = map.get(key);
     if (!s) {
       s = new Set();

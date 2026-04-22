@@ -2,8 +2,14 @@
 // builtin-elevate — executes commands in the daemon process during elevation
 // ---------------------------------------------------------------------------
 
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
-import { handleElevate, type ElevateArgs } from "../../elevation/builtin-elevate";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
+import {
+  handleElevate,
+  type ElevateArgs,
+} from "../../elevation/builtin-elevate";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("elevate", elevateHandler);

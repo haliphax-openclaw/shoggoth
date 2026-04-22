@@ -1,3 +1,4 @@
+/* global process */
 /**
  * Minimal MCP-style JSON-RPC server on stdio for tests (initialize, tools/list, tools/call).
  *
@@ -6,7 +7,10 @@
  */
 import * as readline from "node:readline";
 
-const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+const rl = readline.createInterface({
+  input: process.stdin,
+  crlfDelay: Infinity,
+});
 
 rl.on("line", (line) => {
   const trimmed = line.trim();

@@ -36,13 +36,18 @@ export type SessionMcpToolContext = {
   readonly fullAggregated?: AggregateMcpCatalogResult;
 };
 
-export function openAiToolsFromCatalog(aggregated: AggregateMcpCatalogResult): OpenAIToolFunctionDefinition[] {
+export function openAiToolsFromCatalog(
+  aggregated: AggregateMcpCatalogResult,
+): OpenAIToolFunctionDefinition[] {
   return aggregated.tools.map((t) => ({
     type: "function" as const,
     function: {
       name: t.namespacedName,
       description: t.description ?? `${t.sourceId}-${t.originalName}`,
-      parameters: (t.inputSchema ?? { type: "object", properties: {} }) as Record<string, unknown>,
+      parameters: (t.inputSchema ?? {
+        type: "object",
+        properties: {},
+      }) as Record<string, unknown>,
     },
   }));
 }
@@ -99,12 +104,16 @@ export function buildMixedSessionMcpToolContext(
   globalSourceIds: ReadonlySet<string>,
   perSessionSourceIds: ReadonlySet<string>,
 ): SessionMcpToolContext {
-  const aggregated = buildAggregatedMcpCatalog([...globalSources, ...sessionSources]);
+  const aggregated = buildAggregatedMcpCatalog([
+    ...globalSources,
+    ...sessionSources,
+  ]);
   let external: ExternalMcpInvoke | undefined;
   if (globalExternal && sessionExternal) {
     external = async (input) => {
       if (globalSourceIds.has(input.sourceId)) return globalExternal(input);
-      if (perSessionSourceIds.has(input.sourceId)) return sessionExternal(input);
+      if (perSessionSourceIds.has(input.sourceId))
+        return sessionExternal(input);
       return {
         resultJson: JSON.stringify({
           error: "mcp_source_unknown",
@@ -160,9 +169,13 @@ export function omitBuiltinSubagentToolForSubagentSession(
  */
 export function messageToolFinalizer(
   ctx: SessionMcpToolContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _sessionId: string,
 ): SessionMcpToolContext {
-  return augmentSessionMcpToolContextWithMessageTool(ctx, messageToolContextRef.current?.slice);
+  return augmentSessionMcpToolContextWithMessageTool(
+    ctx,
+    messageToolContextRef.current?.slice,
+  );
 }
 
 /**
@@ -212,7 +225,8 @@ export function filterToolsByContextLevel(
   level: ContextLevel,
   config?: ShoggothConfig,
 ): readonly AggregatedTool[] {
-  const override: ContextLevelToolOverride | undefined = config?.contextLevelTools?.[level];
+  const override: ContextLevelToolOverride | undefined =
+    config?.contextLevelTools?.[level];
 
   if (level === "none") {
     // Exclude everything by default; config `allow` can re-add specific tools
@@ -246,7 +260,11 @@ function applyContextLevelToolFilter(
   level: ContextLevel,
   config?: ShoggothConfig,
 ): SessionMcpToolContext {
-  const filtered = filterToolsByContextLevel(ctx.aggregated.tools, level, config);
+  const filtered = filterToolsByContextLevel(
+    ctx.aggregated.tools,
+    level,
+    config,
+  );
   if (filtered.length === ctx.aggregated.tools.length) return ctx;
   const aggregated: AggregateMcpCatalogResult = { tools: filtered };
   return {
@@ -355,12 +373,19 @@ const WEB_SEARCH_TOOL_DESCRIPTOR: AggregatedTool = {
     type: "object",
     properties: {
       query: { type: "string", description: "Search query" },
-      count: { type: "number", description: "Number of results (1-20, default: 5)" },
+      count: {
+        type: "number",
+        description: "Number of results (1-20, default: 5)",
+      },
       categories: {
         type: "string",
-        description: "Comma-separated categories: general, news, science, it, images",
+        description:
+          "Comma-separated categories: general, news, science, it, images",
       },
-      language: { type: "string", description: "ISO 639-1 language code (default: en)" },
+      language: {
+        type: "string",
+        description: "ISO 639-1 language code (default: en)",
+      },
       timeRange: {
         type: "string",
         enum: ["day", "week", "month", "year"],
@@ -378,10 +403,16 @@ export function createWebSearchToolFinalizer(
   config: ShoggothConfig,
 ): (ctx: SessionMcpToolContext, sessionId: string) => SessionMcpToolContext {
   const enabled = Boolean(config.searxng?.baseUrl);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return (ctx, _sessionId) => {
     if (!enabled) return ctx;
     // Avoid duplicate if already present
-    if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-web-search")) return ctx;
+    if (
+      ctx.aggregated.tools.some(
+        (t) => t.namespacedName === "builtin-web-search",
+      )
+    )
+      return ctx;
     const aggregated: AggregateMcpCatalogResult = {
       tools: [...ctx.aggregated.tools, WEB_SEARCH_TOOL_DESCRIPTOR],
     };

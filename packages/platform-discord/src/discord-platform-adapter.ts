@@ -7,7 +7,11 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { createOutboundMessage, MESSAGING_FEATURE, messagingCapabilitiesHasFeature } from "@shoggoth/messaging";
+import {
+  createOutboundMessage,
+  MESSAGING_FEATURE,
+  messagingCapabilitiesHasFeature,
+} from "@shoggoth/messaging";
 import type {
   PlatformAdapter,
   PlatformCapabilities,
@@ -17,7 +21,10 @@ import type {
 } from "@shoggoth/daemon/lib";
 import type { DiscordMessagingRuntime } from "./bridge";
 import type { DiscordRestTransport } from "./transport";
-import { DISCORD_PLATFORM_MAX_MESSAGE_BODY_CHARS, sliceDiscordPlatformMessageBody } from "./errors";
+import {
+  DISCORD_PLATFORM_MAX_MESSAGE_BODY_CHARS,
+  sliceDiscordPlatformMessageBody,
+} from "./errors";
 import { splitDiscordMessage } from "./split-message";
 import type { HitlDiscordNoticeRegistry } from "./hitl/notice-registry";
 import { registerDiscordHitlNoticeAndAddReactions } from "./hitl/reaction-wiring";
@@ -71,7 +78,8 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           userId: "system",
           createdAt: new Date().toISOString(),
           body: chunks[i],
-          extensions: i === 0 && opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
+          extensions:
+            i === 0 && opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
         }),
         chunkFiles?.length ? { attachments: chunkFiles } : undefined,
       );
@@ -101,11 +109,17 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
         attachmentFiles?.length ? { attachments: attachmentFiles } : undefined,
       );
     } catch (sendErr) {
-      this.logger.error("discord.adapter.error_reply_failed", { err: String(sendErr) });
+      this.logger.error("discord.adapter.error_reply_failed", {
+        err: String(sendErr),
+      });
     }
   }
 
-  async startStream(sessionId: string, opts?: { replyTo?: string }): Promise<StreamHandle> {
+  async startStream(
+    sessionId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _opts?: { replyTo?: string },
+  ): Promise<StreamHandle> {
     const streamingOutbound = this.discord.streamingForSession(sessionId);
     if (!streamingOutbound) {
       throw new Error("Streaming not available for this session");
@@ -160,8 +174,16 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   /**
    * Run work wrapped in a typing indicator that auto-renews.
    */
-  async withTypingIndicator(sessionId: string, work: () => Promise<void>): Promise<void> {
-    if (!messagingCapabilitiesHasFeature(this.discord.capabilities, MESSAGING_FEATURE.TYPING_NOTIFICATION)) {
+  async withTypingIndicator(
+    sessionId: string,
+    work: () => Promise<void>,
+  ): Promise<void> {
+    if (
+      !messagingCapabilitiesHasFeature(
+        this.discord.capabilities,
+        MESSAGING_FEATURE.TYPING_NOTIFICATION,
+      )
+    ) {
       await work();
       return;
     }
@@ -194,6 +216,7 @@ function buildDiscordCapabilities(
       start: (sessionId: string) => {
         void discord.notifyAgentTypingForSession(sessionId);
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       stop: (_sessionId: string) => {
         // Discord typing stops automatically when a message is sent.
       },

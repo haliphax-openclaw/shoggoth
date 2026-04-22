@@ -1,7 +1,13 @@
 import { SHOGGOTH_AGENT_TOKEN_ENV } from "@shoggoth/authn";
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import type { WireRequest } from "@shoggoth/authn";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import type { ShoggothConfig } from "@shoggoth/shared";
@@ -31,15 +37,25 @@ import type { AppendAuditRowInput } from "../audit/append-audit";
 import type { AcpxProcessSupervisor } from "../acpx/acpx-process-supervisor";
 import { AcpxSupervisorError } from "../acpx/acpx-process-supervisor";
 import type { AcpxBindingStore } from "../acpx/sqlite-acpx-bindings";
-import { SessionManagerError, type SessionManager } from "../sessions/session-manager";
-import type { SessionRow, SessionStore, SessionSortBy } from "../sessions/session-store";
+import {
+  SessionManagerError,
+  type SessionManager,
+} from "../sessions/session-manager";
+import type {
+  SessionRow,
+  SessionStore,
+  SessionSortBy,
+} from "../sessions/session-store";
 import { resolveSessionTargetFromCliArg } from "./resolve-session-cli-target";
 import {
   applySessionContextSegmentNew,
   applySessionContextSegmentReset,
 } from "../sessions/session-context-segment";
 import type { HitlConfigRef } from "../config-hot-reload";
-import { rewriteAgentToolAutoApproveMapAndReload, readAgentToolAutoApproveMap } from "../hitl/hitl-agent-tool-auto-persist";
+import {
+  rewriteAgentToolAutoApproveMapAndReload,
+  readAgentToolAutoApproveMap,
+} from "../hitl/hitl-agent-tool-auto-persist";
 import type { HitlAutoApproveGate } from "../hitl/hitl-auto-approve";
 import type { PendingActionsStore } from "../hitl/pending-actions-store";
 import {
@@ -52,11 +68,15 @@ import {
   resolveCompactionPolicyFromModelsConfig,
 } from "@shoggoth/models";
 import { compactSessionTranscript } from "../transcript-compact";
-import { getSessionStats, estimateCurrentContextFill, buildFormattedStats } from "../sessions/session-stats-store";
+import {
+  getSessionStats,
+  estimateCurrentContextFill,
+  buildFormattedStats,
+} from "../sessions/session-stats-store";
 import { dispatchMcpHttpCancelRequest } from "../mcp/mcp-http-cancel-registry";
 import { SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS } from "../subagent/subagent-constants";
 import { requestSessionTurnAbort } from "../sessions/session-turn-abort";
-import { disposeSubagentRuntime, rememberSubagentHandles } from "../subagent/subagent-disposables";
+import {\n  rememberSubagentHandles,\n} from "../subagent/subagent-disposables";
 import { subagentRuntimeExtensionRef } from "../subagent/subagent-extension-ref";
 import { terminatePersistentSubagentSession } from "../subagent/subagent-kill";
 import { extractLatestTranscriptAssistantText } from "../sessions/transcript-to-chat";
@@ -75,7 +95,10 @@ export class IntegrationOpError extends Error {
 }
 
 export type IntegrationAuditRecorder = (
-  row: Pick<AppendAuditRowInput, "action" | "resource" | "outcome" | "argsRedactedJson">,
+  row: Pick<
+    AppendAuditRowInput,
+    "action" | "resource" | "outcome" | "argsRedactedJson"
+  >,
 ) => void;
 
 export type IntegrationOpsContext = {
@@ -114,7 +137,10 @@ export type IntegrationOpsContext = {
 function payloadObject(req: WireRequest): Record<string, unknown> {
   const p = req.payload;
   if (!p || typeof p !== "object" || Array.isArray(p)) {
-    throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload must be a JSON object");
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      "payload must be a JSON object",
+    );
   }
   return p as Record<string, unknown>;
 }
@@ -131,34 +157,54 @@ function optionalRecordObject(
 function requireString(obj: Record<string, unknown>, key: string): string {
   const v = obj[key];
   if (typeof v !== "string" || !v.trim()) {
-    throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.${key} must be a non-empty string`);
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      `payload.${key} must be a non-empty string`,
+    );
   }
   return v;
 }
 
-function optionalFinitePositiveInt(obj: Record<string, unknown>, key: string): number | undefined {
+function optionalFinitePositiveInt(
+  obj: Record<string, unknown>,
+  key: string,
+): number | undefined {
   const v = obj[key];
   if (v === undefined) return undefined;
   if (typeof v !== "number" || !Number.isFinite(v)) {
-    throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.${key} must be a finite number`);
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      `payload.${key} must be a finite number`,
+    );
   }
   const n = Math.trunc(v);
   if (n < 1) {
-    throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.${key} must be positive`);
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      `payload.${key} must be positive`,
+    );
   }
   return n;
 }
 
-function optionalStringArray(obj: Record<string, unknown>, key: string): string[] | undefined {
+function optionalStringArray(
+  obj: Record<string, unknown>,
+  key: string,
+): string[] | undefined {
   const v = obj[key];
   if (v === undefined) return undefined;
   if (!Array.isArray(v) || !v.every((x) => typeof x === "string")) {
-    throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.${key} must be an array of strings`);
+    throw new IntegrationOpError(
+      "ERR_INVALID_PAYLOAD",
+      `payload.${key} must be an array of strings`,
+    );
   }
   return v as string[];
 }
 
-function optionalNonEmptySessionId(pl: Record<string, unknown>): string | undefined {
+function optionalNonEmptySessionId(
+  pl: Record<string, unknown>,
+): string | undefined {
   const v = pl.session_id;
   if (v === undefined) return undefined;
   if (typeof v !== "string" || !v.trim()) {
@@ -187,7 +233,10 @@ function mapSessionListRow(row: SessionRow) {
 }
 
 /** Resolve target session id from `session_id` or bootstrap main session for `agent_id`. */
-function resolveSessionSendTargetSessionId(pl: Record<string, unknown>, cfg: ShoggothConfig): string {
+function resolveSessionSendTargetSessionId(
+  pl: Record<string, unknown>,
+  cfg: ShoggothConfig,
+): string {
   const sidRaw = pl.session_id;
   const aidRaw = pl.agent_id;
   const hasSid = typeof sidRaw === "string" && sidRaw.trim();
@@ -297,7 +346,10 @@ function requireAcpxRuntime(ctx: IntegrationOpsContext): {
   acpxSupervisor: AcpxProcessSupervisor;
 } {
   if (!ctx.acpxStore) {
-    throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "acpx bindings require state database");
+    throw new IntegrationOpError(
+      "ERR_STATE_DB_REQUIRED",
+      "acpx bindings require state database",
+    );
   }
   if (!ctx.sessions || !ctx.sessionManager || !ctx.acpxSupervisor) {
     throw new IntegrationOpError(
@@ -322,12 +374,18 @@ export async function handleIntegrationControlOp(
   ctx: IntegrationOpsContext,
 ): Promise<unknown> {
   if (principal.kind === "operator") {
-    ioLog.info("operator action", { op: req.op, operatorId: principal.operatorId });
+    ioLog.info("operator action", {
+      op: req.op,
+      operatorId: principal.operatorId,
+    });
   }
   switch (req.op) {
     case "acpx_bind_get": {
       if (!ctx.acpxStore) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "acpx bindings require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "acpx bindings require state database",
+        );
       }
       const pl = payloadObject(req);
       const root = requireString(pl, "acp_workspace_root");
@@ -342,10 +400,16 @@ export async function handleIntegrationControlOp(
 
     case "acpx_bind_set": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_bind_set requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_bind_set requires operator principal",
+        );
       }
       if (!ctx.acpxStore) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "acpx bindings require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "acpx bindings require state database",
+        );
       }
       const pl = payloadObject(req);
       const acpWorkspaceRoot = requireString(pl, "acp_workspace_root");
@@ -362,10 +426,16 @@ export async function handleIntegrationControlOp(
 
     case "acpx_bind_delete": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_bind_delete requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_bind_delete requires operator principal",
+        );
       }
       if (!ctx.acpxStore) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "acpx bindings require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "acpx bindings require state database",
+        );
       }
       const pl = payloadObject(req);
       const root = requireString(pl, "acp_workspace_root");
@@ -374,24 +444,36 @@ export async function handleIntegrationControlOp(
 
     case "acpx_bind_list": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_bind_list requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_bind_list requires operator principal",
+        );
       }
       if (!ctx.acpxStore) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "acpx bindings require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "acpx bindings require state database",
+        );
       }
       return { bindings: ctx.acpxStore.list() };
     }
 
     case "acpx_agent_start": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_agent_start requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_agent_start requires operator principal",
+        );
       }
       const rt = requireAcpxRuntime(ctx);
       const pl = payloadObject(req);
       const root = requireString(pl, "acp_workspace_root");
       const binding = rt.acpxStore.get(root);
       if (!binding) {
-        throw new IntegrationOpError("ERR_ACPX_BINDING_NOT_FOUND", `no binding for workspace root ${root}`);
+        throw new IntegrationOpError(
+          "ERR_ACPX_BINDING_NOT_FOUND",
+          `no binding for workspace root ${root}`,
+        );
       }
       const session = rt.sessions.getById(binding.shoggothSessionId);
       if (!session || session.status === "terminated") {
@@ -400,7 +482,8 @@ export async function handleIntegrationControlOp(
           "bound Shoggoth session is missing or terminated",
         );
       }
-      const args = optionalStringArray(pl, "acpx_args") ?? ctx.config.acpx?.defaultArgs;
+      const args =
+        optionalStringArray(pl, "acpx_args") ?? ctx.config.acpx?.defaultArgs;
       if (!args || args.length === 0) {
         throw new IntegrationOpError(
           "ERR_INVALID_PAYLOAD",
@@ -459,7 +542,10 @@ export async function handleIntegrationControlOp(
 
     case "acpx_agent_stop": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_agent_stop requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_agent_stop requires operator principal",
+        );
       }
       const rt = requireAcpxRuntime(ctx);
       const pl = payloadObject(req);
@@ -469,14 +555,18 @@ export async function handleIntegrationControlOp(
         action: "acpx.agent_stop",
         resource: root,
         outcome: stopped ? "ok" : "not_running",
-        argsRedactedJson: pid !== undefined ? JSON.stringify({ pid }) : undefined,
+        argsRedactedJson:
+          pid !== undefined ? JSON.stringify({ pid }) : undefined,
       });
       return { stopped, pid };
     }
 
     case "acpx_agent_list": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "acpx_agent_list requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "acpx_agent_list requires operator principal",
+        );
       }
       const rt = requireAcpxRuntime(ctx);
       const processes = rt.acpxSupervisor.list().map((t) => ({
@@ -489,10 +579,16 @@ export async function handleIntegrationControlOp(
 
     case "session_context_new": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "session_context_new requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "session_context_new requires operator principal",
+        );
       }
       if (!ctx.stateDb || !ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session context ops require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session context ops require state database",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
@@ -504,7 +600,11 @@ export async function handleIntegrationControlOp(
         killSubagents: ctx.sessionManager
           ? (childIds) => {
               for (const cid of childIds) {
-                terminatePersistentSubagentSession(ctx.sessionManager!, cid, "killed");
+                terminatePersistentSubagentSession(
+                  ctx.sessionManager!,
+                  cid,
+                  "killed",
+                );
               }
             }
           : undefined,
@@ -520,10 +620,16 @@ export async function handleIntegrationControlOp(
 
     case "session_context_reset": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "session_context_reset requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "session_context_reset requires operator principal",
+        );
       }
       if (!ctx.stateDb || !ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session context ops require state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session context ops require state database",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
@@ -544,19 +650,35 @@ export async function handleIntegrationControlOp(
 
     case "session_compact": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "session_compact requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "session_compact requires operator principal",
+        );
       }
       if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_compact requires state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session_compact requires state database",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
-      const modelsConfig = resolveEffectiveModelsConfig(ctx.config, sessionId) ?? ctx.config.models;
+      const modelsConfig =
+        resolveEffectiveModelsConfig(ctx.config, sessionId) ??
+        ctx.config.models;
       const policy = resolveCompactionPolicyFromModelsConfig(modelsConfig);
-      const client = createFailoverClientFromModelsConfig(modelsConfig, { env: process.env });
-      const result = await compactSessionTranscript(ctx.stateDb, sessionId, policy, client, {
-        modelsConfig,
+      const client = createFailoverClientFromModelsConfig(modelsConfig, {
+        env: process.env,
       });
+      const result = await compactSessionTranscript(
+        ctx.stateDb,
+        sessionId,
+        policy,
+        client,
+        {
+          modelsConfig,
+        },
+      );
       ctx.recordIntegrationAudit({
         action: "session.compact",
         resource: sessionId,
@@ -568,10 +690,16 @@ export async function handleIntegrationControlOp(
 
     case "hitl_pending_list": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_pending_list requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "hitl_pending_list requires operator principal",
+        );
       }
       if (!ctx.hitlPending) {
-        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+        throw new IntegrationOpError(
+          "ERR_HITL_UNAVAILABLE",
+          "HITL pending store not configured",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = pl.session_id;
@@ -580,16 +708,24 @@ export async function handleIntegrationControlOp(
       }
       const limitRaw = pl.limit;
       const limit =
-        typeof limitRaw === "number" && Number.isFinite(limitRaw) ? Math.floor(limitRaw) : undefined;
+        typeof limitRaw === "number" && Number.isFinite(limitRaw)
+          ? Math.floor(limitRaw)
+          : undefined;
       return { pending: ctx.hitlPending.listAllPending(limit) };
     }
 
     case "hitl_pending_get": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_pending_get requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "hitl_pending_get requires operator principal",
+        );
       }
       if (!ctx.hitlPending) {
-        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+        throw new IntegrationOpError(
+          "ERR_HITL_UNAVAILABLE",
+          "HITL pending store not configured",
+        );
       }
       const pl = payloadObject(req);
       const id = requireString(pl, "id");
@@ -599,10 +735,16 @@ export async function handleIntegrationControlOp(
 
     case "hitl_pending_approve": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_pending_approve requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "hitl_pending_approve requires operator principal",
+        );
       }
       if (!ctx.hitlPending) {
-        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+        throw new IntegrationOpError(
+          "ERR_HITL_UNAVAILABLE",
+          "HITL pending store not configured",
+        );
       }
       const pl = payloadObject(req);
       const id = requireString(pl, "id");
@@ -617,10 +759,16 @@ export async function handleIntegrationControlOp(
 
     case "hitl_pending_deny": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_pending_deny requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "hitl_pending_deny requires operator principal",
+        );
       }
       if (!ctx.hitlPending) {
-        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+        throw new IntegrationOpError(
+          "ERR_HITL_UNAVAILABLE",
+          "HITL pending store not configured",
+        );
       }
       const pl = payloadObject(req);
       const id = requireString(pl, "id");
@@ -635,13 +783,22 @@ export async function handleIntegrationControlOp(
 
     case "hitl_clear": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "hitl_clear requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "hitl_clear requires operator principal",
+        );
       }
       if (!ctx.hitlPending) {
-        throw new IntegrationOpError("ERR_HITL_UNAVAILABLE", "HITL pending store not configured");
+        throw new IntegrationOpError(
+          "ERR_HITL_UNAVAILABLE",
+          "HITL pending store not configured",
+        );
       }
       if (!ctx.stateDb || !ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "hitl_clear requires SQLite session store");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "hitl_clear requires SQLite session store",
+        );
       }
       const pl = payloadObject(req);
       const agentIdRaw = requireString(pl, "agent_id").trim();
@@ -670,16 +827,22 @@ export async function handleIntegrationControlOp(
         }
         const row = ctx.sessions.getById(sessionIdOpt);
         if (!row) {
-          throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+          throw new IntegrationOpError(
+            "ERR_SESSION_INACTIVE",
+            "session is missing or terminated",
+          );
         }
         sessionIds = [sessionIdOpt];
       } else if (agentIdRaw === "all") {
         sessionIds = ctx.sessions.list().map((r) => r.id);
       } else {
-        sessionIds = ctx.sessions.list({ agentId: agentIdRaw }).map((r) => r.id);
+        sessionIds = ctx.sessions
+          .list({ agentId: agentIdRaw })
+          .map((r) => r.id);
       }
 
-      const deletedPending = ctx.hitlPending.deletePendingForSessionIds(sessionIds);
+      const deletedPending =
+        ctx.hitlPending.deletePendingForSessionIds(sessionIds);
 
       let clearedSessionAutoApprove = 0;
       let clearedAgentAutoApproveAgents = 0;
@@ -692,14 +855,23 @@ export async function handleIntegrationControlOp(
           );
         }
         if (agentIdRaw === "all") {
-          clearedSessionAutoApprove = clearAllSessionToolAutoApprove(ctx.stateDb);
+          clearedSessionAutoApprove = clearAllSessionToolAutoApprove(
+            ctx.stateDb,
+          );
         } else {
-          clearedSessionAutoApprove = clearSessionToolAutoApproveForSessionIds(ctx.stateDb, sessionIds);
+          clearedSessionAutoApprove = clearSessionToolAutoApproveForSessionIds(
+            ctx.stateDb,
+            sessionIds,
+          );
         }
-        const merged = readAgentToolAutoApproveMap(loadLayeredConfig(hc.configDirectory));
+        const merged = readAgentToolAutoApproveMap(
+          loadLayeredConfig(hc.configDirectory),
+        );
         const nextMap: Record<string, string[]> =
           agentIdRaw === "all"
-            ? Object.fromEntries(Object.keys(merged).map((k) => [k, [] as string[]]))
+            ? Object.fromEntries(
+                Object.keys(merged).map((k) => [k, [] as string[]]),
+              )
             : { ...merged, [agentIdRaw]: [] };
         if (hc.dynamicConfigDirectory) {
           rewriteAgentToolAutoApproveMapAndReload({
@@ -710,7 +882,8 @@ export async function handleIntegrationControlOp(
             nextAgentToolAutoApprove: nextMap,
           });
         }
-        clearedAgentAutoApproveAgents = agentIdRaw === "all" ? Object.keys(merged).length : 1;
+        clearedAgentAutoApproveAgents =
+          agentIdRaw === "all" ? Object.keys(merged).length : 1;
         if (agentIdRaw === "all") {
           hc.autoApproveGate.clearAutoApproveMemory?.({ agents: "all" });
         } else {
@@ -739,14 +912,20 @@ export async function handleIntegrationControlOp(
 
     case "mcp_http_cancel_request": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "mcp_http_cancel_request requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "mcp_http_cancel_request requires operator principal",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
       const sourceId = requireString(pl, "source_id");
       const requestIdRaw = pl.request_id;
       if (typeof requestIdRaw !== "number" || !Number.isFinite(requestIdRaw)) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.request_id must be a finite number");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.request_id must be a finite number",
+        );
       }
       const requestId = Math.trunc(requestIdRaw);
       const cancel = ctx.cancelMcpHttpRequest ?? dispatchMcpHttpCancelRequest;
@@ -763,7 +942,9 @@ export async function handleIntegrationControlOp(
       }
       if (principal.kind === "agent") {
         assertAgentSpawnSubagentsAllowed(principal, ctx.config);
-        const callerAgentId = parseAgentSessionUrn(principal.sessionId)?.agentId;
+        const callerAgentId = parseAgentSessionUrn(
+          principal.sessionId,
+        )?.agentId;
         if (
           callerAgentId &&
           !agentMayInvokeSubagentSpawnByAllowlist(ctx.config, callerAgentId)
@@ -799,20 +980,28 @@ export async function handleIntegrationControlOp(
           "ERR_PARENT_SESSION_INVALID",
           "parent session is missing or terminated",
         );
-      }      const modelOptions = optionalRecordObject(pl, "model_options");
+      }
+      const modelOptions = optionalRecordObject(pl, "model_options");
 
       // Resolve effective subagentModel from config (per-agent override > global default).
       // Only applies when per-spawn model_options doesn't already set a model.
       let effectiveBase = parent.modelSelection;
-      const hasSpawnModel = modelOptions && typeof modelOptions.model === "string" && modelOptions.model.trim();
+      const hasSpawnModel =
+        modelOptions &&
+        typeof modelOptions.model === "string" &&
+        modelOptions.model.trim();
       const parentAgentId = parseAgentSessionUrn(parentSessionId)?.agentId;
-      const perAgent = parentAgentId ? ctx.config.agents?.list?.[parentAgentId]?.subagentModel : undefined;
+      const perAgent = parentAgentId
+        ? ctx.config.agents?.list?.[parentAgentId]?.subagentModel
+        : undefined;
       const globalDefault = ctx.config.agents?.subagentModel;
       const configSubagentModel = perAgent ?? globalDefault;
       if (!hasSpawnModel) {
         if (configSubagentModel) {
           const base =
-            effectiveBase && typeof effectiveBase === "object" && !Array.isArray(effectiveBase)
+            effectiveBase &&
+            typeof effectiveBase === "object" &&
+            !Array.isArray(effectiveBase)
               ? { ...(effectiveBase as Record<string, unknown>) }
               : {};
           base.model = configSubagentModel;
@@ -823,9 +1012,13 @@ export async function handleIntegrationControlOp(
       // Determine explicit model ref: spawn model_options.model > config subagentModel > undefined (inherit as-is).
       const explicitModelRef = hasSpawnModel
         ? String(modelOptions!.model).trim()
-        : configSubagentModel ?? undefined;
+        : (configSubagentModel ?? undefined);
 
-      const modelSelection = mergeSubagentSpawnModelSelection(effectiveBase, modelOptions, explicitModelRef);
+      const modelSelection = mergeSubagentSpawnModelSelection(
+        effectiveBase,
+        modelOptions,
+        explicitModelRef,
+      );
 
       // Optional response delivery routing (defaults: respondTo = parent, internal = true).
       const respondToRaw = pl.respond_to;
@@ -856,8 +1049,15 @@ export async function handleIntegrationControlOp(
           subagentExpiresAtMs: null,
         });
         const subLog = getLogger("subagent");
-        subLog.info("subagent one_shot model turn starting", { childId, parentSessionId, promptLen: prompt.length });
-        pushSystemContext(childId, "One-shot subagent task spawned by parent session.");
+        subLog.info("subagent one_shot model turn starting", {
+          childId,
+          parentSessionId,
+          promptLen: prompt.length,
+        });
+        pushSystemContext(
+          childId,
+          "One-shot subagent task spawned by parent session.",
+        );
         const turn = await ext.runSessionModelTurn({
           sessionId: childId,
           userContent: prompt,
@@ -869,18 +1069,28 @@ export async function handleIntegrationControlOp(
           },
           systemContext: {
             kind: "subagent.task",
-            summary: "You are a one-shot subagent. Complete the following task and return the result.",
-            data: { parent_session_id: parentSessionId, respond_to: respondTo, internal: internalDelivery },
+            summary:
+              "You are a one-shot subagent. Complete the following task and return the result.",
+            data: {
+              parent_session_id: parentSessionId,
+              respond_to: respondTo,
+              internal: internalDelivery,
+            },
           },
           delivery: { kind: "internal" },
         });
-        subLog.info("subagent one_shot model turn completed", { childId, replyLen: turn.latestAssistantText?.length ?? 0 });
+        subLog.info("subagent one_shot model turn completed", {
+          childId,
+          replyLen: turn.latestAssistantText?.length ?? 0,
+        });
         terminatePersistentSubagentSession(sessionManager, childId);
         ctx.recordIntegrationAudit({
           action: "subagent.spawn_one_shot",
           resource: childId,
           outcome: "ok",
-          argsRedactedJson: JSON.stringify({ parent_session_id: parentSessionId }),
+          argsRedactedJson: JSON.stringify({
+            parent_session_id: parentSessionId,
+          }),
         });
         return {
           session_id: childId,
@@ -896,14 +1106,17 @@ export async function handleIntegrationControlOp(
         typeof platformThreadIdRaw === "string" && platformThreadIdRaw.trim()
           ? platformThreadIdRaw.trim()
           : undefined;
-      const lifetimeMs = optionalFinitePositiveInt(pl, "lifetime_ms") ?? SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS;
+      const lifetimeMs =
+        optionalFinitePositiveInt(pl, "lifetime_ms") ??
+        SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS;
       const platformUserIdRaw = pl.platform_user_id;
       const platformUserId =
         typeof platformUserIdRaw === "string" && platformUserIdRaw.trim()
           ? platformUserIdRaw.trim()
           : undefined;
       const replyToMessageId =
-        typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
+        typeof pl.reply_to_message_id === "string" &&
+        pl.reply_to_message_id.trim()
           ? pl.reply_to_message_id.trim()
           : undefined;
       const expiresAt = now + lifetimeMs;
@@ -926,7 +1139,11 @@ export async function handleIntegrationControlOp(
       };
       ttlTimer = setTimeout(() => {
         ttlTimer = undefined;
-        terminatePersistentSubagentSession(sessionManager, childId, "ttl_expired");
+        terminatePersistentSubagentSession(
+          sessionManager,
+          childId,
+          "ttl_expired",
+        );
       }, lifetimeMs);
       rememberSubagentHandles(childId, {
         unregisterThread,
@@ -950,30 +1167,36 @@ export async function handleIntegrationControlOp(
         : ({ kind: "internal" } as const);
       // Fire the first model turn asynchronously so the parent is not blocked.
       const subLog = getLogger("subagent");
-      ext.runSessionModelTurn({
-        sessionId: childId,
-        userContent: prompt,
-        userMetadata: {
-          subagent_persistent: true,
-          parent_session_id: parentSessionId,
-          platform_thread_id: platformThreadId ?? null,
-          respond_to: respondTo,
-          internal: internalDelivery,
-        },
-        systemContext: {
-          kind: "subagent.task",
-          summary: "You are a persistent subagent session. Complete the following task.",
-          data: {
+      ext
+        .runSessionModelTurn({
+          sessionId: childId,
+          userContent: prompt,
+          userMetadata: {
+            subagent_persistent: true,
             parent_session_id: parentSessionId,
-            respond_to: respondTo,
             platform_thread_id: platformThreadId ?? null,
+            respond_to: respondTo,
             internal: internalDelivery,
           },
-        },
-        delivery,
-      }).catch((err) => {
-        subLog.warn("persistent subagent first turn failed", { childId, error: String(err) });
-      });
+          systemContext: {
+            kind: "subagent.task",
+            summary:
+              "You are a persistent subagent session. Complete the following task.",
+            data: {
+              parent_session_id: parentSessionId,
+              respond_to: respondTo,
+              platform_thread_id: platformThreadId ?? null,
+              internal: internalDelivery,
+            },
+          },
+          delivery,
+        })
+        .catch((err) => {
+          subLog.warn("persistent subagent first turn failed", {
+            childId,
+            error: String(err),
+          });
+        });
       ctx.recordIntegrationAudit({
         action: "subagent.spawn_persistent",
         resource: childId,
@@ -1015,8 +1238,7 @@ export async function handleIntegrationControlOp(
       }
       const timeoutMs = optionalFinitePositiveInt(pl, "timeout_ms") ?? 300_000;
       const modeRaw = pl.mode;
-      const mode =
-        modeRaw === "any" ? "any" : "all"; // default "all"
+      const mode = modeRaw === "any" ? "any" : "all"; // default "all"
       const includeResults = pl.include_results === true;
       const maxCharsEach = optionalFinitePositiveInt(pl, "max_chars") ?? 4000;
 
@@ -1033,7 +1255,8 @@ export async function handleIntegrationControlOp(
         }
       }
 
-      const POLL_INTERVAL_MS = optionalFinitePositiveInt(pl, "_poll_interval_ms") ?? 500;
+      const POLL_INTERVAL_MS =
+        optionalFinitePositiveInt(pl, "_poll_interval_ms") ?? 500;
       const deadline = Date.now() + timeoutMs;
 
       /** Check whether a session counts as "completed" (terminated, or not found). */
@@ -1050,7 +1273,13 @@ export async function handleIntegrationControlOp(
         return null; // still running
       };
 
-      const completed: { sessionId: string; status: string; exitReason: string; result?: string; truncated?: boolean }[] = [];
+      const completed: {
+        sessionId: string;
+        status: string;
+        exitReason: string;
+        result?: string;
+        truncated?: boolean;
+      }[] = [];
       const remaining = new Set(sessionIds);
 
       // Check for already-completed sessions first.
@@ -1060,7 +1289,12 @@ export async function handleIntegrationControlOp(
           if (includeResults) {
             const row = sessions.getById(sid);
             if (row && ctx.stateDb) {
-              const text = extractLatestTranscriptAssistantText(ctx.stateDb, sid, row.contextSegmentId) ?? "";
+              const text =
+                extractLatestTranscriptAssistantText(
+                  ctx.stateDb,
+                  sid,
+                  row.contextSegmentId,
+                ) ?? "";
               const truncated = text.length > maxCharsEach;
               Object.assign(resolved, {
                 result: truncated ? text.slice(0, maxCharsEach) : text,
@@ -1076,27 +1310,34 @@ export async function handleIntegrationControlOp(
       }
 
       // If mode=any and we already have one, or mode=all and all done, return immediately.
-      if (
-        remaining.size === 0 ||
-        (mode === "any" && completed.length > 0)
-      ) {
+      if (remaining.size === 0 || (mode === "any" && completed.length > 0)) {
         return {
           completed,
-          pending: [...remaining].map((sid) => ({ sessionId: sid, status: "running" })),
+          pending: [...remaining].map((sid) => ({
+            sessionId: sid,
+            status: "running",
+          })),
           timedOut: false,
         };
       }
 
       // Poll loop — yield execution between checks.
       while (Date.now() < deadline) {
-        await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, POLL_INTERVAL_MS),
+        );
         for (const sid of [...remaining]) {
           const resolved = resolveSessionStatus(sid);
           if (resolved) {
             if (includeResults) {
               const row = sessions.getById(sid);
               if (row && ctx.stateDb) {
-                const text = extractLatestTranscriptAssistantText(ctx.stateDb, sid, row.contextSegmentId) ?? "";
+                const text =
+                  extractLatestTranscriptAssistantText(
+                    ctx.stateDb,
+                    sid,
+                    row.contextSegmentId,
+                  ) ?? "";
                 const truncated = text.length > maxCharsEach;
                 Object.assign(resolved, {
                   result: truncated ? text.slice(0, maxCharsEach) : text,
@@ -1117,7 +1358,10 @@ export async function handleIntegrationControlOp(
 
       return {
         completed,
-        pending: [...remaining].map((sid) => ({ sessionId: sid, status: "running" })),
+        pending: [...remaining].map((sid) => ({
+          sessionId: sid,
+          status: "running",
+        })),
         timedOut: remaining.size > 0,
       };
     }
@@ -1150,15 +1394,28 @@ export async function handleIntegrationControlOp(
 
       const row = sessions.getById(sessionId);
       if (!row) {
-        return { sessionId, status: "not_found", result: null, truncated: false };
+        return {
+          sessionId,
+          status: "not_found",
+          result: null,
+          truncated: false,
+        };
       }
       if (row.status !== "terminated") {
         return { sessionId, status: "running", result: null, truncated: false };
       }
       if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "subagent_result requires state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "subagent_result requires state database",
+        );
       }
-      const text = extractLatestTranscriptAssistantText(ctx.stateDb, sessionId, row.contextSegmentId) ?? "";
+      const text =
+        extractLatestTranscriptAssistantText(
+          ctx.stateDb,
+          sessionId,
+          row.contextSegmentId,
+        ) ?? "";
       const truncated = text.length > maxChars;
       return {
         sessionId,
@@ -1176,12 +1433,17 @@ export async function handleIntegrationControlOp(
         );
       }
       if (!ctx.stateDb || !ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_list requires state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session_list requires state database",
+        );
       }
       const pl = payloadObject(req);
       const statusRaw = pl.status;
       const status =
-        typeof statusRaw === "string" && statusRaw.trim() ? statusRaw.trim() : undefined;
+        typeof statusRaw === "string" && statusRaw.trim()
+          ? statusRaw.trim()
+          : undefined;
       const agentFilterRaw = pl.agent;
       const agentFilter =
         typeof agentFilterRaw === "string" && agentFilterRaw.trim()
@@ -1198,7 +1460,9 @@ export async function handleIntegrationControlOp(
 
       const sortOrderRaw = pl.sort_order;
       const sortOrder: "asc" | "desc" | undefined =
-        sortOrderRaw === "asc" || sortOrderRaw === "desc" ? sortOrderRaw : undefined;
+        sortOrderRaw === "asc" || sortOrderRaw === "desc"
+          ? sortOrderRaw
+          : undefined;
 
       const activeSinceRaw = pl.active_since;
       const activeSince =
@@ -1209,7 +1473,9 @@ export async function handleIntegrationControlOp(
       const limit = optionalFinitePositiveInt(pl, "limit");
 
       if (principal.kind === "agent") {
-        const callerAgentId = parseAgentSessionUrn(principal.sessionId)?.agentId;
+        const callerAgentId = parseAgentSessionUrn(
+          principal.sessionId,
+        )?.agentId;
         if (!callerAgentId) {
           throw new IntegrationOpError(
             "ERR_FORBIDDEN",
@@ -1238,7 +1504,10 @@ export async function handleIntegrationControlOp(
           assertValidAgentId(agentFilter);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          throw new IntegrationOpError("ERR_INVALID_PAYLOAD", `payload.agent: ${msg}`);
+          throw new IntegrationOpError(
+            "ERR_INVALID_PAYLOAD",
+            `payload.agent: ${msg}`,
+          );
         }
       }
       const rows = ctx.sessions.list({
@@ -1260,10 +1529,16 @@ export async function handleIntegrationControlOp(
         );
       }
       if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_context_status requires state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session_context_status requires state database",
+        );
       }
       if (!ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_context_status requires session store");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session_context_status requires session store",
+        );
       }
       const sessionsStore = ctx.sessions;
       const pl = payloadObject(req);
@@ -1288,16 +1563,23 @@ export async function handleIntegrationControlOp(
         : null;
       const statsData = getSessionStats(ctx.stateDb, sessionId);
       // Calculate current context fill from transcript
-      let contextFillTokens = 0;
       let formattedStats: ReturnType<typeof buildFormattedStats> | null = null;
       if (statsData && row) {
-        contextFillTokens = estimateCurrentContextFill(ctx.stateDb, sessionId, row.contextSegmentId.trim());
-        formattedStats = buildFormattedStats(statsData, contextFillTokens);
+        formattedStats = buildFormattedStats(statsData, estimateCurrentContextFill(
+          ctx.stateDb,
+          sessionId,
+          row.contextSegmentId.trim(),
+        ));
       }
-      let modelData: { providerId: string | null; model: string | null } | null = null;
+      let modelData: {
+        providerId: string | null;
+        model: string | null;
+      } | null = null;
       if (row) {
         try {
-          const modelSel = row.modelSelection as Record<string, unknown> | undefined;
+          const modelSel = row.modelSelection as
+            | Record<string, unknown>
+            | undefined;
           let providerId: string | null = null;
           let modelName: string | null = null;
           if (modelSel && typeof modelSel === "object") {
@@ -1305,7 +1587,10 @@ export async function handleIntegrationControlOp(
             modelName = (modelSel.model as string) ?? null;
           }
           if (!providerId || !modelName) {
-            const modelsConfig = resolveEffectiveModelsConfig(ctx.config, sessionId);
+            const modelsConfig = resolveEffectiveModelsConfig(
+              ctx.config,
+              sessionId,
+            );
             const chain = modelsConfig?.failoverChain;
             if (chain && chain.length > 0) {
               const first = chain[0];
@@ -1322,7 +1607,9 @@ export async function handleIntegrationControlOp(
       let queueDepth: { system: number; user: number } | null = null;
       try {
         queueDepth = getTurnQueue().getDepth(sessionId);
-      } catch { /* queue not initialized */ }
+      } catch {
+        /* queue not initialized */
+      }
       return {
         session: sessionData,
         stats: statsData ?? null,
@@ -1355,12 +1642,14 @@ export async function handleIntegrationControlOp(
       if (!row) {
         return { session: null };
       }
-      const children = sessions.list({ parentSessionId: sessionId }).map((c) => ({
-        id: c.id,
-        status: c.status,
-        subagent_mode: c.subagentMode ?? null,
-        subagent_expires_at_ms: c.subagentExpiresAtMs ?? null,
-      }));
+      const children = sessions
+        .list({ parentSessionId: sessionId })
+        .map((c) => ({
+          id: c.id,
+          status: c.status,
+          subagent_mode: c.subagentMode ?? null,
+          subagent_expires_at_ms: c.subagentExpiresAtMs ?? null,
+        }));
       return {
         session: {
           id: row.id,
@@ -1377,7 +1666,10 @@ export async function handleIntegrationControlOp(
     }
 
     case "session_send": {
-      ioLog.debug("subagent conversation: send", { op: req.op, principalKind: principal.kind });
+      ioLog.debug("subagent conversation: send", {
+        op: req.op,
+        principalKind: principal.kind,
+      });
       if (principal.kind !== "operator" && principal.kind !== "agent") {
         throw new IntegrationOpError(
           "ERR_FORBIDDEN",
@@ -1394,12 +1686,19 @@ export async function handleIntegrationControlOp(
       const { sessions } = requireSubagentRuntime(ctx);
       const pl = payloadObject(req);
       const sessionId = resolveSessionSendTargetSessionId(pl, ctx.config);
-      assertAgentMayTargetSessionForSendOrList(principal, sessionId, ctx.config);
+      assertAgentMayTargetSessionForSendOrList(
+        principal,
+        sessionId,
+        ctx.config,
+      );
       const message = requireString(pl, "message");
       const silent = pl.silent === true;
       const row = sessions.getById(sessionId);
       if (!row || row.status === "terminated") {
-        throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+        throw new IntegrationOpError(
+          "ERR_SESSION_INACTIVE",
+          "session is missing or terminated",
+        );
       }
       if (row.subagentMode === "one_shot") {
         throw new IntegrationOpError(
@@ -1413,7 +1712,8 @@ export async function handleIntegrationControlOp(
           ? platformUserIdRaw.trim()
           : undefined;
       const replyToMessageId =
-        typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
+        typeof pl.reply_to_message_id === "string" &&
+        pl.reply_to_message_id.trim()
           ? pl.reply_to_message_id.trim()
           : undefined;
       const delivery = silent
@@ -1431,7 +1731,10 @@ export async function handleIntegrationControlOp(
               replyToMessageId,
             } as const;
           })();
-      const senderSessionId = principal.kind === "agent" ? principal.sessionId : `operator:${principal.operatorId}`;
+      const senderSessionId =
+        principal.kind === "agent"
+          ? principal.sessionId
+          : `operator:${principal.operatorId}`;
       const turn = await ext.runSessionModelTurn({
         sessionId,
         userContent: message,
@@ -1449,11 +1752,17 @@ export async function handleIntegrationControlOp(
         outcome: "ok",
         argsRedactedJson: JSON.stringify({ silent }),
       });
-      return { reply: turn.latestAssistantText, failover: turn.failoverMeta ?? null };
+      return {
+        reply: turn.latestAssistantText,
+        failover: turn.failoverMeta ?? null,
+      };
     }
 
     case "session_steer": {
-      ioLog.debug("subagent conversation: steer", { op: req.op, principalKind: principal.kind });
+      ioLog.debug("subagent conversation: steer", {
+        op: req.op,
+        principalKind: principal.kind,
+      });
       if (principal.kind !== "operator" && principal.kind !== "agent") {
         throw new IntegrationOpError(
           "ERR_FORBIDDEN",
@@ -1476,9 +1785,15 @@ export async function handleIntegrationControlOp(
       const prompt = requireString(pl, "prompt");
       const row = sessions.getById(sessionId);
       if (!row || row.status === "terminated") {
-        throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+        throw new IntegrationOpError(
+          "ERR_SESSION_INACTIVE",
+          "session is missing or terminated",
+        );
       }
-      if (principal.kind === "agent" && row.parentSessionId !== principal.sessionId) {
+      if (
+        principal.kind === "agent" &&
+        row.parentSessionId !== principal.sessionId
+      ) {
         throw new IntegrationOpError(
           "ERR_FORBIDDEN",
           "agent may only steer direct child subagents",
@@ -1499,12 +1814,14 @@ export async function handleIntegrationControlOp(
           ? platformUserIdRaw.trim()
           : undefined;
       const replyToMessageId =
-        typeof pl.reply_to_message_id === "string" && pl.reply_to_message_id.trim()
+        typeof pl.reply_to_message_id === "string" &&
+        pl.reply_to_message_id.trim()
           ? pl.reply_to_message_id.trim()
           : undefined;
       const hasThreadBinding = Boolean(row.subagentPlatformThreadId?.trim());
       const delivery =
-        pl.delivery === "internal" || (!hasThreadBinding && pl.delivery !== "messaging_surface")
+        pl.delivery === "internal" ||
+        (!hasThreadBinding && pl.delivery !== "messaging_surface")
           ? ({ kind: "internal" } as const)
           : (() => {
               if (!platformUserId) {
@@ -1519,14 +1836,18 @@ export async function handleIntegrationControlOp(
                 replyToMessageId,
               } as const;
             })();
-      const senderInfo = principal.kind === "agent" ? principal.sessionId : `operator:${principal.operatorId}`;
+      const senderInfo =
+        principal.kind === "agent"
+          ? principal.sessionId
+          : `operator:${principal.operatorId}`;
       const turn = await ext.runSessionModelTurn({
         sessionId,
         userContent: prompt,
         userMetadata: { session_steer: true },
         systemContext: {
           kind: "session.steer",
-          summary: "Operator steering directive. Adjust your behavior accordingly.",
+          summary:
+            "Operator steering directive. Adjust your behavior accordingly.",
           data: { steered_by: senderInfo },
         },
         delivery,
@@ -1536,7 +1857,10 @@ export async function handleIntegrationControlOp(
         resource: sessionId,
         outcome: "ok",
       });
-      return { reply: turn.latestAssistantText, failover: turn.failoverMeta ?? null };
+      return {
+        reply: turn.latestAssistantText,
+        failover: turn.failoverMeta ?? null,
+      };
     }
 
     case "session_abort": {
@@ -1551,7 +1875,10 @@ export async function handleIntegrationControlOp(
       const sessionId = requireString(pl, "session_id");
       const row = sessions.getById(sessionId);
       if (!row || row.status === "terminated") {
-        throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+        throw new IntegrationOpError(
+          "ERR_SESSION_INACTIVE",
+          "session is missing or terminated",
+        );
       }
       if (principal.kind === "agent") {
         assertAgentSpawnSubagentsAllowed(principal, ctx.config);
@@ -1588,7 +1915,10 @@ export async function handleIntegrationControlOp(
       if (principal.kind === "agent") {
         assertAgentSpawnSubagentsAllowed(principal, ctx.config);
         if (!targetRow || targetRow.status === "terminated") {
-          throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session is missing or terminated");
+          throw new IntegrationOpError(
+            "ERR_SESSION_INACTIVE",
+            "session is missing or terminated",
+          );
         }
         if (targetRow.parentSessionId !== principal.sessionId) {
           throw new IntegrationOpError(
@@ -1617,16 +1947,25 @@ export async function handleIntegrationControlOp(
 
     case "session_model": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "session_model requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "session_model requires operator principal",
+        );
       }
       if (!ctx.stateDb || !ctx.sessions) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "session_model requires state database");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "session_model requires state database",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
       const row = ctx.sessions.getById(sessionId);
       if (!row) {
-        throw new IntegrationOpError("ERR_SESSION_INACTIVE", "session not found");
+        throw new IntegrationOpError(
+          "ERR_SESSION_INACTIVE",
+          "session not found",
+        );
       }
       const hasSelection = "model_selection" in pl;
       if (hasSelection) {
@@ -1636,14 +1975,20 @@ export async function handleIntegrationControlOp(
           if (typeof m === "string") {
             const parts = m.split("/");
             if (parts.length !== 2 || !parts[0] || !parts[1]) {
-              throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "model_selection.model must be in providerId/model format");
+              throw new IntegrationOpError(
+                "ERR_INVALID_PAYLOAD",
+                "model_selection.model must be in providerId/model format",
+              );
             }
           }
         }
         const modelSelection = val === null ? undefined : val;
-        ctx.sessions.update(sessionId, { modelSelection: modelSelection ?? null });
+        ctx.sessions.update(sessionId, {
+          modelSelection: modelSelection ?? null,
+        });
         const updated = ctx.sessions.getById(sessionId);
-        const effective = resolveEffectiveModelsConfig(ctx.config, sessionId) ?? null;
+        const effective =
+          resolveEffectiveModelsConfig(ctx.config, sessionId) ?? null;
         return {
           ok: true,
           session_id: sessionId,
@@ -1651,7 +1996,8 @@ export async function handleIntegrationControlOp(
           effective_models: effective,
         };
       }
-      const effective = resolveEffectiveModelsConfig(ctx.config, sessionId) ?? null;
+      const effective =
+        resolveEffectiveModelsConfig(ctx.config, sessionId) ?? null;
       return {
         ok: true,
         session_id: sessionId,
@@ -1662,7 +2008,10 @@ export async function handleIntegrationControlOp(
 
     case "config_show": {
       if (principal.kind !== "operator" && principal.kind !== "agent") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "config_show requires operator or agent principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "config_show requires operator or agent principal",
+        );
       }
       const csPayload = payloadObject(req);
       const dynamicOnly = csPayload.dynamic === true;
@@ -1675,8 +2024,12 @@ export async function handleIntegrationControlOp(
         for (const name of readdirSync(dynDir).sort()) {
           if (!name.endsWith(".json")) continue;
           try {
-            fragments[name.slice(0, -5)] = JSON.parse(readFileSync(join(dynDir, name), "utf8"));
-          } catch { continue; }
+            fragments[name.slice(0, -5)] = JSON.parse(
+              readFileSync(join(dynDir, name), "utf8"),
+            );
+          } catch {
+            continue;
+          }
         }
         const jsonPaths = ctx.config.policy.auditRedaction.jsonPaths;
         return { ok: true, fragments: redactDeep(fragments, jsonPaths) };
@@ -1687,7 +2040,10 @@ export async function handleIntegrationControlOp(
 
     case "procman_list": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "procman_list requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "procman_list requires operator principal",
+        );
       }
       const pm = getProcessManager();
       if (!pm) return { processes: [] };
@@ -1706,15 +2062,25 @@ export async function handleIntegrationControlOp(
 
     case "procman_restart": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "procman_restart requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "procman_restart requires operator principal",
+        );
       }
       const pl = payloadObject(req);
       const id = requireString(pl, "id");
       const pm = getProcessManager();
-      if (!pm) throw new IntegrationOpError("ERR_PROCMAN_UNAVAILABLE", "process manager not initialized");
+      if (!pm)
+        throw new IntegrationOpError(
+          "ERR_PROCMAN_UNAVAILABLE",
+          "process manager not initialized",
+        );
       const mp = pm.get(id);
       if (!mp) {
-        throw new IntegrationOpError("ERR_PROCESS_NOT_FOUND", `no managed process with id "${id}"`);
+        throw new IntegrationOpError(
+          "ERR_PROCESS_NOT_FOUND",
+          `no managed process with id "${id}"`,
+        );
       }
       await mp.restart();
       return { ok: true, id, state: mp.state };
@@ -1722,15 +2088,25 @@ export async function handleIntegrationControlOp(
 
     case "procman_stop": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "procman_stop requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "procman_stop requires operator principal",
+        );
       }
       const pl = payloadObject(req);
       const id = requireString(pl, "id");
       const pm = getProcessManager();
-      if (!pm) throw new IntegrationOpError("ERR_PROCMAN_UNAVAILABLE", "process manager not initialized");
+      if (!pm)
+        throw new IntegrationOpError(
+          "ERR_PROCMAN_UNAVAILABLE",
+          "process manager not initialized",
+        );
       const mp = pm.get(id);
       if (!mp) {
-        throw new IntegrationOpError("ERR_PROCESS_NOT_FOUND", `no managed process with id "${id}"`);
+        throw new IntegrationOpError(
+          "ERR_PROCESS_NOT_FOUND",
+          `no managed process with id "${id}"`,
+        );
       }
       await pm.stop(id);
       return { ok: true, id };
@@ -1738,7 +2114,10 @@ export async function handleIntegrationControlOp(
 
     case "config_request": {
       if (principal.kind !== "agent") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "config_request requires agent principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "config_request requires agent principal",
+        );
       }
       if (!ctx.config.dynamicConfigDirectory) {
         throw new IntegrationOpError(
@@ -1749,18 +2128,27 @@ export async function handleIntegrationControlOp(
       const pl = payloadObject(req);
       const crKey = typeof pl.key === "string" ? pl.key.trim() : "";
       if (!crKey || !/^[a-zA-Z0-9_-]+$/.test(crKey)) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.key is required and must contain only alphanumeric characters, hyphens, and underscores");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.key is required and must contain only alphanumeric characters, hyphens, and underscores",
+        );
       }
       const crMode = pl.mode === "overwrite" ? "overwrite" : "merge";
       const fragmentRaw = pl.fragment;
       if (fragmentRaw === undefined || fragmentRaw === null) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.fragment is required");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.fragment is required",
+        );
       }
       // Wrap the fragment value under the key for schema validation and storage.
       const wrappedRaw = { [crKey]: fragmentRaw };
       const wrappedParse = shoggothConfigFragmentSchema.safeParse(wrappedRaw);
       if (!wrappedParse.success) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", wrappedParse.error.message);
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          wrappedParse.error.message,
+        );
       }
       let wrapped = wrappedParse.data;
       const dynDir = ctx.config.dynamicConfigDirectory;
@@ -1770,35 +2158,51 @@ export async function handleIntegrationControlOp(
         try {
           const existing = JSON.parse(readFileSync(filePath, "utf8"));
           wrapped = deepMerge(existing, wrapped);
-        } catch { /* overwrite if existing file is unreadable */ }
+        } catch {
+          /* overwrite if existing file is unreadable */
+        }
       }
       const currentConfig = loadLayeredConfig(ctx.config.configDirectory);
       const merged = deepMerge(currentConfig, wrapped);
       const fullParse = shoggothConfigSchema.safeParse(merged);
       if (!fullParse.success) {
-        return { ok: false, error: "validation_failed", details: fullParse.error };
+        return {
+          ok: false,
+          error: "validation_failed",
+          details: fullParse.error,
+        };
       }
-      writeFileSync(filePath, JSON.stringify(wrapped, null, 2), { encoding: "utf8" });
+      writeFileSync(filePath, JSON.stringify(wrapped, null, 2), {
+        encoding: "utf8",
+      });
       return { ok: true, path: filePath, key: crKey, mode: crMode };
     }
 
     case "session_queue_manage": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "session_queue_manage requires operator principal");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "session_queue_manage requires operator principal",
+        );
       }
       const pl = payloadObject(req);
       const sessionId = requireString(pl, "session_id");
       const action = requireString(pl, "action");
       const priorityRaw = pl.priority;
       const priority =
-        priorityRaw === "system" || priorityRaw === "user" ? priorityRaw : undefined;
+        priorityRaw === "system" || priorityRaw === "user"
+          ? priorityRaw
+          : undefined;
       const priorityOrAll = priority ?? "all";
 
       let queue: import("../sessions/session-turn-queue").TieredTurnQueue;
       try {
         queue = getTurnQueue();
       } catch {
-        throw new IntegrationOpError("ERR_QUEUE_UNAVAILABLE", "turn queue not initialized");
+        throw new IntegrationOpError(
+          "ERR_QUEUE_UNAVAILABLE",
+          "turn queue not initialized",
+        );
       }
 
       if (action === "list") {
@@ -1822,72 +2226,134 @@ export async function handleIntegrationControlOp(
         if (by === "index") {
           const idx = pl.index;
           if (typeof idx !== "number" || !Number.isFinite(idx)) {
-            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.index must be a finite number");
+            throw new IntegrationOpError(
+              "ERR_INVALID_PAYLOAD",
+              "payload.index must be a finite number",
+            );
           }
-          const removed = queue.removeByRange(sessionId, priorityOrAll, idx, idx);
+          const removed = queue.removeByRange(
+            sessionId,
+            priorityOrAll,
+            idx,
+            idx,
+          );
           return { removed };
         }
         if (by === "range") {
           const start = pl.start;
           const end = pl.end;
           if (typeof start !== "number" || typeof end !== "number") {
-            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.start and payload.end required");
+            throw new IntegrationOpError(
+              "ERR_INVALID_PAYLOAD",
+              "payload.start and payload.end required",
+            );
           }
-          const removed = queue.removeByRange(sessionId, priorityOrAll, start, end);
+          const removed = queue.removeByRange(
+            sessionId,
+            priorityOrAll,
+            start,
+            end,
+          );
           return { removed };
         }
         if (by === "count") {
           const count = pl.count;
-          if (typeof count !== "number" || !Number.isFinite(count) || count < 1) {
-            throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.count must be a positive number");
+          if (
+            typeof count !== "number" ||
+            !Number.isFinite(count) ||
+            count < 1
+          ) {
+            throw new IntegrationOpError(
+              "ERR_INVALID_PAYLOAD",
+              "payload.count must be a positive number",
+            );
           }
           const removed = queue.removeByCount(sessionId, priorityOrAll, count);
           return { removed };
         }
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.by must be index, range, or count");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.by must be index, range, or count",
+        );
       }
 
-      throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.action must be list, remove, or clear");
+      throw new IntegrationOpError(
+        "ERR_INVALID_PAYLOAD",
+        "payload.action must be list, remove, or clear",
+      );
     }
 
     case "elevation_grant": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "elevation_grant is operator-only");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "elevation_grant is operator-only",
+        );
       }
       const elevGrantPl = payloadObject(req);
-      const elevGrantSessionId = typeof elevGrantPl.session_id === "string" ? elevGrantPl.session_id : undefined;
+      const elevGrantSessionId =
+        typeof elevGrantPl.session_id === "string"
+          ? elevGrantPl.session_id
+          : undefined;
       if (!elevGrantSessionId) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.session_id is required");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.session_id is required",
+        );
       }
       if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "elevation requires state DB");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "elevation requires state DB",
+        );
       }
-      const elevDurationMs = typeof elevGrantPl.duration_ms === "number" ? elevGrantPl.duration_ms : undefined;
-      const { createElevationStore: createElevStoreGrant } = await import("../elevation/elevation-store");
+      const elevDurationMs =
+        typeof elevGrantPl.duration_ms === "number"
+          ? elevGrantPl.duration_ms
+          : undefined;
+      const { createElevationStore: createElevStoreGrant } =
+        await import("../elevation/elevation-store");
       const elevStoreGrant = createElevStoreGrant(ctx.stateDb);
-      const elevGrant = elevStoreGrant.grant(elevGrantSessionId, elevDurationMs);
+      const elevGrant = elevStoreGrant.grant(
+        elevGrantSessionId,
+        elevDurationMs,
+      );
       return { ok: true, ...elevGrant };
     }
 
     case "elevation_revoke": {
       if (principal.kind !== "operator") {
-        throw new IntegrationOpError("ERR_FORBIDDEN", "elevation_revoke is operator-only");
+        throw new IntegrationOpError(
+          "ERR_FORBIDDEN",
+          "elevation_revoke is operator-only",
+        );
       }
       const elevRevokePl = payloadObject(req);
       if (!ctx.stateDb) {
-        throw new IntegrationOpError("ERR_STATE_DB_REQUIRED", "elevation requires state DB");
+        throw new IntegrationOpError(
+          "ERR_STATE_DB_REQUIRED",
+          "elevation requires state DB",
+        );
       }
-      const { createElevationStore: createElevStoreRevoke } = await import("../elevation/elevation-store");
+      const { createElevationStore: createElevStoreRevoke } =
+        await import("../elevation/elevation-store");
       const elevStoreRevoke = createElevStoreRevoke(ctx.stateDb);
       if (typeof elevRevokePl.grant_id === "string") {
         const revokeOk = elevStoreRevoke.revoke(elevRevokePl.grant_id);
         return { ok: revokeOk, revoked: revokeOk };
       }
-      const elevRevokeSessionId = typeof elevRevokePl.session_id === "string" ? elevRevokePl.session_id : undefined;
+      const elevRevokeSessionId =
+        typeof elevRevokePl.session_id === "string"
+          ? elevRevokePl.session_id
+          : undefined;
       if (!elevRevokeSessionId) {
-        throw new IntegrationOpError("ERR_INVALID_PAYLOAD", "payload.grant_id or payload.session_id is required");
+        throw new IntegrationOpError(
+          "ERR_INVALID_PAYLOAD",
+          "payload.grant_id or payload.session_id is required",
+        );
       }
-      const revokeCount = elevStoreRevoke.revokeAllForSession(elevRevokeSessionId);
+      const revokeCount =
+        elevStoreRevoke.revokeAllForSession(elevRevokeSessionId);
       return { ok: true, revokedCount: revokeCount };
     }
 

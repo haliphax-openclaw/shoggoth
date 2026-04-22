@@ -18,7 +18,9 @@ export interface AggregateMcpCatalogResult {
 
 function assertValidSourceId(sourceId: string): void {
   if (!sourceId || sourceId.includes(".")) {
-    throw new Error(`invalid MCP source id (no dots): ${JSON.stringify(sourceId)}`);
+    throw new Error(
+      `invalid MCP source id (no dots): ${JSON.stringify(sourceId)}`,
+    );
   }
 }
 
@@ -30,7 +32,9 @@ function namespaced(sourceId: string, toolName: string): string {
  * Merge multiple MCP-style catalogs into one list with stable `source-tool` names.
  * Collisions throw so routing stays unambiguous.
  */
-export function aggregateMcpCatalogs(sources: readonly McpSourceCatalog[]): AggregateMcpCatalogResult {
+export function aggregateMcpCatalogs(
+  sources: readonly McpSourceCatalog[],
+): AggregateMcpCatalogResult {
   const out: AggregatedTool[] = [];
   const seen = new Map<string, string>();
 
@@ -40,7 +44,9 @@ export function aggregateMcpCatalogs(sources: readonly McpSourceCatalog[]): Aggr
       const ns = namespaced(src.sourceId, t.name);
       const prev = seen.get(ns);
       if (prev !== undefined) {
-        throw new Error(`duplicate aggregated MCP tool name "${ns}" (also from ${prev})`);
+        throw new Error(
+          `duplicate aggregated MCP tool name "${ns}" (also from ${prev})`,
+        );
       }
       seen.set(ns, src.sourceId);
       out.push({

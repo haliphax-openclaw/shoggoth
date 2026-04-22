@@ -3,7 +3,10 @@ import type { ChatContentPart } from "@shoggoth/models";
 import { formatAgentIdentityPrefix } from "@shoggoth/shared";
 import { ModelHttpError } from "@shoggoth/models";
 import { daemonNotice } from "./notices.js";
-import { extractOutboundImages, type OutboundImageAttachment } from "./image-outbound.js";
+import {
+  extractOutboundImages,
+  type OutboundImageAttachment,
+} from "./image-outbound.js";
 import type { OutboundAttachment } from "./platform-adapter.js";
 
 // ---------------------------------------------------------------------------
@@ -55,12 +58,20 @@ function modelHttpErrorToUserMessage(err: ModelHttpError): string {
         : daemonNotice("error-model-400-generic");
     }
     default:
-      return daemonNotice("error-model-default", { status: String(err.status) });
+      return daemonNotice("error-model-default", {
+        status: String(err.status),
+      });
   }
 }
 
-function imageAttachmentToOutbound(img: OutboundImageAttachment): OutboundAttachment {
-  return { filename: img.filename, contentType: img.mediaType, data: img.bytes };
+function imageAttachmentToOutbound(
+  img: OutboundImageAttachment,
+): OutboundAttachment {
+  return {
+    filename: img.filename,
+    contentType: img.mediaType,
+    data: img.bytes,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -83,7 +94,8 @@ export function formatModelTagFooter(
   meta: FailoverMeta | undefined,
 ): string {
   const e = processEnv ?? process.env;
-  if (e.SHOGGOTH_MODEL_TAG !== "1" && e.SHOGGOTH_DISCORD_MODEL_TAG !== "1") return "";
+  if (e.SHOGGOTH_MODEL_TAG !== "1" && e.SHOGGOTH_DISCORD_MODEL_TAG !== "1")
+    return "";
   if (!meta) return "";
   return `\n\n${daemonNotice("model-tag-footer", { usedModel: meta.usedModel, usedProviderId: meta.usedProviderId })}`;
 }
@@ -142,7 +154,7 @@ interface FormattedReplyWithImages {
  * blocks. Extracts images as platform attachments and formats the remaining
  * text through the standard reply pipeline.
  */
-function formatAssistantReplyWithImages(
+export function formatAssistantReplyWithImages(
   config: ShoggothConfig,
   sessionId: string,
   env: NodeJS.ProcessEnv | undefined,
@@ -150,7 +162,13 @@ function formatAssistantReplyWithImages(
   failoverMeta: FailoverMeta | undefined,
 ): FormattedReplyWithImages {
   const { textContent, imageAttachments } = extractOutboundImages(content);
-  const body = formatAssistantReply(config, sessionId, env, textContent, failoverMeta);
+  const body = formatAssistantReply(
+    config,
+    sessionId,
+    env,
+    textContent,
+    failoverMeta,
+  );
   return {
     body,
     attachments: imageAttachments.map(imageAttachmentToOutbound),

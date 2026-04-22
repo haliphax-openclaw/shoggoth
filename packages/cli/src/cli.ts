@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
-import { formatSkillPathLine, formatSkillReadJson, formatSkillsListJson } from "./skills-cli";
+import {
+  formatSkillPathLine,
+  formatSkillReadJson,
+  formatSkillsListJson,
+} from "./skills-cli";
 import { runRetentionCli } from "./run-retention";
 import { runEventsDlqCli } from "./run-events-dlq";
 import { runSessionCli } from "./run-session";
@@ -111,7 +115,9 @@ Usage:
       process.exit(1);
     }
   }
-  console.error("usage: shoggoth skills list | shoggoth skills path <id> | shoggoth skills read <id>");
+  console.error(
+    "usage: shoggoth skills list | shoggoth skills path <id> | shoggoth skills read <id>",
+  );
   process.exit(1);
 }
 

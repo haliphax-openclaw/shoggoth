@@ -28,7 +28,13 @@ function makeToolCallClient(toolArgs: Record<string, unknown>) {
       if (callCount === 1) {
         return {
           content: "",
-          toolCalls: [{ id: "tc1", name: "builtin-session-query", arguments: JSON.stringify(toolArgs) }],
+          toolCalls: [
+            {
+              id: "tc1",
+              name: "builtin-session-query",
+              arguments: JSON.stringify(toolArgs),
+            },
+          ],
           usedModel: "stub",
           usedProviderId: "stub",
           degraded: false,
@@ -48,7 +54,8 @@ function makeToolCallClient(toolArgs: Record<string, unknown>) {
 describe("session.query tool handler", { concurrency: false }, () => {
   let db: InstanceType<typeof Database>;
   let tmp: string;
-  const sessionId = "agent:alice:discord:channel:00000000-0000-0000-0000-000000000001";
+  const sessionId =
+    "agent:alice:discord:channel:00000000-0000-0000-0000-000000000001";
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), "shoggoth-sq-"));
@@ -60,9 +67,24 @@ describe("session.query tool handler", { concurrency: false }, () => {
     // Seed some transcript messages
     const ts = createTranscriptStore(db);
     const seg = createSessionStore(db).getById(sessionId)!.contextSegmentId;
-    ts.append({ sessionId, contextSegmentId: seg, role: "user", content: "hello" });
-    ts.append({ sessionId, contextSegmentId: seg, role: "assistant", content: "hi there" });
-    ts.append({ sessionId, contextSegmentId: seg, role: "user", content: "how are you" });
+    ts.append({
+      sessionId,
+      contextSegmentId: seg,
+      role: "user",
+      content: "hello",
+    });
+    ts.append({
+      sessionId,
+      contextSegmentId: seg,
+      role: "assistant",
+      content: "hi there",
+    });
+    ts.append({
+      sessionId,
+      contextSegmentId: seg,
+      role: "user",
+      content: "how are you",
+    });
   });
 
   afterEach(() => {
@@ -83,7 +105,7 @@ describe("session.query tool handler", { concurrency: false }, () => {
     const builtin = buildBuiltinOnlySessionMcpToolContext();
 
     // Capture the tool result from the first tool call
-    let capturedToolResult: string | undefined;
+    let _capturedToolResult: string | undefined;
     const origLoopImpl = runToolLoop;
 
     const result = await executeSessionAgentTurn({
@@ -116,10 +138,22 @@ describe("session.query tool handler", { concurrency: false }, () => {
       .prepare(
         `SELECT seq, role, content, tool_call_id FROM transcript_messages WHERE session_id = @sid ORDER BY seq ASC`,
       )
-      .all({ sid: sessionId }) as { seq: number; role: string; content: string | null; tool_call_id: string | null }[];
+      .all({ sid: sessionId }) as {
+      seq: number;
+      role: string;
+      content: string | null;
+      tool_call_id: string | null;
+    }[];
 
-    const toolResultRow = allRows.find((r) => r.role === "tool" && r.tool_call_id === "tc1");
-    return { result, toolResult: toolResultRow?.content ? JSON.parse(toolResultRow.content) : null };
+    const toolResultRow = allRows.find(
+      (r) => r.role === "tool" && r.tool_call_id === "tc1",
+    );
+    return {
+      result,
+      toolResult: toolResultRow?.content
+        ? JSON.parse(toolResultRow.content)
+        : null,
+    };
   }
 
   it("returns own session messages with default args", async () => {
@@ -140,9 +174,11 @@ describe("session.query tool handler", { concurrency: false }, () => {
   });
 
   it("allows querying another agent when configured globally", async () => {
-    const bobSessionId = "agent:bob:discord:channel:00000000-0000-0000-0000-000000000002";
+    const bobSessionId =
+      "agent:bob:discord:channel:00000000-0000-0000-0000-000000000002";
     createSessionStore(db).create({ id: bobSessionId, workspacePath: tmp });
-    const bobSeg = createSessionStore(db).getById(bobSessionId)!.contextSegmentId;
+    const bobSeg =
+      createSessionStore(db).getById(bobSessionId)!.contextSegmentId;
     createTranscriptStore(db).append({
       sessionId: bobSessionId,
       contextSegmentId: bobSeg,
@@ -156,7 +192,11 @@ describe("session.query tool handler", { concurrency: false }, () => {
     );
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
-    assert.ok(toolResult.messages.some((m: { content: string }) => m.content === "bob message"));
+    assert.ok(
+      toolResult.messages.some(
+        (m: { content: string }) => m.content === "bob message",
+      ),
+    );
   });
 
   it("respects limit parameter", async () => {
@@ -167,7 +207,11 @@ describe("session.query tool handler", { concurrency: false }, () => {
 
   it("respects offset parameter for pagination", async () => {
     // Seed messages have seq 1, 2, 3. Offset=2 should skip the first two.
-    const { toolResult } = await runWithToolArgs({ offset: 2, limit: 1, order: "asc" });
+    const { toolResult } = await runWithToolArgs({
+      offset: 2,
+      limit: 1,
+      order: "asc",
+    });
     assert.ok(toolResult);
     assert.equal(toolResult.messages.length, 1);
     assert.equal(toolResult.messages[0].content, "how are you");
@@ -202,18 +246,25 @@ describe("session.query tool handler", { concurrency: false }, () => {
     const { toolResult } = await runWithToolArgs({ role: [] });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
-    const roles = new Set(toolResult.messages.map((m: { role: string }) => m.role));
+    const roles = new Set(
+      toolResult.messages.map((m: { role: string }) => m.role),
+    );
     // Should have at least user and assistant from seeded data
     assert.ok(roles.has("user"));
     assert.ok(roles.has("assistant"));
   });
 
   it("filters by multiple roles", async () => {
-    const { toolResult } = await runWithToolArgs({ role: ["user", "assistant"] });
+    const { toolResult } = await runWithToolArgs({
+      role: ["user", "assistant"],
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     for (const m of toolResult.messages) {
-      assert.ok(m.role === "user" || m.role === "assistant", `unexpected role: ${m.role}`);
+      assert.ok(
+        m.role === "user" || m.role === "assistant",
+        `unexpected role: ${m.role}`,
+      );
     }
   });
 
@@ -238,7 +289,10 @@ describe("session.query tool handler", { concurrency: false }, () => {
 
   it("combines role filter with query", async () => {
     // "hi there" is from assistant; searching "hi" should match it but not user messages
-    const { toolResult } = await runWithToolArgs({ query: "hi", role: "assistant" });
+    const { toolResult } = await runWithToolArgs({
+      query: "hi",
+      role: "assistant",
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     assert.equal(toolResult.messages.length, 1);
@@ -256,11 +310,18 @@ describe("session.query tool handler", { concurrency: false }, () => {
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     assert.ok(toolResult.messages.length >= 1);
-    assert.ok(toolResult.messages.some((m: { content: string }) => m.content === "hello"));
+    assert.ok(
+      toolResult.messages.some(
+        (m: { content: string }) => m.content === "hello",
+      ),
+    );
   });
 
   it("rejects both query and queryRegex together", async () => {
-    const { toolResult } = await runWithToolArgs({ query: "hello", queryRegex: "h.*" });
+    const { toolResult } = await runWithToolArgs({
+      query: "hello",
+      queryRegex: "h.*",
+    });
     assert.ok(toolResult);
     assert.ok(toolResult.error);
     assert.ok(toolResult.error.includes("mutually exclusive"));
@@ -276,7 +337,12 @@ describe("session.query tool handler", { concurrency: false }, () => {
   it("queryRegex respects offset and limit on filtered results", async () => {
     // Regex matching "h" should match "hello", "hi there", "how are you"
     // With offset=1 (skip seq 1), limit=1, should get "hi there" (seq 2)
-    const { toolResult } = await runWithToolArgs({ queryRegex: "^h", offset: 1, limit: 1, order: "asc" });
+    const { toolResult } = await runWithToolArgs({
+      queryRegex: "^h",
+      offset: 1,
+      limit: 1,
+      order: "asc",
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     assert.equal(toolResult.messages.length, 1);
@@ -288,12 +354,18 @@ describe("session.query tool handler", { concurrency: false }, () => {
   // -----------------------------------------------------------------------
 
   it("includes _meta when includeMetadata is true", async () => {
-    const { toolResult } = await runWithToolArgs({ includeMetadata: true, limit: 3, order: "asc" });
+    const { toolResult } = await runWithToolArgs({
+      includeMetadata: true,
+      limit: 3,
+      order: "asc",
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     for (const m of toolResult.messages) {
       assert.ok(m._meta, "expected _meta on message");
-      assert.ok(typeof m._meta.timestamp === "string" || m._meta.timestamp === null);
+      assert.ok(
+        typeof m._meta.timestamp === "string" || m._meta.timestamp === null,
+      );
       assert.ok(typeof m._meta.tokenCount === "number");
       assert.ok(m._meta.tokenCount >= 0);
       assert.ok(typeof m._meta.index === "number" || m._meta.index === null);
@@ -310,12 +382,18 @@ describe("session.query tool handler", { concurrency: false }, () => {
   });
 
   it("metadataOnly omits content and implies includeMetadata", async () => {
-    const { toolResult } = await runWithToolArgs({ metadataOnly: true, limit: 3 });
+    const { toolResult } = await runWithToolArgs({
+      metadataOnly: true,
+      limit: 3,
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     for (const m of toolResult.messages) {
       // content should be omitted entirely
-      assert.ok(!("content" in m), "content should not be present in metadataOnly mode");
+      assert.ok(
+        !("content" in m),
+        "content should not be present in metadataOnly mode",
+      );
       // _meta should be present
       assert.ok(m._meta, "expected _meta on message");
       assert.ok(typeof m._meta.tokenCount === "number");
@@ -323,7 +401,10 @@ describe("session.query tool handler", { concurrency: false }, () => {
   });
 
   it("metadataOnly still respects role filter", async () => {
-    const { toolResult } = await runWithToolArgs({ metadataOnly: true, role: "assistant" });
+    const { toolResult } = await runWithToolArgs({
+      metadataOnly: true,
+      role: "assistant",
+    });
     assert.ok(toolResult);
     assert.ok(!toolResult.error, `unexpected error: ${toolResult?.error}`);
     for (const m of toolResult.messages) {

@@ -32,10 +32,14 @@ export type SubagentRuntimeExtension = {
   }) => void;
 };
 
-export const subagentRuntimeExtensionRef: { current: SubagentRuntimeExtension | undefined } = {
+export const subagentRuntimeExtensionRef: {
+  current: SubagentRuntimeExtension | undefined;
+} = {
   current: undefined,
 };
 
-export function setSubagentRuntimeExtension(ext: SubagentRuntimeExtension | undefined): void {
+export function setSubagentRuntimeExtension(
+  ext: SubagentRuntimeExtension | undefined,
+): void {
   subagentRuntimeExtensionRef.current = ext;
 }

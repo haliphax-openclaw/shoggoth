@@ -53,7 +53,11 @@ export function splitDiscordMessage(
     let splitAt = findSplitPoint(remaining, budget);
 
     // Reserve room for a closing suffix (fence + inline markers).
-    const closeSuffix = buildCloseSuffix(remaining.slice(0, splitAt), openFence, openInline);
+    const closeSuffix = buildCloseSuffix(
+      remaining.slice(0, splitAt),
+      openFence,
+      openInline,
+    );
     if (splitAt + closeSuffix.length > budget) {
       // Recalculate with reduced budget.
       splitAt = findSplitPoint(remaining, budget - closeSuffix.length);
@@ -61,7 +65,11 @@ export function splitDiscordMessage(
 
     const raw = remaining.slice(0, splitAt);
     // Recalculate close suffix for the actual raw content (fence state may differ).
-    const { suffix, newOpenFence, newOpenInline } = computeChunkSuffix(raw, openFence, openInline);
+    const { suffix, newOpenFence, newOpenInline } = computeChunkSuffix(
+      raw,
+      openFence,
+      openInline,
+    );
 
     chunks.push(prefix + raw + suffix);
     remaining = remaining.slice(splitAt);
@@ -112,7 +120,10 @@ function computeChunkSuffix(
     const trimmed = line.trimStart();
     if (inFence) {
       // Check for closing fence.
-      if (trimmed.startsWith("```") && trimmed.replace(/`/g, "").trim() === "") {
+      if (
+        trimmed.startsWith("```") &&
+        trimmed.replace(/`/g, "").trim() === ""
+      ) {
         inFence = false;
         fenceTag = "";
       }
@@ -127,7 +138,9 @@ function computeChunkSuffix(
 
   // Inline markers — only relevant outside code fences for the trailing text.
   // We track toggles across the entire raw chunk.
-  const openInline = inFence ? [] : computeOpenInlineMarkers(raw, prevOpenInline, prevOpenFence);
+  const openInline = inFence
+    ? []
+    : computeOpenInlineMarkers(raw, prevOpenInline, prevOpenFence);
 
   let suffix = "";
   let newOpenFence = "";
@@ -168,7 +181,10 @@ function computeOpenInlineMarkers(
   for (const line of lines) {
     const trimmed = line.trimStart();
     if (inFence) {
-      if (trimmed.startsWith("```") && trimmed.replace(/`/g, "").trim() === "") {
+      if (
+        trimmed.startsWith("```") &&
+        trimmed.replace(/`/g, "").trim() === ""
+      ) {
         inFence = false;
       }
       continue;

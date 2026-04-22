@@ -1,6 +1,12 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import { writeFileSync, mkdirSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import {
+  writeFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  existsSync,
+} from "node:fs";
 import { utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -8,8 +14,14 @@ import Database from "better-sqlite3";
 import { defaultConfig } from "@shoggoth/shared";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import { runRetentionJobs, retentionScheduleIntervalMs } from "../../src/retention/retention-jobs";
-import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
+import {
+  runRetentionJobs,
+  retentionScheduleIntervalMs,
+} from "../../src/retention/retention-jobs";
+import {
+  createSessionStore,
+  getSessionContextSegmentId,
+} from "../../src/sessions/session-store";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), "shoggoth-ret-"));
@@ -37,14 +49,20 @@ describe("retention jobs", () => {
   it("no-op when retention is unset", async () => {
     const media = join(tmp, "media");
     mkdirSync(media);
-    const cfg = { ...defaultConfig(tmp), inboundMediaRoot: media, stateDbPath: join(tmp, "state.db") };
+    const cfg = {
+      ...defaultConfig(tmp),
+      inboundMediaRoot: media,
+      stateDbPath: join(tmp, "state.db"),
+    };
     const summary = await runRetentionJobs(db, cfg);
     assert.deepStrictEqual(summary, {
       inboundMediaDeletedFiles: 0,
       inboundMediaFreedBytes: 0,
       transcriptMessagesDeleted: 0,
     });
-    const audits = db.prepare(`SELECT COUNT(*) AS c FROM audit_log`).get() as { c: number };
+    const audits = db.prepare(`SELECT COUNT(*) AS c FROM audit_log`).get() as {
+      c: number;
+    };
     assert.equal(audits.c, 0);
   });
 
@@ -75,7 +93,9 @@ describe("retention jobs", () => {
       .all() as { action: string; args_redacted_json: string }[];
     assert.equal(audits.length, 1);
     assert.equal(audits[0]!.action, "retention.purge_inbound_media");
-    const args = JSON.parse(audits[0]!.args_redacted_json) as { deletedFiles: number };
+    const args = JSON.parse(audits[0]!.args_redacted_json) as {
+      deletedFiles: number;
+    };
     assert.equal(args.deletedFiles, 1);
   });
 
@@ -105,7 +125,11 @@ describe("retention jobs", () => {
   });
 
   it("deletes transcript rows by age and by per-session cap", async () => {
-    createSessionStore(db).create({ id: "s1", workspacePath: "/w", status: "active" });
+    createSessionStore(db).create({
+      id: "s1",
+      workspacePath: "/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "s1");
     db.prepare(
       `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, created_at)
@@ -143,7 +167,11 @@ describe("retention jobs", () => {
     const s2 = await runRetentionJobs(db, cfgCap);
     assert.equal(s2.transcriptMessagesDeleted, 1);
 
-    const n = db.prepare(`SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = 's1'`).get() as {
+    const n = db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = 's1'`,
+      )
+      .get() as {
       c: number;
     };
     assert.equal(n.c, 2);
@@ -155,12 +183,16 @@ describe("retention jobs", () => {
       delete process.env.SHOGGOTH_RETENTION_MS;
       assert.strictEqual(retentionScheduleIntervalMs({}), 0);
       assert.strictEqual(
-        retentionScheduleIntervalMs({ retention: { inboundMediaMaxAgeDays: 1 } }),
+        retentionScheduleIntervalMs({
+          retention: { inboundMediaMaxAgeDays: 1 },
+        }),
         3_600_000,
       );
       process.env.SHOGGOTH_RETENTION_MS = "0";
       assert.strictEqual(
-        retentionScheduleIntervalMs({ retention: { inboundMediaMaxAgeDays: 1 } }),
+        retentionScheduleIntervalMs({
+          retention: { inboundMediaMaxAgeDays: 1 },
+        }),
         0,
       );
       delete process.env.SHOGGOTH_RETENTION_MS;

@@ -7,7 +7,10 @@ import type { SessionStore } from "./session-store";
 import { resetSegmentStats } from "./session-stats-store";
 import { pushSystemContext } from "./system-context-buffer";
 
-function denyPendingForSession(pending: PendingActionsStore | undefined, sessionId: string): void {
+function denyPendingForSession(
+  pending: PendingActionsStore | undefined,
+  sessionId: string,
+): void {
   if (!pending) return;
   for (const row of pending.listPendingForSession(sessionId)) {
     pending.deny(row.id, "session:context_segment");
@@ -40,11 +43,15 @@ export function applySessionContextSegmentNew(input: {
   const row = input.sessions.getById(sessionId);
   if (!row) throw new Error(`session not found: ${input.sessionId}`);
   const previousContextSegmentId = row.contextSegmentId.trim();
-  if (!previousContextSegmentId) throw new Error("session missing context_segment_id");
+  if (!previousContextSegmentId)
+    throw new Error("session missing context_segment_id");
   denyPendingForSession(input.pending, sessionId);
   clearSessionToolAutoApproveForSession(input.db, sessionId);
   const contextSegmentId = randomUUID();
-  input.sessions.update(sessionId, { contextSegmentId, systemContextToken: generateSystemContextToken() });
+  input.sessions.update(sessionId, {
+    contextSegmentId,
+    systemContextToken: generateSystemContextToken(),
+  });
   resetSegmentStats(input.db, sessionId);
   if (input.killSubagents) {
     const children = input.sessions
@@ -67,10 +74,14 @@ export function applySessionContextSegmentReset(input: {
   const row = input.sessions.getById(sessionId);
   if (!row) throw new Error(`session not found: ${input.sessionId}`);
   const previousContextSegmentId = row.contextSegmentId.trim();
-  if (!previousContextSegmentId) throw new Error("session missing context_segment_id");
+  if (!previousContextSegmentId)
+    throw new Error("session missing context_segment_id");
   denyPendingForSession(input.pending, sessionId);
   const contextSegmentId = randomUUID();
-  input.sessions.update(sessionId, { contextSegmentId, systemContextToken: generateSystemContextToken() });
+  input.sessions.update(sessionId, {
+    contextSegmentId,
+    systemContextToken: generateSystemContextToken(),
+  });
   resetSegmentStats(input.db, sessionId);
   pushSystemContext(sessionId, "Fresh session. No prior conversation history.");
   return { previousContextSegmentId, contextSegmentId };

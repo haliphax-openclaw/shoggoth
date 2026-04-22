@@ -115,6 +115,7 @@ Ensure that session bootstrap always writes a `model` field in `providerId/model
 - Update platform bootstrap code to call `resolveBootstrapModelRef()` and write the result into `model_selection_json` via `sessions.update()` or `sessions.create()`.
 
 **Files:**
+
 - `packages/daemon/src/sessions/model-resolution.ts` — new `resolveBootstrapModelRef()` and `getSessionPrimaryModelRef()` functions
 - Platform bootstrap files (session creation sites) — write `model` at session creation
 
@@ -127,6 +128,7 @@ Ensure `subagent_spawn` always writes a concrete `model` ref to the new session'
 - If no `subagentModel` is configured and the parent has no `model` in its selection, fall back to `resolveBootstrapModelRef()` using the subagent's session id.
 
 **Files:**
+
 - `packages/daemon/src/control/integration-ops.ts` — `subagent_spawn` case (~line 804)
 - `packages/models/src/invocation-merge.ts` — `mergeSubagentSpawnModelSelection()` signature change
 
@@ -142,6 +144,7 @@ Refactor `executeSessionAgentTurn` to read the primary model from the session ro
 - Remove the second `resolveModel()` call that was used only for the log line and `ctxWindowTokens`.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-agent-turn.ts` — main refactor (~lines 248-378)
 - `packages/daemon/src/sessions/model-resolution.ts` — add `resolveModelFromSessionRef()` variant that accepts a pre-resolved primary ref and walks the failover chain only on failure
 
@@ -154,6 +157,7 @@ Tighten the `session_model` control op to validate the `model` field format.
 - Return the resolved model ref in the response for operator confirmation.
 
 **Files:**
+
 - `packages/daemon/src/control/integration-ops.ts` — `session_model` case (~line 1611)
 
 ### Phase 5: Remove redundant config resolution from turn path
@@ -165,6 +169,7 @@ After phases 1-4, audit the turn path and remove remaining calls to `resolveEffe
 - Verify no other code paths in the turn still derive the primary model from config.
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-agent-turn.ts`
 - `packages/daemon/src/sessions/model-resolution.ts`
 
@@ -194,7 +199,7 @@ After phases 1-4, audit the turn path and remove remaining calls to `resolveEffe
 
 ## Considerations
 
-- **The failover chain still comes from config each turn.** This is intentional — providers can be added/removed dynamically, and the failover chain reflects the current provider landscape. Only the *primary* model is pinned to the session row.
+- **The failover chain still comes from config each turn.** This is intentional — providers can be added/removed dynamically, and the failover chain reflects the current provider landscape. Only the _primary_ model is pinned to the session row.
 - **`resolveEffectiveModelsConfig()` is not eliminated.** It's still called once per turn for the failover chain, provider definitions, retry config, and `defaultInvocation`. The win is that it no longer determines the primary model, reducing the blast radius of config changes on running sessions.
 - **Compaction model resolution** (`modelsForSession.compaction.model`) is separate from the session's primary model and continues to come from config. This is correct — compaction is an infrastructure concern, not a session-level choice.
 - **The `auto` model sentinel** (if used in config's `model` field) must be resolved to a concrete ref at bootstrap time, not stored as `auto` in the session row.

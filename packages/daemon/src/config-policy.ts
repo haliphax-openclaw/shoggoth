@@ -22,6 +22,5 @@ export const CONFIG_RESTART_REQUIRED_KEYS = [
   "configDirectory",
 ] as const;
 
-export type ConfigRestartRequiredKey = (typeof CONFIG_RESTART_REQUIRED_KEYS)[number];
-
-
+export type ConfigRestartRequiredKey =
+  (typeof CONFIG_RESTART_REQUIRED_KEYS)[number];

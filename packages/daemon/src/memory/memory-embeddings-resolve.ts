@@ -3,16 +3,23 @@ import { normalizeOpenAiEmbeddingBaseUrl } from "./openai-embeddings";
 
 const DEFAULT_OPENAI_ORIGIN = "https://api.openai.com/v1";
 
-export function resolveMemoryEmbeddingModelId(memory: ShoggothMemoryConfig): string {
+export function resolveMemoryEmbeddingModelId(
+  memory: ShoggothMemoryConfig,
+): string {
   return memory.embeddings.modelId?.trim() || "text-embedding-3-small";
 }
 
-export function resolveMemoryEmbeddingApiKeyEnv(memory: ShoggothMemoryConfig): string {
+export function resolveMemoryEmbeddingApiKeyEnv(
+  memory: ShoggothMemoryConfig,
+): string {
   return memory.embeddings.apiKeyEnv?.trim() || "OPENAI_API_KEY";
 }
 
 /** Bare `apiKey` wins; otherwise look up `apiKeyEnv` (default `OPENAI_API_KEY`) from env. */
-export function resolveMemoryEmbeddingApiKey(memory: ShoggothMemoryConfig, env: NodeJS.ProcessEnv): string | undefined {
+export function resolveMemoryEmbeddingApiKey(
+  memory: ShoggothMemoryConfig,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
   const bare = (memory.embeddings as { apiKey?: string }).apiKey?.trim();
   if (bare) return bare;
   return env[resolveMemoryEmbeddingApiKeyEnv(memory)];

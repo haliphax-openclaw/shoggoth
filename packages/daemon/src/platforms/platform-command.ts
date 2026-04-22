@@ -22,7 +22,10 @@ export function parsePlatformCommand(
   return { name: name.trim(), options };
 }
 
-const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => ControlOpRequest> = {
+const COMMAND_TO_OP: Record<
+  string,
+  (opts: Readonly<Record<string, string>>) => ControlOpRequest
+> = {
   elevate: (opts) => {
     const action = opts.action?.trim() ?? "grant";
     if (action === "revoke") {
@@ -42,7 +45,8 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
       if (m) {
         const n = Number.parseInt(m[1], 10);
         const unit = m[2] ?? "s";
-        const ms = unit === "h" ? n * 3600000 : unit === "m" ? n * 60000 : n * 1000;
+        const ms =
+          unit === "h" ? n * 3600000 : unit === "m" ? n * 60000 : n * 1000;
         payload.duration_ms = ms;
       }
     }
@@ -111,7 +115,9 @@ const COMMAND_TO_OP: Record<string, (opts: Readonly<Record<string, string>>) => 
 };
 
 /** Translate a PlatformCommand to a control plane operation request. Returns null for unknown commands. */
-export function translateCommandToControlOp(cmd: PlatformCommand): ControlOpRequest | null {
+export function translateCommandToControlOp(
+  cmd: PlatformCommand,
+): ControlOpRequest | null {
   const handler = COMMAND_TO_OP[cmd.name];
   return handler ? handler(cmd.options) : null;
 }

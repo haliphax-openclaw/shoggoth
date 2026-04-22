@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { createConnection } from "node:net";
-import { parseResponseLine, WIRE_VERSION, type WireAuth, type WireResponse } from "@shoggoth/authn";
+import {
+  parseResponseLine,
+  WIRE_VERSION,
+  type WireAuth,
+  type WireResponse,
+} from "@shoggoth/authn";
 
 export type InvokeControlRequestInput = {
   readonly socketPath: string;
@@ -14,7 +19,9 @@ export type InvokeControlRequestInput = {
 /**
  * Single JSONL round-trip to the Shoggoth control Unix socket (one request line, one response line).
  */
-export async function invokeControlRequest(input: InvokeControlRequestInput): Promise<WireResponse> {
+export async function invokeControlRequest(
+  input: InvokeControlRequestInput,
+): Promise<WireResponse> {
   const id = input.id ?? randomUUID();
   const line = `${JSON.stringify({
     v: WIRE_VERSION,

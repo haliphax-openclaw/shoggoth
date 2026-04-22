@@ -71,7 +71,10 @@ export function createFailoverModelClient(
         }
 
         const model = entry.model;
-        const thinkingFormat = input.thinkingFormat ?? entry.thinkingFormat ?? entry.provider.capabilities?.thinkingFormat;
+        const thinkingFormat =
+          input.thinkingFormat ??
+          entry.thinkingFormat ??
+          entry.provider.capabilities?.thinkingFormat;
         const req: ModelCompleteInput = {
           model,
           messages: input.messages,
@@ -98,12 +101,18 @@ export function createFailoverModelClient(
           lastErr = e;
           const more = i < chain.length - 1;
           if (more && isFailoverEligibleError(e)) {
-            hooks?.onProviderExhausted?.(entry.provider.id, e instanceof Error ? e.message : String(e));
+            hooks?.onProviderExhausted?.(
+              entry.provider.id,
+              e instanceof Error ? e.message : String(e),
+            );
             continue;
           }
           // Last in chain or non-eligible error — mark exhausted and throw
           if (isFailoverEligibleError(e)) {
-            hooks?.onProviderExhausted?.(entry.provider.id, e instanceof Error ? e.message : String(e));
+            hooks?.onProviderExhausted?.(
+              entry.provider.id,
+              e instanceof Error ? e.message : String(e),
+            );
           }
           throw e;
         }

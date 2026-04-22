@@ -14,7 +14,9 @@ export const DISCORD_GATEWAY_INTENTS_DEFAULT =
   (1 << 0) + (1 << 9) + (1 << 10) + (1 << 12) + (1 << 13) + (1 << 15);
 
 function asRecord(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
 }
 
 /**
@@ -34,7 +36,8 @@ export function discordMessageCreateToInboundEvent(
 
   const messageId = o.id;
   const channelId = o.channel_id;
-  if (typeof messageId !== "string" || typeof channelId !== "string") return null;
+  if (typeof messageId !== "string" || typeof channelId !== "string")
+    return null;
 
   const guildId = o.guild_id;
   const content = typeof o.content === "string" ? o.content : "";
@@ -56,10 +59,15 @@ export function discordMessageCreateToInboundEvent(
         const id = ar.id;
         const url = ar.url;
         const filename = ar.filename;
-        if (typeof id !== "string" || typeof url !== "string" || typeof filename !== "string") {
+        if (
+          typeof id !== "string" ||
+          typeof url !== "string" ||
+          typeof filename !== "string"
+        ) {
           return null;
         }
-        const contentType = typeof ar.content_type === "string" ? ar.content_type : undefined;
+        const contentType =
+          typeof ar.content_type === "string" ? ar.content_type : undefined;
         const sizeBytes = typeof ar.size === "number" ? ar.size : undefined;
         return { id, url, filename, contentType, sizeBytes };
       })
@@ -95,13 +103,19 @@ export function discordReadyPayloadToBotUserId(d: unknown): string | undefined {
 /**
  * Maps Discord Gateway `MESSAGE_REACTION_ADD` `d` payload to our event shape.
  */
-export function discordMessageReactionAddToEvent(d: unknown): DiscordReactionAddEvent | null {
+export function discordMessageReactionAddToEvent(
+  d: unknown,
+): DiscordReactionAddEvent | null {
   const o = asRecord(d);
   if (!o) return null;
   const userId = o.user_id;
   const channelId = o.channel_id;
   const messageId = o.message_id;
-  if (typeof userId !== "string" || typeof channelId !== "string" || typeof messageId !== "string") {
+  if (
+    typeof userId !== "string" ||
+    typeof channelId !== "string" ||
+    typeof messageId !== "string"
+  ) {
     return null;
   }
   const guildId = o.guild_id;
@@ -126,7 +140,9 @@ export function discordMessageReactionAddToEvent(d: unknown): DiscordReactionAdd
  * Maps a Discord Gateway `INTERACTION_CREATE` `d` payload to our interaction event shape.
  * Returns null for payloads missing required fields.
  */
-export function discordInteractionCreateToEvent(d: unknown): DiscordInteractionEvent | null {
+export function discordInteractionCreateToEvent(
+  d: unknown,
+): DiscordInteractionEvent | null {
   const o = asRecord(d);
   if (!o) return null;
 
@@ -156,7 +172,11 @@ export function discordInteractionCreateToEvent(d: unknown): DiscordInteractionE
   const data: DiscordInteractionEvent["data"] = {
     name: typeof rawData?.name === "string" ? rawData.name : undefined,
     options: Array.isArray(rawData?.options)
-      ? (rawData.options as Array<{ name: string; type: number; value: unknown }>)
+      ? (rawData.options as Array<{
+          name: string;
+          type: number;
+          value: unknown;
+        }>)
       : undefined,
   };
 

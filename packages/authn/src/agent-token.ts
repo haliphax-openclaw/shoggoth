@@ -19,7 +19,10 @@ export function hashAgentToken(raw: string): Buffer {
   return createHash("sha256").update(raw, "utf8").digest();
 }
 
-export function timingSafeEqualRawToHash(raw: string, storedHash: Buffer): boolean {
+export function timingSafeEqualRawToHash(
+  raw: string,
+  storedHash: Buffer,
+): boolean {
   const h = hashAgentToken(raw);
   if (h.length !== storedHash.length) return false;
   return timingSafeEqual(h, storedHash);

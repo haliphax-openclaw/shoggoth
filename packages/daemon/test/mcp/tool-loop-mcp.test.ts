@@ -40,7 +40,10 @@ describe("tool-loop MCP bridge", () => {
         tools: [
           {
             name: "noop",
-            inputSchema: { type: "object", properties: { x: { type: "number" } } },
+            inputSchema: {
+              type: "object",
+              properties: { x: { type: "number" } },
+            },
           },
         ],
       },
@@ -55,7 +58,9 @@ describe("tool-loop MCP bridge", () => {
         if (calls++ === 0) {
           return {
             content: null,
-            toolCalls: [{ id: "c1", name: "builtin-read", argsJson: '{"path":"a.txt"}' }],
+            toolCalls: [
+              { id: "c1", name: "builtin-read", argsJson: '{"path":"a.txt"}' },
+            ],
           };
         }
         return { content: null, toolCalls: [] };
@@ -111,7 +116,10 @@ describe("tool-loop MCP bridge", () => {
       argsJson: "{}",
       toolCallId: "t0",
     });
-    const body = JSON.parse(out.resultJson) as { error?: string; sourceId?: string };
+    const body = JSON.parse(out.resultJson) as {
+      error?: string;
+      sourceId?: string;
+    };
     assert.equal(body.error, "mcp_external_transport_unavailable");
     assert.equal(body.sourceId, "other");
   });

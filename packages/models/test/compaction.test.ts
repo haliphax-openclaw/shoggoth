@@ -60,7 +60,9 @@ describe("compactTranscriptIfNeeded", () => {
     };
     const client: FailoverModelClient = {
       async complete(input) {
-        assert.ok(input.messages.some((m) => (m.content ?? "").includes(filler)));
+        assert.ok(
+          input.messages.some((m) => (m.content ?? "").includes(filler)),
+        );
         return {
           content: "SUMMARY",
           usedProviderId: "p",
@@ -104,7 +106,10 @@ describe("compactTranscriptIfNeeded", () => {
     assert.equal(r.messages[1]?.role, "assistant");
     const content = r.messages[1]?.content ?? "";
     assert.ok(content.startsWith("<summary>\n"), "should start with <summary>");
-    assert.ok(content.includes("SUMMARY TEXT"), "should include summary content");
+    assert.ok(
+      content.includes("SUMMARY TEXT"),
+      "should include summary content",
+    );
     assert.ok(content.endsWith("\n</summary>"), "should end with </summary>");
   });
 
@@ -136,13 +141,34 @@ describe("compactTranscriptIfNeeded", () => {
       },
     };
     await compactTranscriptIfNeeded(messages, policy, client, {});
-    assert.ok(capturedSystem?.includes("<summary-template>"), "should include summary template");
-    assert.ok(capturedSystem?.includes("## Goal"), "should include Goal section");
-    assert.ok(capturedSystem?.includes("## Progress"), "should include Progress section");
-    assert.ok(capturedSystem?.includes("## Key Decisions"), "should include Key Decisions section");
-    assert.ok(capturedSystem?.includes("## Opaque Identifiers"), "should include Opaque Identifiers section");
-    assert.ok(!capturedSystem?.includes("<previous-summary>"), "should NOT include previous-summary block");
-    assert.ok(capturedUser?.includes("<conversation>"), "should wrap excerpt in conversation tags");
+    assert.ok(
+      capturedSystem?.includes("<summary-template>"),
+      "should include summary template",
+    );
+    assert.ok(
+      capturedSystem?.includes("## Goal"),
+      "should include Goal section",
+    );
+    assert.ok(
+      capturedSystem?.includes("## Progress"),
+      "should include Progress section",
+    );
+    assert.ok(
+      capturedSystem?.includes("## Key Decisions"),
+      "should include Key Decisions section",
+    );
+    assert.ok(
+      capturedSystem?.includes("## Opaque Identifiers"),
+      "should include Opaque Identifiers section",
+    );
+    assert.ok(
+      !capturedSystem?.includes("<previous-summary>"),
+      "should NOT include previous-summary block",
+    );
+    assert.ok(
+      capturedUser?.includes("<conversation>"),
+      "should wrap excerpt in conversation tags",
+    );
   });
 
   it("includes previous summary when first assistant message has <summary> block", async () => {
@@ -181,10 +207,24 @@ Build the feature
       },
     };
     await compactTranscriptIfNeeded(messages, policy, client, {});
-    assert.ok(capturedSystem?.includes("<previous-summary>"), "should include previous-summary block");
-    assert.ok(capturedSystem?.includes("Build the feature"), "should include previous summary content");
-    assert.ok(capturedSystem?.includes("Merge this information with the previous summary"), "should include merge instruction");
-    assert.ok(!capturedSystem?.includes("<summary-template>"), "should NOT include summary template when previous exists");
+    assert.ok(
+      capturedSystem?.includes("<previous-summary>"),
+      "should include previous-summary block",
+    );
+    assert.ok(
+      capturedSystem?.includes("Build the feature"),
+      "should include previous summary content",
+    );
+    assert.ok(
+      capturedSystem?.includes(
+        "Merge this information with the previous summary",
+      ),
+      "should include merge instruction",
+    );
+    assert.ok(
+      !capturedSystem?.includes("<summary-template>"),
+      "should NOT include summary template when previous exists",
+    );
   });
 
   it("does not include previous summary when first assistant message lacks <summary> block", async () => {
@@ -213,8 +253,14 @@ Build the feature
       },
     };
     await compactTranscriptIfNeeded(messages, policy, client, {});
-    assert.ok(!capturedSystem?.includes("<previous-summary>"), "should NOT include previous-summary block");
-    assert.ok(capturedSystem?.includes("<summary-template>"), "should include summary template");
+    assert.ok(
+      !capturedSystem?.includes("<previous-summary>"),
+      "should NOT include previous-summary block",
+    );
+    assert.ok(
+      capturedSystem?.includes("<summary-template>"),
+      "should include summary template",
+    );
   });
 
   it("preserves opaque identifiers instruction in system prompt", async () => {
@@ -242,7 +288,13 @@ Build the feature
       },
     };
     await compactTranscriptIfNeeded(messages, policy, client, {});
-    assert.ok(capturedSystem?.includes("Preserve all opaque identifiers"), "should include opaque identifiers instruction");
-    assert.ok(capturedSystem?.includes("UUIDs, hashes, IDs, tokens"), "should list identifier types");
+    assert.ok(
+      capturedSystem?.includes("Preserve all opaque identifiers"),
+      "should include opaque identifiers instruction",
+    );
+    assert.ok(
+      capturedSystem?.includes("UUIDs, hashes, IDs, tokens"),
+      "should list identifier types",
+    );
   });
 });

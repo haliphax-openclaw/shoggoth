@@ -21,9 +21,12 @@ interface ContextWindowMismatchInput {
  * Check for context window mismatch between config and provider response.
  * Logs to stderr always. Surfaces to platform once per provider unless suppressed.
  */
-export function checkContextWindowMismatch(input: ContextWindowMismatchInput): void {
+export function checkContextWindowMismatch(
+  input: ContextWindowMismatchInput,
+): void {
   // If either value is missing, nothing to compare
-  if (input.configContextWindow == null || input.providerContextWindow == null) return;
+  if (input.configContextWindow == null || input.providerContextWindow == null)
+    return;
   if (input.configContextWindow === input.providerContextWindow) return;
 
   const key = input.providerId;
@@ -37,7 +40,11 @@ export function checkContextWindowMismatch(input: ContextWindowMismatchInput): v
   });
 
   // Surface to platform once per provider (unless suppressed or already warned)
-  if (!input.suppressNotice && !warnedProviders.has(key) && input.surfaceWarning) {
+  if (
+    !input.suppressNotice &&
+    !warnedProviders.has(key) &&
+    input.surfaceWarning
+  ) {
     warnedProviders.add(key);
     input.surfaceWarning(
       `⚠️ Context window mismatch for provider \`${input.providerId}\`: config says ${input.configContextWindow} tokens, provider reports ${input.providerContextWindow} tokens.`,

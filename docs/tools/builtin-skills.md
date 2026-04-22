@@ -4,10 +4,10 @@ List, locate, or read installed agent skills.
 
 ## Parameters
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | string | yes | `list`, `path`, or `read` |
-| `id` | string | for `path`/`read` | Skill id (from `list` output) |
+| Param    | Type   | Required          | Notes                         |
+| -------- | ------ | ----------------- | ----------------------------- |
+| `action` | string | yes               | `list`, `path`, or `read`     |
+| `id`     | string | for `path`/`read` | Skill id (from `list` output) |
 
 ## Actions
 
@@ -18,16 +18,19 @@ List, locate, or read installed agent skills.
 ## Examples
 
 **List all skills:**
+
 ```json
 { "action": "list" }
 ```
 
 **Get a skill's path:**
+
 ```json
 { "action": "path", "id": "weather" }
 ```
 
 **Read a skill's content:**
+
 ```json
 { "action": "read", "id": "weather" }
 ```

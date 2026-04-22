@@ -71,6 +71,7 @@ interface TierConfig {
 ```
 
 Default priority kinds:
+
 - `workflow.complete` — workflow completion notification
 - `workflow.task_failed` — task failure notification
 - `session.steer` — operator steering directive
@@ -78,6 +79,7 @@ Default priority kinds:
 - `control` — control plane operations (future)
 
 Default normal kinds:
+
 - `user.message` — inbound user message from messaging surface
 - `heartbeat` — periodic heartbeat turn
 - Everything not in `priorityKinds`
@@ -155,6 +157,7 @@ export class SessionTurnQueue {
 - Update existing tests, add new tests for priority ordering and fairness
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-turn-lock.ts` → rename to `session-turn-queue.ts`
 - `packages/daemon/src/lib.ts` (update export)
 - `packages/platform-discord/src/platform.ts` (update call sites)
@@ -168,6 +171,7 @@ export class SessionTurnQueue {
 - Wire config into `SessionTurnQueue` construction
 
 **Files:**
+
 - `packages/shared/src/config.ts`
 - `packages/daemon/src/index.ts`
 - `packages/platform-discord/src/platform.ts`
@@ -179,6 +183,7 @@ export class SessionTurnQueue {
 - Log warnings when queue depth exceeds a threshold
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-turn-queue.ts`
 - `packages/daemon/src/control/integration-ops.ts`
 

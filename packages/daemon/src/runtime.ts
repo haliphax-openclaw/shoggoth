@@ -19,9 +19,9 @@ export interface DaemonRuntime {
 /**
  * Wires health registry, shutdown coordinator, and OS signals.
  */
-export function createDaemonRuntime(options: DaemonRuntimeOptions): DaemonRuntime {
-  const log = getLogger("runtime");
-
+export function createDaemonRuntime(
+  options: DaemonRuntimeOptions,
+): DaemonRuntime {
   const shutdown = new ShutdownCoordinator({
     ...options.shutdown,
   });

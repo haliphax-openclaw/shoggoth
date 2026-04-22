@@ -25,7 +25,10 @@ export function isDiscordSessionUrnTailSegment(seg: string): boolean {
   return SHOGGOTH_SESSION_UUID_RE.test(s) || DISCORD_SNOWFLAKE_RE.test(s);
 }
 
-export type DiscordRouteSessionUrnCheck = "ok" | "drop" | { readonly fatal: string };
+export type DiscordRouteSessionUrnCheck =
+  | "ok"
+  | "drop"
+  | { readonly fatal: string };
 
 /**
  * Validates the session tail for a Discord messaging route: each segment must be a UUID or snowflake;
@@ -42,17 +45,21 @@ export function checkDiscordMessagingRouteSessionUrn(
   if (parsed.uuidChain.length === 1) {
     const leaf = parsed.uuidChain[0]!;
     const ch = channelId.trim();
-    if (DISCORD_SNOWFLAKE_RE.test(leaf) && DISCORD_SNOWFLAKE_RE.test(ch) && leaf !== ch) {
+    if (
+      DISCORD_SNOWFLAKE_RE.test(leaf) &&
+      DISCORD_SNOWFLAKE_RE.test(ch) &&
+      leaf !== ch
+    ) {
       return {
-        fatal:
-          `discord route: sessionId leaf ${JSON.stringify(leaf)} must equal channelId ${JSON.stringify(ch)} when both are Discord snowflakes`,
+        fatal: `discord route: sessionId leaf ${JSON.stringify(leaf)} must equal channelId ${JSON.stringify(ch)} when both are Discord snowflakes`,
       };
     }
   }
   return "ok";
 }
 
-const DEFAULT_PRIMARY_UUID_LOWER = SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID.toLowerCase();
+const DEFAULT_PRIMARY_UUID_LOWER =
+  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID.toLowerCase();
 
 export type DiscordDefaultPrimaryMultiAgentGuard = {
   /** Declared agents (from `agents.list`); when non-empty, default-primary UUID routes are validated per entry. */
@@ -80,7 +87,12 @@ export function assertDiscordRoutesDefaultPrimaryUuidMatchesAgent(
       if (p.uuidChain.length !== 1) continue;
       if (p.uuidChain[0] !== DEFAULT_PRIMARY_UUID_LOWER) continue;
       if (p.agentId === aid0 && p.platform === plat0) continue;
-      const expected = formatAgentSessionUrn(aid0, plat0, p.resourceType, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+      const expected = formatAgentSessionUrn(
+        aid0,
+        plat0,
+        p.resourceType,
+        SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+      );
       throw new Error(
         `discord route[${i}] sessionId uses reserved primary UUID (${SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID}) but ` +
           `agent:platform ${JSON.stringify(p.agentId)}:${JSON.stringify(p.platform)} do not match ` +
@@ -117,7 +129,9 @@ export function assertDiscordRoutesDefaultPrimaryUuidMatchesAgent(
 }
 
 /** First `channelId` in a routes JSON array (bootstrap helper; shape is transport-defined). */
-export function parseFirstDiscordChannelIdFromRoutesJson(raw: string | undefined): string | undefined {
+export function parseFirstDiscordChannelIdFromRoutesJson(
+  raw: string | undefined,
+): string | undefined {
   const t = raw?.trim();
   if (!t) return undefined;
   try {
@@ -148,5 +162,10 @@ export function resolveDiscordBootstrapPrimarySessionUrn(
   if (ch && DISCORD_SNOWFLAKE_RE.test(ch)) {
     return formatAgentSessionUrn(agentId, platform, "channel", ch);
   }
-  return formatAgentSessionUrn(agentId, platform, "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+  return formatAgentSessionUrn(
+    agentId,
+    platform,
+    "channel",
+    SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+  );
 }

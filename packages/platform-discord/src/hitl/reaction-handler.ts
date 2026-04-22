@@ -18,7 +18,8 @@ export function classifyHitlDiscordReaction(emoji: {
   if (n === "❌") return "deny";
   if (n === "✅") return "session";
   // Permanent / "forever" (U+267E); Discord may omit or include VS16 (U+FE0F)
-  if (n === "♾️" || n === "♾" || n === "\u267E" || n === "\u267E\uFE0F") return "agent";
+  if (n === "♾️" || n === "♾" || n === "\u267E" || n === "\u267E\uFE0F")
+    return "agent";
   if (n === "1️⃣" || /^1\uFE0F?\u20E3$/.test(n)) return "once";
   return null;
 }
@@ -104,7 +105,10 @@ export function handleDiscordHitlReactionAdd(input: {
     });
     return true;
   } catch (e) {
-    input.logger.warn("hitl.discord_reaction_apply_failed", { err: String(e), kind });
+    input.logger.warn("hitl.discord_reaction_apply_failed", {
+      err: String(e),
+      kind,
+    });
     return false;
   }
 }

@@ -25,29 +25,31 @@ export async function ensureAgentWorkspaceLayout(
   if (!root) return;
 
   const srcDir = opts?.templateDir ?? resolveAgentTemplateDir();
-  const templateFiles = WORKSPACE_TEMPLATE_FILES.filter((f) => f !== "BOOTSTRAP.md");
+  const templateFiles = WORKSPACE_TEMPLATE_FILES.filter(
+    (f) => f !== "BOOTSTRAP.md",
+  );
 
   const script = [
     'const fs = require("fs");',
     'const path = require("path");',
-    'const root = process.env._WS_ROOT;',
-    'const srcDir = process.env._TEMPLATE_DIR;',
-    'const files = JSON.parse(process.env._TEMPLATE_FILES);',
-    'const dmode = 0o770;',
-    'const fmode = 0o660;',
-    'fs.mkdirSync(root, { recursive: true, mode: dmode });',
+    "const root = process.env._WS_ROOT;",
+    "const srcDir = process.env._TEMPLATE_DIR;",
+    "const files = JSON.parse(process.env._TEMPLATE_FILES);",
+    "const dmode = 0o770;",
+    "const fmode = 0o660;",
+    "fs.mkdirSync(root, { recursive: true, mode: dmode });",
     'fs.mkdirSync(path.join(root, "skills"), { recursive: true, mode: dmode });',
     'fs.mkdirSync(path.join(root, "memory"), { recursive: true, mode: dmode });',
     'fs.mkdirSync(path.join(root, "tmp"), { recursive: true, mode: dmode });',
-    'if (fs.existsSync(srcDir)) {',
-    '  for (const name of files) {',
-    '    const from = path.join(srcDir, name);',
-    '    const to = path.join(root, name);',
-    '    if (!fs.existsSync(from) || fs.existsSync(to)) continue;',
-    '    fs.copyFileSync(from, to);',
-    '    try { fs.chmodSync(to, fmode); } catch {}',
-    '  }',
-    '}',
+    "if (fs.existsSync(srcDir)) {",
+    "  for (const name of files) {",
+    "    const from = path.join(srcDir, name);",
+    "    const to = path.join(root, name);",
+    "    if (!fs.existsSync(from) || fs.existsSync(to)) continue;",
+    "    fs.copyFileSync(from, to);",
+    "    try { fs.chmodSync(to, fmode); } catch {}",
+    "  }",
+    "}",
   ].join("\n");
 
   const r = await runAsUser({
@@ -64,6 +66,8 @@ export async function ensureAgentWorkspaceLayout(
   });
 
   if (r.exitCode !== 0) {
-    throw new Error(r.stderr.trim() || `workspace layout setup failed (exit ${r.exitCode})`);
+    throw new Error(
+      r.stderr.trim() || `workspace layout setup failed (exit ${r.exitCode})`,
+    );
   }
 }

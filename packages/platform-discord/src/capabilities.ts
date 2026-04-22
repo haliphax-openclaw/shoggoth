@@ -1,4 +1,7 @@
-import { MESSAGING_FEATURE, type MessagingAdapterCapabilities } from "@shoggoth/messaging";
+import {
+  MESSAGING_FEATURE,
+  type MessagingAdapterCapabilities,
+} from "@shoggoth/messaging";
 export type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
 
 const outboundTextSchema = {
@@ -13,7 +16,8 @@ const outboundTextSchema = {
 
 const attachmentSchema = {
   type: "object",
-  description: "Discord attachment reference (URL upload flow is adapter-specific)",
+  description:
+    "Discord attachment reference (URL upload flow is adapter-specific)",
   properties: {
     filename: { type: "string" },
     url: { type: "string", description: "HTTPS URL for hosted attachment" },
@@ -36,7 +40,11 @@ const streamChunkSchema = {
   description: "Streaming edit: full replacement content for message PATCH",
   properties: {
     content: { type: "string", maxLength: 2000 },
-    sequence: { type: "integer", maximum: 1_000_000, description: "monotonic chunk index" },
+    sequence: {
+      type: "integer",
+      maximum: 1_000_000,
+      description: "monotonic chunk index",
+    },
   },
   required: ["content", "sequence"],
 } as const;
@@ -65,7 +73,10 @@ export function discordCapabilityDescriptor(): MessagingAdapterCapabilities {
       search: true,
       attachmentDownload: true,
     },
-    features: [MESSAGING_FEATURE.TYPING_NOTIFICATION, MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE],
+    features: [
+      MESSAGING_FEATURE.TYPING_NOTIFICATION,
+      MESSAGING_FEATURE.SILENT_REPLIES_CHANNEL_AWARE,
+    ],
     parameterSchemas: {
       outboundText: outboundTextSchema,
       attachment: attachmentSchema,

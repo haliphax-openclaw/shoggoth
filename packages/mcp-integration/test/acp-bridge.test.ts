@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { createAcpxBinding, findBindingForAcpxWorkspace } from "../src/acp-bridge";
+import {
+  createAcpxBinding,
+  findBindingForAcpxWorkspace,
+} from "../src/acp-bridge";
 
 describe("acp-bridge", () => {
   it("finds binding by workspace root", () => {

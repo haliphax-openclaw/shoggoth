@@ -13,10 +13,7 @@ import {
   removeExecSession,
 } from "../src/tools";
 import { toolPoll } from "../src/poll";
-import type {
-  ExecForegroundResult,
-  ExecBackgroundResult,
-} from "../src/tools";
+import type { ExecForegroundResult, ExecBackgroundResult } from "../src/tools";
 import type {
   PollCombinedResult,
   PollSplitResult,
@@ -63,10 +60,14 @@ describe("procman integration", () => {
 
   describe("background exec via procman", () => {
     it("returns background result with sessionId and pid", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo hello-procman",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo hello-procman",
+          background: true,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.ok(bg.sessionId);
@@ -76,10 +77,14 @@ describe("procman integration", () => {
     });
 
     it("process is tracked in ProcessManager, not legacy Map", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.2",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.2",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
 
       // Should NOT be in the legacy Map
@@ -93,28 +98,44 @@ describe("procman integration", () => {
     });
 
     it("process has correct owner metadata", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.2",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.2",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
-      assert.deepStrictEqual(mp.spec.owner, { kind: "agent-tool", scopeId: "exec" });
+      assert.deepStrictEqual(mp.spec.owner, {
+        kind: "agent-tool",
+        scopeId: "exec",
+      });
       assert.deepStrictEqual(mp.spec.restart, { mode: "never" });
     });
 
     it("captures output in procman ring buffer", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo procman-output",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo procman-output",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       // Wait for process to finish
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const stdout = mp.readOutput("stdout");
@@ -122,10 +143,14 @@ describe("procman integration", () => {
     });
 
     it("removeExecSession stops procman-managed process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 10",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 10",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
 
       const removed = removeExecSession(bg.sessionId);
@@ -146,10 +171,14 @@ describe("procman integration", () => {
 
   describe("yieldMs via procman", () => {
     it("returns foreground result when process finishes within yield window", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo fast-yield-pm",
-        yieldMs: 5000,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo fast-yield-pm",
+          yieldMs: 5000,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.output?.includes("fast-yield-pm"));
@@ -157,10 +186,14 @@ describe("procman integration", () => {
     });
 
     it("backgrounds process when it exceeds yield window", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 10; echo done",
-        yieldMs: 200,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 10; echo done",
+          yieldMs: 200,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.equal(bg.yielded, true);
@@ -173,10 +206,14 @@ describe("procman integration", () => {
     });
 
     it("includes partial output when yielded via procman", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo partial-pm; sleep 10",
-        yieldMs: 500,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo partial-pm; sleep 10",
+          yieldMs: 500,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.equal(bg.yielded, true);
@@ -186,10 +223,14 @@ describe("procman integration", () => {
     });
 
     it("yieldMs of 0 is equivalent to background: true", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.1",
-        yieldMs: 0,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.1",
+          yieldMs: 0,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.ok(getManagedExecSession(bg.sessionId));
@@ -202,10 +243,14 @@ describe("procman integration", () => {
 
   describe("poll via procman", () => {
     it("returns running status for an active procman process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 5",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 5",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
 
       const poll = await toolPoll({ pid: bg.pid });
@@ -217,17 +262,26 @@ describe("procman integration", () => {
     });
 
     it("returns exited status with output for completed procman process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo poll-pm-output",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo poll-pm-output",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       // Wait for process to finish
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const poll = await toolPoll({ pid: bg.pid });
@@ -240,16 +294,25 @@ describe("procman integration", () => {
     });
 
     it("captures non-zero exit code via procman poll", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "exit 7",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "exit 7",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const poll = await toolPoll({ pid: bg.pid });
@@ -260,16 +323,25 @@ describe("procman integration", () => {
     });
 
     it("supports split streams via procman poll", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo out-pm; echo err-pm >&2",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo out-pm; echo err-pm >&2",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const poll = await toolPoll({ pid: bg.pid, streams: true });
@@ -280,16 +352,25 @@ describe("procman integration", () => {
     });
 
     it("supports tail filter via procman poll", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "seq 1 50",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "seq 1 50",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const poll = await toolPoll({ pid: bg.pid, tail: 3 });
@@ -300,16 +381,25 @@ describe("procman integration", () => {
     });
 
     it("supports since filter via procman poll", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "printf 'AAABBBCCC'",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "printf 'AAABBBCCC'",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const mp = getManagedExecSession(bg.sessionId)!;
 
       await new Promise<void>((resolve) => {
-        if (mp.state === "dead") { resolve(); return; }
-        mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+        if (mp.state === "dead") {
+          resolve();
+          return;
+        }
+        mp.on("state-change", (s: string) => {
+          if (s === "dead") resolve();
+        });
       });
 
       const poll = await toolPoll({ pid: bg.pid, since: 3 });
@@ -321,10 +411,14 @@ describe("procman integration", () => {
     });
 
     it("supports timeout wait via procman poll", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo fast-pm",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo fast-pm",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
 
       const poll = await toolPoll({ pid: bg.pid, timeout: 5000 });
@@ -349,9 +443,13 @@ describe("procman integration", () => {
 
   describe("foreground exec unaffected", () => {
     it("foreground exec does not go through procman", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo foreground-pm",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo foreground-pm",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.output?.includes("foreground-pm"));
@@ -371,10 +469,14 @@ describe("procman integration", () => {
     it("falls back to legacy Map when ProcessManager is cleared", async () => {
       setProcessManager(undefined);
 
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.2",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.2",
+          background: true,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
 

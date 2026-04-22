@@ -43,7 +43,7 @@ At least one of `path`, `url`, or `base64` must be provided. The tool accepts an
 **Return value:** `contentParts: ChatContentPart[]` containing the resolved block(s). The `resultJson` carries a lightweight confirmation:
 
 ```json
-{"ok": true, "type": "image", "count": 2, "totalBytes": 68210}
+{ "ok": true, "type": "image", "count": 2, "totalBytes": 68210 }
 ```
 
 ### Block resolver registry
@@ -159,6 +159,7 @@ When `codec.supportsImageInput` is `false`, image blocks in any message role are
 Extract the magic-byte detection function from `image-ingest.ts` into a shared location and export it. Add `supportsImageInput` to the codec interface and set it on all three existing codecs.
 
 **Files:**
+
 - `packages/daemon/src/presentation/image-ingest.ts` — move `detectMediaTypeFromBytes` to shared or export directly
 - `packages/models/src/types.ts` — add `supportsImageInput` to `ImageBlockCodec`
 - `packages/models/src/image-codec.ts` — set `supportsImageInput: true` on all three codecs
@@ -168,6 +169,7 @@ Extract the magic-byte detection function from `image-ingest.ts` into a shared l
 Add `sanitizeTranscriptForProvider` and wire it into the model call path so image blocks are stripped when the provider can't handle them.
 
 **Files:**
+
 - `packages/daemon/src/sessions/transcript-to-chat.ts` — new `sanitizeTranscriptForProvider` function
 - `packages/daemon/src/sessions/session-agent-turn.ts` — call sanitization before model invocation
 
@@ -176,6 +178,7 @@ Add `sanitizeTranscriptForProvider` and wire it into the model call path so imag
 Implement the tool definition, parameter validation, image resolver, and tool registration.
 
 **Files:**
+
 - `packages/daemon/src/tools/show-tool.ts` — new: tool definition, parameter validation, image resolver
 - `packages/daemon/src/presentation/show-blocks.ts` — new: resolver registry, `ResolvedBlock` types
 - Tool registration site — register `show` as a built-in tool
@@ -185,6 +188,7 @@ Implement the tool definition, parameter validation, image resolver, and tool re
 Extract `show` tool results from the current turn, convert to `OutboundAttachment[]`, wire into the platform reply path, and update the Discord adapter to send attachments.
 
 **Files:**
+
 - `packages/daemon/src/presentation/show-blocks.ts` — add `extractShowBlocks`
 - `packages/daemon/src/presentation/turn-orchestrator.ts` — call extraction, pass attachments to `sendBody`
 - `packages/daemon/src/presentation/platform-adapter.ts` — extend `sendBody` signature with optional attachments

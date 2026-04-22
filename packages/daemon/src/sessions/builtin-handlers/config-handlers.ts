@@ -3,7 +3,10 @@
 // ---------------------------------------------------------------------------
 
 import { IntegrationOpError } from "../../control/integration-ops";
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("config-show", configShow);
@@ -24,7 +27,11 @@ async function configShow(
   } catch (e) {
     if (e instanceof IntegrationOpError) {
       return {
-        resultJson: JSON.stringify({ ok: false, code: e.code, message: e.message }),
+        resultJson: JSON.stringify({
+          ok: false,
+          code: e.code,
+          message: e.message,
+        }),
       };
     }
     throw e;
@@ -37,15 +44,25 @@ async function configRequest(
 ): Promise<{ resultJson: string }> {
   const inv = ctx.getAgentIntegrationInvoker();
   if (!inv) {
-    return { resultJson: JSON.stringify({ error: "config_request_unavailable" }) };
+    return {
+      resultJson: JSON.stringify({ error: "config_request_unavailable" }),
+    };
   }
   try {
-    const result = await inv(ctx.sessionId, "config_request", { key: args.key, fragment: args.fragment, mode: args.mode });
+    const result = await inv(ctx.sessionId, "config_request", {
+      key: args.key,
+      fragment: args.fragment,
+      mode: args.mode,
+    });
     return { resultJson: JSON.stringify(result) };
   } catch (e) {
     if (e instanceof IntegrationOpError) {
       return {
-        resultJson: JSON.stringify({ ok: false, code: e.code, message: e.message }),
+        resultJson: JSON.stringify({
+          ok: false,
+          code: e.code,
+          message: e.message,
+        }),
       };
     }
     throw e;

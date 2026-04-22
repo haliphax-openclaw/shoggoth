@@ -18,14 +18,22 @@ function sseBody(chunks: string[]): ReadableStream<Uint8Array> {
   });
 }
 
-function jsonResponse(body: unknown, headers?: Record<string, string>, status = 200): Response {
+function jsonResponse(
+  body: unknown,
+  headers?: Record<string, string>,
+  status = 200,
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
 }
 
-function sseResponse(chunks: string[], headers?: Record<string, string>, status = 200): Response {
+function sseResponse(
+  chunks: string[],
+  headers?: Record<string, string>,
+  status = 200,
+): Response {
   return new Response(sseBody(chunks), {
     status,
     headers: { "Content-Type": "text/event-stream; charset=utf-8", ...headers },
@@ -40,15 +48,21 @@ function acceptedResponse(): Response {
  * Captures GET request headers from mocked fetch calls.
  * Returns a list of headers objects for each GET request made.
  */
-function capturedGetHeaders(mockFn: ReturnType<typeof vi.fn>): Record<string, string>[] {
+function capturedGetHeaders(
+  mockFn: ReturnType<typeof vi.fn>,
+): Record<string, string>[] {
   return mockFn.mock.calls
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .filter(([_url, init]: [string, RequestInit]) => init?.method === "GET")
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(([_url, init]: [string, RequestInit]) => {
       const h = init?.headers;
       if (!h) return {};
       if (h instanceof Headers) {
         const out: Record<string, string> = {};
-        h.forEach((v, k) => { out[k] = v; });
+        h.forEach((v, k) => {
+          out[k] = v;
+        });
         return out;
       }
       if (Array.isArray(h)) {
@@ -82,13 +96,18 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
     let getCallCount = 0;
     // We need a deferred promise so we can resolve the tool call result on the second GET
     let resolveToolCall: ((v: unknown) => void) | undefined;
-    const toolCallPromise = new Promise((r) => { resolveToolCall = r; });
+    const toolCallPromise = new Promise((r) => {
+      resolveToolCall = r;
+    });
 
     mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
       const method = init?.method ?? "GET";
 
       if (method === "POST") {
-        const body = JSON.parse(init.body as string) as { method?: string; id?: number };
+        const body = JSON.parse(init.body as string) as {
+          method?: string;
+          id?: number;
+        };
 
         if (body.method === "initialize") {
           return jsonResponse(
@@ -111,7 +130,11 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
           return jsonResponse({
             jsonrpc: "2.0",
             id: body.id,
-            result: { tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "t", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           });
         }
         if (body.method === "tools/call") {
@@ -165,7 +188,10 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
     await new Promise((r) => setTimeout(r, 200));
 
     // Invoke tool — POST returns 202, result comes on reconnected GET
-    const result = await session.request("tools/call", { name: "t", arguments: {} });
+    const result = await session.request("tools/call", {
+      name: "t",
+      arguments: {},
+    });
     expect(result).toEqual({ resumed: true });
 
     // Verify GET reconnect headers
@@ -184,13 +210,18 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
   it("does NOT send Last-Event-ID on GET reconnect when no id: fields were received", async () => {
     let getCallCount = 0;
     let resolveToolCall: ((v: unknown) => void) | undefined;
-    const toolCallPromise = new Promise((r) => { resolveToolCall = r; });
+    const toolCallPromise = new Promise((r) => {
+      resolveToolCall = r;
+    });
 
     mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
       const method = init?.method ?? "GET";
 
       if (method === "POST") {
-        const body = JSON.parse(init.body as string) as { method?: string; id?: number };
+        const body = JSON.parse(init.body as string) as {
+          method?: string;
+          id?: number;
+        };
 
         if (body.method === "initialize") {
           return jsonResponse(
@@ -213,7 +244,11 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
           return jsonResponse({
             jsonrpc: "2.0",
             id: body.id,
-            result: { tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }] },
+            result: {
+              tools: [
+                { name: "t", inputSchema: { type: "object", properties: {} } },
+              ],
+            },
           });
         }
         if (body.method === "tools/call") {
@@ -258,7 +293,10 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
     // Wait for first GET to connect, receive events without ids, and disconnect
     await new Promise((r) => setTimeout(r, 200));
 
-    const result = await session.request("tools/call", { name: "t", arguments: {} });
+    const result = await session.request("tools/call", {
+      name: "t",
+      arguments: {},
+    });
     expect(result).toEqual({ noResume: true });
 
     // Verify GET reconnect headers

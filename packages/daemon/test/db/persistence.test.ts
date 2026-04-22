@@ -25,9 +25,7 @@ function migrationVersionsInDir(migrationsDir: string): number[] {
   return vs;
 }
 
-describe(
-  "persistence (migrations, WAL, backup)",
-  () => {
+describe("persistence (migrations, WAL, backup)", () => {
   let dir: string;
   let dbPath: string;
 
@@ -99,10 +97,7 @@ describe(
     writeFileSync(join(badDir, "0001_b.sql"), "SELECT 1;");
     const db = openStateDb(join(dir, "dup.db"));
     try {
-      assert.throws(
-        () => migrate(db, badDir),
-        /Duplicate migration version 1/,
-      );
+      assert.throws(() => migrate(db, badDir), /Duplicate migration version 1/);
     } finally {
       db.close();
     }
@@ -136,5 +131,4 @@ describe(
       verify.close();
     }
   });
-  },
-);
+});

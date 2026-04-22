@@ -8,10 +8,13 @@ import { join } from "node:path";
 import type { HitlConfigRef } from "../config-hot-reload";
 
 /** Sorts late in layered merge; holds per-agent hitl.toolAutoApprove after each ♾️ update. */
-export const HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME = "z-hitl-agent-tool-auto-approve.json";
+export const HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME =
+  "z-hitl-agent-tool-auto-approve.json";
 
 /** Build the agents.list fragment for persisting toolAutoApprove across all agents. */
-function buildAgentsFragment(agentToolMap: Record<string, string[]>): Record<string, unknown> {
+function buildAgentsFragment(
+  agentToolMap: Record<string, string[]>,
+): Record<string, unknown> {
   const list: Record<string, unknown> = {};
   for (const [aid, tools] of Object.entries(agentToolMap)) {
     list[aid] = { hitl: { toolAutoApprove: tools } };
@@ -20,7 +23,9 @@ function buildAgentsFragment(agentToolMap: Record<string, string[]>): Record<str
 }
 
 /** Read the current per-agent toolAutoApprove map from the full config. */
-export function readAgentToolAutoApproveMap(config: ShoggothConfig): Record<string, string[]> {
+export function readAgentToolAutoApproveMap(
+  config: ShoggothConfig,
+): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   const list = config.agents?.list;
   if (!list) return out;
@@ -49,7 +54,10 @@ export function persistAgentToolAutoApproveAndReload(input: {
   const tn = input.toolName.trim();
   const cur = new Set(merged[aid] ?? []);
   cur.add(tn);
-  const nextMap: Record<string, string[]> = { ...merged, [aid]: [...cur].sort() };
+  const nextMap: Record<string, string[]> = {
+    ...merged,
+    [aid]: [...cur].sort(),
+  };
   const body = `${JSON.stringify(buildAgentsFragment(nextMap), null, 2)}\n`;
   const full = join(dynDir, HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME);
   const tmp = `${full}.tmp`;

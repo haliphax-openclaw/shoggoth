@@ -55,7 +55,11 @@ function killProcessGroup(child: ChildProcess, signal: NodeJS.Signals): void {
     process.kill(-child.pid!, signal);
   } catch {
     // Fallback: kill just the child (group may already be dead)
-    try { child.kill(signal); } catch { /* already dead */ }
+    try {
+      child.kill(signal);
+    } catch {
+      /* already dead */
+    }
   }
 }
 
@@ -71,7 +75,10 @@ function spawnChild(options: RunAsUserOptions): ChildProcess {
     cwd: options.cwd,
     uid: options.uid,
     gid: options.gid,
-    stdio: options.stdin !== undefined ? ["pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"],
+    stdio:
+      options.stdin !== undefined
+        ? ["pipe", "pipe", "pipe"]
+        : ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...options.env },
     detached: true,
   });
@@ -124,7 +131,13 @@ export function runAsUser(options: RunAsUserOptions): Promise<RunAsUserResult> {
       clearTimeout(killTimer);
       void Promise.all([outP, errP])
         .then(([stdout, stderr]) => {
-          resolve({ stdout, stderr, exitCode, signal, timedOut: timedOut || undefined });
+          resolve({
+            stdout,
+            stderr,
+            exitCode,
+            signal,
+            timedOut: timedOut || undefined,
+          });
         })
         .catch(reject);
     });
@@ -223,13 +236,19 @@ export function spawnAsUser(options: RunAsUserOptions): BackgroundHandle {
   });
 
   // Don't let the done promise rejection crash the process
-  child.on("error", () => { /* handled via done promise */ });
+  child.on("error", () => {
+    /* handled via done promise */
+  });
 
   return handle;
 }
 
 /** Read all accumulated output from a BackgroundHandle as a string. */
-export function readHandleOutput(handle: BackgroundHandle, stream: "stdout" | "stderr"): string {
-  const chunks = stream === "stdout" ? handle.stdoutChunks : handle.stderrChunks;
+export function readHandleOutput(
+  handle: BackgroundHandle,
+  stream: "stdout" | "stderr",
+): string {
+  const chunks =
+    stream === "stdout" ? handle.stdoutChunks : handle.stderrChunks;
   return Buffer.concat(chunks).toString("utf8");
 }

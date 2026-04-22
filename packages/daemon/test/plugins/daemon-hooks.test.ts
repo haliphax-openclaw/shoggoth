@@ -11,28 +11,39 @@ function createRecorderPlugin(name: string, callLog: string[]) {
   return {
     name,
     hooks: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "daemon.configure": (ctx: any) => {
         callLog.push(`${name}:daemon.configure`);
-        return { ...ctx, config: { ...ctx.config, [`${name}_configured`]: true } };
+        return {
+          ...ctx,
+          config: { ...ctx.config, [`${name}_configured`]: true },
+        };
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "platform.register": (_ctx: any) => {
         callLog.push(`${name}:platform.register`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "health.register": (_ctx: any) => {
         callLog.push(`${name}:health.register`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "platform.start": async (_ctx: any) => {
         callLog.push(`${name}:platform.start`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "daemon.startup": async (_ctx: any) => {
         callLog.push(`${name}:daemon.startup`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "daemon.ready": async (_ctx: any) => {
         callLog.push(`${name}:daemon.ready`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "platform.stop": async (_ctx: any) => {
         callLog.push(`${name}:platform.stop`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "daemon.shutdown": async (_ctx: any) => {
         callLog.push(`${name}:daemon.shutdown`);
       },
@@ -41,9 +52,11 @@ function createRecorderPlugin(name: string, callLog: string[]) {
 }
 
 /** Minimal context stubs for fireDaemonHooks */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createStubContext(overrides: Record<string, any> = {}) {
   return {
     config: { logLevel: "info", plugins: [], ...(overrides.config ?? {}) },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     db: overrides.db ?? ({} as any),
     configRef: overrides.configRef ?? { current: { logLevel: "info" } },
     env: overrides.env ?? process.env,
@@ -57,7 +70,8 @@ function createStubContext(overrides: Record<string, any> = {}) {
       policyEngine: {},
       hitlConfigRef: {},
     },
-    setSubagentRuntimeExtension: overrides.setSubagentRuntimeExtension ?? vi.fn(),
+    setSubagentRuntimeExtension:
+      overrides.setSubagentRuntimeExtension ?? vi.fn(),
     setMessageToolContext: overrides.setMessageToolContext ?? vi.fn(),
     setPlatformAdapter: overrides.setPlatformAdapter ?? vi.fn(),
   };
@@ -75,7 +89,8 @@ describe("fireDaemonHooks", () => {
     system.use({
       name: "config-plugin",
       hooks: {
-        "daemon.configure": (ctx: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "daemon.configure": (ctx: any) => {
           callLog.push("daemon.configure");
           return { ...ctx, config: { ...ctx.config, transformed: true } };
         },
@@ -234,6 +249,7 @@ describe("fireDaemonHooks", () => {
     system.use({
       name: "plugin-a",
       hooks: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         "daemon.configure": (ctx: any) => ({
           ...ctx,
           config: { ...ctx.config, a: true },
@@ -244,6 +260,7 @@ describe("fireDaemonHooks", () => {
     system.use({
       name: "plugin-b",
       hooks: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         "daemon.configure": (ctx: any) => ({
           ...ctx,
           config: { ...ctx.config, b: true },

@@ -8,10 +8,14 @@ import { register as registerConfig } from "../../src/sessions/builtin-handlers/
 import { register as registerProcman } from "../../src/sessions/builtin-handlers/procman-handlers";
 import { register as registerMessage } from "../../src/sessions/builtin-handlers/message-handler";
 
-function stubCtx(overrides: Partial<BuiltinToolContext> = {}): BuiltinToolContext {
+function stubCtx(
+  overrides: Partial<BuiltinToolContext> = {},
+): BuiltinToolContext {
   return {
     sessionId: "agent:test:discord:channel:123",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     db: {} as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: {},
     workspacePath: "/tmp",
@@ -45,8 +49,10 @@ describe("config.show handler", () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
     const ctx = stubCtx({
-      getAgentIntegrationInvoker: () =>
-        async (_sid: string, _op: string, _payload: unknown) => ({ some: "config" }),
+      getAgentIntegrationInvoker:
+        () => async (_sid: string, _op: string, _payload: unknown) => ({
+          some: "config",
+        }),
     });
     const result = await reg.execute("config-show", {}, ctx);
     assert.deepStrictEqual(JSON.parse(result.resultJson), { some: "config" });
@@ -56,10 +62,12 @@ describe("config.show handler", () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
     // Dynamically import IntegrationOpError to construct a real instance
-    const { IntegrationOpError } = await import("../../src/control/integration-ops");
+    const { IntegrationOpError } =
+      await import("../../src/control/integration-ops");
     const ctx = stubCtx({
-      getAgentIntegrationInvoker: () =>
-        async () => { throw new IntegrationOpError("FORBIDDEN", "not allowed"); },
+      getAgentIntegrationInvoker: () => async () => {
+        throw new IntegrationOpError("FORBIDDEN", "not allowed");
+      },
     });
     const result = await reg.execute("config-show", {}, ctx);
     const parsed = JSON.parse(result.resultJson);
@@ -77,7 +85,11 @@ describe("config.request handler", () => {
   it("returns error when integration invoker is unavailable", async () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
-    const result = await reg.execute("config-request", { fragment: "agents" }, stubCtx());
+    const result = await reg.execute(
+      "config-request",
+      { fragment: "agents" },
+      stubCtx(),
+    );
     assert.deepStrictEqual(JSON.parse(result.resultJson), {
       error: "config_request_unavailable",
     });
@@ -88,15 +100,23 @@ describe("config.request handler", () => {
     registerConfig(reg);
     let capturedPayload: unknown;
     const ctx = stubCtx({
-      getAgentIntegrationInvoker: () =>
-        async (_sid: string, _op: string, payload: unknown) => {
+      getAgentIntegrationInvoker:
+        () => async (_sid: string, _op: string, payload: unknown) => {
           capturedPayload = payload;
           return { ok: true };
         },
     });
-    const result = await reg.execute("config-request", { fragment: "agents" }, ctx);
+    const result = await reg.execute(
+      "config-request",
+      { fragment: "agents" },
+      ctx,
+    );
     assert.deepStrictEqual(JSON.parse(result.resultJson), { ok: true });
-    assert.deepStrictEqual(capturedPayload, { key: undefined, fragment: "agents", mode: undefined });
+    assert.deepStrictEqual(capturedPayload, {
+      key: undefined,
+      fragment: "agents",
+      mode: undefined,
+    });
   });
 });
 
@@ -129,6 +149,7 @@ describe("procman handler", () => {
       ],
     };
     const ctx = stubCtx({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
     const result = await reg.execute("procman", { action: "list" }, ctx);
@@ -153,14 +174,20 @@ describe("procman handler", () => {
               restartCount: 0,
               lastExitCode: null,
               lastSignal: null,
-              readOutput: (stream: string) => stream === "stdout" ? "hello" : "",
+              readOutput: (stream: string) =>
+                stream === "stdout" ? "hello" : "",
             }
           : undefined,
     };
     const ctx = stubCtx({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
-    const result = await reg.execute("procman", { action: "inspect", id: "proc-1" }, ctx);
+    const result = await reg.execute(
+      "procman",
+      { action: "inspect", id: "proc-1" },
+      ctx,
+    );
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.id, "proc-1");
     assert.strictEqual(parsed.recentStdout, "hello");
@@ -172,6 +199,7 @@ describe("procman handler", () => {
     registerProcman(reg);
     const mockPm = { get: () => undefined };
     const ctx = stubCtx({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
     const result = await reg.execute("procman", { action: "inspect" }, ctx);
@@ -185,9 +213,14 @@ describe("procman handler", () => {
     registerProcman(reg);
     const mockPm = { get: () => undefined };
     const ctx = stubCtx({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
-    const result = await reg.execute("procman", { action: "inspect", id: "nope" }, ctx);
+    const result = await reg.execute(
+      "procman",
+      { action: "inspect", id: "nope" },
+      ctx,
+    );
     assert.deepStrictEqual(JSON.parse(result.resultJson), {
       error: 'no process with id "nope"',
     });
@@ -198,6 +231,7 @@ describe("procman handler", () => {
     registerProcman(reg);
     const mockPm = { list: () => [] };
     const ctx = stubCtx({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
     const result = await reg.execute("procman", { action: "restart" }, ctx);
@@ -233,11 +267,18 @@ describe("message handler", () => {
         },
       },
     });
-    const result = await reg.execute("message", { action: "send", target: "#general" }, ctx);
+    const result = await reg.execute(
+      "message",
+      { action: "send", target: "#general" },
+      ctx,
+    );
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.ok, true);
     assert.strictEqual(parsed.messageId, "msg-1");
-    assert.deepStrictEqual(capturedArgs, { action: "send", target: "#general" });
+    assert.deepStrictEqual(capturedArgs, {
+      action: "send",
+      target: "#general",
+    });
   });
 });
 
@@ -260,19 +301,29 @@ function makeTmpWorkspace(): string {
 
 const fakeCodec: ImageBlockCodec = {
   supportsUrl: false,
-  encode(block: ImageBlock) { return { type: "image", block }; },
-  decode() { return null; },
+  encode(block: ImageBlock) {
+    return { type: "image", block };
+  },
+  decode() {
+    return null;
+  },
 };
 
 describe("fs-handlers image read", () => {
   it("returns contentParts with image block for .png file", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const imgBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const imgBytes = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ]);
       writeFileSync(join(ws, "test.png"), imgBytes);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+        imageBlockCodec: fakeCodec,
+      });
       const result = await reg.execute("read", { path: "test.png" }, ctx);
       assert.ok(result.contentParts, "should have contentParts");
       assert.strictEqual(result.contentParts!.length, 2);
@@ -280,7 +331,10 @@ describe("fs-handlers image read", () => {
       assert.strictEqual(imgPart.type, "image");
       assert.strictEqual(imgPart.mediaType, "image/png");
       assert.strictEqual(imgPart.base64, imgBytes.toString("base64"));
-      const textPart = result.contentParts![1] as { type: "text"; text: string };
+      const textPart = result.contentParts![1] as {
+        type: "text";
+        text: string;
+      };
       assert.strictEqual(textPart.type, "text");
       assert.ok(textPart.text.includes("test.png"));
     } finally {
@@ -294,7 +348,11 @@ describe("fs-handlers image read", () => {
       writeFileSync(join(ws, "hello.txt"), "hello world");
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+        imageBlockCodec: fakeCodec,
+      });
       const result = await reg.execute("read", { path: "hello.txt" }, ctx);
       assert.strictEqual(result.contentParts, undefined);
       const parsed = JSON.parse(result.resultJson);
@@ -310,7 +368,10 @@ describe("fs-handlers image read", () => {
       writeFileSync(join(ws, "pic.jpg"), Buffer.from([0xff, 0xd8]));
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+      });
       const result = await reg.execute("read", { path: "pic.jpg" }, ctx);
       assert.strictEqual(result.contentParts, undefined);
       const parsed = JSON.parse(result.resultJson);
@@ -328,7 +389,11 @@ describe("fs-handlers image read", () => {
       writeFileSync(join(ws, "huge.png"), big);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() }, imageBlockCodec: fakeCodec });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+        imageBlockCodec: fakeCodec,
+      });
       const result = await reg.execute("read", { path: "huge.png" }, ctx);
       assert.strictEqual(result.contentParts, undefined);
       const parsed = JSON.parse(result.resultJson);
@@ -347,17 +412,33 @@ describe("fs-handlers read truncation", () => {
   it("truncates file content over 50k characters", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const bigContent = "A".repeat(10_000) + "M".repeat(50_000) + "Z".repeat(10_000);
+      const bigContent =
+        "A".repeat(10_000) + "M".repeat(50_000) + "Z".repeat(10_000);
       writeFileSync(join(ws, "big.txt"), bigContent);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+      });
       const result = await reg.execute("read", { path: "big.txt" }, ctx);
       const parsed = JSON.parse(result.resultJson);
-      assert.ok(parsed.content.length < bigContent.length, "content should be truncated");
-      assert.ok(parsed.content.startsWith("A".repeat(10_000)), "should keep first 10k");
-      assert.ok(parsed.content.endsWith("Z".repeat(10_000)), "should keep last 10k");
-      assert.ok(parsed.content.includes("[... truncated"), "should include truncation notice");
+      assert.ok(
+        parsed.content.length < bigContent.length,
+        "content should be truncated",
+      );
+      assert.ok(
+        parsed.content.startsWith("A".repeat(10_000)),
+        "should keep first 10k",
+      );
+      assert.ok(
+        parsed.content.endsWith("Z".repeat(10_000)),
+        "should keep last 10k",
+      );
+      assert.ok(
+        parsed.content.includes("[... truncated"),
+        "should include truncation notice",
+      );
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
@@ -370,7 +451,10 @@ describe("fs-handlers read truncation", () => {
       writeFileSync(join(ws, "small.txt"), content);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
-      const ctx = stubCtx({ workspacePath: ws, creds: { uid: process.getuid!(), gid: process.getgid!() } });
+      const ctx = stubCtx({
+        workspacePath: ws,
+        creds: { uid: process.getuid!(), gid: process.getgid!() },
+      });
       const result = await reg.execute("read", { path: "small.txt" }, ctx);
       const parsed = JSON.parse(result.resultJson);
       assert.equal(parsed.content, content);

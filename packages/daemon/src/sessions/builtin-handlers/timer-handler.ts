@@ -3,7 +3,10 @@
 // ---------------------------------------------------------------------------
 
 import { randomUUID } from "node:crypto";
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 import type { TimerScheduler } from "../../timers/timer-scheduler";
 
 const MAX_ACTIVE_PER_SESSION = 50;
@@ -26,7 +29,9 @@ async function timerHandler(
   ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
   if (!schedulerRef) {
-    return { resultJson: JSON.stringify({ error: "timer scheduler not available" }) };
+    return {
+      resultJson: JSON.stringify({ error: "timer scheduler not available" }),
+    };
   }
   const action = String(args.action ?? "");
   switch (action) {
@@ -37,7 +42,9 @@ async function timerHandler(
     case "list":
       return timerList(ctx, schedulerRef);
     default:
-      return { resultJson: JSON.stringify({ error: `unknown action: ${action}` }) };
+      return {
+        resultJson: JSON.stringify({ error: `unknown action: ${action}` }),
+      };
   }
 }
 
@@ -53,14 +60,20 @@ function timerSet(
 
   const atRaw = args.at;
   if (atRaw === undefined || atRaw === null || String(atRaw).trim() === "") {
-    return { resultJson: JSON.stringify({ error: "at is required (ISO 8601 datetime or relative duration like 2h, 30m, 90s, 1d)" }) };
+    return {
+      resultJson: JSON.stringify({
+        error:
+          "at is required (ISO 8601 datetime or relative duration like 2h, 30m, 90s, 1d)",
+      }),
+    };
   }
 
   const fireAt = parseFireAt(String(atRaw).trim());
   if (!fireAt) {
     return {
       resultJson: JSON.stringify({
-        error: "invalid at value — use ISO 8601 datetime or relative duration (e.g. 30s, 5m, 2h, 1d)",
+        error:
+          "invalid at value — use ISO 8601 datetime or relative duration (e.g. 30s, 5m, 2h, 1d)",
       }),
     };
   }
@@ -71,12 +84,16 @@ function timerSet(
   const durationS = (fireMs - nowMs) / 1000;
   if (durationS < MIN_DURATION_S) {
     return {
-      resultJson: JSON.stringify({ error: `minimum timer duration is ${MIN_DURATION_S} seconds` }),
+      resultJson: JSON.stringify({
+        error: `minimum timer duration is ${MIN_DURATION_S} seconds`,
+      }),
     };
   }
   if (durationS > MAX_DURATION_S) {
     return {
-      resultJson: JSON.stringify({ error: `maximum timer duration is 30 days` }),
+      resultJson: JSON.stringify({
+        error: `maximum timer duration is 30 days`,
+      }),
     };
   }
 
@@ -92,7 +109,10 @@ function timerSet(
 
   const id = randomUUID();
   const fireAtIso = fireAt.toISOString();
-  const message = typeof args.message === "string" && args.message.trim() ? args.message.trim() : label;
+  const message =
+    typeof args.message === "string" && args.message.trim()
+      ? args.message.trim()
+      : label;
 
   scheduler.schedule(ctx.db, {
     id,
@@ -102,7 +122,9 @@ function timerSet(
     message,
   });
 
-  return { resultJson: JSON.stringify({ ok: true, id, label, fireAt: fireAtIso }) };
+  return {
+    resultJson: JSON.stringify({ ok: true, id, label, fireAt: fireAtIso }),
+  };
 }
 
 function timerCancel(
@@ -123,7 +145,11 @@ function timerCancel(
     return { resultJson: JSON.stringify({ ok: true, id, cancelled: false }) };
   }
   if (row.session_id !== ctx.sessionId) {
-    return { resultJson: JSON.stringify({ error: "timer belongs to a different session" }) };
+    return {
+      resultJson: JSON.stringify({
+        error: "timer belongs to a different session",
+      }),
+    };
   }
 
   const cancelled = scheduler.cancel(ctx.db, id);
@@ -152,7 +178,8 @@ function timerList(
 // Duration parsing
 // ---------------------------------------------------------------------------
 
-const RELATIVE_RE = /^(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)$/i;
+const RELATIVE_RE =
+  /^(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)$/i;
 
 function parseFireAt(raw: string): Date | undefined {
   // Try relative duration first

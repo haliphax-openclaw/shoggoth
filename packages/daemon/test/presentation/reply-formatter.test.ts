@@ -26,12 +26,20 @@ describe("formatDegradedPrefix", () => {
   });
 
   it("returns empty string when not degraded", () => {
-    const meta: FailoverMeta = { degraded: false, usedModel: "m", usedProviderId: "p" };
+    const meta: FailoverMeta = {
+      degraded: false,
+      usedModel: "m",
+      usedProviderId: "p",
+    };
     expect(formatDegradedPrefix(meta)).toBe("");
   });
 
   it("returns degraded banner when degraded", () => {
-    const meta: FailoverMeta = { degraded: true, usedModel: "gpt-4", usedProviderId: "openai" };
+    const meta: FailoverMeta = {
+      degraded: true,
+      usedModel: "gpt-4",
+      usedProviderId: "openai",
+    };
     const result = formatDegradedPrefix(meta);
     expect(result).toContain("degraded-banner");
     expect(result).toContain("gpt-4");
@@ -42,16 +50,26 @@ describe("formatDegradedPrefix", () => {
 
 describe("formatModelTagFooter", () => {
   it("returns empty string when env flags are off", () => {
-    const meta: FailoverMeta = { degraded: false, usedModel: "m", usedProviderId: "p" };
+    const meta: FailoverMeta = {
+      degraded: false,
+      usedModel: "m",
+      usedProviderId: "p",
+    };
     expect(formatModelTagFooter({}, meta)).toBe("");
   });
 
   it("returns empty string when meta is undefined", () => {
-    expect(formatModelTagFooter({ SHOGGOTH_MODEL_TAG: "1" }, undefined)).toBe("");
+    expect(formatModelTagFooter({ SHOGGOTH_MODEL_TAG: "1" }, undefined)).toBe(
+      "",
+    );
   });
 
   it("returns footer when SHOGGOTH_MODEL_TAG=1", () => {
-    const meta: FailoverMeta = { degraded: false, usedModel: "claude", usedProviderId: "anthropic" };
+    const meta: FailoverMeta = {
+      degraded: false,
+      usedModel: "claude",
+      usedProviderId: "anthropic",
+    };
     const result = formatModelTagFooter({ SHOGGOTH_MODEL_TAG: "1" }, meta);
     expect(result).toContain("model-tag-footer");
     expect(result).toContain("claude");
@@ -59,8 +77,15 @@ describe("formatModelTagFooter", () => {
   });
 
   it("returns footer when SHOGGOTH_DISCORD_MODEL_TAG=1 (legacy)", () => {
-    const meta: FailoverMeta = { degraded: false, usedModel: "m", usedProviderId: "p" };
-    const result = formatModelTagFooter({ SHOGGOTH_DISCORD_MODEL_TAG: "1" }, meta);
+    const meta: FailoverMeta = {
+      degraded: false,
+      usedModel: "m",
+      usedProviderId: "p",
+    };
+    const result = formatModelTagFooter(
+      { SHOGGOTH_DISCORD_MODEL_TAG: "1" },
+      meta,
+    );
     expect(result).toContain("model-tag-footer");
   });
 });
@@ -135,11 +160,23 @@ describe("formatErrorUserText", () => {
 
 describe("formatAssistantReply", () => {
   it("composes degraded prefix + identity + text + footer", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = {
       agents: { list: { main: { emoji: "🤖" } } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
-    const meta: FailoverMeta = { degraded: true, usedModel: "m", usedProviderId: "p" };
-    const result = formatAssistantReply(config, "urn:shoggoth:agent:main", { SHOGGOTH_MODEL_TAG: "1" }, "hello", meta);
+    const meta: FailoverMeta = {
+      degraded: true,
+      usedModel: "m",
+      usedProviderId: "p",
+    };
+    const result = formatAssistantReply(
+      config,
+      "urn:shoggoth:agent:main",
+      { SHOGGOTH_MODEL_TAG: "1" },
+      "hello",
+      meta,
+    );
     // Should contain degraded prefix, the text, and footer
     expect(result).toContain("degraded-banner");
     expect(result).toContain("hello");
@@ -147,8 +184,15 @@ describe("formatAssistantReply", () => {
   });
 
   it("returns just text when no degradation and no model tag", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = { agents: {} } as any;
-    const result = formatAssistantReply(config, "sess1", {}, "hello", undefined);
+    const result = formatAssistantReply(
+      config,
+      "sess1",
+      {},
+      "hello",
+      undefined,
+    );
     expect(result).toContain("hello");
     expect(result).not.toContain("degraded-banner");
     expect(result).not.toContain("model-tag-footer");

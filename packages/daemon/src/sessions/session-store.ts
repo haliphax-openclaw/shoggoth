@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import { assertValidAgentId, generateSystemContextToken, parseAgentSessionUrn, type ContextLevel } from "@shoggoth/shared";
+import {
+  assertValidAgentId,
+  generateSystemContextToken,
+  parseAgentSessionUrn,
+  type ContextLevel,
+} from "@shoggoth/shared";
 
 export type SessionStatus = "starting" | "active" | "terminated" | string;
 
@@ -104,11 +109,15 @@ function rowToSession(r: {
   }
   const contextSegmentId = r.context_segment_id?.trim() ?? "";
   if (!contextSegmentId) {
-    throw new Error(`session row ${JSON.stringify(r.id)} is missing context_segment_id`);
+    throw new Error(
+      `session row ${JSON.stringify(r.id)} is missing context_segment_id`,
+    );
   }
   const modeRaw = r.subagent_mode?.trim();
   const subagentMode: SubagentMode | undefined =
-    modeRaw === "one_shot" || modeRaw === "persistent" ? (modeRaw as SubagentMode) : undefined;
+    modeRaw === "one_shot" || modeRaw === "persistent"
+      ? (modeRaw as SubagentMode)
+      : undefined;
   const exp = r.subagent_expires_at_ms;
   return {
     id: r.id,
@@ -123,13 +132,18 @@ function rowToSession(r: {
     runtimeGid: r.runtime_gid ?? undefined,
     parentSessionId: r.parent_session_id?.trim() || undefined,
     subagentMode,
-    subagentPlatformThreadId: r.subagent_platform_thread_id?.trim() || undefined,
+    subagentPlatformThreadId:
+      r.subagent_platform_thread_id?.trim() || undefined,
     subagentExpiresAtMs:
-      typeof exp === "number" && Number.isFinite(exp) ? Math.trunc(exp) : undefined,
+      typeof exp === "number" && Number.isFinite(exp)
+        ? Math.trunc(exp)
+        : undefined,
     createdAt: r.created_at ?? "",
     updatedAt: r.updated_at ?? "",
     systemContextToken: r.system_context_token?.trim() || undefined,
-    contextLevel: (r.context_level?.trim() || undefined) as ContextLevel | undefined,
+    contextLevel: (r.context_level?.trim() || undefined) as
+      | ContextLevel
+      | undefined,
     workingDirectory: r.working_directory?.trim() || undefined,
   };
 }
@@ -160,13 +174,20 @@ export interface SessionStore {
 }
 
 /** Current `context_segment_id` for model transcript scoping. */
-export function getSessionContextSegmentId(db: Database.Database, sessionId: string): string {
+export function getSessionContextSegmentId(
+  db: Database.Database,
+  sessionId: string,
+): string {
   const r = db
     .prepare(`SELECT context_segment_id FROM sessions WHERE id = @id`)
-    .get({ id: sessionId.trim() }) as { context_segment_id: string | null } | undefined;
+    .get({ id: sessionId.trim() }) as
+    | { context_segment_id: string | null }
+    | undefined;
   const seg = r?.context_segment_id?.trim();
   if (!seg) {
-    throw new Error(`session ${JSON.stringify(sessionId)} missing context_segment_id`);
+    throw new Error(
+      `session ${JSON.stringify(sessionId)} missing context_segment_id`,
+    );
   }
   return seg;
 }
@@ -208,7 +229,9 @@ export function createSessionStore(db: Database.Database): SessionStore {
         status,
         context_segment_id: randomUUID(),
         model_selection_json:
-          input.modelSelection !== undefined ? JSON.stringify(input.modelSelection) : null,
+          input.modelSelection !== undefined
+            ? JSON.stringify(input.modelSelection)
+            : null,
         light_context: input.lightContext ? 1 : 0,
         prompt_stack_json: JSON.stringify(input.promptStack ?? []),
         runtime_uid: input.runtimeUid ?? null,
@@ -252,42 +275,54 @@ export function createSessionStore(db: Database.Database): SessionStore {
       if (!cur) return;
       const nextParent =
         patch.parentSessionId === undefined
-          ? cur.parentSessionId ?? null
+          ? (cur.parentSessionId ?? null)
           : patch.parentSessionId;
       const nextSubMode =
-        patch.subagentMode === undefined ? cur.subagentMode ?? null : patch.subagentMode;
+        patch.subagentMode === undefined
+          ? (cur.subagentMode ?? null)
+          : patch.subagentMode;
       const nextThread =
         patch.subagentPlatformThreadId === undefined
-          ? cur.subagentPlatformThreadId ?? null
+          ? (cur.subagentPlatformThreadId ?? null)
           : patch.subagentPlatformThreadId;
       const nextExp =
         patch.subagentExpiresAtMs === undefined
-          ? cur.subagentExpiresAtMs ?? null
+          ? (cur.subagentExpiresAtMs ?? null)
           : patch.subagentExpiresAtMs;
       const nextToken =
         patch.systemContextToken ?? cur.systemContextToken ?? null;
       const nextContextLevel =
         patch.contextLevel === undefined
-          ? cur.contextLevel ?? null
+          ? (cur.contextLevel ?? null)
           : patch.contextLevel;
       const nextWorkingDirectory =
         patch.workingDirectory === undefined
-          ? cur.workingDirectory ?? null
+          ? (cur.workingDirectory ?? null)
           : patch.workingDirectory;
       const next = {
         agent_profile_id: patch.agentProfileId ?? cur.agentProfileId ?? null,
         workspace_path: cur.workspacePath,
         status: patch.status ?? cur.status,
-        context_segment_id: patch.contextSegmentId?.trim() ?? cur.contextSegmentId,
+        context_segment_id:
+          patch.contextSegmentId?.trim() ?? cur.contextSegmentId,
         model_selection_json:
           patch.modelSelection !== undefined
             ? JSON.stringify(patch.modelSelection)
             : cur.modelSelection !== undefined
               ? JSON.stringify(cur.modelSelection)
               : null,
-        light_context: patch.lightContext !== undefined ? (patch.lightContext ? 1 : 0) : cur.lightContext ? 1 : 0,
+        light_context:
+          patch.lightContext !== undefined
+            ? patch.lightContext
+              ? 1
+              : 0
+            : cur.lightContext
+              ? 1
+              : 0,
         prompt_stack_json:
-          patch.promptStack !== undefined ? JSON.stringify(patch.promptStack) : JSON.stringify(cur.promptStack),
+          patch.promptStack !== undefined
+            ? JSON.stringify(patch.promptStack)
+            : JSON.stringify(cur.promptStack),
         runtime_uid: patch.runtimeUid ?? cur.runtimeUid ?? null,
         runtime_gid: patch.runtimeGid ?? cur.runtimeGid ?? null,
         parent_session_id: nextParent,
@@ -346,7 +381,9 @@ export function createSessionStore(db: Database.Database): SessionStore {
       // --- parentSessionId is a special-case filter (used by subagent inspect) ---
       if (filter?.parentSessionId !== undefined) {
         const clauses: string[] = ["parent_session_id = @parent"];
-        const params: Record<string, unknown> = { parent: filter.parentSessionId };
+        const params: Record<string, unknown> = {
+          parent: filter.parentSessionId,
+        };
         if (filter.activeSince) {
           clauses.push("updated_at >= @activeSince");
           params.activeSince = filter.activeSince;
@@ -390,7 +427,9 @@ export function createSessionStore(db: Database.Database): SessionStore {
       // --- agentId filtering is done in JS (URN parsing, same as before) ---
       if (agentId) {
         assertValidAgentId(agentId);
-        results = results.filter((r) => parseAgentSessionUrn(r.id)?.agentId === agentId);
+        results = results.filter(
+          (r) => parseAgentSessionUrn(r.id)?.agentId === agentId,
+        );
         if (filter?.limit !== undefined) {
           results = results.slice(0, filter.limit);
         }

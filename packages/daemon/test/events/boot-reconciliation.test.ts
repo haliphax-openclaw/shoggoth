@@ -8,7 +8,12 @@ import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
 import { createSessionStore } from "../../src/sessions/session-store";
 import { createToolRunStore } from "../../src/sessions/tool-run-store";
-import { claimPendingEvents, emitEvent, EVENT_SCOPE_GLOBAL, type EventQueueRow } from "../../src/events/events-queue";
+import {
+  claimPendingEvents,
+  emitEvent,
+  EVENT_SCOPE_GLOBAL,
+  type EventQueueRow,
+} from "../../src/events/events-queue";
 import { runBootReconciliation } from "../../src/events/boot-reconciliation";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
@@ -38,7 +43,10 @@ describe("boot reconciliation", () => {
     emitEvent(db, { scope: EVENT_SCOPE_GLOBAL, eventType: "a", payload: {} });
     const [row] = claimPendingEvents(db, { limit: 1 }) as EventQueueRow[];
     const past = new Date(Date.now() - 300_000).toISOString();
-    db.prepare("UPDATE events SET claimed_at = ? WHERE id = ?").run(past, row!.id);
+    db.prepare("UPDATE events SET claimed_at = ? WHERE id = ?").run(
+      past,
+      row!.id,
+    );
 
     const sessions = createSessionStore(db);
     sessions.create({
@@ -57,10 +65,14 @@ describe("boot reconciliation", () => {
     assert.equal(r.staleEventsRequeued, 1);
     assert.equal(r.toolRunsMarkedFailed, 1);
 
-    const ev = db.prepare("SELECT status FROM events WHERE id = ?").get(row!.id) as { status: string };
+    const ev = db
+      .prepare("SELECT status FROM events WHERE id = ?")
+      .get(row!.id) as { status: string };
     assert.equal(ev.status, "pending");
 
-    const tr = db.prepare("SELECT status, failure_reason FROM tool_runs WHERE id = 'run1'").get() as {
+    const tr = db
+      .prepare("SELECT status, failure_reason FROM tool_runs WHERE id = 'run1'")
+      .get() as {
       status: string;
       failure_reason: string | null;
     };

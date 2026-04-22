@@ -79,15 +79,25 @@ describe("bootstrapPlugins", () => {
         resolveFromFile: fileURLToPath(import.meta.url),
       });
 
-      assert.strictEqual((globalThis as { __shoggothPlugTest?: number }).__shoggothPlugTest, 1);
+      assert.strictEqual(
+        (globalThis as { __shoggothPlugTest?: number }).__shoggothPlugTest,
+        1,
+      );
 
       const rows = db
-        .prepare(`SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`)
-        .all() as { action: string; resource: string | null; outcome: string }[];
+        .prepare(
+          `SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`,
+        )
+        .all() as {
+        action: string;
+        resource: string | null;
+        outcome: string;
+      }[];
 
       assert.ok(
         rows.some(
-          (r) => r.action === "config.effective_loaded" && r.outcome === "success",
+          (r) =>
+            r.action === "config.effective_loaded" && r.outcome === "success",
         ),
       );
       assert.ok(
@@ -102,8 +112,14 @@ describe("bootstrapPlugins", () => {
       await rt.shutdown.requestShutdown("SIGTEST");
 
       const rowsAfter = db
-        .prepare(`SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`)
-        .all() as { action: string; resource: string | null; outcome: string }[];
+        .prepare(
+          `SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`,
+        )
+        .all() as {
+        action: string;
+        resource: string | null;
+        outcome: string;
+      }[];
 
       assert.ok(
         rowsAfter.some(

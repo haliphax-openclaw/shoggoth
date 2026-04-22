@@ -9,7 +9,9 @@ import {
   openMcpTcpClient,
 } from "../src/mcp-jsonrpc-transport";
 
-const mockServerPath = fileURLToPath(new URL("fixtures/mock-mcp-server.mjs", import.meta.url));
+const mockServerPath = fileURLToPath(
+  new URL("fixtures/mock-mcp-server.mjs", import.meta.url),
+);
 
 describe("mcp-jsonrpc-transport (stdio)", () => {
   it("initializes, lists tools, and calls echo", async () => {
@@ -42,7 +44,11 @@ describe("mcp-jsonrpc-transport (tcp)", () => {
           const line = buffer.slice(0, nl).replace(/\r$/, "").trim();
           buffer = buffer.slice(nl + 1);
           if (!line) continue;
-          let msg: { method?: string; id?: number; params?: { arguments?: { text?: string } } };
+          let msg: {
+            method?: string;
+            id?: number;
+            params?: { arguments?: { text?: string } };
+          };
           try {
             msg = JSON.parse(line) as typeof msg;
           } catch {

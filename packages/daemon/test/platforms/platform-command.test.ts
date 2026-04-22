@@ -8,7 +8,9 @@ import {
 
 describe("parsePlatformCommand", () => {
   it("parses /abort with a session_id option", () => {
-    const cmd = parsePlatformCommand("abort", { session_id: "agent:main:discord:channel:abc" });
+    const cmd = parsePlatformCommand("abort", {
+      session_id: "agent:main:discord:channel:abc",
+    });
     assert.deepStrictEqual(cmd, {
       name: "abort",
       options: { session_id: "agent:main:discord:channel:abc" },

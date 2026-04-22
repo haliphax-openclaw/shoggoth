@@ -28,6 +28,7 @@ CREATE TABLE session_stats (
 ```
 
 Why a separate table instead of columns on `sessions`:
+
 - `sessions` is already wide and touched by many code paths
 - Stats updates are high-frequency (every turn) — isolating them reduces contention risk
 - Clean migration (additive, no ALTER TABLE)
@@ -35,6 +36,7 @@ Why a separate table instead of columns on `sessions`:
 ## Write points
 
 ### After each agent turn (`session-agent-turn.ts`)
+
 - Increment `turn_count`
 - Add `input_tokens` and `output_tokens` from the model response (these are already returned by the provider — `complete()` and `completeWithTools()` return usage when the provider supplies it)
 - Update `last_turn_at`
@@ -42,11 +44,13 @@ Why a separate table instead of columns on `sessions`:
 - Update `transcript_message_count` (count of messages in current context segment)
 
 ### After compaction (`transcript-compact.ts` / `session_compact` control op)
+
 - Increment `compaction_count`
 - Update `last_compacted_at`
 - Recalculate `transcript_message_count` (compaction reduces message count)
 
 ### On context new / reset (`session-context-segment.ts`)
+
 - Reset `turn_count` to 0
 - Reset `input_tokens` to 0
 - Reset `output_tokens` to 0
@@ -56,10 +60,13 @@ Why a separate table instead of columns on `sessions`:
 ## Read points
 
 ### Control op: `session_stats`
+
 New integration op that returns the stats row for a given session. Operator or owning agent principal.
 
 ### System prompt (optional, phase 2)
+
 Inject a `## Session Stats` section into the runtime metadata block:
+
 ```
 Tokens used: 12,450 / 128,000 (9.7%) · Turns: 23 · Compactions: 1 · Duration: 2h14m
 ```
@@ -67,11 +74,13 @@ Tokens used: 12,450 / 128,000 (9.7%) · Turns: 23 · Compactions: 1 · Duration:
 This gives the LLM awareness of how much context budget remains — useful for self-managing compaction hints or adjusting verbosity.
 
 ### Slash command: `/stats`
+
 New Discord slash command that calls `session_stats` and returns a formatted embed.
 
 ## Token tracking detail
 
 The model provider layer already returns usage in some cases:
+
 - OpenAI: `response.usage.prompt_tokens` / `completion_tokens`
 - Anthropic: `response.usage.input_tokens` / `output_tokens`
 - Gemini: `usageMetadata.promptTokenCount` / `candidatesTokenCount`
@@ -83,6 +92,7 @@ The stats row tracks cumulative totals. Per-turn breakdown can be derived from t
 ## Migration
 
 New migration `0004_session_stats.sql`:
+
 ```sql
 CREATE TABLE session_stats (
   session_id TEXT PRIMARY KEY REFERENCES sessions (id) ON DELETE CASCADE,
@@ -125,15 +135,19 @@ Row is lazily created (upsert on first write) — no backfill needed for existin
 ## Decisions
 
 ### Token counter resets
+
 `input_tokens`, `output_tokens`, `turn_count`, and `transcript_message_count` reset on both `session_context_new` and `session_context_reset` control ops. This covers all entry points (slash commands, CLI, direct control socket calls).
 
 ### Context window tokens source
+
 `context_window_tokens` is set from the provider's response metadata where available (e.g. OpenAI `x-ratelimit-*` headers, Anthropic usage metadata, Gemini `usageMetadata`). Falls back to the model config value when the provider doesn't report it.
 
 **Mismatch warning:** When the config specifies a context window size AND the provider response reports a different value, emit a warning:
+
 - Always log to stderr (non-suppressible)
 - Surface to the session's message platform binding (e.g. Discord channel) once per provider (tracked in-memory only, not persisted — resets on daemon restart)
 - Add a system-level config option (`runtime.suppressContextWindowMismatchNotice` or similar) to disable the platform-surfaced warning (does NOT suppress the stderr log entry)
 
 ### Total cost
+
 Not implemented. Leave a `// TODO: total_cost — requires per-model pricing tables` comment in the session-stats-store where the column would go.

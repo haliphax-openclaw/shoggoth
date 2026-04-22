@@ -79,7 +79,10 @@ describe("filterToolsByContextLevel", () => {
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal");
       const resultNames = names(result);
       for (const excluded of MINIMAL_EXCLUDED) {
-        assert.ok(!resultNames.includes(excluded), `expected ${excluded} to be excluded`);
+        assert.ok(
+          !resultNames.includes(excluded),
+          `expected ${excluded} to be excluded`,
+        );
       }
       // Non-excluded tools should be present
       assert.ok(resultNames.includes("builtin-read"));
@@ -98,10 +101,16 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(!resultNames.includes("builtin-exec"), "builtin-exec should be excluded");
+      assert.ok(
+        !resultNames.includes("builtin-exec"),
+        "builtin-exec should be excluded",
+      );
       // Default exclusions still apply
       for (const excluded of MINIMAL_EXCLUDED) {
-        assert.ok(!resultNames.includes(excluded), `expected ${excluded} to still be excluded`);
+        assert.ok(
+          !resultNames.includes(excluded),
+          `expected ${excluded} to still be excluded`,
+        );
       }
     });
 
@@ -112,9 +121,15 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(resultNames.includes("builtin-subagent"), "builtin-subagent should be re-allowed");
+      assert.ok(
+        resultNames.includes("builtin-subagent"),
+        "builtin-subagent should be re-allowed",
+      );
       // Other default exclusions still apply
-      assert.ok(!resultNames.includes("builtin-workflow"), "builtin-workflow should still be excluded");
+      assert.ok(
+        !resultNames.includes("builtin-workflow"),
+        "builtin-workflow should still be excluded",
+      );
     });
 
     it("config allow and exclude together", () => {
@@ -129,9 +144,18 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(resultNames.includes("builtin-workflow"), "builtin-workflow should be re-allowed");
-      assert.ok(!resultNames.includes("builtin-read"), "builtin-read should be excluded");
-      assert.ok(!resultNames.includes("builtin-subagent"), "builtin-subagent should still be excluded");
+      assert.ok(
+        resultNames.includes("builtin-workflow"),
+        "builtin-workflow should be re-allowed",
+      );
+      assert.ok(
+        !resultNames.includes("builtin-read"),
+        "builtin-read should be excluded",
+      );
+      assert.ok(
+        !resultNames.includes("builtin-subagent"),
+        "builtin-subagent should still be excluded",
+      );
     });
   });
 
@@ -145,7 +169,9 @@ describe("filterToolsByContextLevel", () => {
     it("config exclude can restrict tools", () => {
       const cfg = {
         ...base,
-        contextLevelTools: { light: { exclude: ["builtin-subagent", "external-fetch"] } },
+        contextLevelTools: {
+          light: { exclude: ["builtin-subagent", "external-fetch"] },
+        },
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "light", cfg);
       const resultNames = names(result);
@@ -165,7 +191,9 @@ describe("filterToolsByContextLevel", () => {
     it("config exclude can still restrict tools on full level", () => {
       const cfg = {
         ...base,
-        contextLevelTools: { full: { exclude: ["builtin-workflow", "builtin-subagent"] } },
+        contextLevelTools: {
+          full: { exclude: ["builtin-workflow", "builtin-subagent"] },
+        },
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "full", cfg);
       const resultNames = names(result);
@@ -175,7 +203,7 @@ describe("filterToolsByContextLevel", () => {
     });
 
     it("config allow has no effect when nothing is excluded", () => {
-      const cfg = {
+      const _cfg = {
         ...base,
         contextLevelTools: { full: { allow: ["builtin-read"] } },
       };

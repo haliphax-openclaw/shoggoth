@@ -34,9 +34,30 @@ export interface RestartPolicy {
 
 /** Health check configuration. */
 export type HealthCheck =
-  | { kind: "tcp"; port: number; host?: string; intervalMs?: number; timeoutMs?: number; retries?: number }
-  | { kind: "http"; url: string; expectedStatus?: number; intervalMs?: number; timeoutMs?: number; retries?: number }
-  | { kind: "exec"; command: string; args?: string[]; intervalMs?: number; timeoutMs?: number; retries?: number }
+  | {
+      kind: "tcp";
+      port: number;
+      host?: string;
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
+  | {
+      kind: "http";
+      url: string;
+      expectedStatus?: number;
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
+  | {
+      kind: "exec";
+      command: string;
+      args?: string[];
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
   | { kind: "stdout-match"; pattern: string; timeoutMs?: number };
 
 /** Stdio handling configuration. */

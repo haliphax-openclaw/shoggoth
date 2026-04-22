@@ -69,13 +69,13 @@ const session = await openMcpStdioClient({
 
 #### Options (`McpStdioConnectOptions`)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `command` | `string` | Executable to spawn. |
-| `args` | `string[]` | Command-line arguments. |
-| `cwd` | `string` | Working directory for the subprocess. |
-| `env` | `NodeJS.ProcessEnv` | Environment variables for the subprocess. |
-| `processManager` | `ProcessManager` | Optional `@shoggoth/procman` instance for managed lifecycle. |
+| Field            | Type                | Description                                                  |
+| ---------------- | ------------------- | ------------------------------------------------------------ |
+| `command`        | `string`            | Executable to spawn.                                         |
+| `args`           | `string[]`          | Command-line arguments.                                      |
+| `cwd`            | `string`            | Working directory for the subprocess.                        |
+| `env`            | `NodeJS.ProcessEnv` | Environment variables for the subprocess.                    |
+| `processManager` | `ProcessManager`    | Optional `@shoggoth/procman` instance for managed lifecycle. |
 
 #### Process Management
 
@@ -91,9 +91,9 @@ Without `processManager`, the transport falls back to direct spawn with manual S
 
 ```typescript
 import {
-  connectMcpStdioSession,   // spawn + wire, no handshake
-  createMcpJsonRpcSession,  // raw streams → session
-  mcpInitializeSession,     // initialize + notifications/initialized
+  connectMcpStdioSession, // spawn + wire, no handshake
+  createMcpJsonRpcSession, // raw streams → session
+  mcpInitializeSession, // initialize + notifications/initialized
 } from "@shoggoth/mcp-integration";
 
 // Step-by-step if you need control:
@@ -116,10 +116,10 @@ const session = await openMcpTcpClient({
 
 #### Options (`McpTcpConnectOptions`)
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field  | Type     | Description             |
+| ------ | -------- | ----------------------- |
 | `host` | `string` | TCP host to connect to. |
-| `port` | `number` | TCP port. |
+| `port` | `number` | TCP port.               |
 
 ### Streamable HTTP (MCP 2025-11-25)
 
@@ -136,13 +136,13 @@ const session = await openMcpStreamableHttpClient({
 
 #### Options (`McpStreamableHttpConnectOptions`)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `url` | `string` | MCP server HTTP endpoint URL. |
-| `headers` | `Record<string, string>` | Extra request headers (e.g., auth). |
-| `protocolVersion` | `string` | Protocol version for `initialize` (default: `2025-11-25`). |
-| `initialMcpProtocolVersionHeader` | `string` | First `MCP-Protocol-Version` header before negotiation (default: `2025-11-25`). |
-| `onServerMessage` | `(msg) => void` | Callback for inbound notifications, orphan responses, and cancellation events. |
+| Field                             | Type                     | Description                                                                     |
+| --------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `url`                             | `string`                 | MCP server HTTP endpoint URL.                                                   |
+| `headers`                         | `Record<string, string>` | Extra request headers (e.g., auth).                                             |
+| `protocolVersion`                 | `string`                 | Protocol version for `initialize` (default: `2025-11-25`).                      |
+| `initialMcpProtocolVersionHeader` | `string`                 | First `MCP-Protocol-Version` header before negotiation (default: `2025-11-25`). |
+| `onServerMessage`                 | `(msg) => void`          | Callback for inbound notifications, orphan responses, and cancellation events.  |
 
 #### Key Behaviors
 
@@ -157,9 +157,9 @@ const session = await openMcpStreamableHttpClient({
 
 Extends `McpJsonRpcSession` with:
 
-| Method | Description |
-|--------|-------------|
-| `getLastSseEventId()` | Returns the last SSE event ID seen (for resumption introspection). |
+| Method                 | Description                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| `getLastSseEventId()`  | Returns the last SSE event ID seen (for resumption introspection).               |
 | `cancelRequest(rpcId)` | Sends `notifications/cancelled` to the server for the given JSON-RPC request ID. |
 
 #### SSE Parsing Utility
@@ -187,11 +187,11 @@ interface McpJsonRpcSession {
 }
 ```
 
-| Method | Description |
-|--------|-------------|
-| `request` | Send a JSON-RPC request and await the response. Concurrent requests are supported (each gets a unique numeric `id`). |
-| `notify` | Send a JSON-RPC notification (no `id`, no response expected). Returns `void` for stdio/TCP, `Promise<void>` for HTTP. |
-| `close` | Tear down the session. Rejects all pending requests. Kills/disconnects the underlying transport. |
+| Method    | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `request` | Send a JSON-RPC request and await the response. Concurrent requests are supported (each gets a unique numeric `id`).  |
+| `notify`  | Send a JSON-RPC notification (no `id`, no response expected). Returns `void` for stdio/TCP, `Promise<void>` for HTTP. |
+| `close`   | Tear down the session. Rejects all pending requests. Kills/disconnects the underlying transport.                      |
 
 ---
 
@@ -200,7 +200,10 @@ interface McpJsonRpcSession {
 After establishing a session, discover available tools:
 
 ```typescript
-import { mcpFetchToolsList, mcpToolListEntryToDescriptor } from "@shoggoth/mcp-integration";
+import {
+  mcpFetchToolsList,
+  mcpToolListEntryToDescriptor,
+} from "@shoggoth/mcp-integration";
 
 // Fetches all pages (handles cursor-based pagination)
 const tools = await mcpFetchToolsList(session);
@@ -258,8 +261,8 @@ When multiple MCP sources (built-in tools, external servers) are active, their t
 import { aggregateMcpCatalogs } from "@shoggoth/mcp-integration";
 
 const result = aggregateMcpCatalogs([
-  builtinCatalog,   // sourceId: "builtin"
-  externalCatalog,  // sourceId: "my-server"
+  builtinCatalog, // sourceId: "builtin"
+  externalCatalog, // sourceId: "my-server"
 ]);
 // result.tools → AggregatedTool[] with namespacedName like "builtin-read", "my-server-search"
 ```
@@ -267,6 +270,7 @@ const result = aggregateMcpCatalogs([
 #### Namespacing
 
 Tools are namespaced as `{sourceId}-{toolName}`. For example:
+
 - Source `builtin`, tool `read` → `builtin-read`
 - Source `github`, tool `search` → `github-search`
 
@@ -281,9 +285,9 @@ interface McpSourceCatalog {
 }
 
 interface AggregatedTool extends McpToolDescriptor {
-  namespacedName: string;  // e.g. "builtin-read"
-  sourceId: string;        // e.g. "builtin"
-  originalName: string;    // e.g. "read"
+  namespacedName: string; // e.g. "builtin-read"
+  sourceId: string; // e.g. "builtin"
+  originalName: string; // e.g. "read"
 }
 
 interface AggregateMcpCatalogResult {
@@ -325,7 +329,10 @@ const payload = toMcpToolsListPayload(aggregated);
 `builtinShoggothToolsCatalog()` returns an `McpSourceCatalog` containing all of Shoggoth's native tools expressed as MCP tool descriptors. The default source ID is `"builtin"`.
 
 ```typescript
-import { builtinShoggothToolsCatalog, BUILTIN_SOURCE_ID } from "@shoggoth/mcp-integration";
+import {
+  builtinShoggothToolsCatalog,
+  BUILTIN_SOURCE_ID,
+} from "@shoggoth/mcp-integration";
 
 const catalog = builtinShoggothToolsCatalog();
 // catalog.sourceId === "builtin"
@@ -337,31 +344,31 @@ const catalog = builtinShoggothToolsCatalog();
 
 ### Included Tools
 
-| Tool | Description |
-|------|-------------|
-| `read` | Read a file under the session workspace. |
-| `write` | Write a file under the session workspace. |
-| `exec` | Execute a command (supports background, timeout, stdin, env overrides). |
-| `memory-search` | Full-text search over ingested markdown memory (BM25 + optional embeddings). |
-| `memory-ingest` | Scan configured paths for `*.md` and upsert into the state DB. |
-| `subagent` | Spawn, inspect, steer, abort, kill, wait, and retrieve results from subagents. |
-| `session-list` | List sessions with optional status/agent filters. |
-| `session-send` | Deliver a message to another session (cross-agent or same-agent). |
-| `session-query` | Read-only query of session transcript messages. |
-| `poll` | Check status and output of background processes. |
-| `skills` | List, resolve, or read skill files from configured scan roots. |
-| `config-request` | Request a dynamic configuration change for a config key. |
-| `config-show` | Show current daemon configuration (redacted). |
-| `show` | Display images or visual content to the user. |
-| `fs` | File operations: move, copy, delete, stat, chmod, mkdir. |
-| `ls` | List directory contents with glob, recursion, and metadata support. |
-| `fetch` | Make HTTP requests (private IPs blocked by default). |
-| `kv` | Workspace-scoped key-value store (state DB backed). |
-| `timer` | Schedule, cancel, or list deferred timer actions. |
-| `discover` | Enable/disable tools dynamically for the session. |
-| `search-replace` | Ripgrep search and regex replace across files. |
-| `cd` | Change the session working directory. |
-| `workflow` | Orchestrate parallel/sequential subagent workflows (from `@shoggoth/workflow`). |
+| Tool             | Description                                                                     |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `read`           | Read a file under the session workspace.                                        |
+| `write`          | Write a file under the session workspace.                                       |
+| `exec`           | Execute a command (supports background, timeout, stdin, env overrides).         |
+| `memory-search`  | Full-text search over ingested markdown memory (BM25 + optional embeddings).    |
+| `memory-ingest`  | Scan configured paths for `*.md` and upsert into the state DB.                  |
+| `subagent`       | Spawn, inspect, steer, abort, kill, wait, and retrieve results from subagents.  |
+| `session-list`   | List sessions with optional status/agent filters.                               |
+| `session-send`   | Deliver a message to another session (cross-agent or same-agent).               |
+| `session-query`  | Read-only query of session transcript messages.                                 |
+| `poll`           | Check status and output of background processes.                                |
+| `skills`         | List, resolve, or read skill files from configured scan roots.                  |
+| `config-request` | Request a dynamic configuration change for a config key.                        |
+| `config-show`    | Show current daemon configuration (redacted).                                   |
+| `show`           | Display images or visual content to the user.                                   |
+| `fs`             | File operations: move, copy, delete, stat, chmod, mkdir.                        |
+| `ls`             | List directory contents with glob, recursion, and metadata support.             |
+| `fetch`          | Make HTTP requests (private IPs blocked by default).                            |
+| `kv`             | Workspace-scoped key-value store (state DB backed).                             |
+| `timer`          | Schedule, cancel, or list deferred timer actions.                               |
+| `discover`       | Enable/disable tools dynamically for the session.                               |
+| `search-replace` | Ripgrep search and regex replace across files.                                  |
+| `cd`             | Change the session working directory.                                           |
+| `workflow`       | Orchestrate parallel/sequential subagent workflows (from `@shoggoth/workflow`). |
 
 ---
 
@@ -389,19 +396,19 @@ const descriptor = buildMessageToolDescriptor({
 
 ### Platform Capability Flags (`MessageToolPlatformSlice`)
 
-| Flag | Effect on Schema |
-|------|-----------------|
-| `attachments` | Adds `attachments` array property (base64 file uploads). |
-| `messageEdit` | Adds `edit` to the `action` enum. |
-| `messageDelete` | Adds `delete` to the `action` enum. |
-| `threadCreate` | Adds `create_thread` action and `auto_archive_duration_minutes`. |
-| `threadDelete` | Adds `delete_thread` action. |
-| `replies` | Adds `reply_to_message_id` property. |
-| `messageGet` | Adds `get` action with `channel_id`, `limit`, `anchor_message_id`, `list_direction`. |
-| `react` | Adds `react` and `choice` actions with `emoji`, `remove`, `choices` properties. |
-| `reactions` | Adds `reactions` action with `emoji` filter. |
-| `search` | Adds `search` action with `query`, `author_id`, `author_ids`, `before`, `after`, `from_me`, `channel_ids`. |
-| `attachmentDownload` | Adds `attachment-download` action with `filename`, `index`, `path`. |
+| Flag                 | Effect on Schema                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `attachments`        | Adds `attachments` array property (base64 file uploads).                                                   |
+| `messageEdit`        | Adds `edit` to the `action` enum.                                                                          |
+| `messageDelete`      | Adds `delete` to the `action` enum.                                                                        |
+| `threadCreate`       | Adds `create_thread` action and `auto_archive_duration_minutes`.                                           |
+| `threadDelete`       | Adds `delete_thread` action.                                                                               |
+| `replies`            | Adds `reply_to_message_id` property.                                                                       |
+| `messageGet`         | Adds `get` action with `channel_id`, `limit`, `anchor_message_id`, `list_direction`.                       |
+| `react`              | Adds `react` and `choice` actions with `emoji`, `remove`, `choices` properties.                            |
+| `reactions`          | Adds `reactions` action with `emoji` filter.                                                               |
+| `search`             | Adds `search` action with `query`, `author_id`, `author_ids`, `before`, `after`, `from_me`, `channel_ids`. |
+| `attachmentDownload` | Adds `attachment-download` action with `filename`, `index`, `path`.                                        |
 
 The schema is intentionally flat (no `oneOf`/`anyOf`/`allOf` at the top level) for compatibility with Anthropic Messages API and similar gateways. Per-action field requirements are enforced at execution time, not in the schema.
 
@@ -413,11 +420,11 @@ Maps external agent workspaces (ACP / acpx) to Shoggoth sessions and principals.
 
 ### Environment Variables
 
-| Constant | Env Var | Description |
-|----------|---------|-------------|
-| `SHOGGOTH_CONTROL_SOCKET_ENV` | `SHOGGOTH_CONTROL_SOCKET` | Unix socket path for the Shoggoth control plane (JSONL wire protocol). |
-| `SHOGGOTH_SESSION_ID_ENV` | `SHOGGOTH_SESSION_ID` | Bound Shoggoth session ID for the acpx workspace. |
-| `SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV` | `SHOGGOTH_ACPX_WORKSPACE_ROOT` | ACP workspace root path (hint for agent tooling). |
+| Constant                           | Env Var                        | Description                                                            |
+| ---------------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `SHOGGOTH_CONTROL_SOCKET_ENV`      | `SHOGGOTH_CONTROL_SOCKET`      | Unix socket path for the Shoggoth control plane (JSONL wire protocol). |
+| `SHOGGOTH_SESSION_ID_ENV`          | `SHOGGOTH_SESSION_ID`          | Bound Shoggoth session ID for the acpx workspace.                      |
+| `SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV` | `SHOGGOTH_ACPX_WORKSPACE_ROOT` | ACP workspace root path (hint for agent tooling).                      |
 
 ### Binding Management
 
@@ -492,9 +499,9 @@ A typical MCP server integration follows this flow:
 
 ## Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `@shoggoth/procman` | Optional managed process lifecycle for stdio MCP servers. |
+| Package              | Purpose                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `@shoggoth/procman`  | Optional managed process lifecycle for stdio MCP servers.                                                  |
 | `@shoggoth/workflow` | Provides the `workflow` tool descriptor via `buildWorkflowToolDescriptor()` (see [Workflow](workflow.md)). |
 
 ---

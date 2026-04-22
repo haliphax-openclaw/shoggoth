@@ -24,7 +24,9 @@ describe("Discord adapter", () => {
       authorIsBot: false,
       content: "ping",
       timestampIso: "2026-03-27T21:05:00.000Z",
-      attachments: [{ id: "att1", url: "https://cdn.discord/x.png", filename: "x.png" }],
+      attachments: [
+        { id: "att1", url: "https://cdn.discord/x.png", filename: "x.png" },
+      ],
       referencedMessageId: "parent-1",
       threadId: "t-9",
     };
@@ -40,7 +42,8 @@ describe("Discord adapter", () => {
   it("resolves dynamic thread/channel id before static routes", () => {
     const adapter = createDiscordAdapter({
       routes,
-      resolveThreadSessionId: (id) => (id === "thread-99" ? "sub-sess" : undefined),
+      resolveThreadSessionId: (id) =>
+        id === "thread-99" ? "sub-sess" : undefined,
     });
     const ev: DiscordInboundEvent = {
       kind: "message_create",

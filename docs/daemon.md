@@ -39,35 +39,35 @@ The daemon boots as a single Node.js process (`src/index.ts`) and wires together
 
 Opened via `openStateDb()` with pragmas:
 
-| Pragma | Value |
-|---|---|
-| `journal_mode` | WAL |
-| `synchronous` | NORMAL |
-| `foreign_keys` | ON |
+| Pragma         | Value                  |
+| -------------- | ---------------------- |
+| `journal_mode` | WAL                    |
+| `synchronous`  | NORMAL                 |
+| `foreign_keys` | ON                     |
 | `busy_timeout` | 5000 ms (configurable) |
 
 Migrations live in `shoggoth/migrations/` as numbered SQL files (e.g. `0001_initial.sql`). The `_schema_migrations` table prevents re-application. Migrations run inside immediate transactions.
 
 ### Key Tables
 
-| Table | Purpose |
-|---|---|
-| `sessions` | Session rows (id, workspace, status, context segment, model selection, context level, working directory, subagent metadata, system context token) |
-| `transcript_messages` | Per-session message history scoped by `context_segment_id` |
-| `tool_runs` | Tracks running/completed/failed tool loop executions |
-| `events` | Durable event queue (pending → processing → completed/dead) |
-| `event_processing_done` | At-least-once consumer idempotency |
-| `cron_jobs` | Scheduled recurring jobs |
-| `timers` | Deferred timer actions (fire_at, message, session) |
-| `elevation_grants` | Time-limited elevated execution grants |
-| `pending_actions` | HITL approval queue |
-| `hitl_session_tool_auto_approve` | Per-session tool auto-approve state |
-| `session_tool_state` | Tool discovery enable/disable state per session |
-| `session_stats` | Token usage, turn counts, compaction counts |
-| `kv_store` | Per-workspace key-value store |
-| `audit_log` | Append-only audit trail |
-| `agent_tokens` | Hashed agent authentication tokens |
-| `acpx_bindings` | ACPX process bindings |
+| Table                            | Purpose                                                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessions`                       | Session rows (id, workspace, status, context segment, model selection, context level, working directory, subagent metadata, system context token) |
+| `transcript_messages`            | Per-session message history scoped by `context_segment_id`                                                                                        |
+| `tool_runs`                      | Tracks running/completed/failed tool loop executions                                                                                              |
+| `events`                         | Durable event queue (pending → processing → completed/dead)                                                                                       |
+| `event_processing_done`          | At-least-once consumer idempotency                                                                                                                |
+| `cron_jobs`                      | Scheduled recurring jobs                                                                                                                          |
+| `timers`                         | Deferred timer actions (fire_at, message, session)                                                                                                |
+| `elevation_grants`               | Time-limited elevated execution grants                                                                                                            |
+| `pending_actions`                | HITL approval queue                                                                                                                               |
+| `hitl_session_tool_auto_approve` | Per-session tool auto-approve state                                                                                                               |
+| `session_tool_state`             | Tool discovery enable/disable state per session                                                                                                   |
+| `session_stats`                  | Token usage, turn counts, compaction counts                                                                                                       |
+| `kv_store`                       | Per-workspace key-value store                                                                                                                     |
+| `audit_log`                      | Append-only audit trail                                                                                                                           |
+| `agent_tokens`                   | Hashed agent authentication tokens                                                                                                                |
+| `acpx_bindings`                  | ACPX process bindings                                                                                                                             |
 
 ---
 
@@ -111,16 +111,17 @@ Both push a "Fresh session" system context message.
 
 `buildSessionSystemContext()` assembles the model's system message based on the session's [`contextLevel`](shared.md#context-levels):
 
-| Level | Content |
-|---|---|
-| `none` | Empty string — raw model, no Shoggoth framing |
-| `minimal` | Trusted context guidance, runtime metadata, TOOLS.md only |
-| `light` | Above + workspace root, operator global instructions, AGENTS.md, env appendix |
-| `full` | Above + all workspace template files (IDENTITY.md, USER.md, AGENTS.md, MEMORY.md, TOOLS.md, BOOTSTRAP.md), session stats |
+| Level     | Content                                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `none`    | Empty string — raw model, no Shoggoth framing                                                                            |
+| `minimal` | Trusted context guidance, runtime metadata, TOOLS.md only                                                                |
+| `light`   | Above + workspace root, operator global instructions, AGENTS.md, env appendix                                            |
+| `full`    | Above + all workspace template files (IDENTITY.md, USER.md, AGENTS.md, MEMORY.md, TOOLS.md, BOOTSTRAP.md), session stats |
 
 Template files are read from the session workspace with symlink-escape protection. A per-file cap of 8 KB and total cap of 24 KB apply. If `BOOTSTRAP.md` exists at `full` level, only it is injected (bootstrapping flow).
 
 The system prompt also includes:
+
 - A human-readable UTC timestamp.
 - Buffered system context entries (drained from `system-context-buffer`).
 - Operator global instructions from the operator directory (`GLOBAL.md`).
@@ -205,17 +206,17 @@ Rules support wildcards (`*`), compound resources (`exec:*`, `exec:curl`), and p
 
 ### Defined Control Operations
 
-| Category | Operations |
-|---|---|
-| System | `ping`, `version`, `health` |
-| Agent | `agent_ping` |
-| Session | `session_list`, `session_inspect`, `session_send`, `session_steer`, `session_abort`, `session_kill`, `session_model`, `session_compact`, `session_context_new`, `session_context_reset`, `session_context_status`, `session_stats` |
-| Subagent | `subagent_spawn` |
-| HITL | `hitl_pending_list`, `hitl_pending_get`, `hitl_pending_approve`, `hitl_pending_deny`, `hitl_clear` |
-| Config | `config_show`, `config_request` |
-| Process | `procman_list`, `procman_restart`, `procman_stop` |
-| ACPX | `acpx_bind_get`, `acpx_bind_set`, `acpx_bind_delete`, `acpx_bind_list`, `acpx_agent_start`, `acpx_agent_stop`, `acpx_agent_list` |
-| MCP | `mcp_http_cancel_request` |
+| Category | Operations                                                                                                                                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| System   | `ping`, `version`, `health`                                                                                                                                                                                                        |
+| Agent    | `agent_ping`                                                                                                                                                                                                                       |
+| Session  | `session_list`, `session_inspect`, `session_send`, `session_steer`, `session_abort`, `session_kill`, `session_model`, `session_compact`, `session_context_new`, `session_context_reset`, `session_context_status`, `session_stats` |
+| Subagent | `subagent_spawn`                                                                                                                                                                                                                   |
+| HITL     | `hitl_pending_list`, `hitl_pending_get`, `hitl_pending_approve`, `hitl_pending_deny`, `hitl_clear`                                                                                                                                 |
+| Config   | `config_show`, `config_request`                                                                                                                                                                                                    |
+| Process  | `procman_list`, `procman_restart`, `procman_stop`                                                                                                                                                                                  |
+| ACPX     | `acpx_bind_get`, `acpx_bind_set`, `acpx_bind_delete`, `acpx_bind_list`, `acpx_agent_start`, `acpx_agent_stop`, `acpx_agent_list`                                                                                                   |
+| MCP      | `mcp_http_cancel_request`                                                                                                                                                                                                          |
 
 All operations are audited to the `audit_log` table.
 
@@ -250,12 +251,12 @@ The engine is wrapped in a `DelegatingPolicyEngine` so hot-reload can swap the i
 
 `classifyToolRisk(toolName, toolRiskOverlay)` maps tool names to risk tiers:
 
-| Tier | Meaning |
-|---|---|
-| `safe` | No approval needed |
-| `caution` | Needs approval unless bypassed |
-| `critical` | Needs approval unless bypassed at critical level |
-| `never` | Always requires approval, cannot be auto-approved |
+| Tier       | Meaning                                           |
+| ---------- | ------------------------------------------------- |
+| `safe`     | No approval needed                                |
+| `caution`  | Needs approval unless bypassed                    |
+| `critical` | Needs approval unless bypassed at critical level  |
+| `never`    | Always requires approval, cannot be auto-approved |
 
 ### Approval Gate
 
@@ -347,6 +348,7 @@ When a timer fires, it delivers a user-turn message to the target session via `r
 - **user** (normal) — operator/user-initiated messages.
 
 Features:
+
 - Per-session serialization: only one turn runs at a time per session.
 - Anti-starvation: after N consecutive system turns (configurable `starvationThreshold`, default 2), a user turn is promoted.
 - Max queue depth (default 6 per tier). Excess enqueues are rejected with `TurnQueueFullError`.
@@ -358,13 +360,13 @@ Features:
 
 `runRetentionJobs()` applies configured retention rules on a periodic interval (default 1 hour when rules exist):
 
-| Rule | Effect |
-|---|---|
-| `inboundMediaMaxAgeDays` | Deletes media files older than N days |
-| `inboundMediaMaxTotalBytes` | Evicts oldest files when total exceeds limit |
-| `transcriptMessageMaxAgeDays` | Deletes transcript rows older than N days |
-| `transcriptMaxMessagesPerSession` | Keeps only the N most recent messages per session |
-| `kvMaxEntries` | Keeps only the N most recent KV entries per workspace |
+| Rule                              | Effect                                                |
+| --------------------------------- | ----------------------------------------------------- |
+| `inboundMediaMaxAgeDays`          | Deletes media files older than N days                 |
+| `inboundMediaMaxTotalBytes`       | Evicts oldest files when total exceeds limit          |
+| `transcriptMessageMaxAgeDays`     | Deletes transcript rows older than N days             |
+| `transcriptMaxMessagesPerSession` | Keeps only the N most recent messages per session     |
+| `kvMaxEntries`                    | Keeps only the N most recent KV entries per workspace |
 
 All operations are audited. File deletion uses symlink-escape protection.
 
@@ -411,12 +413,12 @@ Disable with `SHOGGOTH_CONFIG_HOT_RELOAD=0` or `runtime.configHotReload: false`.
 
 `HealthRegistry` aggregates dependency probes:
 
-| Probe | What it checks |
-|---|---|
-| `sqlite` | State DB file/directory accessibility |
-| `discord` | Discord bot token validity |
-| `model` | Model API endpoint reachability (HEAD/GET) |
-| `embeddings` | Embeddings API endpoint reachability |
+| Probe        | What it checks                             |
+| ------------ | ------------------------------------------ |
+| `sqlite`     | State DB file/directory accessibility      |
+| `discord`    | Discord bot token validity                 |
+| `model`      | Model API endpoint reachability (HEAD/GET) |
+| `embeddings` | Embeddings API endpoint reachability       |
 
 `snapshot()` returns `{ ok, live, ready, checks, at }`. Probes with `skipped` status don't affect readiness. The daemon retries the model probe up to 4 times at startup with 3s delays.
 
@@ -509,16 +511,16 @@ All control plane operations, retention jobs, and policy decisions are audited.
 
 ## Key Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `SHOGGOTH_CONFIG_DIR` | Override config directory |
-| `DISCORD_BOT_TOKEN` | Override Discord token from config |
-| `SHOGGOTH_CONFIG_HOT_RELOAD` | Set to `0` to disable |
-| `SHOGGOTH_SESSION_SYSTEM_PROMPT` | Appended to system prompt |
-| `SHOGGOTH_GLOBAL_INSTRUCTIONS_PATH` | Override operator instructions path |
-| `SHOGGOTH_RETENTION_MS` | Override retention interval (0 disables) |
-| `SHOGGOTH_MODEL` | Fallback model name |
-| `ANTHROPIC_BASE_URL` | Anthropic API base URL |
+| Variable                            | Purpose                                  |
+| ----------------------------------- | ---------------------------------------- |
+| `SHOGGOTH_CONFIG_DIR`               | Override config directory                |
+| `DISCORD_BOT_TOKEN`                 | Override Discord token from config       |
+| `SHOGGOTH_CONFIG_HOT_RELOAD`        | Set to `0` to disable                    |
+| `SHOGGOTH_SESSION_SYSTEM_PROMPT`    | Appended to system prompt                |
+| `SHOGGOTH_GLOBAL_INSTRUCTIONS_PATH` | Override operator instructions path      |
+| `SHOGGOTH_RETENTION_MS`             | Override retention interval (0 disables) |
+| `SHOGGOTH_MODEL`                    | Fallback model name                      |
+| `ANTHROPIC_BASE_URL`                | Anthropic API base URL                   |
 
 ---
 

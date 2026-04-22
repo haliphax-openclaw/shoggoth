@@ -11,6 +11,4 @@ export type WireAuthAgent = {
   token: string;
 };
 
-export type WireAuth =
-  | WireAuthOperatorToken
-  | WireAuthAgent;
+export type WireAuth = WireAuthOperatorToken | WireAuthAgent;

@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { MessageAttachment } from "@shoggoth/messaging";
-import type { ImageBlock, ImageBlockCodec } from "@shoggoth/models";
-import { ingestAttachmentImage, type ImageIngestOptions } from "../../src/presentation/image-ingest.js";
+import type { ImageBlockCodec } from "@shoggoth/models";
+import {
+  ingestAttachmentImage,
+} from "../../src/presentation/image-ingest.js";
 
 // Suppress logger output in tests
 vi.mock("../../src/logging.js", () => ({
@@ -13,7 +15,9 @@ vi.mock("../../src/logging.js", () => ({
   }),
 }));
 
-function makeAttachment(overrides: Partial<MessageAttachment> = {}): MessageAttachment {
+function makeAttachment(
+  overrides: Partial<MessageAttachment> = {},
+): MessageAttachment {
   return {
     id: "att-1",
     url: "https://cdn.example.com/photo.png",
@@ -40,12 +44,19 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        arrayBuffer: () => Promise.resolve(imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imgBytes.buffer.slice(
+              imgBytes.byteOffset,
+              imgBytes.byteOffset + imgBytes.byteLength,
+            ),
+          ),
       });
       const attachment = makeAttachment();
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -63,7 +74,13 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        arrayBuffer: () => Promise.resolve(imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imgBytes.buffer.slice(
+              imgBytes.byteOffset,
+              imgBytes.byteOffset + imgBytes.byteLength,
+            ),
+          ),
       });
       const attachment = makeAttachment({
         contentType: undefined,
@@ -72,6 +89,7 @@ describe("ingestAttachmentImage", () => {
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -88,7 +106,13 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        arrayBuffer: () => Promise.resolve(imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imgBytes.buffer.slice(
+              imgBytes.byteOffset,
+              imgBytes.byteOffset + imgBytes.byteLength,
+            ),
+          ),
       });
       const attachment = makeAttachment({
         contentType: undefined,
@@ -97,6 +121,7 @@ describe("ingestAttachmentImage", () => {
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -116,6 +141,7 @@ describe("ingestAttachmentImage", () => {
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
         imageUrlPassthrough: true,
       });
@@ -134,12 +160,19 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        arrayBuffer: () => Promise.resolve(imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imgBytes.buffer.slice(
+              imgBytes.byteOffset,
+              imgBytes.byteOffset + imgBytes.byteLength,
+            ),
+          ),
       });
       const attachment = makeAttachment();
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
         imageUrlPassthrough: true,
       });
@@ -158,12 +191,19 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(),
-        arrayBuffer: () => Promise.resolve(imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imgBytes.buffer.slice(
+              imgBytes.byteOffset,
+              imgBytes.byteOffset + imgBytes.byteLength,
+            ),
+          ),
       });
       const attachment = makeAttachment();
 
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
         imageUrlPassthrough: false,
       });
@@ -177,19 +217,28 @@ describe("ingestAttachmentImage", () => {
     });
   });
 
-    describe("base64 fallback (supportsUrl: false)", () => {
+  describe("base64 fallback (supportsUrl: false)", () => {
     it("fetches and returns base64 ImageBlock", async () => {
       const codec = makeCodec(false);
       const imageBytes = Buffer.from("fake-png-data");
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
-        headers: new Headers({ "content-length": String(imageBytes.byteLength) }),
-        arrayBuffer: () => Promise.resolve(imageBytes.buffer.slice(imageBytes.byteOffset, imageBytes.byteOffset + imageBytes.byteLength)),
+        headers: new Headers({
+          "content-length": String(imageBytes.byteLength),
+        }),
+        arrayBuffer: () =>
+          Promise.resolve(
+            imageBytes.buffer.slice(
+              imageBytes.byteOffset,
+              imageBytes.byteOffset + imageBytes.byteLength,
+            ),
+          ),
       });
 
       const attachment = makeAttachment();
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -199,7 +248,9 @@ describe("ingestAttachmentImage", () => {
         base64: imageBytes.toString("base64"),
       });
       expect(result!.url).toBeUndefined();
-      expect(fetchImpl).toHaveBeenCalledWith("https://cdn.example.com/photo.png");
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "https://cdn.example.com/photo.png",
+      );
     });
   });
 
@@ -246,6 +297,7 @@ describe("ingestAttachmentImage", () => {
       const attachment = makeAttachment();
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -263,6 +315,7 @@ describe("ingestAttachmentImage", () => {
       const attachment = makeAttachment();
       const result = await ingestAttachmentImage(attachment, {
         codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -284,6 +337,7 @@ describe("ingestAttachmentImage", () => {
       const result = await ingestAttachmentImage(attachment, {
         codec,
         maxBytes: 1000,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 
@@ -298,13 +352,20 @@ describe("ingestAttachmentImage", () => {
       const fetchImpl = vi.fn().mockResolvedValue({
         ok: true,
         headers: new Headers(), // no content-length
-        arrayBuffer: () => Promise.resolve(bigBuf.buffer.slice(bigBuf.byteOffset, bigBuf.byteOffset + bigBuf.byteLength)),
+        arrayBuffer: () =>
+          Promise.resolve(
+            bigBuf.buffer.slice(
+              bigBuf.byteOffset,
+              bigBuf.byteOffset + bigBuf.byteLength,
+            ),
+          ),
       });
 
       const attachment = makeAttachment();
       const result = await ingestAttachmentImage(attachment, {
         codec,
         maxBytes: 1000,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fetchImpl: fetchImpl as any,
       });
 

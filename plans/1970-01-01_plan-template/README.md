@@ -13,8 +13,8 @@ completed: never
 
 ```yaml
 ---
-date: 2026-04-01       # Date the plan was created (YYYY-MM-DD)
-completed: never        # Date completed (YYYY-MM-DD), or "never" if not yet done
+date: 2026-04-01 # Date the plan was created (YYYY-MM-DD)
+completed: never # Date completed (YYYY-MM-DD), or "never" if not yet done
 ---
 ```
 
@@ -31,6 +31,7 @@ Why does this change exist? What problem does it solve, what limitation does it 
 The technical design. Include type definitions, data flow, architecture decisions, and tradeoffs. Use code blocks for interfaces and type signatures. Diagrams are welcome when they clarify structure.
 
 Subsections should cover:
+
 - Core data structures and interfaces
 - How the feature integrates with existing code
 - Edge cases and failure modes
@@ -46,6 +47,7 @@ Break the work into ordered phases. Each phase should be independently shippable
 - Key changes
 
 **Files:**
+
 - `packages/foo/src/bar.ts`
 - `packages/foo/src/baz.ts`
 
@@ -55,6 +57,7 @@ Break the work into ordered phases. Each phase should be independently shippable
 - Key changes
 
 **Files:**
+
 - `packages/foo/src/qux.ts`
 
 ## Testing Strategy

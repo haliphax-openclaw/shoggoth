@@ -81,7 +81,11 @@ export class TieredTurnQueue {
       } else {
         sq.normal.push(entry);
       }
-      this.log("turn_queue.enqueued", sessionId, `priority=${priority} label=${label} id=${entry.id} running=${sq.running} high=${sq.high.length} normal=${sq.normal.length}`);
+      this.log(
+        "turn_queue.enqueued",
+        sessionId,
+        `priority=${priority} label=${label} id=${entry.id} running=${sq.running} high=${sq.high.length} normal=${sq.normal.length}`,
+      );
       this.pump(sessionId);
     });
   }
@@ -92,7 +96,10 @@ export class TieredTurnQueue {
     return { system: sq.high.length, user: sq.normal.length };
   }
 
-  listQueued(sessionId: string, priority?: TurnPriority): ReadonlyArray<QueueEntryInfo> {
+  listQueued(
+    sessionId: string,
+    priority?: TurnPriority,
+  ): ReadonlyArray<QueueEntryInfo> {
     const sq = this.sessions.get(sessionId);
     if (!sq) return [];
     const toInfo = (e: QueueEntry): QueueEntryInfo => ({
@@ -187,7 +194,11 @@ export class TieredTurnQueue {
     const sq = this.sessions.get(sessionId);
     if (!sq || sq.running) {
       if (sq?.running) {
-        this.log("turn_queue.pump_blocked", sessionId, `already running, high=${sq.high.length} normal=${sq.normal.length}`);
+        this.log(
+          "turn_queue.pump_blocked",
+          sessionId,
+          `already running, high=${sq.high.length} normal=${sq.normal.length}`,
+        );
       }
       return;
     }
@@ -197,13 +208,21 @@ export class TieredTurnQueue {
       return;
     }
     sq.running = true;
-    this.log("turn_queue.turn_start", sessionId, `priority=${next.priority} label=${next.label} id=${next.id}`);
+    this.log(
+      "turn_queue.turn_start",
+      sessionId,
+      `priority=${next.priority} label=${next.label} id=${next.id}`,
+    );
     next
       .execute()
       .then(() => next.resolve())
       .catch((err) => next.reject(err))
       .finally(() => {
-        this.log("turn_queue.turn_end", sessionId, `priority=${next.priority} label=${next.label} id=${next.id}`);
+        this.log(
+          "turn_queue.turn_end",
+          sessionId,
+          `priority=${next.priority} label=${next.label} id=${next.id}`,
+        );
         sq.running = false;
         this.pump(sessionId);
       });
@@ -231,7 +250,10 @@ export class TieredTurnQueue {
     return sq.normal.shift()!;
   }
 
-  private removeMatching(arr: QueueEntry[], pred: (e: QueueEntry) => boolean): number {
+  private removeMatching(
+    arr: QueueEntry[],
+    pred: (e: QueueEntry) => boolean,
+  ): number {
     let removed = 0;
     for (let i = arr.length - 1; i >= 0; i--) {
       if (pred(arr[i])) {
@@ -251,6 +273,15 @@ export class TieredTurnQueue {
 
   private log(msg: string, sessionId: string, detail: string): void {
     const ts = new Date().toISOString();
-    console.log(JSON.stringify({ ts, level: "debug", msg, component: "turn-queue", sessionId, detail }));
+    console.log(
+      JSON.stringify({
+        ts,
+        level: "debug",
+        msg,
+        component: "turn-queue",
+        sessionId,
+        detail,
+      }),
+    );
   }
 }

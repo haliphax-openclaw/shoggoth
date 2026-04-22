@@ -7,7 +7,9 @@ import {
 import type { DiscordInteractionEvent } from "../src/interaction";
 import type { DiscordRestTransport } from "../src/transport";
 
-function stubTransport(calls: Array<{ method: string; args: unknown[] }>): DiscordRestTransport {
+function stubTransport(
+  calls: Array<{ method: string; args: unknown[] }>,
+): DiscordRestTransport {
   return {
     openDmChannel: async () => "dm-ch",
     createMessage: async () => ({ id: "m1" }),
@@ -64,7 +66,11 @@ describe("createDiscordInteractionHandler", () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0]!.method, "interactionCallback");
-    const [id, token, body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [id, token, body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.strictEqual(id, "int-1");
     assert.strictEqual(token, "tok-1");
     assert.strictEqual(body.type, 4);
@@ -95,7 +101,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.ok(body.data.content.includes("No active session"));
   });
 
@@ -122,7 +132,13 @@ describe("createDiscordInteractionHandler", () => {
       userId: "u-1",
       data: {
         name: "abort",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     };
 
@@ -184,7 +200,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.ok(body.data.content.includes("Abort failed"));
   });
 
@@ -215,7 +235,13 @@ describe("createDiscordInteractionHandler", () => {
       userId: "u-1",
       data: {
         name: "model",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     };
 
@@ -223,7 +249,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.strictEqual(body.type, 4);
     assert.ok(body.data.content.includes("Model Configuration"));
     assert.ok(body.data.content.includes("agent:main:discord:channel:abc"));
@@ -266,7 +296,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.ok(body.data.content.includes("Selection:"));
     assert.ok(body.data.content.includes("openai"));
   });
@@ -297,7 +331,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.ok(body.data.content.includes("No session bound"));
   });
 
@@ -324,7 +362,13 @@ describe("createDiscordInteractionHandler", () => {
       userId: "u-1",
       data: {
         name: "model",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     };
 
@@ -332,7 +376,11 @@ describe("createDiscordInteractionHandler", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     assert.strictEqual(calls.length, 1);
-    const [, , body] = calls[0]!.args as [string, string, { type: number; data: { content: string } }];
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
     assert.ok(body.data.content.includes("Failed to get model"));
   });
 });
@@ -349,7 +397,10 @@ describe("registerDiscordSlashCommands", () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0]!.method, "registerGlobalCommands");
-    const [appId, commands] = calls[0]!.args as [string, Array<Record<string, unknown>>];
+    const [appId, commands] = calls[0]!.args as [
+      string,
+      Array<Record<string, unknown>>,
+    ];
     assert.strictEqual(appId, "app-123");
     assert.strictEqual(commands.length, 8);
     assert.ok(commands.some((c) => c.name === "abort"));
@@ -370,7 +421,10 @@ describe("registerDiscordSlashCommands", () => {
       applicationId: "app-123",
     });
 
-    const [, commands] = calls[0]!.args as [string, Array<Record<string, unknown>>];
+    const [, commands] = calls[0]!.args as [
+      string,
+      Array<Record<string, unknown>>,
+    ];
     const modelCmd = commands.find((c) => c.name === "model");
     assert.ok(modelCmd);
     const options = modelCmd!.options as Array<Record<string, unknown>>;

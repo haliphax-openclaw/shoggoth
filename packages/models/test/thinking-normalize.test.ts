@@ -1,6 +1,10 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import { normalizeThinkingBlocks, extractXmlThinkingBlocks, stripXmlThinkingTags } from "../src/thinking-normalize";
+import {
+  normalizeThinkingBlocks,
+  extractXmlThinkingBlocks,
+  stripXmlThinkingTags,
+} from "../src/thinking-normalize";
 import type { ChatContentPart } from "../src/types";
 
 describe("extractXmlThinkingBlocks", () => {
@@ -60,7 +64,9 @@ describe("extractXmlThinkingBlocks", () => {
     const content = "<thinking>Just thinking</thinking>";
     const result = extractXmlThinkingBlocks(content);
     assert(Array.isArray(result));
-    assert.deepStrictEqual(result, [{ type: "thinking", text: "Just thinking" }]);
+    assert.deepStrictEqual(result, [
+      { type: "thinking", text: "Just thinking" },
+    ]);
   });
 
   it("handles empty thinking block (skipped, creates separate text parts)", () => {
@@ -75,7 +81,8 @@ describe("extractXmlThinkingBlocks", () => {
   });
 
   it("handles nested thinking tags (first closing tag ends outer)", () => {
-    const content = "Start <thinking>Outer <thinking>inner</thinking> text</thinking> end";
+    const content =
+      "Start <thinking>Outer <thinking>inner</thinking> text</thinking> end";
     const result = extractXmlThinkingBlocks(content);
     assert(Array.isArray(result));
     // Non-greedy matching: first </thinking> closes the outer tag
@@ -105,12 +112,22 @@ Line 3 of reasoning
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts.length, 3);
     assert.strictEqual(parts[0].type, "text");
-    assert.strictEqual((parts[0] as { type: "text"; text: string }).text, "Before");
+    assert.strictEqual(
+      (parts[0] as { type: "text"; text: string }).text,
+      "Before",
+    );
     assert.strictEqual(parts[1].type, "thinking");
-    assert((parts[1] as { type: "thinking"; text: string }).text.includes("Line 1"));
-    assert((parts[1] as { type: "thinking"; text: string }).text.includes("Line 3"));
+    assert(
+      (parts[1] as { type: "thinking"; text: string }).text.includes("Line 1"),
+    );
+    assert(
+      (parts[1] as { type: "thinking"; text: string }).text.includes("Line 3"),
+    );
     assert.strictEqual(parts[2].type, "text");
-    assert.strictEqual((parts[2] as { type: "text"; text: string }).text, "After");
+    assert.strictEqual(
+      (parts[2] as { type: "text"; text: string }).text,
+      "After",
+    );
   });
 
   it("trims whitespace from extracted parts", () => {
@@ -140,7 +157,11 @@ Line 3 of reasoning
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("!@#$%^&*"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes(
+        "!@#$%^&*",
+      ),
+    );
   });
 
   it("handles thinking blocks with XML-like content", () => {
@@ -171,7 +192,9 @@ Line 3 of reasoning
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
     assert.strictEqual(parts[1].type, "text");
-    assert((parts[1] as { type: "text"; text: string }).text.includes("<tool_call>"));
+    assert(
+      (parts[1] as { type: "text"; text: string }).text.includes("<tool_call>"),
+    );
   });
 
   it("handles case-sensitive tag matching", () => {
@@ -195,11 +218,15 @@ Line 3 of reasoning
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[1].type, "thinking");
-    assert.strictEqual((parts[1] as { type: "thinking"; text: string }).text.length, 10000);
+    assert.strictEqual(
+      (parts[1] as { type: "thinking"; text: string }).text.length,
+      10000,
+    );
   });
 
   it("handles multiple empty thinking blocks (creates separate text parts)", () => {
-    const content = "Text <thinking></thinking> middle <thinking></thinking> end";
+    const content =
+      "Text <thinking></thinking> middle <thinking></thinking> end";
     const result = extractXmlThinkingBlocks(content);
     assert(Array.isArray(result));
     // Empty blocks are skipped, leaving separate text parts
@@ -216,10 +243,22 @@ Line 3 of reasoning
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts.length, 4);
-    assert.strictEqual((parts[0] as { type: "text"; text: string }).text, "Start");
-    assert.strictEqual((parts[1] as { type: "thinking"; text: string }).text, "A");
-    assert.strictEqual((parts[2] as { type: "thinking"; text: string }).text, "B");
-    assert.strictEqual((parts[3] as { type: "text"; text: string }).text, "End");
+    assert.strictEqual(
+      (parts[0] as { type: "text"; text: string }).text,
+      "Start",
+    );
+    assert.strictEqual(
+      (parts[1] as { type: "thinking"; text: string }).text,
+      "A",
+    );
+    assert.strictEqual(
+      (parts[2] as { type: "thinking"; text: string }).text,
+      "B",
+    );
+    assert.strictEqual(
+      (parts[3] as { type: "text"; text: string }).text,
+      "End",
+    );
   });
 });
 
@@ -255,7 +294,8 @@ describe("normalizeThinkingBlocks", () => {
   });
 
   it("handles multiple thinking blocks with xml-tags format", () => {
-    const content = "<thinking>First</thinking> text <thinking>Second</thinking>";
+    const content =
+      "<thinking>First</thinking> text <thinking>Second</thinking>";
     const result = normalizeThinkingBlocks(content, "xml-tags");
     assert(Array.isArray(result));
     assert.deepStrictEqual(result, [
@@ -356,7 +396,11 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes('"nested"'));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes(
+        '"nested"',
+      ),
+    );
   });
 
   it("handles thinking blocks with escaped characters", () => {
@@ -365,7 +409,9 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("\\"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes("\\"),
+    );
   });
 
   it("handles unicode content in thinking blocks", () => {
@@ -374,8 +420,12 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("你好"));
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("🤔"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes("你好"),
+    );
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes("🤔"),
+    );
   });
 
   it("handles thinking blocks with HTML entities", () => {
@@ -384,7 +434,9 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("&lt;"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes("&lt;"),
+    );
   });
 
   it("handles regex special characters in content", () => {
@@ -406,7 +458,9 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("CDATA"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes("CDATA"),
+    );
   });
 
   it("handles alternating thinking and text blocks", () => {
@@ -433,14 +487,20 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts[0].type, "thinking");
-    assert((parts[0] as { type: "thinking"; text: string }).text.includes("Indented"));
+    assert(
+      (parts[0] as { type: "thinking"; text: string }).text.includes(
+        "Indented",
+      ),
+    );
   });
 
   it("handles single thinking block returns as array not string", () => {
     const content = `<thinking>Only thinking</thinking>`;
     const result = extractXmlThinkingBlocks(content);
     assert(Array.isArray(result));
-    assert.deepStrictEqual(result, [{ type: "thinking", text: "Only thinking" }]);
+    assert.deepStrictEqual(result, [
+      { type: "thinking", text: "Only thinking" },
+    ]);
   });
 
   it("handles text before and after multiple thinking blocks", () => {
@@ -449,11 +509,26 @@ The actual result data
     assert(Array.isArray(result));
     const parts = result as ChatContentPart[];
     assert.strictEqual(parts.length, 5);
-    assert.strictEqual((parts[0] as { type: "text"; text: string }).text, "Start");
-    assert.strictEqual((parts[1] as { type: "thinking"; text: string }).text, "A");
-    assert.strictEqual((parts[2] as { type: "text"; text: string }).text, "middle");
-    assert.strictEqual((parts[3] as { type: "thinking"; text: string }).text, "B");
-    assert.strictEqual((parts[4] as { type: "text"; text: string }).text, "end");
+    assert.strictEqual(
+      (parts[0] as { type: "text"; text: string }).text,
+      "Start",
+    );
+    assert.strictEqual(
+      (parts[1] as { type: "thinking"; text: string }).text,
+      "A",
+    );
+    assert.strictEqual(
+      (parts[2] as { type: "text"; text: string }).text,
+      "middle",
+    );
+    assert.strictEqual(
+      (parts[3] as { type: "thinking"; text: string }).text,
+      "B",
+    );
+    assert.strictEqual(
+      (parts[4] as { type: "text"; text: string }).text,
+      "end",
+    );
   });
 });
 
@@ -470,7 +545,8 @@ describe("Gemma-style <think> tag support", () => {
   });
 
   it("handles mixed <think> and <thinking> tags", () => {
-    const content = "<think>Gemma style</think> text <thinking>Standard style</thinking>";
+    const content =
+      "<think>Gemma style</think> text <thinking>Standard style</thinking>";
     const result = extractXmlThinkingBlocks(content);
     assert(Array.isArray(result));
     assert.deepStrictEqual(result, [
@@ -502,7 +578,8 @@ describe("stripXmlThinkingTags", () => {
   });
 
   it("strips thinking tags from tool call argument JSON", () => {
-    const dirty = '<thinking>Let me figure out the args</thinking>{"file":"test.ts","match":"foo","replacement":"bar"}';
+    const dirty =
+      '<thinking>Let me figure out the args</thinking>{"file":"test.ts","match":"foo","replacement":"bar"}';
     assert.strictEqual(
       stripXmlThinkingTags(dirty),
       '{"file":"test.ts","match":"foo","replacement":"bar"}',
@@ -510,7 +587,8 @@ describe("stripXmlThinkingTags", () => {
   });
 
   it("strips thinking tags embedded mid-argument", () => {
-    const dirty = '{"file":"test.ts",<thinking>I need to set match</thinking>"match":"foo"}';
+    const dirty =
+      '{"file":"test.ts",<thinking>I need to set match</thinking>"match":"foo"}';
     assert.strictEqual(
       stripXmlThinkingTags(dirty),
       '{"file":"test.ts","match":"foo"}',
@@ -518,11 +596,9 @@ describe("stripXmlThinkingTags", () => {
   });
 
   it("strips multiple thinking blocks from arguments", () => {
-    const dirty = '<thinking>first thought</thinking>{"key":<thinking>second thought</thinking>"value"}';
-    assert.strictEqual(
-      stripXmlThinkingTags(dirty),
-      '{"key":"value"}',
-    );
+    const dirty =
+      '<thinking>first thought</thinking>{"key":<thinking>second thought</thinking>"value"}';
+    assert.strictEqual(stripXmlThinkingTags(dirty), '{"key":"value"}');
   });
 
   it("strips multiline thinking blocks from arguments", () => {
@@ -530,10 +606,7 @@ describe("stripXmlThinkingTags", () => {
 Let me analyze this carefully.
 The file needs to be updated.
 </thinking>{"file":"src/index.ts"}`;
-    assert.strictEqual(
-      stripXmlThinkingTags(dirty),
-      '{"file":"src/index.ts"}',
-    );
+    assert.strictEqual(stripXmlThinkingTags(dirty), '{"file":"src/index.ts"}');
   });
 
   it("handles empty string", () => {
@@ -541,6 +614,9 @@ The file needs to be updated.
   });
 
   it("handles string that is only a thinking block", () => {
-    assert.strictEqual(stripXmlThinkingTags("<thinking>all thinking no content</thinking>"), "");
+    assert.strictEqual(
+      stripXmlThinkingTags("<thinking>all thinking no content</thinking>"),
+      "",
+    );
   });
 });

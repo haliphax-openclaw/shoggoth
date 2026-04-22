@@ -39,7 +39,9 @@ describe("load smoke — SQLite burst", () => {
         assert.equal(r.ok, true);
       }
       const count = (
-        db.prepare("SELECT COUNT(*) AS c FROM events WHERE event_type = ?").get("load-smoke") as { c: number }
+        db
+          .prepare("SELECT COUNT(*) AS c FROM events WHERE event_type = ?")
+          .get("load-smoke") as { c: number }
       ).c;
       assert.equal(count, n);
     } finally {
@@ -72,9 +74,15 @@ describe("load smoke — SQLite burst", () => {
           failures++;
         }
       }
-      assert.equal(failures, 0, "no emit failures across concurrent DB handles");
+      assert.equal(
+        failures,
+        0,
+        "no emit failures across concurrent DB handles",
+      );
       const count = (
-        handles[0]!.prepare("SELECT COUNT(*) AS c FROM events WHERE event_type = ?").get("load-smoke-mt") as {
+        handles[0]!
+          .prepare("SELECT COUNT(*) AS c FROM events WHERE event_type = ?")
+          .get("load-smoke-mt") as {
           c: number;
         }
       ).c;

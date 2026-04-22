@@ -25,25 +25,25 @@ Discord config is resolved from `platforms.discord` in the Shoggoth config (or t
 
 ### Config Schema (Zod-validated)
 
-| Field | Type | Description |
-|---|---|---|
-| `token` | `string?` | Bot token. Env `DISCORD_BOT_TOKEN` wins. |
-| `ownerUserId` | `string?` | Discord snowflake of the operator. Env `SHOGGOTH_DISCORD_OWNER_USER_ID` wins. When set, only this user's messages are processed on non-subagent sessions. |
-| `intents` | `number?` | Gateway intents bitmask. Env `SHOGGOTH_DISCORD_INTENTS` wins. Default: guilds + guild messages + guild message reactions + DMs + DM reactions + message content (privileged). |
-| `allowBotMessages` | `boolean?` | Process messages from other bots. Env `SHOGGOTH_DISCORD_ALLOW_BOT` (`1`/`0`). Default `false`. |
-| `hitlNotifyDmUserId` | `string?` | Send HITL notices as DMs to this user. Env `SHOGGOTH_HITL_NOTIFY_DM_USER_ID`. |
-| `hitlNotifyChannelId` | `string?` | Post HITL notices to this channel. Env `SHOGGOTH_HITL_NOTIFY_CHANNEL_ID`. |
-| `hitlNotifyWebhookUrl` | `string?` | POST HITL events as JSON to this webhook. Env `SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL`. |
+| Field                  | Type       | Description                                                                                                                                                                   |
+| ---------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `token`                | `string?`  | Bot token. Env `DISCORD_BOT_TOKEN` wins.                                                                                                                                      |
+| `ownerUserId`          | `string?`  | Discord snowflake of the operator. Env `SHOGGOTH_DISCORD_OWNER_USER_ID` wins. When set, only this user's messages are processed on non-subagent sessions.                     |
+| `intents`              | `number?`  | Gateway intents bitmask. Env `SHOGGOTH_DISCORD_INTENTS` wins. Default: guilds + guild messages + guild message reactions + DMs + DM reactions + message content (privileged). |
+| `allowBotMessages`     | `boolean?` | Process messages from other bots. Env `SHOGGOTH_DISCORD_ALLOW_BOT` (`1`/`0`). Default `false`.                                                                                |
+| `hitlNotifyDmUserId`   | `string?`  | Send HITL notices as DMs to this user. Env `SHOGGOTH_HITL_NOTIFY_DM_USER_ID`.                                                                                                 |
+| `hitlNotifyChannelId`  | `string?`  | Post HITL notices to this channel. Env `SHOGGOTH_HITL_NOTIFY_CHANNEL_ID`.                                                                                                     |
+| `hitlNotifyWebhookUrl` | `string?`  | POST HITL events as JSON to this webhook. Env `SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL`.                                                                                             |
 
 ### Additional Env-Driven Settings
 
-| Env Variable | Effect |
-|---|---|
-| `SHOGGOTH_DISCORD_STREAM=1` | Enable streaming responses (edit-in-place). |
-| `SHOGGOTH_DISCORD_STREAM_MIN_MS` | Minimum interval between stream edits (default 400ms). |
-| `SHOGGOTH_DISCORD_MODEL_TAG=1` | Append model tag footer to replies. |
-| `SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION=0` | Disable in-session HITL queued notices. |
-| `SHOGGOTH_AGENT_ID` | Override the resolved agent ID (default `main`). |
+| Env Variable                               | Effect                                                 |
+| ------------------------------------------ | ------------------------------------------------------ |
+| `SHOGGOTH_DISCORD_STREAM=1`                | Enable streaming responses (edit-in-place).            |
+| `SHOGGOTH_DISCORD_STREAM_MIN_MS`           | Minimum interval between stream edits (default 400ms). |
+| `SHOGGOTH_DISCORD_MODEL_TAG=1`             | Append model tag footer to replies.                    |
+| `SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION=0` | Disable in-session HITL queued notices.                |
+| `SHOGGOTH_AGENT_ID`                        | Override the resolved agent ID (default `main`).       |
 
 ### Routes
 
@@ -93,25 +93,25 @@ The Message Content intent is privileged and must be enabled in the Discord Deve
 
 `createDiscordRestTransport({ botToken })` returns a `DiscordRestTransport` with these operations:
 
-| Method | Discord Endpoint | Notes |
-|---|---|---|
-| `createMessage` | `POST /channels/{id}/messages` | JSON body |
-| `createMessageWithFiles` | `POST /channels/{id}/messages` | `multipart/form-data` with `payload_json` + `files[n]` |
-| `editMessage` | `PATCH /channels/{id}/messages/{id}` | |
-| `deleteMessage` | `DELETE /channels/{id}/messages/{id}` | |
-| `getMessage` | `GET /channels/{id}/messages/{id}` | |
-| `getChannelMessages` | `GET /channels/{id}/messages` | Supports `before`, `after`, `around`, `limit` (max 100) |
-| `createThreadFromMessage` | `POST /channels/{id}/messages/{id}/threads` | Returns new thread channel ID |
-| `deleteChannel` | `DELETE /channels/{id}` | Also deletes threads |
-| `createMessageReaction` | `PUT .../reactions/{emoji}/@me` | Unicode or `name:id` for custom |
-| `deleteMessageReaction` | `DELETE .../reactions/{emoji}/@me` | Bot's own reaction only |
-| `getMessageReactions` | `GET .../reactions/{emoji}` | |
-| `searchMessages` | `GET /guilds/{id}/messages/search` | `content`, `author_id`, `channel_id`, `min_id`, `max_id` |
-| `triggerTypingIndicator` | `POST /channels/{id}/typing` | Lasts ~10s |
-| `openDmChannel` | `POST /users/@me/channels` | Returns DM channel ID |
-| `interactionCallback` | `POST /interactions/{id}/{token}/callback` | Slash command responses |
-| `registerGlobalCommands` | `PUT /applications/{id}/commands` | Bulk overwrite |
-| `editOriginalInteractionResponse` | `PATCH /webhooks/{id}/{token}/messages/@original` | Deferred responses |
+| Method                            | Discord Endpoint                                  | Notes                                                    |
+| --------------------------------- | ------------------------------------------------- | -------------------------------------------------------- |
+| `createMessage`                   | `POST /channels/{id}/messages`                    | JSON body                                                |
+| `createMessageWithFiles`          | `POST /channels/{id}/messages`                    | `multipart/form-data` with `payload_json` + `files[n]`   |
+| `editMessage`                     | `PATCH /channels/{id}/messages/{id}`              |                                                          |
+| `deleteMessage`                   | `DELETE /channels/{id}/messages/{id}`             |                                                          |
+| `getMessage`                      | `GET /channels/{id}/messages/{id}`                |                                                          |
+| `getChannelMessages`              | `GET /channels/{id}/messages`                     | Supports `before`, `after`, `around`, `limit` (max 100)  |
+| `createThreadFromMessage`         | `POST /channels/{id}/messages/{id}/threads`       | Returns new thread channel ID                            |
+| `deleteChannel`                   | `DELETE /channels/{id}`                           | Also deletes threads                                     |
+| `createMessageReaction`           | `PUT .../reactions/{emoji}/@me`                   | Unicode or `name:id` for custom                          |
+| `deleteMessageReaction`           | `DELETE .../reactions/{emoji}/@me`                | Bot's own reaction only                                  |
+| `getMessageReactions`             | `GET .../reactions/{emoji}`                       |                                                          |
+| `searchMessages`                  | `GET /guilds/{id}/messages/search`                | `content`, `author_id`, `channel_id`, `min_id`, `max_id` |
+| `triggerTypingIndicator`          | `POST /channels/{id}/typing`                      | Lasts ~10s                                               |
+| `openDmChannel`                   | `POST /users/@me/channels`                        | Returns DM channel ID                                    |
+| `interactionCallback`             | `POST /interactions/{id}/{token}/callback`        | Slash command responses                                  |
+| `registerGlobalCommands`          | `PUT /applications/{id}/commands`                 | Bulk overwrite                                           |
+| `editOriginalInteractionResponse` | `PATCH /webhooks/{id}/{token}/messages/@original` | Deferred responses                                       |
 
 ### Rate Limit Handling
 
@@ -205,16 +205,16 @@ Only active when the capability set includes `TYPING_NOTIFICATION`.
 
 Global slash commands are registered on startup via `PUT /applications/{id}/commands`. The registered commands:
 
-| Command | Description |
-|---|---|
+| Command    | Description                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `/elevate` | Grant or revoke [elevated privileges](daemon.md#elevation). Options: `action` (grant/revoke), `session_id`, `duration`, `grant_id`. |
-| `/abort` | Abort the current session turn. Option: `session_id`. |
-| `/new` | Start a new context segment (preserves history). |
-| `/reset` | Reset session context (clears transcript). |
-| `/compact` | Compact transcript via [model summarization](models.md#transcript-compaction) (deferred response). |
-| `/status` | Show session status: provider, model, context fill, turns, compactions, queue depth. |
-| `/model` | Get or set the session model selection. Options: `session_id`, `agent_id`, `model_selection`. |
-| `/queue` | Manage the turn queue. Options: `action` (list/remove/clear), `priority`, `index`, `range`, `count`. |
+| `/abort`   | Abort the current session turn. Option: `session_id`.                                                                               |
+| `/new`     | Start a new context segment (preserves history).                                                                                    |
+| `/reset`   | Reset session context (clears transcript).                                                                                          |
+| `/compact` | Compact transcript via [model summarization](models.md#transcript-compaction) (deferred response).                                  |
+| `/status`  | Show session status: provider, model, context fill, turns, compactions, queue depth.                                                |
+| `/model`   | Get or set the session model selection. Options: `session_id`, `agent_id`, `model_selection`.                                       |
+| `/queue`   | Manage the turn queue. Options: `action` (list/remove/clear), `priority`, `index`, `range`, `count`.                                |
 
 When `session_id` is omitted, the handler resolves the session from the channel where the command was invoked.
 
@@ -253,12 +253,12 @@ HITL notices (pending tool approvals) can be delivered to:
 
 When a HITL notice is posted, four emoji reactions are added as "buttons":
 
-| Emoji | Action | Scope |
-|---|---|---|
-| 1️⃣ | Approve once | This single pending action only |
-| ✅ | Approve for session | All pending + future uses of this tool in this session |
-| ♾️ | Approve for agent | All pending + future uses of this tool across all sessions of this agent |
-| ❌ | Deny | Deny this single pending action |
+| Emoji | Action              | Scope                                                                    |
+| ----- | ------------------- | ------------------------------------------------------------------------ |
+| 1️⃣    | Approve once        | This single pending action only                                          |
+| ✅    | Approve for session | All pending + future uses of this tool in this session                   |
+| ♾️    | Approve for agent   | All pending + future uses of this tool across all sessions of this agent |
+| ❌    | Deny                | Deny this single pending action                                          |
 
 Only the configured `ownerUserId` can trigger these. Bot's own reactions are ignored.
 
@@ -298,11 +298,11 @@ These are exposed to agents via the system prompt so they know what messaging op
 
 The `ThinkingDisplayMode` controls how `<thinking>...</thinking>` blocks in model output are rendered:
 
-| Mode | Behavior |
-|---|---|
-| `full` | Thinking shown as Discord blockquote with 💭 prefix per line |
-| `indicator` | Single `> 💭 Thinking...` line replaces thinking content |
-| `none` | Thinking blocks stripped entirely |
+| Mode        | Behavior                                                     |
+| ----------- | ------------------------------------------------------------ |
+| `full`      | Thinking shown as Discord blockquote with 💭 prefix per line |
+| `indicator` | Single `> 💭 Thinking...` line replaces thinking content     |
+| `none`      | Thinking blocks stripped entirely                            |
 
 Applied during both outbound message formatting and streaming edits.
 

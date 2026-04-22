@@ -4,7 +4,10 @@
 
 import { readFileSync } from "node:fs";
 import { listSkillsForConfig, skillAbsolutePathById } from "@shoggoth/skills";
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("skills", skills);
@@ -27,18 +30,30 @@ async function skills(
   }
   const id = String(args.id ?? "").trim();
   if (!id) {
-    return { resultJson: JSON.stringify({ error: "id required for path and read actions" }) };
+    return {
+      resultJson: JSON.stringify({
+        error: "id required for path and read actions",
+      }),
+    };
   }
   if (action === "path") {
     const p = skillAbsolutePathById(ctx.config, id, ws);
-    if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
+    if (!p)
+      return {
+        resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }),
+      };
     return { resultJson: JSON.stringify({ path: p }) };
   }
   if (action === "read") {
     const p = skillAbsolutePathById(ctx.config, id, ws);
-    if (!p) return { resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }) };
+    if (!p)
+      return {
+        resultJson: JSON.stringify({ error: `unknown skill id: ${id}` }),
+      };
     const content = readFileSync(p, "utf8");
     return { resultJson: JSON.stringify({ path: p, content }) };
   }
-  return { resultJson: JSON.stringify({ error: `unknown skills action: ${action}` }) };
+  return {
+    resultJson: JSON.stringify({ error: `unknown skills action: ${action}` }),
+  };
 }

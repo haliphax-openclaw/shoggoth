@@ -1,4 +1,10 @@
-import { parseAgentSessionUrn, resolvePlatformConfig, resolveAgentPlatformConfig, registerPlatformConfigValidator, type ShoggothConfig } from "@shoggoth/shared";
+import {
+  parseAgentSessionUrn,
+  resolvePlatformConfig,
+  resolveAgentPlatformConfig,
+  registerPlatformConfigValidator,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
 import { z } from "zod";
 import { parseDiscordRoutesWithMeta, type DiscordSessionRoute } from "./bridge";
 
@@ -27,7 +33,9 @@ registerPlatformConfigValidator("discord", (raw) => {
 // ---------------------------------------------------------------------------
 
 /** Resolve Discord platform config from `platforms.discord` or deprecated top-level `discord`. */
-function resolveDiscordPlatformConfig(cfg: ShoggothConfig): Record<string, unknown> | undefined {
+function resolveDiscordPlatformConfig(
+  cfg: ShoggothConfig,
+): Record<string, unknown> | undefined {
   return resolvePlatformConfig(cfg, "discord");
 }
 
@@ -38,12 +46,15 @@ export function resolveShoggothAgentId(cfg: ShoggothConfig): string {
   return cfg.runtime?.agentId?.trim() || "main";
 }
 
-
-export function resolveEffectiveDiscordRoutes(cfg: ShoggothConfig): DiscordSessionRoute[] {
+export function resolveEffectiveDiscordRoutes(
+  cfg: ShoggothConfig,
+): DiscordSessionRoute[] {
   const fromAgents: DiscordSessionRoute[] = [];
   for (const [aidRaw, agent] of Object.entries(cfg.agents?.list ?? {})) {
     const agentDiscord = resolveAgentPlatformConfig(agent, "discord");
-    const rows = agentDiscord?.routes as Array<Record<string, unknown>> | undefined;
+    const rows = agentDiscord?.routes as
+      | Array<Record<string, unknown>>
+      | undefined;
     if (!rows?.length) continue;
     const aid = aidRaw.trim();
     let parsed: DiscordSessionRoute[];
@@ -81,7 +92,9 @@ export function resolveDiscordAllowBotMessages(cfg: ShoggothConfig): boolean {
 }
 
 /** Env `SHOGGOTH_DISCORD_OWNER_USER_ID` wins; else layered `discord.ownerUserId`. */
-export function resolveDiscordOwnerUserId(cfg: ShoggothConfig): string | undefined {
+export function resolveDiscordOwnerUserId(
+  cfg: ShoggothConfig,
+): string | undefined {
   const e = process.env.SHOGGOTH_DISCORD_OWNER_USER_ID?.trim();
   if (e) return e;
   const dc = resolveDiscordPlatformConfig(cfg);
@@ -92,7 +105,10 @@ export function resolveDiscordOwnerUserId(cfg: ShoggothConfig): string | undefin
  * Merges `discord` / `runtime` flags into env for code paths that still read `SHOGGOTH_*`.
  * **Precedence:** `override` (e.g. tests) > `process.env` > config-derived defaults.
  */
-export function mergeOrchestratorEnv(cfg: ShoggothConfig, override?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function mergeOrchestratorEnv(
+  cfg: ShoggothConfig,
+  override?: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
   const base: NodeJS.ProcessEnv = { ...process.env, ...override };
   const d = resolveDiscordPlatformConfig(cfg);
   const r = cfg.runtime;
@@ -101,19 +117,33 @@ export function mergeOrchestratorEnv(cfg: ShoggothConfig, override?: NodeJS.Proc
     const cur = base[key];
     if (cur === undefined || cur === "") base[key] = val;
   };
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_CHANNEL_ID", d?.hitlNotifyChannelId as string | undefined);
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL", d?.hitlNotifyWebhookUrl as string | undefined);
-  setIfEmpty("SHOGGOTH_HITL_NOTIFY_DM_USER_ID", d?.hitlNotifyDmUserId as string | undefined);
+  setIfEmpty(
+    "SHOGGOTH_HITL_NOTIFY_CHANNEL_ID",
+    d?.hitlNotifyChannelId as string | undefined,
+  );
+  setIfEmpty(
+    "SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL",
+    d?.hitlNotifyWebhookUrl as string | undefined,
+  );
+  setIfEmpty(
+    "SHOGGOTH_HITL_NOTIFY_DM_USER_ID",
+    d?.hitlNotifyDmUserId as string | undefined,
+  );
   if (d?.hitlReplyInSession === false) {
     setIfEmpty("SHOGGOTH_DISCORD_HITL_REPLY_IN_SESSION", "0");
   }
-  if (d?.appendModelTagFooter === true) setIfEmpty("SHOGGOTH_DISCORD_MODEL_TAG", "1");
+  if (d?.appendModelTagFooter === true)
+    setIfEmpty("SHOGGOTH_DISCORD_MODEL_TAG", "1");
   if (d?.streamResponses === true) setIfEmpty("SHOGGOTH_DISCORD_STREAM", "1");
   if (d?.streamMinIntervalMs != null) {
     setIfEmpty("SHOGGOTH_DISCORD_STREAM_MIN_MS", String(d.streamMinIntervalMs));
   }
-  setIfEmpty("SHOGGOTH_DISCORD_OWNER_USER_ID", d?.ownerUserId as string | undefined);
-  if (r?.mcpLogServerMessages === true) setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
+  setIfEmpty(
+    "SHOGGOTH_DISCORD_OWNER_USER_ID",
+    d?.ownerUserId as string | undefined,
+  );
+  if (r?.mcpLogServerMessages === true)
+    setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
   setIfEmpty("SHOGGOTH_AGENT_ID", r?.agentId);
   const memEmb = cfg.memory?.embeddings;
   setIfEmpty("SHOGGOTH_MEMORY_OPENAI_BASE_URL", memEmb?.openaiBaseUrl);

@@ -42,13 +42,19 @@ describe("createSessionManager", () => {
     assert.equal(out.agentToken, "fixed-test-token");
     assert.ok(parseAgentSessionUrn(out.sessionId));
     // Session URN should contain "discord" as the platform segment
-    assert.ok(out.sessionId.includes(":discord:"), `expected discord in URN: ${out.sessionId}`);
+    assert.ok(
+      out.sessionId.includes(":discord:"),
+      `expected discord in URN: ${out.sessionId}`,
+    );
     assert.equal(agentTokens.validate("fixed-test-token", out.sessionId), true);
     const row = sessions.getById(out.sessionId);
     assert.ok(row);
     assert.equal(row!.workspacePath, join(workspacesRoot, "pytest"));
     mgr.kill(out.sessionId);
-    assert.equal(agentTokens.validate("fixed-test-token", out.sessionId), false);
+    assert.equal(
+      agentTokens.validate("fixed-test-token", out.sessionId),
+      false,
+    );
   });
 
   it("spawn with explicit platform uses it instead of agentsConfig", () => {
@@ -76,7 +82,10 @@ describe("createSessionManager", () => {
       mintToken: () => "tok",
     });
     const out = mgr.spawn({ platform: "control" });
-    assert.ok(out.sessionId.includes(":control:"), `expected control in URN: ${out.sessionId}`);
+    assert.ok(
+      out.sessionId.includes(":control:"),
+      `expected control in URN: ${out.sessionId}`,
+    );
   });
 
   it("spawn throws ERR_NO_PLATFORM when no platform resolvable from agentsConfig", () => {
@@ -96,7 +105,9 @@ describe("createSessionManager", () => {
     });
     assert.throws(
       () => mgr.spawn({}),
-      (err: any) => err.code === "ERR_NO_PLATFORM" && /platform bindings/.test(err.message),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (err: any) =>
+        err.code === "ERR_NO_PLATFORM" && /platform bindings/.test(err.message),
     );
   });
 
@@ -114,7 +125,12 @@ describe("createSessionManager", () => {
       agentId: "parent",
       mintToken: () => "sub-session-token",
     });
-    const parent = formatAgentSessionUrn("parent", "discord", "channel", "20000000-0000-4000-8000-000000000001");
+    const parent = formatAgentSessionUrn(
+      "parent",
+      "discord",
+      "channel",
+      "20000000-0000-4000-8000-000000000001",
+    );
     sessions.create({
       id: parent,
       workspacePath: join(workspacesRoot, "parent"),
@@ -157,6 +173,9 @@ describe("createSessionManager", () => {
     });
     // Spawn for a different agent — should resolve platform from that agent's bindings
     const out = mgr.spawn({ agentId: "secondary" });
-    assert.ok(out.sessionId.includes(":slack:"), `expected slack in URN: ${out.sessionId}`);
+    assert.ok(
+      out.sessionId.includes(":slack:"),
+      `expected slack in URN: ${out.sessionId}`,
+    );
   });
 });

@@ -60,8 +60,8 @@ const failoverChainEntrySchema = z.union([
 
 // Global retry/failure config
 const modelsRetrySchema = z.object({
-  maxRetries: z.number().int().nonneg().optional(),       // default 2
-  retryDelayMs: z.number().int().nonneg().optional(),     // default 1000
+  maxRetries: z.number().int().nonneg().optional(), // default 2
+  retryDelayMs: z.number().int().nonneg().optional(), // default 1000
   retryBackoffMultiplier: z.number().positive().optional(), // default 2
   markFailedDurationMs: z.number().int().positive().optional(), // default 60000 (60s)
 });
@@ -98,8 +98,8 @@ function resolveModel(
   db: Database.Database,
   config: ShoggothModelsConfig,
   opts?: {
-    ref?: string;           // explicit "providerId/model"
-    sessionId?: string;     // for agent-level defaults
+    ref?: string; // explicit "providerId/model"
+    sessionId?: string; // for agent-level defaults
     agentConfig?: AgentModelsConfig;
   },
 ): ResolvedModel | null;
@@ -137,10 +137,7 @@ function markProviderFailed(
   error?: string,
 ): void;
 
-function clearProviderFailure(
-  db: Database.Database,
-  providerId: string,
-): void;
+function clearProviderFailure(db: Database.Database, providerId: string): void;
 
 function getProviderFailure(
   db: Database.Database,
@@ -203,6 +200,7 @@ Define the new schema types and add the `provider_failures` table.
 - Update schema tests
 
 **Files:**
+
 - `packages/shared/src/schema.ts`
 - `migrations/0002_provider_failures.sql` (or next migration number)
 - `packages/shared/test/schema.test.ts`
@@ -218,6 +216,7 @@ Implement the DB-backed provider failure tracking.
 - Unit tests with in-memory SQLite
 
 **Files:**
+
 - `packages/daemon/src/sessions/provider-failure-store.ts` (new)
 - `packages/daemon/test/sessions/provider-failure-store.test.ts` (new)
 
@@ -233,6 +232,7 @@ Implement the core resolution function that walks the failover chain with failur
 - Unit tests covering: happy path, failed provider skip, stale failure clear, chain exhaustion, missing model definition fallback
 
 **Files:**
+
 - `packages/daemon/src/sessions/model-resolution.ts` (new)
 - `packages/daemon/test/sessions/model-resolution.test.ts` (new)
 
@@ -248,6 +248,7 @@ Update `createFailoverToolCallingClient` and `createFailoverModelClient` to use 
 - Update existing failover tests
 
 **Files:**
+
 - `packages/models/src/from-config.ts`
 - `packages/models/src/resilience/failover.ts`
 - `packages/models/test/from-config.test.ts`
@@ -264,6 +265,7 @@ Update all code that reads model properties from failover chain entries to use t
 - `run-session.ts` (CLI) — model resolution
 
 **Files:**
+
 - `packages/daemon/src/sessions/session-agent-turn.ts`
 - `packages/daemon/src/sessions/session-tool-loop-model-client.ts`
 - `packages/shared/src/effective-agent-for-session.ts`
@@ -280,6 +282,7 @@ Update CLI and platform commands that view or set the session model to use the `
 - Remove any JSON object parsing for model references in CLI/platform commands
 
 **Files:**
+
 - `packages/platform-discord/src/platform.ts`
 - `packages/cli/src/run-session.ts`
 

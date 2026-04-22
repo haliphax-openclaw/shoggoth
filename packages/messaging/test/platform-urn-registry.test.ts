@@ -62,12 +62,18 @@ describe("platform-urn-registry (via new platform-registry)", () => {
         resourceTypes: ["channel"],
         urnPolicy: makePolicy("test"),
       });
-      const ch = parseFirstChannelIdFromRoutesJson("test", JSON.stringify({ channelId: "ch123" }));
+      const ch = parseFirstChannelIdFromRoutesJson(
+        "test",
+        JSON.stringify({ channelId: "ch123" }),
+      );
       expect(ch).toBe("ch123");
     });
 
     it("returns undefined for unregistered platform", () => {
-      const ch = parseFirstChannelIdFromRoutesJson("nope", JSON.stringify({ channelId: "ch" }));
+      const ch = parseFirstChannelIdFromRoutesJson(
+        "nope",
+        JSON.stringify({ channelId: "ch" }),
+      );
       expect(ch).toBeUndefined();
     });
 

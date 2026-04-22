@@ -39,11 +39,17 @@ export function validateToolArgs(
 
   // Top-level must be object-shaped
   if (schema.type && schema.type !== "object") {
-    errors.push({ field: "(root)", message: `expected top-level type \"object\", schema declares \"${schema.type}\"` });
+    errors.push({
+      field: "(root)",
+      message: `expected top-level type "object", schema declares "${schema.type}"`,
+    });
     return errors;
   }
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    errors.push({ field: "(root)", message: "arguments must be a JSON object" });
+    errors.push({
+      field: "(root)",
+      message: "arguments must be a JSON object",
+    });
     return errors;
   }
 
@@ -77,7 +83,10 @@ function validateProperty(
   // Type check
   if (schema.type) {
     if (!matchesType(value, schema.type)) {
-      errors.push({ field, message: `expected type \"${schema.type}\", got ${describeType(value)}` });
+      errors.push({
+        field,
+        message: `expected type "${schema.type}", got ${describeType(value)}`,
+      });
       return; // skip further checks on type mismatch
     }
   }
@@ -86,17 +95,26 @@ function validateProperty(
   if (schema.enum) {
     if (!schema.enum.includes(value)) {
       const allowed = schema.enum.map((v) => JSON.stringify(v)).join(", ");
-      errors.push({ field, message: `value ${JSON.stringify(value)} is not one of: ${allowed}` });
+      errors.push({
+        field,
+        message: `value ${JSON.stringify(value)} is not one of: ${allowed}`,
+      });
     }
   }
 
   // Numeric bounds
   if (typeof value === "number") {
     if (schema.minimum != null && value < schema.minimum) {
-      errors.push({ field, message: `value ${value} is below minimum ${schema.minimum}` });
+      errors.push({
+        field,
+        message: `value ${value} is below minimum ${schema.minimum}`,
+      });
     }
     if (schema.maximum != null && value > schema.maximum) {
-      errors.push({ field, message: `value ${value} exceeds maximum ${schema.maximum}` });
+      errors.push({
+        field,
+        message: `value ${value} exceeds maximum ${schema.maximum}`,
+      });
     }
   }
 }
@@ -114,7 +132,9 @@ function matchesType(value: unknown, type: string): boolean {
     case "array":
       return Array.isArray(value);
     case "object":
-      return typeof value === "object" && value !== null && !Array.isArray(value);
+      return (
+        typeof value === "object" && value !== null && !Array.isArray(value)
+      );
     default:
       return true; // unknown type — don't block
   }

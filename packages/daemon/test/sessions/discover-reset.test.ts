@@ -92,7 +92,7 @@ describe("builtin-discover reset action", () => {
     const ctx = stubCtx(db, config);
     const result = await registry.execute("discover", { reset: true }, ctx);
     const parsed = JSON.parse(result.resultJson);
-    
+
     // Should not error
     assert.strictEqual(parsed.error, undefined);
     // Should indicate reset was applied
@@ -101,22 +101,22 @@ describe("builtin-discover reset action", () => {
 
   it("should clear all session tool state on reset", async () => {
     const sessionId = "agent:test:discord:channel:123";
-    
+
     // Enable some tools first
     setSessionToolState(db, sessionId, "builtin-subagent", true);
     setSessionToolState(db, sessionId, "builtin-workflow", true);
     setSessionToolState(db, sessionId, "builtin-search-replace", true);
-    
+
     // Verify they're enabled
     let state = getSessionToolState(db, sessionId);
     assert.strictEqual(state.get("builtin-subagent"), true);
     assert.strictEqual(state.get("builtin-workflow"), true);
     assert.strictEqual(state.get("builtin-search-replace"), true);
-    
+
     // Reset
     const ctx = stubCtx(db, config);
     await registry.execute("discover", { reset: true }, ctx);
-    
+
     // Verify state is cleared
     state = getSessionToolState(db, sessionId);
     assert.strictEqual(state.has("builtin-subagent"), false);
@@ -126,15 +126,23 @@ describe("builtin-discover reset action", () => {
 
   it("should not affect alwaysOn tools after reset", async () => {
     const ctx = stubCtx(db, config);
-    
+
     // Reset with list
-    const result = await registry.execute("discover", { reset: true, list: true }, ctx);
+    const result = await registry.execute(
+      "discover",
+      { reset: true, list: true },
+      ctx,
+    );
     const parsed = JSON.parse(result.resultJson);
-    
+
     // alwaysOn tools should still show as enabled
-    const readTool = parsed.catalog.find((t: { id: string }) => t.id === "builtin-read");
-    const writeTool = parsed.catalog.find((t: { id: string }) => t.id === "builtin-write");
-    
+    const readTool = parsed.catalog.find(
+      (t: { id: string }) => t.id === "builtin-read",
+    );
+    const writeTool = parsed.catalog.find(
+      (t: { id: string }) => t.id === "builtin-write",
+    );
+
     assert.strictEqual(readTool?.enabled, true);
     assert.strictEqual(readTool?.alwaysOn, true);
     assert.strictEqual(writeTool?.enabled, true);
@@ -143,23 +151,24 @@ describe("builtin-discover reset action", () => {
 
   it("should signal tool refresh needed after reset", async () => {
     const ctx = stubCtx(db, config);
-    
+
     // Import the refresh signal map
-    const { toolRefreshNeeded } = await import("../../src/sessions/session-tool-discovery");
+    const { toolRefreshNeeded } =
+      await import("../../src/sessions/session-tool-discovery");
     toolRefreshNeeded.delete(ctx.sessionId);
-    
+
     await registry.execute("discover", { reset: true }, ctx);
-    
+
     assert.strictEqual(toolRefreshNeeded.get(ctx.sessionId), true);
   });
 
   it("should work with reset combined with enable", async () => {
     const sessionId = "agent:test:discord:channel:123";
-    
+
     // Enable some tools first
     setSessionToolState(db, sessionId, "builtin-workflow", true);
     setSessionToolState(db, sessionId, "builtin-search-replace", true);
-    
+
     // Reset and enable a different tool
     const ctx = stubCtx(db, config);
     const result = await registry.execute(
@@ -168,11 +177,11 @@ describe("builtin-discover reset action", () => {
       ctx,
     );
     const parsed = JSON.parse(result.resultJson);
-    
+
     // Should show reset and enable both applied
     assert.strictEqual(parsed.applied.reset, true);
     assert.deepStrictEqual(parsed.applied.enabled, ["builtin-subagent"]);
-    
+
     // Verify state
     const state = getSessionToolState(db, sessionId);
     assert.strictEqual(state.get("builtin-subagent"), true);
@@ -189,11 +198,11 @@ describe("builtin-discover reset action", () => {
       },
       agents: {},
     } as unknown as ShoggothConfig;
-    
+
     const ctx = stubCtx(db, disabledConfig);
     const result = await registry.execute("discover", { reset: true }, ctx);
     const parsed = JSON.parse(result.resultJson);
-    
+
     assert.strictEqual(parsed.error, "tool discovery is not enabled");
   });
 });

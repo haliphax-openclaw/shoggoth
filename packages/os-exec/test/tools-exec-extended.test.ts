@@ -1,7 +1,11 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
 import {
-  mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -10,10 +14,7 @@ import {
   getExecSession,
   removeExecSession,
 } from "../src/tools";
-import type {
-  ExecForegroundResult,
-  ExecBackgroundResult,
-} from "../src/tools";
+import type { ExecForegroundResult, ExecBackgroundResult } from "../src/tools";
 
 describe("toolExecExtended", () => {
   let ws: string;
@@ -68,10 +69,14 @@ describe("toolExecExtended", () => {
 
   describe("timeout", () => {
     it("kills a long-running process after timeout", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 5",
-        timeout: 0.1,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 5",
+          timeout: 0.1,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.timedOut, true);
@@ -80,10 +85,14 @@ describe("toolExecExtended", () => {
     });
 
     it("does not set timedOut when process finishes in time", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo fast",
-        timeout: 10,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo fast",
+          timeout: 10,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.timedOut, undefined);
@@ -108,29 +117,43 @@ describe("toolExecExtended", () => {
 
   describe("stdin", () => {
     it("pipes stdin string to the process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "cat",
-        stdin: "hello from stdin",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "cat",
+          stdin: "hello from stdin",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
-      assert.ok((r as ExecForegroundResult).output?.includes("hello from stdin"));
+      assert.ok(
+        (r as ExecForegroundResult).output?.includes("hello from stdin"),
+      );
     });
 
     it("works with jq-style piping", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "cat | tr a-z A-Z",
-        stdin: "lowercase",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "cat | tr a-z A-Z",
+          stdin: "lowercase",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       assert.ok((r as ExecForegroundResult).output?.includes("LOWERCASE"));
     });
 
     it("handles special characters in stdin", async () => {
-      const special = 'quotes "and" \'single\' and $vars and `backticks`';
-      const r = await toolExecExtended(ws, {
-        command: "cat",
-        stdin: special,
-      }, creds);
+      const special = "quotes \"and\" 'single' and $vars and `backticks`";
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "cat",
+          stdin: special,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       assert.ok((r as ExecForegroundResult).output?.includes(special));
     });
@@ -143,10 +166,14 @@ describe("toolExecExtended", () => {
   describe("workdir", () => {
     it("runs command in the specified directory", async () => {
       mkdirSync(join(ws, "subdir"), { recursive: true });
-      const r = await toolExecExtended(ws, {
-        command: "pwd",
-        workdir: "subdir",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "pwd",
+          workdir: "subdir",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       assert.ok((r as ExecForegroundResult).output?.trim().endsWith("/subdir"));
     });
@@ -154,10 +181,14 @@ describe("toolExecExtended", () => {
     it("accepts absolute paths", async () => {
       const absDir = mkdtempSync(join(tmpdir(), "shoggoth-workdir-"));
       try {
-        const r = await toolExecExtended(ws, {
-          command: "pwd",
-          workdir: absDir,
-        }, creds);
+        const r = await toolExecExtended(
+          ws,
+          {
+            command: "pwd",
+            workdir: absDir,
+          },
+          creds,
+        );
         assert.equal(r.kind, "foreground");
         assert.ok((r as ExecForegroundResult).output?.trim().includes(absDir));
       } finally {
@@ -167,10 +198,15 @@ describe("toolExecExtended", () => {
 
     it("errors when workdir does not exist", async () => {
       await assert.rejects(
-        () => toolExecExtended(ws, {
-          command: "echo x",
-          workdir: "nonexistent-dir",
-        }, creds),
+        () =>
+          toolExecExtended(
+            ws,
+            {
+              command: "echo x",
+              workdir: "nonexistent-dir",
+            },
+            creds,
+          ),
         /workdir does not exist/i,
       );
     });
@@ -190,29 +226,41 @@ describe("toolExecExtended", () => {
 
   describe("env", () => {
     it("passes custom env vars to the process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo $MY_VAR",
-        env: { MY_VAR: "custom_value" },
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo $MY_VAR",
+          env: { MY_VAR: "custom_value" },
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       assert.ok((r as ExecForegroundResult).output?.includes("custom_value"));
     });
 
     it("overrides existing env vars", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo $HOME",
-        env: { HOME: "/tmp/override" },
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo $HOME",
+          env: { HOME: "/tmp/override" },
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       assert.ok((r as ExecForegroundResult).output?.includes("/tmp/override"));
     });
 
     it("merges with (does not replace) the inherited environment", async () => {
       // PATH should still be available even when we set a custom var
-      const r = await toolExecExtended(ws, {
-        command: "echo $PATH",
-        env: { MY_CUSTOM: "yes" },
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo $PATH",
+          env: { MY_CUSTOM: "yes" },
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const output = (r as ExecForegroundResult).output?.trim();
       assert.ok(output && output.length > 0, "PATH should still be set");
@@ -225,10 +273,14 @@ describe("toolExecExtended", () => {
 
   describe("splitStreams", () => {
     it("returns separate stdout and stderr when enabled", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo out; echo err >&2",
-        splitStreams: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo out; echo err >&2",
+          splitStreams: true,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.stdout?.includes("out"));
@@ -237,10 +289,14 @@ describe("toolExecExtended", () => {
     });
 
     it("returns combined output when splitStreams is false", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo out; echo err >&2",
-        splitStreams: false,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo out; echo err >&2",
+          splitStreams: false,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.output !== undefined);
@@ -252,10 +308,14 @@ describe("toolExecExtended", () => {
   describe("truncation", () => {
     it("truncates long output with tail mode (default)", async () => {
       // Generate output longer than maxOutput
-      const r = await toolExecExtended(ws, {
-        command: "seq 1 10000",
-        maxOutput: 100,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "seq 1 10000",
+          maxOutput: 100,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.truncated, true);
@@ -265,11 +325,15 @@ describe("toolExecExtended", () => {
     });
 
     it("truncates with head mode — keeps beginning", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "seq 1 10000",
-        maxOutput: 100,
-        truncation: "head",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "seq 1 10000",
+          maxOutput: 100,
+          truncation: "head",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.truncated, true);
@@ -278,11 +342,15 @@ describe("toolExecExtended", () => {
     });
 
     it("truncates with both mode — keeps beginning and end", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "seq 1 10000",
-        maxOutput: 100,
-        truncation: "both",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "seq 1 10000",
+          maxOutput: 100,
+          truncation: "both",
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.truncated, true);
@@ -293,21 +361,29 @@ describe("toolExecExtended", () => {
     });
 
     it("does not truncate when output is within limit", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo short",
-        maxOutput: 10000,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo short",
+          maxOutput: 10000,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.truncated, undefined);
     });
 
     it("applies maxOutput per stream in splitStreams mode", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "seq 1 10000; seq 1 10000 >&2",
-        splitStreams: true,
-        maxOutput: 100,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "seq 1 10000; seq 1 10000 >&2",
+          splitStreams: true,
+          maxOutput: 100,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.stdoutTruncated, true);
@@ -316,10 +392,16 @@ describe("toolExecExtended", () => {
 
     it("rejects invalid truncation mode", async () => {
       await assert.rejects(
-        () => toolExecExtended(ws, {
-          command: "echo x",
-          truncation: "invalid" as any,
-        }, creds),
+        () =>
+          toolExecExtended(
+            ws,
+            {
+              command: "echo x",
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              truncation: "invalid" as any,
+            },
+            creds,
+          ),
         /truncation.*head.*tail.*both/i,
       );
     });
@@ -338,10 +420,14 @@ describe("toolExecExtended", () => {
 
   describe("background", () => {
     it("returns immediately with session info", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.1",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.1",
+          background: true,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.ok(bg.sessionId);
@@ -357,10 +443,14 @@ describe("toolExecExtended", () => {
     });
 
     it("session is retrievable via getExecSession", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.1",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.1",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const session = getExecSession(bg.sessionId);
       assert.ok(session);
@@ -371,10 +461,14 @@ describe("toolExecExtended", () => {
     });
 
     it("background process captures output", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo bg-output",
-        background: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo bg-output",
+          background: true,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const session = getExecSession(bg.sessionId);
       assert.ok(session);
@@ -392,11 +486,15 @@ describe("toolExecExtended", () => {
     });
 
     it("background with stdin writes input before backgrounding", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "cat",
-        background: true,
-        stdin: "bg-stdin-data",
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "cat",
+          background: true,
+          stdin: "bg-stdin-data",
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const session = getExecSession(bg.sessionId);
       assert.ok(session);
@@ -410,11 +508,15 @@ describe("toolExecExtended", () => {
     });
 
     it("background with timeout kills the process", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 5",
-        background: true,
-        timeout: 0.1,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 5",
+          background: true,
+          timeout: 0.1,
+        },
+        creds,
+      );
       const bg = r as ExecBackgroundResult;
       const session = getExecSession(bg.sessionId);
       assert.ok(session);
@@ -433,10 +535,14 @@ describe("toolExecExtended", () => {
 
   describe("yieldMs", () => {
     it("returns foreground result when process finishes within yield window", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo fast-yield",
-        yieldMs: 5000,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo fast-yield",
+          yieldMs: 5000,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.output?.includes("fast-yield"));
@@ -444,10 +550,14 @@ describe("toolExecExtended", () => {
     });
 
     it("backgrounds process when it exceeds yield window", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.5; echo done",
-        yieldMs: 50,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.5; echo done",
+          yieldMs: 50,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.equal(bg.yielded, true);
@@ -464,10 +574,14 @@ describe("toolExecExtended", () => {
     });
 
     it("yieldMs of 0 is equivalent to background: true", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "sleep 0.1",
-        yieldMs: 0,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "sleep 0.1",
+          yieldMs: 0,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.ok(bg.sessionId);
@@ -479,11 +593,15 @@ describe("toolExecExtended", () => {
     });
 
     it("background: true wins over yieldMs", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo quick",
-        background: true,
-        yieldMs: 10000,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo quick",
+          background: true,
+          yieldMs: 10000,
+        },
+        creds,
+      );
       // Should be immediate background, not wait 10s
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
@@ -504,11 +622,15 @@ describe("toolExecExtended", () => {
     });
 
     it("includes partial output when yielded", async () => {
-      const r = await toolExecExtended(ws, {
-        // Echo something immediately, then sleep
-        command: "echo partial-data; sleep 0.5",
-        yieldMs: 100,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          // Echo something immediately, then sleep
+          command: "echo partial-data; sleep 0.5",
+          yieldMs: 100,
+        },
+        creds,
+      );
       assert.equal(r.kind, "background");
       const bg = r as ExecBackgroundResult;
       assert.equal(bg.yielded, true);
@@ -532,28 +654,55 @@ describe("toolExecExtended", () => {
 
   describe("BASH_ENV and bash shell", () => {
     it("sets BASH_ENV to workspace .bashrc", async () => {
-      const r = await toolExecExtended(ws, { command: "echo $BASH_ENV" }, creds);
+      const r = await toolExecExtended(
+        ws,
+        { command: "echo $BASH_ENV" },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
-      assert.ok(fg.output?.trim().endsWith("/.bashrc"), `expected BASH_ENV to end with /.bashrc, got: ${fg.output?.trim()}`);
+      assert.ok(
+        fg.output?.trim().endsWith("/.bashrc"),
+        `expected BASH_ENV to end with /.bashrc, got: ${fg.output?.trim()}`,
+      );
       // Should be an absolute path under the workspace, not just "/.bashrc"
-      assert.ok(fg.output!.trim().length > "/.bashrc".length, "BASH_ENV should be an absolute path, not just /.bashrc");
+      assert.ok(
+        fg.output!.trim().length > "/.bashrc".length,
+        "BASH_ENV should be an absolute path, not just /.bashrc",
+      );
     });
 
     it("runs commands via /bin/bash, not /bin/sh", async () => {
       // BASH_VERSION is only set by bash, not sh
-      const r = await toolExecExtended(ws, { command: "echo ${BASH_VERSION:-not_bash}" }, creds);
+      const r = await toolExecExtended(
+        ws,
+        { command: "echo ${BASH_VERSION:-not_bash}" },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
-      assert.ok(!fg.output?.includes("not_bash"), "should be running under bash, not sh");
+      assert.ok(
+        !fg.output?.includes("not_bash"),
+        "should be running under bash, not sh",
+      );
     });
 
     it("sources .bashrc via BASH_ENV when it exists", async () => {
-      writeFileSync(join(ws, ".bashrc"), "export CUSTOM_FROM_BASHRC=hello_from_rc\n");
-      const r = await toolExecExtended(ws, { command: "echo $CUSTOM_FROM_BASHRC" }, creds);
+      writeFileSync(
+        join(ws, ".bashrc"),
+        "export CUSTOM_FROM_BASHRC=hello_from_rc\n",
+      );
+      const r = await toolExecExtended(
+        ws,
+        { command: "echo $CUSTOM_FROM_BASHRC" },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
-      assert.ok(fg.output?.includes("hello_from_rc"), `expected .bashrc to be sourced, got: ${fg.output?.trim()}`);
+      assert.ok(
+        fg.output?.includes("hello_from_rc"),
+        `expected .bashrc to be sourced, got: ${fg.output?.trim()}`,
+      );
     });
   });
 
@@ -564,12 +713,16 @@ describe("toolExecExtended", () => {
   describe("combined features", () => {
     it("stdin + workdir + env together", async () => {
       mkdirSync(join(ws, "combo"), { recursive: true });
-      const r = await toolExecExtended(ws, {
-        command: "cat; echo $MY_ENV; pwd",
-        stdin: "input-data\n",
-        workdir: "combo",
-        env: { MY_ENV: "combo-val" },
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "cat; echo $MY_ENV; pwd",
+          stdin: "input-data\n",
+          workdir: "combo",
+          env: { MY_ENV: "combo-val" },
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(fg.output?.includes("input-data"));
@@ -578,11 +731,15 @@ describe("toolExecExtended", () => {
     });
 
     it("timeout + splitStreams", async () => {
-      const r = await toolExecExtended(ws, {
-        command: "echo out; echo err >&2; sleep 60",
-        timeout: 0.1,
-        splitStreams: true,
-      }, creds);
+      const r = await toolExecExtended(
+        ws,
+        {
+          command: "echo out; echo err >&2; sleep 60",
+          timeout: 0.1,
+          splitStreams: true,
+        },
+        creds,
+      );
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.equal(fg.timedOut, true);
@@ -592,10 +749,14 @@ describe("toolExecExtended", () => {
 
     it("writes a file via stdin and reads it back", async () => {
       const content = "file content from stdin\n";
-      await toolExecExtended(ws, {
-        command: `cat > ${join(ws, "stdin-file.txt")}`,
-        stdin: content,
-      }, creds);
+      await toolExecExtended(
+        ws,
+        {
+          command: `cat > ${join(ws, "stdin-file.txt")}`,
+          stdin: content,
+        },
+        creds,
+      );
       assert.equal(readFileSync(join(ws, "stdin-file.txt"), "utf8"), content);
     });
   });

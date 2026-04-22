@@ -41,9 +41,10 @@ function parseTags(raw: string | undefined): string[] {
   if (!raw) return [];
   const trimmed = raw.trim();
   // Strip surrounding brackets if present: [a, b, c] → a, b, c
-  const inner = trimmed.startsWith("[") && trimmed.endsWith("]")
-    ? trimmed.slice(1, -1)
-    : trimmed;
+  const inner =
+    trimmed.startsWith("[") && trimmed.endsWith("]")
+      ? trimmed.slice(1, -1)
+      : trimmed;
   if (!inner.trim()) return [];
   return inner
     .split(",")
@@ -83,16 +84,14 @@ export function scanSkillDirectories(
       const { fields } = parseMarkdownFrontmatter(raw);
       const idRaw = fields["id"]?.trim();
       const id =
-        idRaw && idRaw.length > 0
-          ? idRaw
-          : pathSlugId(root, absolutePath);
-      const title =
-        (fields["title"] ?? fields["name"] ?? "").trim() || id;
+        idRaw && idRaw.length > 0 ? idRaw : pathSlugId(root, absolutePath);
+      const title = (fields["title"] ?? fields["name"] ?? "").trim() || id;
       const fileEnabled = parseBoolField(fields["enabled"], true);
       const configOk = !disabledIds.has(id);
       const tags = parseTags(fields["tags"]);
       const categoryRaw = fields["category"]?.trim().toLowerCase();
-      const category = categoryRaw && categoryRaw.length > 0 ? categoryRaw : null;
+      const category =
+        categoryRaw && categoryRaw.length > 0 ? categoryRaw : null;
       const descRaw = fields["description"]?.trim();
       const description = descRaw && descRaw.length > 0 ? descRaw : null;
       recordMap.set(id, {

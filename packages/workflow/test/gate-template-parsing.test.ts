@@ -10,7 +10,13 @@ describe("gate template parsing", () => {
       [
         1,
         {
-          taskDef: { id: 1, kind: "agent" as const, prompt: "task 1", failureBehavior: "continue" as const, failureNotification: "silent" as const },
+          taskDef: {
+            id: 1,
+            kind: "agent" as const,
+            prompt: "task 1",
+            failureBehavior: "continue" as const,
+            failureNotification: "silent" as const,
+          },
           status: "done" as const,
           output: "success",
         },
@@ -18,7 +24,13 @@ describe("gate template parsing", () => {
       [
         2,
         {
-          taskDef: { id: 2, kind: "agent" as const, prompt: "task 2", failureBehavior: "continue" as const, failureNotification: "silent" as const },
+          taskDef: {
+            id: 2,
+            kind: "agent" as const,
+            prompt: "task 2",
+            failureBehavior: "continue" as const,
+            failureNotification: "silent" as const,
+          },
           status: "done" as const,
           output: "result_value",
         },
@@ -26,7 +38,13 @@ describe("gate template parsing", () => {
       [
         3,
         {
-          taskDef: { id: 3, kind: "agent" as const, prompt: "task 3", failureBehavior: "continue" as const, failureNotification: "silent" as const },
+          taskDef: {
+            id: 3,
+            kind: "agent" as const,
+            prompt: "task 3",
+            failureBehavior: "continue" as const,
+            failureNotification: "silent" as const,
+          },
           status: "failed" as const,
           error: "task failed",
         },
@@ -42,7 +60,10 @@ describe("gate template parsing", () => {
 
   it("resolves template reference for output field", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(`{{task:2:output}} == "result_value"`, ctx);
+    const result = evaluateGateCondition(
+      `{{task:2:output}} == "result_value"`,
+      ctx,
+    );
     expect(result).toBe(true);
   });
 
@@ -54,15 +75,18 @@ describe("gate template parsing", () => {
 
   it("supports dot notation alongside templates", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition("task.1.success && {{task:2:success}}", ctx);
+    const result = evaluateGateCondition(
+      "task.1.success && {{task:2:success}}",
+      ctx,
+    );
     expect(result).toBe(true);
   });
 
   it("handles complex conditions with templates", () => {
     const ctx = buildGateContext(tasks);
     const result = evaluateGateCondition(
-      "({{task:1:success}} || {{task:3:success}}) && {{task:2:output}} == \"result_value\"",
-      ctx
+      '({{task:1:success}} || {{task:3:success}}) && {{task:2:output}} == "result_value"',
+      ctx,
     );
     expect(result).toBe(true);
   });
@@ -75,7 +99,10 @@ describe("gate template parsing", () => {
 
   it("handles contains with template output", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(`{{task:2:output}} contains "result"`, ctx);
+    const result = evaluateGateCondition(
+      `{{task:2:output}} contains "result"`,
+      ctx,
+    );
     expect(result).toBe(true);
   });
 
@@ -83,14 +110,17 @@ describe("gate template parsing", () => {
     const ctx = buildGateContext(tasks);
     const result = evaluateGateCondition(
       "{{task:1:success}} && {{task:2:success}} && !{{task:3:success}}",
-      ctx
+      ctx,
     );
     expect(result).toBe(true);
   });
 
   it("handles template with logical OR", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition("{{task:3:success}} || {{task:1:success}}", ctx);
+    const result = evaluateGateCondition(
+      "{{task:3:success}} || {{task:1:success}}",
+      ctx,
+    );
     expect(result).toBe(true);
   });
 
@@ -110,7 +140,7 @@ describe("gate template parsing", () => {
     const ctx = buildGateContext(tasks);
     const result = evaluateGateCondition(
       "{{task:1:success}} && task.2.success && !task.3.success",
-      ctx
+      ctx,
     );
     expect(result).toBe(true);
   });
@@ -119,7 +149,7 @@ describe("gate template parsing", () => {
     const ctx = buildGateContext(tasks);
     const result = evaluateGateCondition(
       "({{task:1:success}} && {{task:2:success}}) || {{task:3:success}}",
-      ctx
+      ctx,
     );
     expect(result).toBe(true);
   });
@@ -129,7 +159,13 @@ describe("gate template parsing", () => {
       [
         1,
         {
-          taskDef: { id: 1, kind: "agent" as const, prompt: "task 1", failureBehavior: "continue" as const, failureNotification: "silent" as const },
+          taskDef: {
+            id: 1,
+            kind: "agent" as const,
+            prompt: "task 1",
+            failureBehavior: "continue" as const,
+            failureNotification: "silent" as const,
+          },
           status: "done" as const,
           output: "",
         },
@@ -143,13 +179,16 @@ describe("gate template parsing", () => {
   it("throws on missing task reference in template", () => {
     const ctx = buildGateContext(tasks);
     expect(() => evaluateGateCondition("{{task:99:success}}", ctx)).toThrow(
-      /references task 99 which has no result/
+      /references task 99 which has no result/,
     );
   });
 
   it("handles whitespace around templates", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition("  {{task:1:success}}  &&  {{task:2:success}}  ", ctx);
+    const result = evaluateGateCondition(
+      "  {{task:1:success}}  &&  {{task:2:success}}  ",
+      ctx,
+    );
     expect(result).toBe(true);
   });
 });

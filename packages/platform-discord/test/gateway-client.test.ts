@@ -5,12 +5,15 @@ import { connectDiscordGateway } from "../src/gateway-client";
 describe("connectDiscordGateway", () => {
   it("completes HELLO, sends IDENTIFY, and forwards MESSAGE_CREATE", async () => {
     const sent: string[] = [];
-    let sock: {
-      deliverHello(): void;
-      deliverMessageCreate(): void;
-      close(): void;
-    } | undefined;
+    let sock:
+      | {
+          deliverHello(): void;
+          deliverMessageCreate(): void;
+          close(): void;
+        }
+      | undefined;
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const createWebSocket = (_url: string): WebSocket => {
       const listeners = new Map<string, Set<(ev: { data: string }) => void>>();
       const on = (type: string, fn: (ev: { data: string }) => void) => {
@@ -27,7 +30,12 @@ describe("connectDiscordGateway", () => {
 
       const fake = {
         addEventListener(type: string, fn: (ev: { data: string }) => void) {
-          if (type === "message" || type === "open" || type === "error" || type === "close") {
+          if (
+            type === "message" ||
+            type === "open" ||
+            type === "error" ||
+            type === "close"
+          ) {
             on(type, fn);
           }
         },
@@ -71,13 +79,16 @@ describe("connectDiscordGateway", () => {
       };
       sock = fake;
       queueMicrotask(() => {
-        for (const fn of listeners.get("open") ?? []) (fn as (e: { data: string }) => void)({ data: "" });
+        for (const fn of listeners.get("open") ?? [])
+          (fn as (e: { data: string }) => void)({ data: "" });
       });
       return fake as unknown as WebSocket;
     };
 
     const fetchFn: typeof fetch = async () =>
-      new Response(JSON.stringify({ url: "wss://gateway.test/" }), { status: 200 });
+      new Response(JSON.stringify({ url: "wss://gateway.test/" }), {
+        status: 200,
+      });
 
     const inbound: string[] = [];
     const sessionP = connectDiscordGateway({

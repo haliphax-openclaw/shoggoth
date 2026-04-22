@@ -19,20 +19,29 @@ describe("policy engine", () => {
   });
 
   it("allow * permits unless denied", () => {
-    assert.deepStrictEqual(evaluateRules("anything", { allow: ["*"], deny: [] }), {
-      allow: true,
-    });
-    assert.deepStrictEqual(evaluateRules("read", { allow: ["*"], deny: ["read"] }), {
-      allow: false,
-      reason: "explicit_deny",
-    });
+    assert.deepStrictEqual(
+      evaluateRules("anything", { allow: ["*"], deny: [] }),
+      {
+        allow: true,
+      },
+    );
+    assert.deepStrictEqual(
+      evaluateRules("read", { allow: ["*"], deny: ["read"] }),
+      {
+        allow: false,
+        reason: "explicit_deny",
+      },
+    );
   });
 
   it("deny * blocks all", () => {
-    assert.deepStrictEqual(evaluateRules("ping", { allow: ["ping"], deny: ["*"] }), {
-      allow: false,
-      reason: "explicit_deny",
-    });
+    assert.deepStrictEqual(
+      evaluateRules("ping", { allow: ["ping"], deny: ["*"] }),
+      {
+        allow: false,
+        reason: "explicit_deny",
+      },
+    );
   });
 
   it("maps operator vs agent principals (DEFAULT_POLICY_CONFIG)", () => {
@@ -50,55 +59,107 @@ describe("policy engine", () => {
       source: "agent",
     };
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "ping" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "ping",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "agent_ping" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "agent_ping",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "agent_ping" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "agent_ping",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "ping" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "ping",
+      }),
       { allow: false, reason: "default_deny" },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "session_context_new" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "session_context_new",
+      }),
       { allow: false, reason: "default_deny" },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "session_context_reset" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "session_context_reset",
+      }),
       { allow: false, reason: "default_deny" },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "session_context_new" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "session_context_new",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "subagent_spawn" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "subagent_spawn",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "session_inspect" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "session_inspect",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "session_inspect" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "session_inspect",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "session_list" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "session_list",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: agent, action: "control.invoke", resource: "session_send" }),
+      engine.check({
+        principal: agent,
+        action: "control.invoke",
+        resource: "session_send",
+      }),
       { allow: true },
     );
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "session_send" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "session_send",
+      }),
       { allow: true },
     );
   });
@@ -112,7 +173,11 @@ describe("policy engine", () => {
       source: "cli_operator_token",
     };
     assert.deepStrictEqual(
-      engine.check({ principal: operator, action: "control.invoke", resource: "ping" }),
+      engine.check({
+        principal: operator,
+        action: "control.invoke",
+        resource: "ping",
+      }),
       { allow: false, reason: "default_deny" },
     );
   });
@@ -133,35 +198,55 @@ describe("policy engine", () => {
 describe("evaluateRules – review list", () => {
   it("review match returns requires_review even when allow matches", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:bash", { allow: ["builtin-exec:*"], deny: [], review: ["builtin-exec:bash"] }),
+      evaluateRules("builtin-exec:bash", {
+        allow: ["builtin-exec:*"],
+        deny: [],
+        review: ["builtin-exec:bash"],
+      }),
       { allow: false, reason: "requires_review" },
     );
   });
 
   it("non-review resource still auto-approved", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:curl", { allow: ["builtin-exec:*"], deny: [], review: ["builtin-exec:bash"] }),
+      evaluateRules("builtin-exec:curl", {
+        allow: ["builtin-exec:*"],
+        deny: [],
+        review: ["builtin-exec:bash"],
+      }),
       { allow: true },
     );
   });
 
   it("deny wins over review", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:bash", { allow: ["builtin-exec:*"], deny: ["builtin-exec:bash"], review: ["builtin-exec:bash"] }),
+      evaluateRules("builtin-exec:bash", {
+        allow: ["builtin-exec:*"],
+        deny: ["builtin-exec:bash"],
+        review: ["builtin-exec:bash"],
+      }),
       { allow: false, reason: "explicit_deny" },
     );
   });
 
   it("review without allow still returns requires_review", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:bash", { allow: [], deny: [], review: ["builtin-exec:bash"] }),
+      evaluateRules("builtin-exec:bash", {
+        allow: [],
+        deny: [],
+        review: ["builtin-exec:bash"],
+      }),
       { allow: false, reason: "requires_review" },
     );
   });
 
   it("empty review list is backward compatible (allow works)", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-read", { allow: ["builtin-read"], deny: [], review: [] }),
+      evaluateRules("builtin-read", {
+        allow: ["builtin-read"],
+        deny: [],
+        review: [],
+      }),
       { allow: true },
     );
   });
@@ -175,14 +260,22 @@ describe("evaluateRules – review list", () => {
 
   it("review with wildcard matches all sub-resources", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:curl", { allow: ["builtin-exec:*"], deny: [], review: ["builtin-exec:*"] }),
+      evaluateRules("builtin-exec:curl", {
+        allow: ["builtin-exec:*"],
+        deny: [],
+        review: ["builtin-exec:*"],
+      }),
       { allow: false, reason: "requires_review" },
     );
   });
 
   it("bare tool in review matches sub-resources", () => {
     assert.deepStrictEqual(
-      evaluateRules("builtin-exec:curl", { allow: ["builtin-exec:*"], deny: [], review: ["builtin-exec"] }),
+      evaluateRules("builtin-exec:curl", {
+        allow: ["builtin-exec:*"],
+        deny: [],
+        review: ["builtin-exec"],
+      }),
       { allow: false, reason: "requires_review" },
     );
   });
@@ -194,7 +287,10 @@ describe("redactToolArgsJson", () => {
       JSON.stringify({ password: "x", nested: { token: "y" } }),
       ["password", "nested.token"],
     );
-    const o = JSON.parse(out!) as { password: string; nested: { token: string } };
+    const o = JSON.parse(out!) as {
+      password: string;
+      nested: { token: string };
+    };
     assert.strictEqual(o.password, "[REDACTED]");
     assert.strictEqual(o.nested.token, "[REDACTED]");
   });

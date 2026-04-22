@@ -25,7 +25,9 @@ function makeTmpDir(): string {
 function makeTask(
   id: number,
   prompt = `do task ${id}`,
-  opts: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">> = {},
+  opts: Partial<
+    Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">
+  > = {},
 ): TaskDef {
   return {
     kind: "agent",
@@ -37,7 +39,10 @@ function makeTask(
   };
 }
 
-function mockSpawnAdapter(): SpawnAdapter & { calls: SpawnRequest[]; shouldThrow?: Error } {
+function mockSpawnAdapter(): SpawnAdapter & {
+  calls: SpawnRequest[];
+  shouldThrow?: Error;
+} {
   const calls: SpawnRequest[] = [];
   return {
     calls,
@@ -61,7 +66,9 @@ function mockPollAdapter(
   };
 }
 
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -71,7 +78,9 @@ function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: strin
   };
 }
 
-function mockNotificationAdapter(): NotificationAdapter & { calls: Array<{ target: string; message: string }> } {
+function mockNotificationAdapter(): NotificationAdapter & {
+  calls: Array<{ target: string; message: string }>;
+} {
   const calls: Array<{ target: string; message: string }> = [];
   return {
     calls,
@@ -121,7 +130,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Tasks 1 and 2 are independent roots, 3 depends on both
       // Task 1 has abort behavior
@@ -145,7 +161,9 @@ describe("Failure Handling", () => {
 
       // All tasks should be terminal
       const wf = orch.getWorkflowStatus()!;
-      assert.ok(wf.tasks.every((t) => t.status === "failed" || t.status === "done"));
+      assert.ok(
+        wf.tasks.every((t) => t.status === "failed" || t.status === "done"),
+      );
 
       // Task 2 should be failed (killed by abort)
       const task2 = wf.tasks.find((t) => t.taskDef.id === 2)!;
@@ -168,7 +186,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // 1 and 2 are roots, 3 depends on both
       const tasks = [
@@ -201,7 +226,9 @@ describe("Failure Handling", () => {
       // Workflow is NOT "complete" (still paused — operator can retry),
       // but all tasks are terminal so a `wait` call would resolve.
       assert.ok(!orch.isComplete());
-      assert.ok(wf.tasks.every((t) => t.status === "done" || t.status === "failed"));
+      assert.ok(
+        wf.tasks.every((t) => t.status === "done" || t.status === "failed"),
+      );
     });
   });
 
@@ -213,7 +240,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Two independent branches: 1>3 and 2>4
       const tasks = [
@@ -281,9 +315,18 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
-      const tasks = [makeTask(1, "do task 1", { failureNotification: "silent" })];
+      const tasks = [
+        makeTask(1, "do task 1", { failureNotification: "silent" }),
+      ];
       await orch.start(tasks, "1", defaultOpts(baseDir));
 
       pollResults.set("session-1", { status: "failed", error: "boom" });
@@ -299,10 +342,19 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       const tasks = [
-        makeTask(1, "do task 1", { failureNotification: { kind: "notify-parent" } }),
+        makeTask(1, "do task 1", {
+          failureNotification: { kind: "notify-parent" },
+        }),
       ];
       const opts = defaultOpts(baseDir);
       await orch.start(tasks, "1", opts);
@@ -323,7 +375,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       const tasks = [
         makeTask(1, "do task 1", {
@@ -348,7 +407,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Two independent tasks
       const tasks = [makeTask(1), makeTask(2)];
@@ -381,7 +447,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       const tasks = [makeTask(1), makeTask(2)];
       const graphDsl = "1>2";
@@ -412,7 +485,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Task with a very short runtime limit
       const tasks = [makeTask(1, "do task 1", { runtimeLimitMs: 1 })];
@@ -441,7 +521,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Task with no runtimeLimitMs — uses default (600_000)
       const tasks = [makeTask(1)];
@@ -461,11 +548,21 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       // Task 1 has abort behavior and short timeout, task 2 is independent
       const tasks = [
-        makeTask(1, "do task 1", { failureBehavior: "abort", runtimeLimitMs: 1 }),
+        makeTask(1, "do task 1", {
+          failureBehavior: "abort",
+          runtimeLimitMs: 1,
+        }),
         makeTask(2, "do task 2"),
       ];
       const graphDsl = "1 2";
@@ -493,7 +590,14 @@ describe("Failure Handling", () => {
       const notifier = mockNotifyAdapter();
       const notifications = mockNotificationAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, notifications, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        notifications,
+        killer,
+      );
 
       const tasks = [
         makeTask(1, "do task 1", {
@@ -539,6 +643,7 @@ describe("Failure Handling", () => {
       const raw = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
 
       // All tasks should be failed in persisted state
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       assert.ok(raw.tasks.every((t: any) => t.status === "failed"));
     });
   });

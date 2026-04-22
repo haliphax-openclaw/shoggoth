@@ -19,12 +19,19 @@ describe("mcpServerRulesSchema", () => {
   });
 
   it("accepts named ids", () => {
-    const result = mcpServerRulesSchema.safeParse({ allow: ["a", "b"], deny: ["c"] });
+    const result = mcpServerRulesSchema.safeParse({
+      allow: ["a", "b"],
+      deny: ["c"],
+    });
     assert.ok(result.success);
   });
 
   it("rejects extra fields (strict)", () => {
-    const result = mcpServerRulesSchema.safeParse({ allow: ["*"], deny: [], extra: true });
+    const result = mcpServerRulesSchema.safeParse({
+      allow: ["*"],
+      deny: [],
+      extra: true,
+    });
     assert.ok(!result.success);
   });
 
@@ -105,8 +112,14 @@ describe("resolveEffectiveMcpServerRules", () => {
     plugins: [],
     mcp: { servers: [], poolScope: "global" },
     policy: {
-      operator: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
-      agent: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
+      operator: {
+        controlOps: { allow: ["*"], deny: [] },
+        tools: { allow: ["*"], deny: [] },
+      },
+      agent: {
+        controlOps: { allow: ["*"], deny: [] },
+        tools: { allow: ["*"], deny: [] },
+      },
       auditRedaction: { jsonPaths: [] },
     },
   };

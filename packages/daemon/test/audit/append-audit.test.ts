@@ -32,7 +32,12 @@ describe("appendAuditRow", () => {
       .prepare(
         `SELECT source, action, resource, outcome FROM audit_log ORDER BY id DESC LIMIT 1`,
       )
-      .get() as { source: string; action: string; resource: string; outcome: string };
+      .get() as {
+      source: string;
+      action: string;
+      resource: string;
+      outcome: string;
+    };
 
     assert.strictEqual(row.source, "system");
     assert.strictEqual(row.action, "plugin.load");

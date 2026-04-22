@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
 import { createSessionStore } from "../../src/sessions/session-store";
-import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { createSessionToolLoopModelClient } from "../../src/sessions/session-tool-loop-model-client";
 import { TurnAbortedError } from "../../src/sessions/session-turn-abort";
 
@@ -17,7 +16,7 @@ vi.mock("../../src/transcript-compact", () => ({
 
 // Mock transcript-to-chat
 vi.mock("../../src/sessions/transcript-to-chat", async (importOriginal) => {
-  const orig = await importOriginal() as Record<string, unknown>;
+  const orig = (await importOriginal()) as Record<string, unknown>;
   return {
     ...orig,
     loadSessionTranscriptAsModelChat: vi.fn(),
@@ -26,7 +25,7 @@ vi.mock("../../src/sessions/transcript-to-chat", async (importOriginal) => {
 
 // Mock @shoggoth/models for resolveCompactionPolicyFromModelsConfig and createFailoverClientFromModelsConfig
 vi.mock("@shoggoth/models", async (importOriginal) => {
-  const orig = await importOriginal() as Record<string, unknown>;
+  const orig = (await importOriginal()) as Record<string, unknown>;
   return {
     ...orig,
     resolveCompactionPolicyFromModelsConfig: vi.fn(() => ({
@@ -40,12 +39,20 @@ import { compactSessionTranscript } from "../../src/transcript-compact";
 import { loadSessionTranscriptAsModelChat } from "../../src/sessions/transcript-to-chat";
 import { createFailoverClientFromModelsConfig } from "@shoggoth/models";
 
-function stubToolClient(responses?: Array<{
-  content: string | null;
-  toolCalls: Array<{ id: string; name: string; arguments: string }>;
-}>) {
+function stubToolClient(
+  responses?: Array<{
+    content: string | null;
+    toolCalls: Array<{ id: string; name: string; arguments: string }>;
+  }>,
+) {
   let callIdx = 0;
-  const defaultResp = { content: "done", toolCalls: [], usedProviderId: "p", usedModel: "m", degraded: false };
+  const defaultResp = {
+    content: "done",
+    toolCalls: [],
+    usedProviderId: "p",
+    usedModel: "m",
+    degraded: false,
+  };
   return {
     async completeWithTools(_input: { messages: unknown[] }) {
       const resp = responses?.[callIdx] ?? defaultResp;
@@ -89,7 +96,12 @@ describe("createSessionToolLoopModelClient", () => {
         { role: "system", content: "sys" },
         { role: "user", content: "hi" },
       ],
-      tools: [{ type: "function", function: { name: "builtin-read", parameters: {} } }],
+      tools: [
+        {
+          type: "function",
+          function: { name: "builtin-read", parameters: {} },
+        },
+      ],
     });
 
     const t1 = await model.complete();
@@ -110,7 +122,10 @@ describe("createSessionToolLoopModelClient", () => {
     const toolClient = {
       async completeWithTools(input: unknown) {
         step += 1;
-        const req = input as { stream?: boolean; onTextDelta?: (d: string, a: string) => void };
+        const req = input as {
+          stream?: boolean;
+          onTextDelta?: (d: string, a: string) => void;
+        };
         if (step === 1) {
           assert.equal(req.stream, true);
           req.onTextDelta?.("a", "a");
@@ -142,7 +157,12 @@ describe("createSessionToolLoopModelClient", () => {
         { role: "system", content: "sys" },
         { role: "user", content: "hi" },
       ],
-      tools: [{ type: "function", function: { name: "builtin-read", parameters: {} } }],
+      tools: [
+        {
+          type: "function",
+          function: { name: "builtin-read", parameters: {} },
+        },
+      ],
       streamModel: true,
       onModelTextDelta: (t) => {
         deltas.push(t);
@@ -184,7 +204,10 @@ describe("mid-turn compaction in complete()", () => {
     // A tool message with 400 JSON chars → 400/2 = 200 tokens → exceeds 50.
     const bigToolContent = "x".repeat(400);
 
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: true, messageCount: 2 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: true,
+      messageCount: 2,
+    });
     vi.mocked(loadSessionTranscriptAsModelChat).mockReturnValue([
       { role: "user", content: "hi" },
       { role: "assistant", content: "short" },
@@ -204,6 +227,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 50,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 0,
@@ -217,8 +241,14 @@ describe("mid-turn compaction in complete()", () => {
 
     await model.complete();
 
-    assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "compactSessionTranscript should have been called");
-    assert.ok(vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length > 0, "transcript should have been reloaded");
+    assert.ok(
+      vi.mocked(compactSessionTranscript).mock.calls.length > 0,
+      "compactSessionTranscript should have been called",
+    );
+    assert.ok(
+      vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length > 0,
+      "transcript should have been reloaded",
+    );
   });
 
   it("does NOT trigger compaction when within budget", async () => {
@@ -236,6 +266,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100_000,
         reserveTokens: 1_000,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 12, // "sys" → 3 chars/4 ≈ 1 token
@@ -246,23 +277,38 @@ describe("mid-turn compaction in complete()", () => {
 
     await model.complete();
 
-    assert.equal(vi.mocked(compactSessionTranscript).mock.calls.length, 0, "compactSessionTranscript should NOT have been called");
+    assert.equal(
+      vi.mocked(compactSessionTranscript).mock.calls.length,
+      0,
+      "compactSessionTranscript should NOT have been called",
+    );
   });
 
   it("resets internal messages to compacted transcript after compaction", async () => {
     const bigToolContent = "x".repeat(400);
 
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: true, messageCount: 1 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: true,
+      messageCount: 1,
+    });
     vi.mocked(loadSessionTranscriptAsModelChat).mockReturnValue([
       { role: "user", content: "compacted" },
     ]);
 
     // Track what messages are sent to completeWithTools
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let capturedMessages: any[] = [];
     const toolClient = {
       async completeWithTools(input: { messages: unknown[] }) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         capturedMessages = input.messages as any[];
-        return { content: "ok", toolCalls: [], usedProviderId: "p", usedModel: "m", degraded: false };
+        return {
+          content: "ok",
+          toolCalls: [],
+          usedProviderId: "p",
+          usedModel: "m",
+          degraded: false,
+        };
       },
     };
 
@@ -279,6 +325,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 50,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 0,
@@ -301,13 +348,23 @@ describe("mid-turn compaction in complete()", () => {
   it("handles compaction failure gracefully (logs warning, proceeds)", async () => {
     const bigToolContent = "x".repeat(400);
 
-    vi.mocked(compactSessionTranscript).mockRejectedValue(new Error("model unreachable"));
+    vi.mocked(compactSessionTranscript).mockRejectedValue(
+      new Error("model unreachable"),
+    );
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let capturedMessages: any[] = [];
     const toolClient = {
       async completeWithTools(input: { messages: unknown[] }) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         capturedMessages = input.messages as any[];
-        return { content: "ok", toolCalls: [], usedProviderId: "p", usedModel: "m", degraded: false };
+        return {
+          content: "ok",
+          toolCalls: [],
+          usedProviderId: "p",
+          usedModel: "m",
+          degraded: false,
+        };
       },
     };
 
@@ -324,6 +381,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 50,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 0,
@@ -338,10 +396,20 @@ describe("mid-turn compaction in complete()", () => {
     await model.complete();
 
     // Compaction was attempted
-    assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "compactSessionTranscript should have been called");
+    assert.ok(
+      vi.mocked(compactSessionTranscript).mock.calls.length > 0,
+      "compactSessionTranscript should have been called",
+    );
     // Should have proceeded with original messages (system + user + tool)
-    assert.ok(capturedMessages.length > 0, "should have called completeWithTools despite compaction failure");
-    assert.equal(vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length, 0, "should NOT reload transcript on failure");
+    assert.ok(
+      capturedMessages.length > 0,
+      "should have called completeWithTools despite compaction failure",
+    );
+    assert.equal(
+      vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length,
+      0,
+      "should NOT reload transcript on failure",
+    );
   });
 
   it("uses per-character token estimation: structural chars at chars/2, other at chars/4", async () => {
@@ -362,6 +430,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 40,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 0,
@@ -371,11 +440,18 @@ describe("mid-turn compaction in complete()", () => {
     });
 
     await model.complete();
-    assert.equal(vi.mocked(compactSessionTranscript).mock.calls.length, 0, "plain text at chars/4 should be within budget");
+    assert.equal(
+      vi.mocked(compactSessionTranscript).mock.calls.length,
+      0,
+      "plain text at chars/4 should be within budget",
+    );
 
     // Now use JSON-structural-heavy content in a tool message → triggers compaction
     // 200 '{' chars → all structural → 200/2 = 100 tokens > 60
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: false,
+      messageCount: 2,
+    });
 
     const model2 = createSessionToolLoopModelClient({
       toolClient: stubToolClient(),
@@ -390,6 +466,7 @@ describe("mid-turn compaction in complete()", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 40,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: undefined as any,
         env: {},
         systemPromptChars: 0,
@@ -400,7 +477,10 @@ describe("mid-turn compaction in complete()", () => {
 
     model2.pushToolMessage!({ toolCallId: "tc1", content: "{".repeat(200) });
     await model2.complete();
-    assert.ok(vi.mocked(compactSessionTranscript).mock.calls.length > 0, "structural-heavy content at chars/2 should exceed budget");
+    assert.ok(
+      vi.mocked(compactSessionTranscript).mock.calls.length > 0,
+      "structural-heavy content at chars/2 should exceed budget",
+    );
   });
 });
 
@@ -417,6 +497,7 @@ describe("dedicated compaction model", () => {
     vi.mocked(compactSessionTranscript).mockReset();
     vi.mocked(loadSessionTranscriptAsModelChat).mockReset();
     vi.mocked(createFailoverClientFromModelsConfig).mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createFailoverClientFromModelsConfig).mockReturnValue({} as any);
   });
 
@@ -427,12 +508,23 @@ describe("dedicated compaction model", () => {
 
   it("uses dedicated model when compactionModel is set", async () => {
     const bigToolContent = "x".repeat(400);
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: false,
+      messageCount: 2,
+    });
 
     const modelsConfig = {
       providers: [
-        { id: "main", kind: "openai-compatible" as const, baseUrl: "http://main:8080" },
-        { id: "local", kind: "openai-compatible" as const, baseUrl: "http://local:8080" },
+        {
+          id: "main",
+          kind: "openai-compatible" as const,
+          baseUrl: "http://main:8080",
+        },
+        {
+          id: "local",
+          kind: "openai-compatible" as const,
+          baseUrl: "http://local:8080",
+        },
       ],
       failoverChain: [{ providerId: "main", model: "big-model" }],
     };
@@ -450,6 +542,7 @@ describe("dedicated compaction model", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 50,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: modelsConfig as any,
         compactionModel: "local/gemma4",
         env: {},
@@ -465,7 +558,11 @@ describe("dedicated compaction model", () => {
     // createFailoverClientFromModelsConfig should have been called with a config
     // containing only the "local" provider and a single-entry failover chain
     const calls = vi.mocked(createFailoverClientFromModelsConfig).mock.calls;
-    assert.ok(calls.length > 0, "createFailoverClientFromModelsConfig should have been called");
+    assert.ok(
+      calls.length > 0,
+      "createFailoverClientFromModelsConfig should have been called",
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const passedConfig = calls[0][0] as any;
     assert.equal(passedConfig.failoverChain.length, 1);
     assert.equal(passedConfig.failoverChain[0], "local/gemma4");
@@ -475,11 +572,18 @@ describe("dedicated compaction model", () => {
 
   it("falls back to full modelsConfig when compactionModel is not set", async () => {
     const bigToolContent = "x".repeat(400);
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: false, messageCount: 2 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: false,
+      messageCount: 2,
+    });
 
     const modelsConfig = {
       providers: [
-        { id: "main", kind: "openai-compatible" as const, baseUrl: "http://main:8080" },
+        {
+          id: "main",
+          kind: "openai-compatible" as const,
+          baseUrl: "http://main:8080",
+        },
       ],
       failoverChain: [{ providerId: "main", model: "big-model" }],
     };
@@ -497,6 +601,7 @@ describe("dedicated compaction model", () => {
         contextSegmentId: "default",
         ctxWindowTokens: 100,
         reserveTokens: 50,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         modelsConfig: modelsConfig as any,
         env: {},
         systemPromptChars: 0,
@@ -534,13 +639,17 @@ describe("abort during mid-turn compaction", () => {
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  function makeCompactionConfig(overrides?: { turnAbortSignal?: AbortSignal; compactionAbortTimeoutMs?: number }) {
+  function makeCompactionConfig(overrides?: {
+    turnAbortSignal?: AbortSignal;
+    compactionAbortTimeoutMs?: number;
+  }) {
     return {
       db,
       sessionId: "sess-1",
       contextSegmentId: "default",
       ctxWindowTokens: 100,
       reserveTokens: 50,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       modelsConfig: undefined as any,
       env: {},
       systemPromptChars: 0,
@@ -582,17 +691,26 @@ describe("abort during mid-turn compaction", () => {
     // Fire abort after 30ms (while compaction is in progress)
     setTimeout(() => ac.abort(), 30);
 
-    await assert.rejects(() => model.complete(), (err: Error) => {
-      assert.ok(err instanceof TurnAbortedError);
-      return true;
-    });
+    await assert.rejects(
+      () => model.complete(),
+      (err: Error) => {
+        assert.ok(err instanceof TurnAbortedError);
+        return true;
+      },
+    );
 
     // Compaction must have completed before the error was thrown
-    assert.ok(compactionResolved, "compaction should have completed before TurnAbortedError");
+    assert.ok(
+      compactionResolved,
+      "compaction should have completed before TurnAbortedError",
+    );
   });
 
   it("proceeds normally when no abort signal fires during compaction", async () => {
-    vi.mocked(compactSessionTranscript).mockResolvedValue({ compacted: true, messageCount: 1 });
+    vi.mocked(compactSessionTranscript).mockResolvedValue({
+      compacted: true,
+      messageCount: 1,
+    });
     vi.mocked(loadSessionTranscriptAsModelChat).mockReturnValue([
       { role: "user", content: "compacted" },
     ]);
@@ -641,7 +759,10 @@ describe("abort during mid-turn compaction", () => {
     const result = await model.complete();
     assert.equal(result.content, "done");
     // Transcript should NOT have been reloaded since we timed out
-    assert.equal(vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length, 0);
+    assert.equal(
+      vi.mocked(loadSessionTranscriptAsModelChat).mock.calls.length,
+      0,
+    );
   });
 
   it("throws TurnAbortedError after compaction timeout if abort signal was fired", async () => {
@@ -669,9 +790,12 @@ describe("abort during mid-turn compaction", () => {
 
     model.pushToolMessage!({ toolCallId: "tc1", content: "x".repeat(400) });
 
-    await assert.rejects(() => model.complete(), (err: Error) => {
-      assert.ok(err instanceof TurnAbortedError);
-      return true;
-    });
+    await assert.rejects(
+      () => model.complete(),
+      (err: Error) => {
+        assert.ok(err instanceof TurnAbortedError);
+        return true;
+      },
+    );
   });
 });

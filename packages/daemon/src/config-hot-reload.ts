@@ -1,4 +1,8 @@
-import { DEFAULT_HITL_CONFIG, loadLayeredConfig, type ShoggothConfig } from "@shoggoth/shared";
+import {
+  DEFAULT_HITL_CONFIG,
+  loadLayeredConfig,
+  type ShoggothConfig,
+} from "@shoggoth/shared";
 import { existsSync, watch, type FSWatcher } from "node:fs";
 import {
   CONFIG_RESTART_REQUIRED_KEYS,
@@ -47,7 +51,9 @@ type StartConfigHotReloadOptions = {
  * Watch `configDirectory` for changes, reload layered JSON, and apply policy + HITL when
  * no restart-required keys changed. Disable with `SHOGGOTH_CONFIG_HOT_RELOAD=0`.
  */
-export function startConfigHotReload(options: StartConfigHotReloadOptions): () => void {
+export function startConfigHotReload(
+  options: StartConfigHotReloadOptions,
+): () => void {
   if (options.enabled === false) {
     return () => {};
   }
@@ -70,14 +76,19 @@ export function startConfigHotReload(options: StartConfigHotReloadOptions): () =
     try {
       next = loadLayeredConfig(dir);
     } catch (e) {
-      log.warn("config hot-reload load failed; keeping previous config", { err: String(e) });
+      log.warn("config hot-reload load failed; keeping previous config", {
+        err: String(e),
+      });
       return;
     }
     const deltas = diffRestartRequiredKeys(configRef.current, next);
     if (deltas.length > 0) {
-      log.warn("config file changed but restart-required keys differ; restart daemon to apply", {
-        keys: deltas,
-      });
+      log.warn(
+        "config file changed but restart-required keys differ; restart daemon to apply",
+        {
+          keys: deltas,
+        },
+      );
       return;
     }
     policyRef.engine = createPolicyEngine(next.policy, next.agents);

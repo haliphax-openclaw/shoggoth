@@ -15,7 +15,10 @@ import type { AgentIntegrationInvoker } from "../control/integration-invoke";
  * messaging types.  Matches `messageToolContextRef.current`.
  */
 export interface MessageToolCtx {
-  execute: (sessionId: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  execute: (
+    sessionId: string,
+    args: Record<string, unknown>,
+  ) => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -36,7 +39,9 @@ export interface BuiltinToolContext {
   readonly orchestratorEnv: NodeJS.ProcessEnv;
 
   /** Returns the integration invoker, or undefined if unavailable. */
-  readonly getAgentIntegrationInvoker: () => AgentIntegrationInvoker | undefined;
+  readonly getAgentIntegrationInvoker: () =>
+    | AgentIntegrationInvoker
+    | undefined;
 
   /** Returns the process manager singleton, or undefined if not initialised. */
   readonly getProcessManager: () => ProcessManager | undefined;
@@ -104,7 +109,10 @@ export class BuiltinToolRegistry {
  * `resolvePathForRead` / `resolvePathForWrite` with `ctx.workspacePath`
  * as the security boundary.
  */
-export function resolveUserPath(ctx: BuiltinToolContext, userPath: string): string {
+export function resolveUserPath(
+  ctx: BuiltinToolContext,
+  userPath: string,
+): string {
   if (isAbsolute(userPath)) return userPath;
   const base = ctx.workingDirectory ?? ctx.workspacePath;
   return resolve(base, userPath);

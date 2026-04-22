@@ -10,7 +10,18 @@ const workflowToolArgs = {
   properties: {
     action: {
       type: "string",
-      enum: ["start", "abort", "pause", "resume", "status", "list", "post", "edit", "retry", "retention"],
+      enum: [
+        "start",
+        "abort",
+        "pause",
+        "resume",
+        "status",
+        "list",
+        "post",
+        "edit",
+        "retry",
+        "retention",
+      ],
       description:
         "start: kick off a new workflow. abort/pause/resume: control a running workflow. status: get task states. list: list workflows. post: repost status message. edit: modify a non-in-progress task. retry: redrive a failed task. retention: prune old workflows.",
     },
@@ -25,9 +36,22 @@ const workflowToolArgs = {
         type: "object",
         properties: {
           id: { type: "integer", description: "Unique task number (1-based)." },
-          kind: { type: "string", enum: ["agent", "tool", "gate", "transform", "message"], description: "Task kind. Default: agent." },
-          prompt: { type: "string", description: "Task prompt. May contain {{task:N:output}} or {{task:N:success}} templates." },
-          title: { type: "string", description: "Optional display title for status/summary posts (max 60 chars). Falls back to truncated prompt.", maxLength: 60 },
+          kind: {
+            type: "string",
+            enum: ["agent", "tool", "gate", "transform", "message"],
+            description: "Task kind. Default: agent.",
+          },
+          prompt: {
+            type: "string",
+            description:
+              "Task prompt. May contain {{task:N:output}} or {{task:N:success}} templates.",
+          },
+          title: {
+            type: "string",
+            description:
+              "Optional display title for status/summary posts (max 60 chars). Falls back to truncated prompt.",
+            maxLength: 60,
+          },
           failure_behavior: {
             type: "string",
             enum: ["abort", "pause", "continue"],
@@ -37,7 +61,11 @@ const workflowToolArgs = {
             description: "Who to notify on failure. Default: silent.",
             oneOf: [
               { type: "string", const: "silent" },
-              { type: "object", properties: { kind: { const: "notify-parent" } }, required: ["kind"] },
+              {
+                type: "object",
+                properties: { kind: { const: "notify-parent" } },
+                required: ["kind"],
+              },
               {
                 type: "object",
                 properties: {
@@ -50,16 +78,35 @@ const workflowToolArgs = {
           },
           runtime_limit_ms: {
             type: "integer",
-            description: "Max runtime for this task in ms. Default: 600000 (10 min).",
+            description:
+              "Max runtime for this task in ms. Default: 600000 (10 min).",
             minimum: 1000,
           },
           tool: { type: "string", description: "Tool task: tool name." },
           args: { type: "object", description: "Tool task: tool arguments." },
-          condition: { type: "string", description: "Gate task: condition expression." },
-          template: { type: "string", description: "Transform task: template string." },
-          message: { type: "string", description: "Message task: message body. Supports {{task:N:output}} / {{task:N:success}} refs." },
-          channel: { type: "string", description: "Message task: target channel. Defaults to replyTo session." },
-          output_template: { type: "string", description: "Optional: reshape task output before downstream consumption. Supports {{self.output}}, {{self.error}}." },
+          condition: {
+            type: "string",
+            description: "Gate task: condition expression.",
+          },
+          template: {
+            type: "string",
+            description: "Transform task: template string.",
+          },
+          message: {
+            type: "string",
+            description:
+              "Message task: message body. Supports {{task:N:output}} / {{task:N:success}} refs.",
+          },
+          channel: {
+            type: "string",
+            description:
+              "Message task: target channel. Defaults to replyTo session.",
+          },
+          output_template: {
+            type: "string",
+            description:
+              "Optional: reshape task output before downstream consumption. Supports {{self.output}}, {{self.error}}.",
+          },
         },
         required: ["id"],
       },
@@ -77,12 +124,14 @@ const workflowToolArgs = {
     },
     runtime_limit_ms: {
       type: "integer",
-      description: "start: default runtime limit per task in ms. Default: 600000.",
+      description:
+        "start: default runtime limit per task in ms. Default: 600000.",
       minimum: 1000,
     },
     reply_to: {
       type: "string",
-      description: "start: session ID where subagent results should be delivered.",
+      description:
+        "start: session ID where subagent results should be delivered.",
     },
     concurrency: {
       type: "integer",
@@ -92,7 +141,8 @@ const workflowToolArgs = {
     // --- workflow targeting ---
     workflow_id: {
       type: "string",
-      description: "abort/pause/resume/status/post/edit/retry: target workflow ID.",
+      description:
+        "abort/pause/resume/status/post/edit/retry: target workflow ID.",
     },
     // --- edit ---
     task_id: {
@@ -112,7 +162,11 @@ const workflowToolArgs = {
       description: "edit: new failure notification config.",
       oneOf: [
         { type: "string", const: "silent" },
-        { type: "object", properties: { kind: { const: "notify-parent" } }, required: ["kind"] },
+        {
+          type: "object",
+          properties: { kind: { const: "notify-parent" } },
+          required: ["kind"],
+        },
         {
           type: "object",
           properties: {
@@ -126,12 +180,14 @@ const workflowToolArgs = {
     // --- retry ---
     cascade: {
       type: "boolean",
-      description: "retry: also re-run completed downstream tasks. Default: false.",
+      description:
+        "retry: also re-run completed downstream tasks. Default: false.",
     },
     // --- list ---
     agent_chain_id: {
       type: "string",
-      description: "list: filter by agent chain ID. Defaults to calling agent's chain.",
+      description:
+        "list: filter by agent chain ID. Defaults to calling agent's chain.",
     },
   },
   required: ["action"],

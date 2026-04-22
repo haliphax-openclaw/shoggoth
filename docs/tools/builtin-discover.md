@@ -4,33 +4,37 @@ Enable, disable, list, or reset available tools for the current session. Require
 
 ## Parameters
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `enable` | string[] | no | Tool IDs to enable |
-| `disable` | string[] | no | Tool IDs to disable (`alwaysOn` tools are rejected) |
-| `reset` | boolean | no | Clear all session tool state before applying changes |
-| `list` | boolean | no | Return the full tool catalog in the response |
+| Param     | Type     | Required | Notes                                                |
+| --------- | -------- | -------- | ---------------------------------------------------- |
+| `enable`  | string[] | no       | Tool IDs to enable                                   |
+| `disable` | string[] | no       | Tool IDs to disable (`alwaysOn` tools are rejected)  |
+| `reset`   | boolean  | no       | Clear all session tool state before applying changes |
+| `list`    | boolean  | no       | Return the full tool catalog in the response         |
 
 All params are optional but at least one should be provided. Processing order: `reset` → `enable` → `disable`.
 
 ## Examples
 
 **List all available tools:**
+
 ```json
 { "list": true }
 ```
 
 **Enable specific tools:**
+
 ```json
 { "enable": ["web_search", "browser"] }
 ```
 
 **Disable a tool:**
+
 ```json
 { "disable": ["tts"] }
 ```
 
 **Reset to defaults and enable a subset:**
+
 ```json
 { "reset": true, "enable": ["read", "write", "exec"], "list": true }
 ```
@@ -46,8 +50,18 @@ All params are optional but at least one should be provided. Processing order: `
     "rejected": [{ "id": "builtin-read", "reason": "always_on" }]
   },
   "catalog": [
-    { "id": "read", "description": "Read files", "enabled": true, "alwaysOn": true },
-    { "id": "tts", "description": "Text to speech", "enabled": false, "alwaysOn": false }
+    {
+      "id": "read",
+      "description": "Read files",
+      "enabled": true,
+      "alwaysOn": true
+    },
+    {
+      "id": "tts",
+      "description": "Text to speech",
+      "enabled": false,
+      "alwaysOn": false
+    }
   ]
 }
 ```

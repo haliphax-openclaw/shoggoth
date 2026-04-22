@@ -64,7 +64,12 @@ interface MessageTaskDef extends TaskDefBase {
   channel?: string;
 }
 
-type TaskDef = AgentTaskDef | ToolTaskDef | GateTaskDef | TransformTaskDef | MessageTaskDef;
+type TaskDef =
+  | AgentTaskDef
+  | ToolTaskDef
+  | GateTaskDef
+  | TransformTaskDef
+  | MessageTaskDef;
 ```
 
 ### Task Execution by Kind
@@ -83,7 +88,10 @@ Tool tasks execute via a `ToolExecutor` adapter injected into the orchestrator:
 
 ```typescript
 interface ToolExecutor {
-  execute(tool: string, args: Record<string, unknown>): Promise<{
+  execute(
+    tool: string,
+    args: Record<string, unknown>,
+  ): Promise<{
     ok: boolean;
     output: string;
     error?: string;
@@ -130,6 +138,7 @@ Gates introduce a new task status: `skipped`. When a gate evaluates to falsy:
 4. Skipped tasks are rendered with a ⏭️ emoji in status messages.
 
 This requires changes to:
+
 - `TaskStatus` type: add `"skipped"`
 - `isTerminal`: treat `skipped` as terminal
 - `isBlocked`: account for skipped dependencies
@@ -153,6 +162,7 @@ Any task type can have an optional `outputTemplate` field. When present, the raw
 ```
 
 Special refs for output templates:
+
 - `{{self.output}}` — the raw output of this task
 - `{{self.exitCode}}` — exit code (tool/exec tasks only)
 - `{{self.error}}` — error message if failed
@@ -184,6 +194,7 @@ The tool descriptor's `tasks` array item schema already includes `kind` and cond
 - Non-agent tasks currently fail at spawn time with `unsupported task kind`
 
 **Files touched:**
+
 - `packages/workflow/src/types.ts`
 - `packages/workflow/src/tool-handler.ts`
 - `packages/workflow/src/tool-descriptor.ts`
@@ -199,6 +210,7 @@ The tool descriptor's `tasks` array item schema already includes `kind` and cond
 - Tests for tool task execution, failure handling, output capture
 
 **Files:**
+
 - `packages/workflow/src/orchestrator.ts`
 - `packages/workflow/src/types.ts`
 - `packages/daemon/src/workflow-singleton.ts` (or equivalent wiring)
@@ -211,6 +223,7 @@ The tool descriptor's `tasks` array item schema already includes `kind` and cond
 - Tests for template resolution, message posting, edge cases
 
 **Files:**
+
 - `packages/workflow/src/orchestrator.ts`
 - `packages/workflow/src/templates.ts` (if extensions needed)
 
@@ -225,6 +238,7 @@ The tool descriptor's `tasks` array item schema already includes `kind` and cond
 - Tests for gate evaluation, skip propagation, rendering
 
 **Files:**
+
 - `packages/workflow/src/types.ts`
 - `packages/workflow/src/orchestrator.ts`
 - `packages/workflow/src/status-message.ts`
@@ -239,6 +253,7 @@ The tool descriptor's `tasks` array item schema already includes `kind` and cond
 - Tests for output template application across all task types
 
 **Files:**
+
 - `packages/workflow/src/types.ts`
 - `packages/workflow/src/orchestrator.ts`
 - `packages/workflow/src/templates.ts`

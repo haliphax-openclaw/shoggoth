@@ -29,7 +29,12 @@ import {
 import type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
 
 const __dirname = resolvePath(fileURLToPath(import.meta.url), "..");
-const TEMPLATES_DIR = resolvePath(__dirname, "..", "templates", "agent-workspace");
+const TEMPLATES_DIR = resolvePath(
+  __dirname,
+  "..",
+  "templates",
+  "agent-workspace",
+);
 
 // --- 1. In-memory SQLite with session_stats table + example data ---
 const db = new Database(":memory:");
@@ -53,7 +58,8 @@ db.exec(`
 const SESSION_ID = "session:example:abc123";
 
 db.prepare("INSERT INTO sessions (id) VALUES (?)").run(SESSION_ID);
-db.prepare(`
+db.prepare(
+  `
   INSERT INTO session_stats (
     session_id, turn_count, compaction_count, input_tokens, output_tokens,
     context_window_tokens, first_turn_at, last_turn_at, last_compacted_at,
@@ -63,7 +69,8 @@ db.prepare(`
     @contextWindowTokens, datetime('now', '-2 hours'), datetime('now'), datetime('now', '-30 minutes'),
     @transcriptMessageCount
   )
-`).run({
+`,
+).run({
   sessionId: SESSION_ID,
   turnCount: 45,
   compactionCount: 3,
@@ -131,7 +138,10 @@ const tools = aggregated.tools.map((t) => ({
   function: {
     name: t.namespacedName,
     description: t.description ?? `${t.sourceId}-${t.originalName}`,
-    parameters: (t.inputSchema ?? { type: "object", properties: {} }) as Record<string, unknown>,
+    parameters: (t.inputSchema ?? { type: "object", properties: {} }) as Record<
+      string,
+      unknown
+    >,
   },
 }));
 
@@ -149,12 +159,20 @@ const exampleSystemContext: SystemContext = {
   },
 };
 
-const rawUserContent = "Hello, can you help me with a coding question about TypeScript generics?";
-const wrappedUserContent = wrapWithSystemContext(rawUserContent, exampleSystemContext, systemContextToken);
+const rawUserContent =
+  "Hello, can you help me with a coding question about TypeScript generics?";
+const wrappedUserContent = wrapWithSystemContext(
+  rawUserContent,
+  exampleSystemContext,
+  systemContextToken,
+);
 
 // --- 6. Transcript: system message + single wrapped user message ---
 const transcriptMessages: Array<{ role: string; content: string }> = [
-  { role: "system", content: "You are a helpful assistant running inside Shoggoth." },
+  {
+    role: "system",
+    content: "You are a helpful assistant running inside Shoggoth.",
+  },
   { role: "user", content: wrappedUserContent },
 ];
 

@@ -23,7 +23,12 @@ system.use({
 });
 
 // Fire hooks
-await system.lifecycle["daemon.startup"].emit({ db, config, configRef, registerDrain });
+await system.lifecycle["daemon.startup"].emit({
+  db,
+  config,
+  configRef,
+  registerDrain,
+});
 ```
 
 ## `ShoggothPluginSystem`
@@ -42,7 +47,10 @@ system.lock();
 
 // Centralized error handling
 system.listenError((event) => {
-  console.error(`Hook ${event.name} failed in plugin ${event.tag}:`, event.error);
+  console.error(
+    `Hook ${event.name} failed in plugin ${event.tag}:`,
+    event.error,
+  );
 });
 ```
 
@@ -61,12 +69,12 @@ config = freezeConfig(config);
 
 Interface for messaging platform plugins. Requires four hooks:
 
-| Required Hook | Type | Purpose |
-|---|---|---|
-| `platform.register` | sync | Register URN policy and capabilities |
-| `platform.start` | async | Connect to external service |
-| `platform.stop` | async | Disconnect gracefully |
-| `health.register` | sync | Register health probes |
+| Required Hook       | Type  | Purpose                              |
+| ------------------- | ----- | ------------------------------------ |
+| `platform.register` | sync  | Register URN policy and capabilities |
+| `platform.start`    | async | Connect to external service          |
+| `platform.stop`     | async | Disconnect gracefully                |
+| `health.register`   | sync  | Register health probes               |
 
 Use `defineMessagingPlatformPlugin` to validate at registration time:
 
@@ -88,7 +96,10 @@ export default function createMyPlatformPlugin() {
         // Disconnect, cleanup
       },
       "health.register"(ctx) {
-        ctx.registerProbe({ name: "myservice", check: async () => ({ status: "pass" }) });
+        ctx.registerProbe({
+          name: "myservice",
+          check: async () => ({ status: "pass" }),
+        });
       },
     },
   });
@@ -101,41 +112,41 @@ All 14 hooks grouped by lifecycle phase:
 
 ### Daemon Lifecycle
 
-| Hook | Type | Description |
-|---|---|---|
+| Hook               | Type                | Description                                                                    |
+| ------------------ | ------------------- | ------------------------------------------------------------------------------ |
 | `daemon.configure` | `SyncWaterfallHook` | After config load. Plugins can inspect/transform config. Returns modified ctx. |
-| `daemon.startup` | `AsyncHook` | After DB and core subsystems init. Plugins perform async setup. |
-| `daemon.ready` | `AsyncHook` | After all plugins started and platforms connected. System is live. |
-| `daemon.shutdown` | `AsyncHook` | Graceful shutdown. Plugins release resources. |
+| `daemon.startup`   | `AsyncHook`         | After DB and core subsystems init. Plugins perform async setup.                |
+| `daemon.ready`     | `AsyncHook`         | After all plugins started and platforms connected. System is live.             |
+| `daemon.shutdown`  | `AsyncHook`         | Graceful shutdown. Plugins release resources.                                  |
 
 ### Platform Lifecycle
 
-| Hook | Type | Description |
-|---|---|---|
-| `platform.register` | `SyncHook` | Platforms register URN policy, capabilities, and runtime. |
-| `platform.start` | `AsyncHook` | Platforms connect to external services (gateway, API, webhook). |
-| `platform.stop` | `AsyncHook` | Platforms disconnect gracefully. |
+| Hook                | Type        | Description                                                     |
+| ------------------- | ----------- | --------------------------------------------------------------- |
+| `platform.register` | `SyncHook`  | Platforms register URN policy, capabilities, and runtime.       |
+| `platform.start`    | `AsyncHook` | Platforms connect to external services (gateway, API, webhook). |
+| `platform.stop`     | `AsyncHook` | Platforms disconnect gracefully.                                |
 
 ### Messaging
 
-| Hook | Type | Description |
-|---|---|---|
-| `message.inbound` | `AsyncHook` | A normalized inbound message is ready for dispatch. |
+| Hook               | Type                 | Description                                                            |
+| ------------------ | -------------------- | ---------------------------------------------------------------------- |
+| `message.inbound`  | `AsyncHook`          | A normalized inbound message is ready for dispatch.                    |
 | `message.outbound` | `AsyncWaterfallHook` | Outbound message about to be delivered. Plugins can transform content. |
-| `message.reaction` | `AsyncHook` | A reaction event is received from a platform. |
+| `message.reaction` | `AsyncHook`          | A reaction event is received from a platform.                          |
 
 ### Session
 
-| Hook | Type | Description |
-|---|---|---|
-| `session.turn.before` | `AsyncHook` | Before a model turn executes. |
-| `session.turn.after` | `AsyncHook` | After a model turn completes (success or failure). |
-| `session.segment.change` | `SyncHook` | A session's context segment changes (new/reset). |
+| Hook                     | Type        | Description                                        |
+| ------------------------ | ----------- | -------------------------------------------------- |
+| `session.turn.before`    | `AsyncHook` | Before a model turn executes.                      |
+| `session.turn.after`     | `AsyncHook` | After a model turn completes (success or failure). |
+| `session.segment.change` | `SyncHook`  | A session's context segment changes (new/reset).   |
 
 ### Health
 
-| Hook | Type | Description |
-|---|---|---|
+| Hook              | Type       | Description                                    |
+| ----------------- | ---------- | ---------------------------------------------- |
 | `health.register` | `SyncHook` | Plugins register health probes during startup. |
 
 ## Plugin Discovery
@@ -153,10 +164,10 @@ Plugin metadata lives in `package.json` under a `shoggothPlugin` property bag (n
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `kind` | `"messaging-platform" \| "observability" \| "general"` | No | Plugin kind. Defaults to `"general"`. `messaging-platform` plugins are validated against `MessagingPlatformPlugin`. |
-| `entrypoint` | `string` | Yes | Path to the module that exports the plugin factory or plugin object. |
+| Field        | Type                                                   | Required | Description                                                                                                         |
+| ------------ | ------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `kind`       | `"messaging-platform" \| "observability" \| "general"` | No       | Plugin kind. Defaults to `"general"`. `messaging-platform` plugins are validated against `MessagingPlatformPlugin`. |
+| `entrypoint` | `string`                                               | Yes      | Path to the module that exports the plugin factory or plugin object.                                                |
 
 `name` and `version` are read from the top-level `package.json` fields.
 
@@ -172,6 +183,7 @@ my-plugin/
 ```
 
 **package.json:**
+
 ```json
 {
   "name": "shoggoth-plugin-logger",
@@ -184,6 +196,7 @@ my-plugin/
 ```
 
 **src/plugin.ts:**
+
 ```ts
 import type { Plugin } from "hooks-plugin";
 import type { ShoggothHooks } from "@shoggoth/plugins";
@@ -193,10 +206,14 @@ export default function createLoggerPlugin(): Plugin<ShoggothHooks> {
     name: "logger",
     hooks: {
       "session.turn.before": async (ctx) => {
-        console.log(`[turn] session=${ctx.sessionId} content=${ctx.userContent}`);
+        console.log(
+          `[turn] session=${ctx.sessionId} content=${ctx.userContent}`,
+        );
       },
       "session.turn.after": async (ctx) => {
-        console.log(`[turn] session=${ctx.sessionId} tokens=${ctx.tokenUsage?.completion}`);
+        console.log(
+          `[turn] session=${ctx.sessionId} tokens=${ctx.tokenUsage?.completion}`,
+        );
       },
     },
   };
@@ -204,6 +221,7 @@ export default function createLoggerPlugin(): Plugin<ShoggothHooks> {
 ```
 
 **Referencing in config:**
+
 ```json
 {
   "plugins": [

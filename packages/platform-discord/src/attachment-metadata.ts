@@ -6,7 +6,8 @@ import type { MessageAttachment } from "@shoggoth/messaging";
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} bytes`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
@@ -19,7 +20,9 @@ export function formatBytes(bytes: number): string {
  * - doc.pdf (application/pdf, 3.4 MB)
  * ```
  */
-export function formatAttachmentMetadata(attachments: readonly MessageAttachment[]): string {
+export function formatAttachmentMetadata(
+  attachments: readonly MessageAttachment[],
+): string {
   const header = `[message has ${attachments.length} attachment(s)]`;
   const lines = attachments.map((a) => {
     const parts: string[] = [];

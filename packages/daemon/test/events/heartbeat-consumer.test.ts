@@ -7,7 +7,10 @@ import Database from "better-sqlite3";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
 import { emitEvent, EVENT_SCOPE_GLOBAL } from "../../src/events/events-queue";
-import { runHeartbeatBatch, createDefaultHeartbeatHandlers } from "../../src/events/heartbeat-consumer";
+import {
+  runHeartbeatBatch,
+  createDefaultHeartbeatHandlers,
+} from "../../src/events/heartbeat-consumer";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
   const dir = mkdtempSync(join(tmpdir(), "shoggoth-hb-"));
@@ -45,15 +48,25 @@ describe("heartbeat consumer", () => {
     });
     assert.equal(saw, 0);
 
-    emitEvent(db, { scope: EVENT_SCOPE_GLOBAL, eventType: "custom.tick", payload: { n: 1 } });
-    const n = await runHeartbeatBatch(db, { batchLimit: 10, concurrency: 2, handlers: {
+    emitEvent(db, {
+      scope: EVENT_SCOPE_GLOBAL,
+      eventType: "custom.tick",
+      payload: { n: 1 },
+    });
+    const n = await runHeartbeatBatch(db, {
+      batchLimit: 10,
+      concurrency: 2,
+      handlers: {
         "custom.tick": () => {
           saw += 1;
         },
-      } });
+      },
+    });
     assert.equal(n, 1);
     assert.equal(saw, 1);
-    const st = db.prepare("SELECT status FROM events WHERE event_type = 'custom.tick'").get() as {
+    const st = db
+      .prepare("SELECT status FROM events WHERE event_type = 'custom.tick'")
+      .get() as {
       status: string;
     };
     assert.equal(st.status, "completed");
@@ -91,19 +104,29 @@ describe("heartbeat consumer", () => {
       concurrency: 2,
       handlers: {},
     });
-    let row = db.prepare("SELECT status, attempts FROM events WHERE event_type = 'unknown.kind'").get() as {
+    let row = db
+      .prepare(
+        "SELECT status, attempts FROM events WHERE event_type = 'unknown.kind'",
+      )
+      .get() as {
       status: string;
       attempts: number;
     };
     assert.equal(row.status, "pending");
     assert.equal(row.attempts, 1);
-    db.prepare(`UPDATE events SET next_attempt_at = datetime('now', '-1 second') WHERE event_type = 'unknown.kind'`).run();
+    db.prepare(
+      `UPDATE events SET next_attempt_at = datetime('now', '-1 second') WHERE event_type = 'unknown.kind'`,
+    ).run();
     await runHeartbeatBatch(db, {
       batchLimit: 10,
       concurrency: 2,
       handlers: {},
     });
-    row = db.prepare("SELECT status, attempts, last_error FROM events WHERE event_type = 'unknown.kind'").get() as {
+    row = db
+      .prepare(
+        "SELECT status, attempts, last_error FROM events WHERE event_type = 'unknown.kind'",
+      )
+      .get() as {
       status: string;
       attempts: number;
       last_error: string | null;
@@ -120,16 +143,26 @@ describe("heartbeat consumer", () => {
       payload: { cronJobId: "j", payload: {} },
     });
     const handlers = createDefaultHeartbeatHandlers({});
-    const n = await runHeartbeatBatch(db, { batchLimit: 10, concurrency: 2, handlers });
+    const n = await runHeartbeatBatch(db, {
+      batchLimit: 10,
+      concurrency: 2,
+      handlers,
+    });
     assert.equal(n, 1);
-    const st = db.prepare("SELECT status FROM events WHERE event_type = 'cron.fire'").get() as { status: string };
+    const st = db
+      .prepare("SELECT status FROM events WHERE event_type = 'cron.fire'")
+      .get() as { status: string };
     assert.equal(st.status, "completed");
   });
 
   it("runs handlers with concurrency > 1", async () => {
     const done: number[] = [];
     for (let i = 0; i < 6; i++) {
-      emitEvent(db, { scope: EVENT_SCOPE_GLOBAL, eventType: "parallel", payload: { i } });
+      emitEvent(db, {
+        scope: EVENT_SCOPE_GLOBAL,
+        eventType: "parallel",
+        payload: { i },
+      });
     }
     await runHeartbeatBatch(db, {
       batchLimit: 10,
@@ -143,7 +176,9 @@ describe("heartbeat consumer", () => {
       },
     });
     assert.equal(done.length, 6);
-    const pending = db.prepare("SELECT COUNT(*) AS c FROM events WHERE status != 'completed'").get() as { c: number };
+    const pending = db
+      .prepare("SELECT COUNT(*) AS c FROM events WHERE status != 'completed'")
+      .get() as { c: number };
     assert.equal(pending.c, 0);
   });
 });

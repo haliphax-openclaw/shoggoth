@@ -5,7 +5,12 @@
  * `systemContext` with the expected `kind`, `summary`, and `data` fields.
  */
 
-import { describe, it, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
+import {
+  describe,
+  it,
+  beforeAll,
+  afterAll,
+} from "vitest";
 import assert from "node:assert/strict";
 
 let prevOperatorToken: string | undefined;
@@ -14,7 +19,8 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined)
+    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 import { randomUUID } from "node:crypto";
@@ -22,10 +28,7 @@ import Database from "better-sqlite3";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  WIRE_VERSION,
-  parseResponseLine,
-} from "@shoggoth/authn";
+import { WIRE_VERSION, parseResponseLine } from "@shoggoth/authn";
 import type { SystemContext } from "@shoggoth/shared";
 import {
   DEFAULT_POLICY_CONFIG,
@@ -44,7 +47,6 @@ import { ShutdownCoordinator } from "../src/shutdown.js";
 import {
   createDaemonSpawnAdapter,
   createWorkflowNotifier,
-  type DaemonSpawnAdapterDeps,
 } from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
@@ -105,7 +107,9 @@ async function withControlPlaneSession(
     stateDb?: Database.Database;
     config?: ShoggothConfig;
   },
-  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
+  fn: (
+    send: (body: Record<string, unknown>) => Promise<string>,
+  ) => Promise<void>,
 ): Promise<void> {
   const { createConnection } = await import("node:net");
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-sc-"));
@@ -167,8 +171,17 @@ describe("systemContext adoption: subagent_spawn one_shot", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    const parentId = formatAgentSessionUrn("ag", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: parentId, workspacePath: "/tmp/w", status: "active" });
+    const parentId = formatAgentSessionUrn(
+      "ag",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: parentId,
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
 
     const { ext, calls } = capturingSubagentRuntimeExtension();
     setSubagentRuntimeExtension(ext);
@@ -199,7 +212,10 @@ describe("systemContext adoption: subagent_spawn one_shot", () => {
           assert.ok(sc, "systemContext must be present");
           assert.equal(sc.kind, "subagent.task");
           assert.ok(sc.summary.length > 0, "summary must be non-empty");
-          assert.ok(sc.summary.includes("one-shot"), "summary should mention one-shot");
+          assert.ok(
+            sc.summary.includes("one-shot"),
+            "summary should mention one-shot",
+          );
           assert.ok(sc.data, "data must be present");
           assert.equal(sc.data!.parent_session_id, parentId);
           assert.equal(sc.data!.internal, true);
@@ -225,8 +241,17 @@ describe("systemContext adoption: subagent_spawn persistent", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    const parentId = formatAgentSessionUrn("ag", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: parentId, workspacePath: "/tmp/w", status: "active" });
+    const parentId = formatAgentSessionUrn(
+      "ag",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: parentId,
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
 
     const { ext, calls } = capturingSubagentRuntimeExtension();
     setSubagentRuntimeExtension(ext);
@@ -257,7 +282,10 @@ describe("systemContext adoption: subagent_spawn persistent", () => {
           assert.ok(sc, "systemContext must be present");
           assert.equal(sc.kind, "subagent.task");
           assert.ok(sc.summary.length > 0, "summary must be non-empty");
-          assert.ok(sc.summary.includes("persistent"), "summary should mention persistent");
+          assert.ok(
+            sc.summary.includes("persistent"),
+            "summary should mention persistent",
+          );
           assert.ok(sc.data, "data must be present");
           assert.equal(sc.data!.parent_session_id, parentId);
           assert.equal(sc.data!.internal, true);
@@ -283,8 +311,17 @@ describe("systemContext adoption: session_send", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    const targetId = formatAgentSessionUrn("ag", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: targetId, workspacePath: "/w", status: "active" });
+    const targetId = formatAgentSessionUrn(
+      "ag",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: targetId,
+      workspacePath: "/w",
+      status: "active",
+    });
 
     const { ext, calls } = capturingSubagentRuntimeExtension();
     setSubagentRuntimeExtension(ext);
@@ -312,7 +349,10 @@ describe("systemContext adoption: session_send", () => {
           assert.ok(sc.summary.length > 0, "summary must be non-empty");
           assert.ok(sc.data, "data must be present");
           // Operator principal — sender info should be present
-          assert.ok("sender_session_id" in sc.data! || "sender" in sc.data!, "data should identify the sender");
+          assert.ok(
+            "sender_session_id" in sc.data! || "sender" in sc.data!,
+            "data should identify the sender",
+          );
         },
       );
     } finally {
@@ -337,11 +377,24 @@ describe("systemContext adoption: session_steer", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const parentId = formatAgentSessionUrn("ag", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    const childId = formatAgentSessionUrn("ag", "discord", "channel", randomUUID());
+    const parentId = formatAgentSessionUrn(
+      "ag",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    const childId = formatAgentSessionUrn(
+      "ag",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
     sessions.create({ id: parentId, workspacePath: "/wp", status: "active" });
     sessions.create({ id: childId, workspacePath: "/wc", status: "active" });
-    sessions.update(childId, { parentSessionId: parentId, subagentMode: "persistent" });
+    sessions.update(childId, {
+      parentSessionId: parentId,
+      subagentMode: "persistent",
+    });
     tokens.register(parentId, "tok-steer");
 
     const { ext, calls } = capturingSubagentRuntimeExtension();
@@ -398,7 +451,10 @@ describe("systemContext adoption: workflow completion notification", () => {
     assert.ok(sc, "systemContext must be present");
     assert.equal(sc.kind, "workflow.complete");
     assert.ok(sc.summary.length > 0, "summary must be non-empty");
-    assert.ok(sc.summary.includes("successfully"), "summary should mention success");
+    assert.ok(
+      sc.summary.includes("successfully"),
+      "summary should mention success",
+    );
     assert.ok(sc.data, "data must be present");
     assert.equal(sc.data!.workflow_id, "wf-123");
     assert.equal(sc.data!.success, true);

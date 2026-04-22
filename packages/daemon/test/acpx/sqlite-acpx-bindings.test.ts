@@ -9,7 +9,11 @@ describe("sqlite-acpx-bindings", () => {
   it("upserts and lists acpx workspace bindings", () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-a", workspacePath: "/w", status: "active" });
+    createSessionStore(db).create({
+      id: "sess-a",
+      workspacePath: "/w",
+      status: "active",
+    });
 
     const store = createSqliteAcpxBindingStore(db);
     store.upsert({

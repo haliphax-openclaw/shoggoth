@@ -49,7 +49,7 @@ describe("shoggothMemoryConfigSchema", () => {
 });
 
 describe("DEFAULT_MEMORY_CONFIG", () => {
-  it("defaults paths to [\"memory\"]", () => {
+  it('defaults paths to ["memory"]', () => {
     assert.deepEqual(DEFAULT_MEMORY_CONFIG.paths, ["memory"]);
   });
 });
@@ -81,17 +81,29 @@ describe("providerModelSchema", () => {
   });
 
   it("rejects non-positive contextWindowTokens", () => {
-    assert.ok(!providerModelSchema.safeParse({ name: "m", contextWindowTokens: 0 }).success);
-    assert.ok(!providerModelSchema.safeParse({ name: "m", contextWindowTokens: -1 }).success);
+    assert.ok(
+      !providerModelSchema.safeParse({ name: "m", contextWindowTokens: 0 })
+        .success,
+    );
+    assert.ok(
+      !providerModelSchema.safeParse({ name: "m", contextWindowTokens: -1 })
+        .success,
+    );
   });
 
   it("rejects invalid thinkingFormat", () => {
-    assert.ok(!providerModelSchema.safeParse({ name: "m", thinkingFormat: "bad" }).success);
+    assert.ok(
+      !providerModelSchema.safeParse({ name: "m", thinkingFormat: "bad" })
+        .success,
+    );
   });
 
   it("accepts all valid thinkingFormat values", () => {
     for (const fmt of ["native", "xml-tags", "none"] as const) {
-      assert.ok(providerModelSchema.safeParse({ name: "m", thinkingFormat: fmt }).success);
+      assert.ok(
+        providerModelSchema.safeParse({ name: "m", thinkingFormat: fmt })
+          .success,
+      );
     }
   });
 });
@@ -124,13 +136,15 @@ describe("provider schema with models and retry fields", () => {
 
   it("accepts provider with per-provider retry fields", () => {
     const r = shoggothModelsConfigSchema.safeParse({
-      providers: [{
-        ...baseProvider,
-        maxRetries: 3,
-        retryDelayMs: 1000,
-        retryBackoffMultiplier: 2.0,
-        markFailedDurationMs: 60_000,
-      }],
+      providers: [
+        {
+          ...baseProvider,
+          maxRetries: 3,
+          retryDelayMs: 1000,
+          retryBackoffMultiplier: 2.0,
+          markFailedDurationMs: 60_000,
+        },
+      ],
     });
     assert.ok(r.success);
     const p = r.data!.providers![0];
@@ -163,25 +177,35 @@ describe("provider schema with models and retry fields", () => {
 
   it("works with anthropic-messages provider too", () => {
     const r = shoggothModelsConfigSchema.safeParse({
-      providers: [{
-        id: "anthropic",
-        kind: "anthropic-messages",
-        baseUrl: "https://api.anthropic.com",
-        models: [{ name: "claude-sonnet-4-20250514", contextWindowTokens: 200_000, thinkingFormat: "native" }],
-        maxRetries: 2,
-      }],
+      providers: [
+        {
+          id: "anthropic",
+          kind: "anthropic-messages",
+          baseUrl: "https://api.anthropic.com",
+          models: [
+            {
+              name: "claude-sonnet-4-20250514",
+              contextWindowTokens: 200_000,
+              thinkingFormat: "native",
+            },
+          ],
+          maxRetries: 2,
+        },
+      ],
     });
     assert.ok(r.success);
   });
 
   it("works with gemini provider too", () => {
     const r = shoggothModelsConfigSchema.safeParse({
-      providers: [{
-        id: "gemini",
-        kind: "gemini",
-        models: [{ name: "gemini-2.5-pro" }],
-        retryDelayMs: 500,
-      }],
+      providers: [
+        {
+          id: "gemini",
+          kind: "gemini",
+          models: [{ name: "gemini-2.5-pro" }],
+          retryDelayMs: 500,
+        },
+      ],
     });
     assert.ok(r.success);
   });
@@ -192,7 +216,9 @@ describe("provider schema with models and retry fields", () => {
 // ---------------------------------------------------------------------------
 describe("failoverChainEntrySchema", () => {
   it("accepts a plain string ref", () => {
-    const r = failoverChainEntrySchema.safeParse("anthropic/claude-sonnet-4-20250514");
+    const r = failoverChainEntrySchema.safeParse(
+      "anthropic/claude-sonnet-4-20250514",
+    );
     assert.ok(r.success);
     assert.equal(r.data, "anthropic/claude-sonnet-4-20250514");
   });
@@ -203,10 +229,7 @@ describe("failoverChainEntrySchema", () => {
 
   it("works inside modelsConfig failoverChain", () => {
     const r = shoggothModelsConfigSchema.safeParse({
-      failoverChain: [
-        "anthropic/claude-sonnet-4-20250514",
-        "openai/gpt-4o",
-      ],
+      failoverChain: ["anthropic/claude-sonnet-4-20250514", "openai/gpt-4o"],
     });
     assert.ok(r.success);
     assert.equal(r.data!.failoverChain!.length, 2);
@@ -253,12 +276,18 @@ describe("modelsRetrySchema", () => {
   });
 
   it("rejects non-positive retryBackoffMultiplier", () => {
-    assert.ok(!modelsRetrySchema.safeParse({ retryBackoffMultiplier: 0 }).success);
-    assert.ok(!modelsRetrySchema.safeParse({ retryBackoffMultiplier: -1 }).success);
+    assert.ok(
+      !modelsRetrySchema.safeParse({ retryBackoffMultiplier: 0 }).success,
+    );
+    assert.ok(
+      !modelsRetrySchema.safeParse({ retryBackoffMultiplier: -1 }).success,
+    );
   });
 
   it("rejects non-positive markFailedDurationMs", () => {
-    assert.ok(!modelsRetrySchema.safeParse({ markFailedDurationMs: 0 }).success);
+    assert.ok(
+      !modelsRetrySchema.safeParse({ markFailedDurationMs: 0 }).success,
+    );
   });
 
   it("is available on modelsConfig as retry field", () => {
@@ -328,6 +357,9 @@ describe("subagentModel schema field", () => {
     });
     assert.ok(r.success);
     assert.equal(r.data!.subagentModel, "openai/gpt-4o");
-    assert.equal(r.data!.list!.main!.subagentModel, "anthropic/claude-3-5-haiku-20241022");
+    assert.equal(
+      r.data!.list!.main!.subagentModel,
+      "anthropic/claude-3-5-haiku-20241022",
+    );
   });
 });

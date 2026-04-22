@@ -47,9 +47,11 @@ export async function loadPluginFromDirectory(
 
   // For messaging-platform kind, validate required hooks
   if (meta.kind === "messaging-platform") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugin = defineMessagingPlatformPlugin(plugin as any);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   system.use(plugin as any);
 
   return {

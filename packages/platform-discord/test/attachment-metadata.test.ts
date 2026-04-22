@@ -1,11 +1,20 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import { formatAttachmentMetadata, formatBytes } from "../src/attachment-metadata";
+import {
+  formatAttachmentMetadata,
+  formatBytes,
+} from "../src/attachment-metadata";
 
 describe("formatAttachmentMetadata", () => {
   it("formats a single attachment with all fields", () => {
     const result = formatAttachmentMetadata([
-      { id: "1", url: "https://cdn.discord/a.png", filename: "photo.png", contentType: "image/png", sizeBytes: 1234 },
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 1234,
+      },
     ]);
     assert.strictEqual(
       result,
@@ -15,8 +24,20 @@ describe("formatAttachmentMetadata", () => {
 
   it("formats multiple attachments", () => {
     const result = formatAttachmentMetadata([
-      { id: "1", url: "https://cdn.discord/a.png", filename: "photo.png", contentType: "image/png", sizeBytes: 2048 },
-      { id: "2", url: "https://cdn.discord/b.pdf", filename: "doc.pdf", contentType: "application/pdf", sizeBytes: 3565158 },
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 2048,
+      },
+      {
+        id: "2",
+        url: "https://cdn.discord/b.pdf",
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 3565158,
+      },
     ]);
     assert.strictEqual(
       result,
@@ -26,7 +47,12 @@ describe("formatAttachmentMetadata", () => {
 
   it("omits contentType when missing", () => {
     const result = formatAttachmentMetadata([
-      { id: "1", url: "https://cdn.discord/a.bin", filename: "data.bin", sizeBytes: 512 },
+      {
+        id: "1",
+        url: "https://cdn.discord/a.bin",
+        filename: "data.bin",
+        sizeBytes: 512,
+      },
     ]);
     assert.strictEqual(
       result,
@@ -36,7 +62,12 @@ describe("formatAttachmentMetadata", () => {
 
   it("omits size when sizeBytes is missing", () => {
     const result = formatAttachmentMetadata([
-      { id: "1", url: "https://cdn.discord/a.txt", filename: "notes.txt", contentType: "text/plain" },
+      {
+        id: "1",
+        url: "https://cdn.discord/a.txt",
+        filename: "notes.txt",
+        contentType: "text/plain",
+      },
     ]);
     assert.strictEqual(
       result,
@@ -48,10 +79,7 @@ describe("formatAttachmentMetadata", () => {
     const result = formatAttachmentMetadata([
       { id: "1", url: "https://cdn.discord/a.dat", filename: "mystery.dat" },
     ]);
-    assert.strictEqual(
-      result,
-      "[message has 1 attachment(s)]\n- mystery.dat",
-    );
+    assert.strictEqual(result, "[message has 1 attachment(s)]\n- mystery.dat");
   });
 });
 

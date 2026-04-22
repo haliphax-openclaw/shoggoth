@@ -3,8 +3,15 @@
 // ---------------------------------------------------------------------------
 
 import type { ChatContentPart } from "@shoggoth/models";
-import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry.js";
-import { getBlockResolver, type ShowToolParams } from "../../presentation/show-blocks.js";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+  BuiltinToolResult,
+} from "../builtin-tool-registry.js";
+import {
+  getBlockResolver,
+  type ShowToolParams,
+} from "../../presentation/show-blocks.js";
 import { getLogger } from "../../logging.js";
 
 const log = getLogger("show-handler");
@@ -26,12 +33,17 @@ async function showHandler(
 
   const resolver = getBlockResolver(type);
   if (!resolver) {
-    return { resultJson: JSON.stringify({ error: `unsupported block type: ${type}` }) };
+    return {
+      resultJson: JSON.stringify({ error: `unsupported block type: ${type}` }),
+    };
   }
 
   // Support single params object or array of params for multi-block calls
   const inputs: ShowToolParams[] = Array.isArray(args.items)
-    ? (args.items as ShowToolParams[]).map((item) => ({ ...item, type: type as "image" }))
+    ? (args.items as ShowToolParams[]).map((item) => ({
+        ...item,
+        type: type as "image",
+      }))
     : [args as unknown as ShowToolParams];
 
   const allParts: ChatContentPart[] = [];

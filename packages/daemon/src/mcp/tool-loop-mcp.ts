@@ -27,12 +27,20 @@ export type ExternalMcpInvoke = (input: {
 export function buildAggregatedMcpCatalog(
   externalSources: readonly McpSourceCatalog[] = [],
 ): AggregateMcpCatalogResult {
-  return aggregateMcpCatalogs([builtinShoggothToolsCatalog(), ...externalSources]);
+  return aggregateMcpCatalogs([
+    builtinShoggothToolsCatalog(),
+    ...externalSources,
+  ]);
 }
 
 /** `RunToolLoopOptions.tools` entries using MCP-style `source.tool` names. */
-export function mcpToolsForToolLoop(aggregated: AggregateMcpCatalogResult): ReadonlyArray<{ name: string; inputSchema?: Record<string, unknown> }> {
-  return aggregated.tools.map((t) => ({ name: t.namespacedName, inputSchema: t.inputSchema as Record<string, unknown> }));
+export function mcpToolsForToolLoop(
+  aggregated: AggregateMcpCatalogResult,
+): ReadonlyArray<{ name: string; inputSchema?: Record<string, unknown> }> {
+  return aggregated.tools.map((t) => ({
+    name: t.namespacedName,
+    inputSchema: t.inputSchema as Record<string, unknown>,
+  }));
 }
 
 /**
@@ -53,7 +61,11 @@ export function createMcpRoutingToolExecutor(options: {
       }
       const { tool } = routed;
       if (tool.sourceId === "builtin") {
-        return builtin({ originalName: tool.originalName, argsJson, toolCallId });
+        return builtin({
+          originalName: tool.originalName,
+          argsJson,
+          toolCallId,
+        });
       }
       if (external) {
         return external({
@@ -68,7 +80,8 @@ export function createMcpRoutingToolExecutor(options: {
           error: "mcp_external_transport_unavailable",
           sourceId: tool.sourceId,
           tool: tool.originalName,
-          detail: "No MCP client configured for this source; invocation is stubbed.",
+          detail:
+            "No MCP client configured for this source; invocation is stubbed.",
         }),
       };
     },

@@ -46,18 +46,21 @@ Note: when a message has a legend, reactions that don't match any legend entry a
 A new turn mode available system-wide, not just for reactions.
 
 **What changes:**
+
 - System prompt is included (always needed)
 - System context buffer is drained (describes why this turn is happening)
 - Transcript is truncated to last N messages (configurable, default 0 or small number)
 - The triggering event context is injected (reaction details, heartbeat signal, cron job info, etc.)
 
 **Who can use it:**
+
 - Reaction passthrough (global and ad-hoc)
 - Heartbeat turns (currently send full transcript — wasteful)
 - Cron job turns (same)
 - Any future lightweight trigger
 
 **Config:**
+
 ```json
 {
   "runtime": {
@@ -71,6 +74,7 @@ A new turn mode available system-wide, not just for reactions.
 ## Global Reactions
 
 **Config (global and per-agent):**
+
 ```json
 {
   "reactions": {
@@ -81,6 +85,7 @@ A new turn mode available system-wide, not just for reactions.
 ```
 
 Per-agent override:
+
 ```json
 {
   "agents": {
@@ -97,6 +102,7 @@ Per-agent override:
 ```
 
 **Turn context injected:**
+
 ```
 Operator reacted 👍 to your message: "<truncated message content>"
 ```
@@ -115,6 +121,7 @@ React to choose:
 ```
 
 **Parsing rules:**
+
 - Block starts with a line matching `React to choose:` (case-insensitive)
 - Each subsequent line is `<emoji> <label>` until a blank line or end of message
 - Emoji is the first token (single emoji or emoji sequence)
@@ -148,6 +155,7 @@ This is lightweight — just a `Map<messageId, QueuedReaction[]>` in the present
 ## Integration Points
 
 ### Transport Layer (platform adapter)
+
 - Receives reaction events from the platform (Discord `MESSAGE_REACTION_ADD`, etc.)
 - Checks if the message is from the bot
 - Fetches current message content (for legend parsing)
@@ -155,6 +163,7 @@ This is lightweight — just a `Map<messageId, QueuedReaction[]>` in the present
 - Passes reaction + message content to the presentation layer
 
 ### Presentation Layer
+
 - Parses reaction legends from message content
 - Determines routing: ad-hoc legend match → ad-hoc turn, no legend + global match → global turn, otherwise discard
 - Manages streaming reaction queue
@@ -162,6 +171,7 @@ This is lightweight — just a `Map<messageId, QueuedReaction[]>` in the present
 - Triggers the turn via the core
 
 ### Core (daemon)
+
 - Executes the minimal context turn (system prompt + buffer + truncated transcript + event context)
 - No awareness of reactions specifically — just receives a turn with minimal context and event context
 

@@ -1,7 +1,11 @@
 import { ModelHttpError } from "./errors";
 import { openaiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
-import { normalizeThinkingBlocks, stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
+import {
+  normalizeThinkingBlocks,
+  stripXmlThinkingTags,
+  ThinkingStreamNormalizer,
+} from "./thinking-normalize";
 import type {
   ChatContentPart,
   ChatMessage,
@@ -16,8 +20,15 @@ import type {
 
 /** Extract usage metadata from an OpenAI chat completions response. */
 function extractOpenAIUsage(json: unknown): ModelUsage | undefined {
-  const u = (json as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
-  if (!u || typeof u.prompt_tokens !== "number" || typeof u.completion_tokens !== "number") return undefined;
+  const u = (
+    json as { usage?: { prompt_tokens?: number; completion_tokens?: number } }
+  ).usage;
+  if (
+    !u ||
+    typeof u.prompt_tokens !== "number" ||
+    typeof u.completion_tokens !== "number"
+  )
+    return undefined;
   return { inputTokens: u.prompt_tokens, outputTokens: u.completion_tokens };
 }
 
@@ -32,7 +43,6 @@ export interface OpenAICompatibleProviderOptions {
   readonly baseUrl: string;
   readonly apiKey?: string;
   readonly fetchImpl?: FetchLike;
-
 }
 
 function trimSlash(u: string): string {
@@ -89,7 +99,10 @@ function serializeChatMessage(m: ChatMessage): Record<string, unknown> {
 
 type ToolCallPartial = { id: string; name: string; arguments: string };
 
-function applyToolCallDeltas(map: Map<number, ToolCallPartial>, deltas: unknown): void {
+function applyToolCallDeltas(
+  map: Map<number, ToolCallPartial>,
+  deltas: unknown,
+): void {
   if (!Array.isArray(deltas)) return;
   for (const item of deltas) {
     if (!item || typeof item !== "object") continue;
@@ -120,7 +133,8 @@ function finalizeToolCalls(
     const t = map.get(k)!;
     if (t.id && t.name) {
       const args = t.arguments || "{}";
-      const strippedArgs = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(args) : args;
+      const strippedArgs =
+        thinkingFormat === "xml-tags" ? stripXmlThinkingTags(args) : args;
       out.push({ id: t.id, name: t.name, arguments: strippedArgs });
     }
   }
@@ -136,7 +150,11 @@ interface ConsumeStreamOptions {
 async function consumeOpenAIChatCompletionStream(
   body: ReadableStream<Uint8Array>,
   options: ConsumeStreamOptions,
-): Promise<{ content: string | null; toolCalls: ChatToolCall[]; usage?: ModelUsage }> {
+): Promise<{
+  content: string | null;
+  toolCalls: ChatToolCall[];
+  usage?: ModelUsage;
+}> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let lineBuf = "";
@@ -144,7 +162,10 @@ async function consumeOpenAIChatCompletionStream(
   let content: string | null = null;
   let usage: ModelUsage | undefined;
   const toolPartials = new Map<number, ToolCallPartial>();
-  const thinkNorm = options.thinkingFormat === "xml-tags" ? new ThinkingStreamNormalizer() : undefined;
+  const thinkNorm =
+    options.thinkingFormat === "xml-tags"
+      ? new ThinkingStreamNormalizer()
+      : undefined;
 
   const processDataPayload = (data: string) => {
     if (data === "[DONE]") return;
@@ -156,9 +177,18 @@ async function consumeOpenAIChatCompletionStream(
     }
 
     // Capture usage from the final chunk (sent when stream_options.include_usage is true).
-    const u = (json as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
-    if (u && typeof u.prompt_tokens === "number" && typeof u.completion_tokens === "number") {
-      usage = { inputTokens: u.prompt_tokens, outputTokens: u.completion_tokens };
+    const u = (
+      json as { usage?: { prompt_tokens?: number; completion_tokens?: number } }
+    ).usage;
+    if (
+      u &&
+      typeof u.prompt_tokens === "number" &&
+      typeof u.completion_tokens === "number"
+    ) {
+      usage = {
+        inputTokens: u.prompt_tokens,
+        outputTokens: u.completion_tokens,
+      };
     }
 
     const choices = (json as { choices?: unknown }).choices;
@@ -202,7 +232,9 @@ async function consumeOpenAIChatCompletionStream(
 
   while (true) {
     const { done, value } = await reader.read();
-    const chunkText = done ? decoder.decode() : decoder.decode(value, { stream: true });
+    const chunkText = done
+      ? decoder.decode()
+      : decoder.decode(value, { stream: true });
     lineBuf += chunkText;
     let nl: number;
     while ((nl = lineBuf.indexOf("\n")) >= 0) {
@@ -233,14 +265,18 @@ async function consumeOpenAIChatCompletionStream(
 
   return {
     content,
-    toolCalls: options.accumulateTools ? finalizeToolCalls(toolPartials, options.thinkingFormat) : [],
+    toolCalls: options.accumulateTools
+      ? finalizeToolCalls(toolPartials, options.thinkingFormat)
+      : [],
     usage,
   };
 }
 
 function headersToRecord(h: Headers): Record<string, string | undefined> {
   const rec: Record<string, string | undefined> = {};
-  h.forEach((v, k) => { rec[k.toLowerCase()] = v; });
+  h.forEach((v, k) => {
+    rec[k.toLowerCase()] = v;
+  });
   return rec;
 }
 
@@ -251,15 +287,24 @@ export function createOpenAICompatibleProvider(
   const base = trimSlash(options.baseUrl);
   const id = options.id;
 
-  async function resilientFetch(targetUrl: string, init: RequestInit): Promise<Response> {
+  async function resilientFetch(
+    targetUrl: string,
+    init: RequestInit,
+  ): Promise<Response> {
     try {
       const gate = getResilienceGate();
       return await gate.executeWithResilience(id, async () => {
         const res = await fetchImpl(targetUrl, init);
         try {
-          const parsed = parseRateLimitHeaders(id, headersToRecord(res.headers), "openai-compatible");
+          const parsed = parseRateLimitHeaders(
+            id,
+            headersToRecord(res.headers),
+            "openai-compatible",
+          );
           gate.getOrCreateManager(id).updateCapacity(parsed);
-        } catch { /* ignore header parse errors */ }
+        } catch {
+          /* ignore header parse errors */
+        }
         if (!res.ok) {
           const errText = await res.text();
           throw new ModelHttpError(
@@ -313,9 +358,17 @@ export function createOpenAICompatibleProvider(
           );
         }
         if (!res.body) {
-          throw new ModelHttpError(502, "missing response body for stream", undefined);
+          throw new ModelHttpError(
+            502,
+            "missing response body for stream",
+            undefined,
+          );
         }
-        const { content: streamed, toolCalls, usage } = await consumeOpenAIChatCompletionStream(res.body, {
+        const {
+          content: streamed,
+          toolCalls,
+          usage,
+        } = await consumeOpenAIChatCompletionStream(res.body, {
           accumulateTools: false,
           onTextDelta: input.onTextDelta,
         });
@@ -327,11 +380,18 @@ export function createOpenAICompatibleProvider(
           );
         }
         if (streamed === null) {
-          throw new ModelHttpError(502, "missing streamed assistant content", "");
+          throw new ModelHttpError(
+            502,
+            "missing streamed assistant content",
+            "",
+          );
         }
         const thinkingFormat = input.thinkingFormat ?? "none";
         const normalized = normalizeThinkingBlocks(streamed, thinkingFormat);
-        const content = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+        const content =
+          typeof normalized === "string"
+            ? normalized
+            : JSON.stringify(normalized);
         return { content, usage };
       }
 
@@ -344,18 +404,28 @@ export function createOpenAICompatibleProvider(
         );
       }
 
-      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
+      const text =
+        input.thinkingFormat === "xml-tags"
+          ? stripXmlThinkingTags(rawText)
+          : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
       } catch {
-        throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
+        throw new ModelHttpError(
+          502,
+          "invalid JSON from model endpoint",
+          text.slice(0, 200),
+        );
       }
 
       const choices = (json as { choices?: unknown }).choices;
       const first = Array.isArray(choices) ? choices[0] : undefined;
       const message =
-        first && typeof first === "object" && first !== null && "message" in first
+        first &&
+        typeof first === "object" &&
+        first !== null &&
+        "message" in first
           ? (first as { message?: { content?: unknown } }).message
           : undefined;
       const content =
@@ -365,16 +435,25 @@ export function createOpenAICompatibleProvider(
             ? ""
             : undefined;
       if (typeof content !== "string") {
-        throw new ModelHttpError(502, "missing choices[0].message.content", text.slice(0, 200));
+        throw new ModelHttpError(
+          502,
+          "missing choices[0].message.content",
+          text.slice(0, 200),
+        );
       }
 
       const thinkingFormat = input.thinkingFormat ?? "none";
       const normalized = normalizeThinkingBlocks(content, thinkingFormat);
-      const finalContent = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+      const finalContent =
+        typeof normalized === "string"
+          ? normalized
+          : JSON.stringify(normalized);
       return { content: finalContent, usage: extractOpenAIUsage(json) };
     },
 
-    async completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput> {
+    async completeWithTools(
+      input: ModelToolCompleteInput,
+    ): Promise<ModelToolCompleteOutput> {
       const url = `${base}/chat/completions`;
       const headers: Record<string, string> = {
         "content-type": "application/json",
@@ -413,9 +492,17 @@ export function createOpenAICompatibleProvider(
           );
         }
         if (!res.body) {
-          throw new ModelHttpError(502, "missing response body for stream", undefined);
+          throw new ModelHttpError(
+            502,
+            "missing response body for stream",
+            undefined,
+          );
         }
-        const { content: rawContent, toolCalls, usage } = await consumeOpenAIChatCompletionStream(res.body, {
+        const {
+          content: rawContent,
+          toolCalls,
+          usage,
+        } = await consumeOpenAIChatCompletionStream(res.body, {
           accumulateTools: true,
           thinkingFormat,
           onTextDelta: input.onTextDelta,
@@ -423,11 +510,22 @@ export function createOpenAICompatibleProvider(
         const content = rawContent;
 
         if (toolCalls.length === 0 && (content === null || content === "")) {
-          throw new ModelHttpError(502, "missing assistant content and tool_calls", "");
+          throw new ModelHttpError(
+            502,
+            "missing assistant content and tool_calls",
+            "",
+          );
         }
 
-        const normalized = content ? normalizeThinkingBlocks(content, thinkingFormat) : null;
-        const finalContent = normalized === null ? null : typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+        const normalized = content
+          ? normalizeThinkingBlocks(content, thinkingFormat)
+          : null;
+        const finalContent =
+          normalized === null
+            ? null
+            : typeof normalized === "string"
+              ? normalized
+              : JSON.stringify(normalized);
         return { content: finalContent, toolCalls, usage };
       }
 
@@ -440,24 +538,35 @@ export function createOpenAICompatibleProvider(
         );
       }
 
-      const text = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
+      const text =
+        thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);
       } catch {
-        throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
+        throw new ModelHttpError(
+          502,
+          "invalid JSON from model endpoint",
+          text.slice(0, 200),
+        );
       }
 
       const choices = (json as { choices?: unknown }).choices;
       const first = Array.isArray(choices) ? choices[0] : undefined;
       const message =
-        first && typeof first === "object" && first !== null && "message" in first
+        first &&
+        typeof first === "object" &&
+        first !== null &&
+        "message" in first
           ? (first as { message?: Record<string, unknown> }).message
           : undefined;
 
       let content: string | null = null;
       if (message && typeof message.content === "string") {
-        content = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(message.content) : message.content;
+        content =
+          thinkingFormat === "xml-tags"
+            ? stripXmlThinkingTags(message.content)
+            : message.content;
       } else if (message && message.content === null) {
         content = null;
       }
@@ -467,16 +576,24 @@ export function createOpenAICompatibleProvider(
       if (Array.isArray(toolCallsRaw)) {
         for (const tc of toolCallsRaw) {
           if (!tc || typeof tc !== "object") continue;
-          const id = typeof (tc as { id?: unknown }).id === "string" ? (tc as { id: string }).id : "";
+          const id =
+            typeof (tc as { id?: unknown }).id === "string"
+              ? (tc as { id: string }).id
+              : "";
           const fn = (tc as { function?: unknown }).function;
           if (!fn || typeof fn !== "object") continue;
           const name =
-            typeof (fn as { name?: unknown }).name === "string" ? (fn as { name: string }).name : "";
+            typeof (fn as { name?: unknown }).name === "string"
+              ? (fn as { name: string }).name
+              : "";
           const rawArgs =
             typeof (fn as { arguments?: unknown }).arguments === "string"
               ? (fn as { arguments: string }).arguments
               : "{}";
-          const args = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawArgs) : rawArgs;
+          const args =
+            thinkingFormat === "xml-tags"
+              ? stripXmlThinkingTags(rawArgs)
+              : rawArgs;
           if (id && name) toolCalls.push({ id, name, arguments: args });
         }
       }
@@ -489,9 +606,20 @@ export function createOpenAICompatibleProvider(
         );
       }
 
-      const normalized = content ? normalizeThinkingBlocks(content, thinkingFormat) : null;
-      const finalContent = normalized === null ? null : typeof normalized === "string" ? normalized : JSON.stringify(normalized);
-      return { content: finalContent, toolCalls, usage: extractOpenAIUsage(json) };
+      const normalized = content
+        ? normalizeThinkingBlocks(content, thinkingFormat)
+        : null;
+      const finalContent =
+        normalized === null
+          ? null
+          : typeof normalized === "string"
+            ? normalized
+            : JSON.stringify(normalized);
+      return {
+        content: finalContent,
+        toolCalls,
+        usage: extractOpenAIUsage(json),
+      };
     },
   };
 }

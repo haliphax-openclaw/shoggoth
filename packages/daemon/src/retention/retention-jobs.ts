@@ -23,7 +23,9 @@ export function retentionConfigHasRules(
   );
 }
 
-function retentionHasRules(r: ShoggothRetentionConfig | undefined): r is ShoggothRetentionConfig {
+function retentionHasRules(
+  r: ShoggothRetentionConfig | undefined,
+): r is ShoggothRetentionConfig {
   return retentionConfigHasRules(r);
 }
 
@@ -52,7 +54,9 @@ function isPathInsideRoot(rootAbs: string, pathAbs: string): boolean {
   return !rel.startsWith("..");
 }
 
-async function listInboundFileEntries(root: string): Promise<
+async function listInboundFileEntries(
+  root: string,
+): Promise<
   { absPath: string; relPath: string; mtimeMs: number; size: number }[]
 > {
   let rootReal: string;
@@ -62,7 +66,12 @@ async function listInboundFileEntries(root: string): Promise<
     return [];
   }
 
-  const out: { absPath: string; relPath: string; mtimeMs: number; size: number }[] = [];
+  const out: {
+    absPath: string;
+    relPath: string;
+    mtimeMs: number;
+    size: number;
+  }[] = [];
 
   async function walk(currentAbs: string): Promise<void> {
     let currentReal: string;
@@ -127,7 +136,9 @@ async function purgeInboundMedia(
   }
 
   const cutoffMs =
-    maxAgeDays != null ? Date.now() - maxAgeDays * 86_400_000 : Number.NEGATIVE_INFINITY;
+    maxAgeDays != null
+      ? Date.now() - maxAgeDays * 86_400_000
+      : Number.NEGATIVE_INFINITY;
 
   let files = await listInboundFileEntries(root);
 
@@ -178,9 +189,13 @@ function purgeTranscriptByAge(db: Database.Database, days: number): number {
   return Number(info.changes);
 }
 
-function purgeTranscriptBySessionCap(db: Database.Database, keepPerSession: number): number {
-  const info = db.prepare(
-    `
+function purgeTranscriptBySessionCap(
+  db: Database.Database,
+  keepPerSession: number,
+): number {
+  const info = db
+    .prepare(
+      `
     DELETE FROM transcript_messages
     WHERE id IN (
       SELECT id FROM (
@@ -190,7 +205,8 @@ function purgeTranscriptBySessionCap(db: Database.Database, keepPerSession: numb
       ) WHERE rn > @keep
     )
   `,
-  ).run({ keep: keepPerSession });
+    )
+    .run({ keep: keepPerSession });
   return Number(info.changes);
 }
 
@@ -200,11 +216,13 @@ function purgeKvByEntryCap(db: Database.Database, maxEntries: number): number {
     .all() as { workspace: string }[];
   let total = 0;
   for (const { workspace } of workspaces) {
-    const info = db.prepare(
-      `DELETE FROM kv_store WHERE workspace = ? AND key NOT IN (
+    const info = db
+      .prepare(
+        `DELETE FROM kv_store WHERE workspace = ? AND key NOT IN (
         SELECT key FROM kv_store WHERE workspace = ? ORDER BY updated_at DESC LIMIT ?
-      )`
-    ).run(workspace, workspace, maxEntries);
+      )`,
+      )
+      .run(workspace, workspace, maxEntries);
     total += Number(info.changes);
   }
   return total;
@@ -240,8 +258,14 @@ export async function runRetentionJobs(
 
   const mediaRoot = resolve(config.inboundMediaRoot);
 
-  if (rules.inboundMediaMaxAgeDays != null || rules.inboundMediaMaxTotalBytes != null) {
-    const { deletedFiles, freedBytes } = await purgeInboundMedia(mediaRoot, rules);
+  if (
+    rules.inboundMediaMaxAgeDays != null ||
+    rules.inboundMediaMaxTotalBytes != null
+  ) {
+    const { deletedFiles, freedBytes } = await purgeInboundMedia(
+      mediaRoot,
+      rules,
+    );
     inboundMediaDeletedFiles = deletedFiles;
     inboundMediaFreedBytes = freedBytes;
     appendAuditRow(db, {

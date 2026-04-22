@@ -19,7 +19,9 @@ function makeTmpWorkspace(): string {
 function stubCtx(workspacePath: string): BuiltinToolContext {
   return {
     sessionId: "agent:test:discord:channel:123",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     db: {} as any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config: {} as any,
     env: {},
     workspacePath,
@@ -152,7 +154,9 @@ describe("search-replace: search", () => {
   it("maxResults truncation", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const lines = Array.from({ length: 500 }, (_, i) => `match${i}`).join("\n");
+      const lines = Array.from({ length: 500 }, (_, i) => `match${i}`).join(
+        "\n",
+      );
       writeFileSync(join(ws, "big.txt"), lines);
       const result = await exec(ws, {
         action: "search",
@@ -180,7 +184,10 @@ describe("search-replace: search", () => {
       assert.ok(!result.error, `unexpected error: ${result.error}`);
       const output = result.output as string;
       assert.ok(output.includes("beta"), "should find match in file");
-      assert.ok(!output.includes("alpha"), "should not include non-matching lines");
+      assert.ok(
+        !output.includes("alpha"),
+        "should not include non-matching lines",
+      );
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }
@@ -385,7 +392,10 @@ describe("search-replace: replace", () => {
         replacement: "nope",
         fixedStrings: true,
       });
-      assert.ok(result.error, "should error when multiline match attempted without multiline flag");
+      assert.ok(
+        result.error,
+        "should error when multiline match attempted without multiline flag",
+      );
     } finally {
       rmSync(ws, { recursive: true, force: true });
     }

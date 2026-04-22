@@ -29,7 +29,11 @@ function fakeLogger() {
 }
 
 /** Build an aggregated entry so routeMcpToolInvocation can find it by namespacedName. */
-function aggTool(namespacedName: string, sourceId = "external", originalName?: string) {
+function aggTool(
+  namespacedName: string,
+  sourceId = "external",
+  originalName?: string,
+) {
   return {
     name: originalName ?? namespacedName,
     namespacedName,
@@ -41,7 +45,12 @@ function aggTool(namespacedName: string, sourceId = "external", originalName?: s
 
 function fakeToolContext(
   toolNames: string[],
-  externalFn?: (input: { sourceId: string; originalName: string; argsJson: string; toolCallId: string }) => Promise<{ resultJson: string }>,
+  externalFn?: (input: {
+    sourceId: string;
+    originalName: string;
+    argsJson: string;
+    toolCallId: string;
+  }) => Promise<{ resultJson: string }>,
 ): SessionMcpToolContext {
   return {
     aggregated: { tools: toolNames.map((n) => aggTool(n)) },
@@ -58,7 +67,12 @@ function fakeToolContext(
 describe("createWorkflowToolExecutorAdapter", () => {
   describe("interface conversion", () => {
     it("converts workflow tool call to daemon format and executes", async () => {
-      const externalCalls: Array<{ sourceId: string; originalName: string; argsJson: string; toolCallId: string }> = [];
+      const externalCalls: Array<{
+        sourceId: string;
+        originalName: string;
+        argsJson: string;
+        toolCallId: string;
+      }> = [];
       const logger = fakeLogger();
       const context = fakeToolContext(["builtin-exec"], async (input) => {
         externalCalls.push(input);
@@ -71,7 +85,9 @@ describe("createWorkflowToolExecutorAdapter", () => {
         logger,
       });
 
-      const result = await adapter.execute("builtin-exec", { command: "echo hello" });
+      const result = await adapter.execute("builtin-exec", {
+        command: "echo hello",
+      });
 
       assert.equal(result.ok, true);
       assert.equal(result.output, JSON.stringify({ result: "success" }));
@@ -364,7 +380,9 @@ describe("createWorkflowToolExecutorAdapter", () => {
     it("returns ok=true with output for successful execution", async () => {
       const logger = fakeLogger();
       const context = fakeToolContext(["list-tool"], async () => {
-        return { resultJson: JSON.stringify({ status: "ok", data: [1, 2, 3] }) };
+        return {
+          resultJson: JSON.stringify({ status: "ok", data: [1, 2, 3] }),
+        };
       });
 
       const adapter = createWorkflowToolExecutorAdapter({
@@ -376,7 +394,10 @@ describe("createWorkflowToolExecutorAdapter", () => {
       const result = await adapter.execute("list-tool", {});
 
       assert.equal(result.ok, true);
-      assert.deepEqual(JSON.parse(result.output), { status: "ok", data: [1, 2, 3] });
+      assert.deepEqual(JSON.parse(result.output), {
+        status: "ok",
+        data: [1, 2, 3],
+      });
       assert.equal(result.error, undefined);
     });
 

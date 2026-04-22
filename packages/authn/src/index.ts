@@ -8,7 +8,10 @@ export {
   type AgentTokenRecord,
   type AgentTokenStore,
 } from "./agent-token";
-export { validateOperatorToken, hashOperatorTokenOpaque } from "./operator-token";
+export {
+  validateOperatorToken,
+  hashOperatorTokenOpaque,
+} from "./operator-token";
 export type {
   AuthSource,
   OperatorPrincipal,

@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
-import type { ShoggothConfig, ShoggothModelsConfig, FailoverChainEntry, ModelsRetry } from "@shoggoth/shared";
+import type {
+  ShoggothConfig,
+  ShoggothModelsConfig,
+  FailoverChainEntry,
+  ModelsRetry,
+} from "@shoggoth/shared";
 import { resolveEffectiveModelsConfig } from "@shoggoth/shared";
 import { isProviderFailed } from "./provider-failure-store";
 import { getLogger } from "../logging";
@@ -44,32 +49,50 @@ const RETRY_DEFAULTS: RetryConfig = {
  * - string: "providerId/model" (FailoverChainEntry)
  * - { providerId: "x", model: "y" } (ShoggothModelFailoverHop from agent overrides)
  */
-function entryToRef(entry: FailoverChainEntry | { providerId: string; model: string }): string {
+function entryToRef(
+  entry: FailoverChainEntry | { providerId: string; model: string },
+): string {
   if (typeof entry === "string") return entry;
-  if ("providerId" in entry && "model" in entry) return `${entry.providerId}/${entry.model}`;
+  if ("providerId" in entry && "model" in entry)
+    return `${entry.providerId}/${entry.model}`;
   return "";
 }
 
 /** Parse 'providerId/model' into its parts. */
-function parseRef(ref: string): { providerId: string; modelName: string } | null {
+function parseRef(
+  ref: string,
+): { providerId: string; modelName: string } | null {
   const slash = ref.indexOf("/");
   if (slash < 1 || slash === ref.length - 1) return null;
   return { providerId: ref.slice(0, slash), modelName: ref.slice(slash + 1) };
 }
 
 /** Find a provider by id in the providers list. */
-function findProvider(providers: readonly ProviderConfig[], providerId: string): ProviderConfig | undefined {
+function findProvider(
+  providers: readonly ProviderConfig[],
+  providerId: string,
+): ProviderConfig | undefined {
   return providers.find((p) => p.id === providerId);
 }
 
 /** Find a model definition in a provider's models list. */
-function findModelDef(provider: ProviderConfig, modelName: string): ProviderModelDefinition | undefined {
+function findModelDef(
+  provider: ProviderConfig,
+  modelName: string,
+): ProviderModelDefinition | undefined {
   return provider.models?.find((m) => m.name === modelName);
 }
 
 /** Get the markFailedDurationMs for a provider, falling back to global retry config then default. */
-function getMarkFailedDuration(provider: ProviderConfig, globalRetry: ModelsRetry | undefined): number {
-  return provider.markFailedDurationMs ?? globalRetry?.markFailedDurationMs ?? DEFAULT_MARK_FAILED_DURATION_MS;
+function getMarkFailedDuration(
+  provider: ProviderConfig,
+  globalRetry: ModelsRetry | undefined,
+): number {
+  return (
+    provider.markFailedDurationMs ??
+    globalRetry?.markFailedDurationMs ??
+    DEFAULT_MARK_FAILED_DURATION_MS
+  );
 }
 
 /**
@@ -90,7 +113,10 @@ function tryResolveRef(
 
   const provider = findProvider(providers, parsed.providerId);
   if (!provider) {
-    log.warn("provider not found for ref", { ref, providerId: parsed.providerId });
+    log.warn("provider not found for ref", {
+      ref,
+      providerId: parsed.providerId,
+    });
     return null;
   }
 
@@ -101,7 +127,11 @@ function tryResolveRef(
 
   const modelDef = findModelDef(provider, parsed.modelName);
   if (!modelDef) {
-    log.warn("model not found in provider", { ref, providerId: parsed.providerId, model: parsed.modelName });
+    log.warn("model not found in provider", {
+      ref,
+      providerId: parsed.providerId,
+      model: parsed.modelName,
+    });
     return null;
   }
 
@@ -126,7 +156,7 @@ export function resolveModel(
   opts?: ResolveModelOpts,
 ): ResolvedModel | null {
   const effectiveModels = opts?.sessionId
-    ? resolveEffectiveModelsConfig(config, opts.sessionId) ?? config.models
+    ? (resolveEffectiveModelsConfig(config, opts.sessionId) ?? config.models)
     : config.models;
 
   if (!effectiveModels) {
@@ -142,7 +172,9 @@ export function resolveModel(
 
   // The failover chain may contain FailoverChainEntry (string | { ref }) or
   // ShoggothModelFailoverHop ({ providerId, model }) from agent overrides.
-  const chain = effectiveModels.failoverChain as ReadonlyArray<FailoverChainEntry | { providerId: string; model: string }> | undefined;
+  const chain = effectiveModels.failoverChain as
+    | ReadonlyArray<FailoverChainEntry | { providerId: string; model: string }>
+    | undefined;
   if (!chain?.length) {
     log.warn("no failover chain configured");
     return null;
@@ -189,14 +221,19 @@ export function resolveModel(
  * Resolve the primary model ref from config at bootstrap time.
  * Returns a "providerId/model" string, or undefined if anything is missing/invalid.
  */
-export function resolveBootstrapModelRef(config: ShoggothConfig, sessionId?: string): string | undefined {
+export function resolveBootstrapModelRef(
+  config: ShoggothConfig,
+  sessionId?: string,
+): string | undefined {
   const effectiveModels = sessionId
-    ? resolveEffectiveModelsConfig(config, sessionId) ?? config.models
+    ? (resolveEffectiveModelsConfig(config, sessionId) ?? config.models)
     : config.models;
 
   if (!effectiveModels) return undefined;
 
-  const chain = effectiveModels.failoverChain as ReadonlyArray<FailoverChainEntry | { providerId: string; model: string }> | undefined;
+  const chain = effectiveModels.failoverChain as
+    | ReadonlyArray<FailoverChainEntry | { providerId: string; model: string }>
+    | undefined;
   if (!chain?.length) return undefined;
 
   const ref = entryToRef(chain[0]);
@@ -209,8 +246,15 @@ export function resolveBootstrapModelRef(config: ShoggothConfig, sessionId?: str
  * Extract the primary model ref from a session's modelSelection blob.
  * Returns the "providerId/model" string, or undefined if missing/invalid.
  */
-export function getSessionPrimaryModelRef(modelSelection: unknown): string | undefined {
-  if (modelSelection == null || typeof modelSelection !== "object" || Array.isArray(modelSelection)) return undefined;
+export function getSessionPrimaryModelRef(
+  modelSelection: unknown,
+): string | undefined {
+  if (
+    modelSelection == null ||
+    typeof modelSelection !== "object" ||
+    Array.isArray(modelSelection)
+  )
+    return undefined;
   const model = (modelSelection as Record<string, unknown>).model;
   if (typeof model !== "string") return undefined;
   if (!parseRef(model)) return undefined;
@@ -222,9 +266,17 @@ export function resolveRetryConfig(
   providerRetry: Partial<RetryConfig> | undefined,
 ): RetryConfig {
   return {
-    maxRetries: providerRetry?.maxRetries ?? globalRetry?.maxRetries ?? RETRY_DEFAULTS.maxRetries,
-    retryDelayMs: providerRetry?.retryDelayMs ?? globalRetry?.retryDelayMs ?? RETRY_DEFAULTS.retryDelayMs,
+    maxRetries:
+      providerRetry?.maxRetries ??
+      globalRetry?.maxRetries ??
+      RETRY_DEFAULTS.maxRetries,
+    retryDelayMs:
+      providerRetry?.retryDelayMs ??
+      globalRetry?.retryDelayMs ??
+      RETRY_DEFAULTS.retryDelayMs,
     retryBackoffMultiplier:
-      providerRetry?.retryBackoffMultiplier ?? globalRetry?.retryBackoffMultiplier ?? RETRY_DEFAULTS.retryBackoffMultiplier,
+      providerRetry?.retryBackoffMultiplier ??
+      globalRetry?.retryBackoffMultiplier ??
+      RETRY_DEFAULTS.retryBackoffMultiplier,
   };
 }

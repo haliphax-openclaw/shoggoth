@@ -24,13 +24,17 @@ describe("ProcessManager", () => {
     // Wait for process to finish
     await new Promise<void>((resolve) => {
       if (mp.state === "dead") return resolve();
-      mp.on("state-change", (s: string) => { if (s === "dead") resolve(); });
+      mp.on("state-change", (s: string) => {
+        if (s === "dead") resolve();
+      });
     });
   });
 
   it("rejects duplicate spec IDs", async () => {
     const pm = new ProcessManager();
-    await pm.start(makeSpec({ id: "dup-test", command: "sleep", args: ["60"] }));
+    await pm.start(
+      makeSpec({ id: "dup-test", command: "sleep", args: ["60"] }),
+    );
 
     await assert.rejects(
       () => pm.start(makeSpec({ id: "dup-test" })),
@@ -43,7 +47,9 @@ describe("ProcessManager", () => {
 
   it("stop removes the process", async () => {
     const pm = new ProcessManager();
-    await pm.start(makeSpec({ id: "stop-test", command: "sleep", args: ["60"] }));
+    await pm.start(
+      makeSpec({ id: "stop-test", command: "sleep", args: ["60"] }),
+    );
 
     assert.ok(pm.get("stop-test"));
     await pm.stop("stop-test");
@@ -52,10 +58,7 @@ describe("ProcessManager", () => {
 
   it("stop throws for unknown ID", async () => {
     const pm = new ProcessManager();
-    await assert.rejects(
-      () => pm.stop("nonexistent"),
-      /No process with id/,
-    );
+    await assert.rejects(() => pm.stop("nonexistent"), /No process with id/);
   });
 
   it("list returns all processes", async () => {
@@ -71,24 +74,30 @@ describe("ProcessManager", () => {
 
   it("listByOwner filters correctly", async () => {
     const pm = new ProcessManager();
-    await pm.start(makeSpec({
-      id: "owner-a",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "mcp-server", scopeId: "fs" },
-    }));
-    await pm.start(makeSpec({
-      id: "owner-b",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "plugin", scopeId: "lsp" },
-    }));
-    await pm.start(makeSpec({
-      id: "owner-c",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "mcp-server", scopeId: "git" },
-    }));
+    await pm.start(
+      makeSpec({
+        id: "owner-a",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "mcp-server", scopeId: "fs" },
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "owner-b",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "plugin", scopeId: "lsp" },
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "owner-c",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "mcp-server", scopeId: "git" },
+      }),
+    );
 
     const mcpProcs = pm.listByOwner({ kind: "mcp-server" });
     assert.equal(mcpProcs.length, 2);
@@ -102,24 +111,30 @@ describe("ProcessManager", () => {
 
   it("stopByOwner stops only matching processes", async () => {
     const pm = new ProcessManager();
-    await pm.start(makeSpec({
-      id: "sbo-a",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "session", scopeId: "s1" },
-    }));
-    await pm.start(makeSpec({
-      id: "sbo-b",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "session", scopeId: "s2" },
-    }));
-    await pm.start(makeSpec({
-      id: "sbo-c",
-      command: "sleep",
-      args: ["60"],
-      owner: { kind: "daemon" },
-    }));
+    await pm.start(
+      makeSpec({
+        id: "sbo-a",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "session", scopeId: "s1" },
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "sbo-b",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "session", scopeId: "s2" },
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "sbo-c",
+        command: "sleep",
+        args: ["60"],
+        owner: { kind: "daemon" },
+      }),
+    );
 
     await pm.stopByOwner({ kind: "session", scopeId: "s1" });
 
@@ -136,23 +151,29 @@ describe("ProcessManager", () => {
 
     // A depends on B, B depends on C
     // Shutdown order should be: A first, then B, then C
-    await pm.start(makeSpec({
-      id: "dep-c",
-      command: "sleep",
-      args: ["60"],
-    }));
-    await pm.start(makeSpec({
-      id: "dep-b",
-      command: "sleep",
-      args: ["60"],
-      dependsOn: ["dep-c"],
-    }));
-    await pm.start(makeSpec({
-      id: "dep-a",
-      command: "sleep",
-      args: ["60"],
-      dependsOn: ["dep-b"],
-    }));
+    await pm.start(
+      makeSpec({
+        id: "dep-c",
+        command: "sleep",
+        args: ["60"],
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "dep-b",
+        command: "sleep",
+        args: ["60"],
+        dependsOn: ["dep-c"],
+      }),
+    );
+    await pm.start(
+      makeSpec({
+        id: "dep-a",
+        command: "sleep",
+        args: ["60"],
+        dependsOn: ["dep-b"],
+      }),
+    );
 
     // Track stop order via state-change events
     for (const mp of pm.list()) {
@@ -171,8 +192,14 @@ describe("ProcessManager", () => {
     assert.ok(idxA >= 0, "dep-a should have been stopped");
     assert.ok(idxB >= 0, "dep-b should have been stopped");
     assert.ok(idxC >= 0, "dep-c should have been stopped");
-    assert.ok(idxA < idxB, `dep-a (${idxA}) should stop before dep-b (${idxB})`);
-    assert.ok(idxB < idxC, `dep-b (${idxB}) should stop before dep-c (${idxC})`);
+    assert.ok(
+      idxA < idxB,
+      `dep-a (${idxA}) should stop before dep-b (${idxB})`,
+    );
+    assert.ok(
+      idxB < idxC,
+      `dep-b (${idxB}) should stop before dep-c (${idxC})`,
+    );
   });
 
   it("emits process-started and process-stopped events", async () => {
@@ -182,12 +209,16 @@ describe("ProcessManager", () => {
     pm.on("process-started", () => events.push("started"));
     pm.on("process-stopped", () => events.push("stopped"));
 
-    const mp = await pm.start(makeSpec({ id: "events-test", command: "sleep", args: ["60"] }));
+    const mp = await pm.start(
+      makeSpec({ id: "events-test", command: "sleep", args: ["60"] }),
+    );
 
     // Wait for running
     if (mp.state !== "running") {
       await new Promise<void>((resolve) => {
-        mp.on("state-change", (s: string) => { if (s === "running") resolve(); });
+        mp.on("state-change", (s: string) => {
+          if (s === "running") resolve();
+        });
       });
     }
 

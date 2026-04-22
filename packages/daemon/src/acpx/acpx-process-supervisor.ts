@@ -1,9 +1,17 @@
-import { spawn as defaultSpawn, type ChildProcess, type SpawnOptions } from "node:child_process";
+import {
+  spawn as defaultSpawn,
+  type ChildProcess,
+  type SpawnOptions,
+} from "node:child_process";
 import { getLogger } from "../logging";
 
 const log = getLogger("acpx");
 
-export type AcpxSpawnFn = (command: string, args: string[], options: SpawnOptions) => ChildProcess;
+export type AcpxSpawnFn = (
+  command: string,
+  args: string[],
+  options: SpawnOptions,
+) => ChildProcess;
 
 type TrackedAcpxProcess = {
   readonly pid: number;
@@ -32,7 +40,12 @@ export class AcpxProcessSupervisor {
   private readonly spawnFn: AcpxSpawnFn;
   private readonly byRoot = new Map<
     string,
-    { pid: number; shoggothSessionId: string; startedAtMs: number; child: ChildProcess }
+    {
+      pid: number;
+      shoggothSessionId: string;
+      startedAtMs: number;
+      child: ChildProcess;
+    }
   >();
 
   constructor(opts: AcpxProcessSupervisorOptions) {
@@ -63,7 +76,10 @@ export class AcpxProcessSupervisor {
 
     const pid = child.pid;
     if (pid === undefined) {
-      throw new AcpxSupervisorError("ERR_ACPX_SPAWN", "spawn did not assign a pid");
+      throw new AcpxSupervisorError(
+        "ERR_ACPX_SPAWN",
+        "spawn did not assign a pid",
+      );
     }
 
     const startedAtMs = Date.now();
@@ -123,6 +139,8 @@ export class AcpxProcessSupervisor {
   }
 }
 
-export function createAcpxProcessSupervisor(opts?: AcpxProcessSupervisorOptions): AcpxProcessSupervisor {
+export function createAcpxProcessSupervisor(
+  opts?: AcpxProcessSupervisorOptions,
+): AcpxProcessSupervisor {
   return new AcpxProcessSupervisor(opts ?? {});
 }

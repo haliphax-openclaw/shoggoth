@@ -26,7 +26,10 @@ export interface MessageExtensions {
    * Platform-keyed transport envelopes (e.g. `{ discord: { ... } }`).
    * Provides a uniform lookup path for multi-platform support.
    */
-  readonly platform?: Record<string, import("./platform").PlatformTransportEnvelope>;
+  readonly platform?: Record<
+    string,
+    import("./platform").PlatformTransportEnvelope
+  >;
 }
 
 export interface InternalMessage {
@@ -50,7 +53,9 @@ export interface CreateInboundMessageInput {
   readonly extensions?: MessageExtensions;
 }
 
-export function createInboundMessage(input: CreateInboundMessageInput): InternalMessage {
+export function createInboundMessage(
+  input: CreateInboundMessageInput,
+): InternalMessage {
   return {
     id: input.id,
     direction: "inbound",
@@ -73,7 +78,9 @@ export interface CreateOutboundMessageInput {
   readonly extensions?: MessageExtensions;
 }
 
-export function createOutboundMessage(input: CreateOutboundMessageInput): InternalMessage {
+export function createOutboundMessage(
+  input: CreateOutboundMessageInput,
+): InternalMessage {
   return {
     id: input.id,
     direction: "outbound",

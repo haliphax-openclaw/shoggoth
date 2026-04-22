@@ -9,64 +9,64 @@ An AI orchestration platform with Discord (or other message platform) as its pri
 
 - Working title: Shoggoth
 - Authentication
-	- API keys for agent/application access
-	- User has CLI tool on host system for direct system calls, no authentication needed
+  - API keys for agent/application access
+  - User has CLI tool on host system for direct system calls, no authentication needed
 - Authorization
-	- Roles
-	- Permissions
-		- System and subsystem access/administration permissions
-		- Individual tool permissions
+  - Roles
+  - Permissions
+    - System and subsystem access/administration permissions
+    - Individual tool permissions
 - Scheduling system
-	- **Cron** for specific recurring tasks on an exact schedule, each individually configured
-	- **Heartbeat** for gathering tasks into batches on an interval
+  - **Cron** for specific recurring tasks on an exact schedule, each individually configured
+  - **Heartbeat** for gathering tasks into batches on an interval
 - Event system
-	- Emit tasks/notifications/results to global or session-scoped list
-	- Heartbeat system handles emitted items in batches
+  - Emit tasks/notifications/results to global or session-scoped list
+  - Heartbeat system handles emitted items in batches
 - Session router
-	- Routes messages to agent sessions
-	- Maintains session transcripts
-	- Tool call loop
+  - Routes messages to agent sessions
+  - Maintains session transcripts
+  - Tool call loop
 - Session manager
-	- Manages agent sessions: spawn (with specified model + prompt), health check, kill, etc.
-	- Links sessions to message system
-	- Prefixes user prompt with system prompt containing basic environmental context and agent startup sequence ("You are an agent in the xyz platform. If BOOTSTRAP.md exists...", etc.)
-	- Optional "light context" mode when spawning subagents to skip most agent template files in prompt instructions and provide only minimal environmental context
+  - Manages agent sessions: spawn (with specified model + prompt), health check, kill, etc.
+  - Links sessions to message system
+  - Prefixes user prompt with system prompt containing basic environmental context and agent startup sequence ("You are an agent in the xyz platform. If BOOTSTRAP.md exists...", etc.)
+  - Optional "light context" mode when spawning subagents to skip most agent template files in prompt instructions and provide only minimal environmental context
 - Skill system
-	- Skills are markdown documents with frontmatter
-	- Each skill is enabled/disabled by configuration
-	- Exposed selectively through a tool
+  - Skills are markdown documents with frontmatter
+  - Each skill is enabled/disabled by configuration
+  - Exposed selectively through a tool
 - Tools system (read, write, exec, etc.)
-	- Basic file manipulation
-	- Execute shell commands
-	- Expose built-in tools as MCP tools to ACP sessions
+  - Basic file manipulation
+  - Execute shell commands
+  - Expose built-in tools as MCP tools to ACP sessions
 - Plugin system
-	- `hooks-plugin` for providing hooks
-	- Base plugin class with install/uninstall/register methods for opportunities to adjust config, ask end user questions, etc.
+  - `hooks-plugin` for providing hooks
+  - Base plugin class with install/uninstall/register methods for opportunities to adjust config, ask end user questions, etc.
 - Message system
-	- Internal agent-to-agent message delivery
-	- External agent-to-user/user-to-agent message delivery
-	- Internal message metadata (session, agent, user)
-	- Basic set of parameters for all platforms (to, from, message, timestamp)
-	- Basic set of extensions shared by some platforms (attachments, threads, groups, replies, reactions, commands)
-	- Extensible to allow for platform-unique extensions
-	- Platform adapters specify the capabilities (markdown, direct messages, groups, channels) and message parameters they support
-	- Platform adapters link sessions to channels/DMs/groups
-	- Platform adapters link platform users to internal users 
-	- Discord adapter included by default for initial release
+  - Internal agent-to-agent message delivery
+  - External agent-to-user/user-to-agent message delivery
+  - Internal message metadata (session, agent, user)
+  - Basic set of parameters for all platforms (to, from, message, timestamp)
+  - Basic set of extensions shared by some platforms (attachments, threads, groups, replies, reactions, commands)
+  - Extensible to allow for platform-unique extensions
+  - Platform adapters specify the capabilities (markdown, direct messages, groups, channels) and message parameters they support
+  - Platform adapters link sessions to channels/DMs/groups
+  - Platform adapters link platform users to internal users
+  - Discord adapter included by default for initial release
 - MCP tools system
-	- Aggregate and invoke MCP tools with `mcporter`
+  - Aggregate and invoke MCP tools with `mcporter`
 - Workspace/prompt stack
-	- Template files (SOUL.md, AGENTS.md, TOOLS.md, MEMORY.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
-	- Separate workspace folder for each agent
+  - Template files (SOUL.md, AGENTS.md, TOOLS.md, MEMORY.md, IDENTITY.md, USER.md, BOOTSTRAP.md)
+  - Separate workspace folder for each agent
 - Memory search
-	- Index markdown memory files with SQLite
-	- Use text embedding model to support vector search
-	- Fall back to BM25 keyword search when text embedding model unavailable
+  - Index markdown memory files with SQLite
+  - Use text embedding model to support vector search
+  - Fall back to BM25 keyword search when text embedding model unavailable
 - ACP session manager
-	- Spawn and manage ACP subagents with `acpx`
+  - Spawn and manage ACP subagents with `acpx`
 - Canvas/A2UI surface
-	- Adapt `openclaw-canvas-web`
+  - Adapt `openclaw-canvas-web`
 - Configuration system
-	- JSON file(s)
-	- Loads default configuration then overlays user configuration
-	- User configuration is loaded from the configuration folder in sequence sorted alphabetically ascending by filename (a common pattern with Linux services)
+  - JSON file(s)
+  - Loads default configuration then overlays user configuration
+  - User configuration is loaded from the configuration folder in sequence sorted alphabetically ascending by filename (a common pattern with Linux services)

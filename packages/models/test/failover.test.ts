@@ -102,7 +102,9 @@ describe("createFailoverModelClient", () => {
           model: "m1",
         },
       ]);
-      const r = await c.complete({ messages: [{ role: "user", content: "x" }] });
+      const r = await c.complete({
+        messages: [{ role: "user", content: "x" }],
+      });
       assert.equal(r.thinkingFormat, "native");
     });
 
@@ -110,11 +112,15 @@ describe("createFailoverModelClient", () => {
       const c = createFailoverModelClient([
         { provider: mockProvider("a", "503"), model: "m1" },
         {
-          provider: mockProvider("b", "ok", "backup", { thinkingFormat: "xml-tags" }),
+          provider: mockProvider("b", "ok", "backup", {
+            thinkingFormat: "xml-tags",
+          }),
           model: "m2",
         },
       ]);
-      const r = await c.complete({ messages: [{ role: "user", content: "x" }] });
+      const r = await c.complete({
+        messages: [{ role: "user", content: "x" }],
+      });
       assert.equal(r.thinkingFormat, "xml-tags");
       assert.equal(r.degraded, true);
     });
@@ -123,7 +129,9 @@ describe("createFailoverModelClient", () => {
       const c = createFailoverModelClient([
         { provider: mockProvider("a", "ok", "x"), model: "m1" },
       ]);
-      const r = await c.complete({ messages: [{ role: "user", content: "x" }] });
+      const r = await c.complete({
+        messages: [{ role: "user", content: "x" }],
+      });
       assert.equal(r.thinkingFormat, undefined);
     });
   });
@@ -140,7 +148,9 @@ describe("createFailoverModelClient", () => {
         ],
         hooks,
       );
-      const r = await c.complete({ messages: [{ role: "user", content: "x" }] });
+      const r = await c.complete({
+        messages: [{ role: "user", content: "x" }],
+      });
       assert.equal(r.usedProviderId, "b");
       assert.equal(r.usedModel, "m2");
       assert.equal(r.degraded, true);

@@ -3,12 +3,11 @@ export function formatModelResult(r: Record<string, unknown>): string {
   const sessionId = r.session_id as string;
   const modelSelection = r.model_selection;
   const effectiveModels = r.effective_models as Record<string, unknown> | null;
-  const lines: string[] = [
-    `Model Configuration`,
-    `Session: ${sessionId}`,
-  ];
+  const lines: string[] = [`Model Configuration`, `Session: ${sessionId}`];
   if (modelSelection !== null && modelSelection !== undefined) {
-    lines.push(`Selection: ${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}`);
+    lines.push(
+      `Selection: ${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}`,
+    );
   } else {
     lines.push(`Selection: (using default)`);
   }

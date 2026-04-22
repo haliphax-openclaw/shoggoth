@@ -29,12 +29,19 @@ describe("toolPoll", () => {
   });
 
   /** Helper: spawn a background process and return its PID + sessionId. */
-  async function spawnBg(command: string, opts?: { yieldMs?: number }): Promise<{ pid: number; sessionId: string }> {
-    const r = await toolExecExtended(ws, {
-      command,
-      background: opts?.yieldMs === undefined ? true : undefined,
-      yieldMs: opts?.yieldMs,
-    }, creds);
+  async function spawnBg(
+    command: string,
+    opts?: { yieldMs?: number },
+  ): Promise<{ pid: number; sessionId: string }> {
+    const r = await toolExecExtended(
+      ws,
+      {
+        command,
+        background: opts?.yieldMs === undefined ? true : undefined,
+        yieldMs: opts?.yieldMs,
+      },
+      creds,
+    );
     assert.equal(r.kind, "background");
     const bg = r as ExecBackgroundResult;
     return { pid: bg.pid, sessionId: bg.sessionId };
@@ -46,7 +53,11 @@ describe("toolPoll", () => {
     if (session) {
       if (!session.exited) {
         // Kill the entire process group (detached processes need -pid)
-        try { process.kill(-session.pid, "SIGKILL"); } catch { /* already dead */ }
+        try {
+          process.kill(-session.pid, "SIGKILL");
+        } catch {
+          /* already dead */
+        }
         await session.done;
       }
       removeExecSession(sessionId);
@@ -59,10 +70,8 @@ describe("toolPoll", () => {
 
   describe("validation", () => {
     it("rejects missing pid", async () => {
-      await assert.rejects(
-        () => toolPoll({} as any),
-        /pid.*required/i,
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await assert.rejects(() => toolPoll({} as any), /pid.*required/i);
     });
 
     it("rejects non-integer pid", async () => {
@@ -123,7 +132,9 @@ describe("toolPoll", () => {
     it("returns error for untracked PID", async () => {
       const r = await toolPoll({ pid: 999999 });
       assert.ok("error" in r);
-      assert.ok((r as PollError).error.includes("no tracked process with pid 999999"));
+      assert.ok(
+        (r as PollError).error.includes("no tracked process with pid 999999"),
+      );
     });
   });
 
@@ -279,7 +290,9 @@ describe("toolPoll", () => {
     });
 
     it("returns split stdout/stderr when streams is true", async () => {
-      const { pid, sessionId } = await spawnBg("echo out-data; echo err-data >&2");
+      const { pid, sessionId } = await spawnBg(
+        "echo out-data; echo err-data >&2",
+      );
       const session = getExecSession(sessionId)!;
       await session.done;
 
@@ -414,7 +427,9 @@ describe("toolPoll", () => {
     });
 
     it("works with streams: true", async () => {
-      const { pid, sessionId } = await spawnBg("printf 'STDOUT'; printf 'STDERR' >&2");
+      const { pid, sessionId } = await spawnBg(
+        "printf 'STDOUT'; printf 'STDERR' >&2",
+      );
       const session = getExecSession(sessionId)!;
       await session.done;
 
@@ -460,7 +475,9 @@ describe("toolPoll", () => {
 
   describe("yielded processes", () => {
     it("can poll a process that was backgrounded via yieldMs", async () => {
-      const { pid, sessionId } = await spawnBg("echo yielded-output; sleep 2", { yieldMs: 200 });
+      const { pid, sessionId } = await spawnBg("echo yielded-output; sleep 2", {
+        yieldMs: 200,
+      });
       try {
         const r = await toolPoll({ pid });
         assert.ok(!("error" in r));

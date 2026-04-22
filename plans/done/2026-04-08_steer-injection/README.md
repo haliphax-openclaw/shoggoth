@@ -22,6 +22,7 @@ Actually — looking at the model client, the simplest approach: add an optional
 ### 2. Steer Channel Registry (`steer-channel.ts`)
 
 Follows the same singleton pattern as `system-context-buffer.ts` and `session-turn-abort.ts`:
+
 - `registerSteerChannel(sessionId): { push, unregister }`
 - `pushSteer(sessionId, message): boolean` — returns true if channel exists
 - `drainSteers(sessionId): string[]`
@@ -33,10 +34,13 @@ Before calling `ext.runSessionModelTurn`, check `pushSteer(sessionId, prompt)`. 
 ## Phases
 
 ### Phase 1: Steer channel + registry + tests
+
 Files: `packages/daemon/src/sessions/steer-channel.ts`, `packages/daemon/test/sessions/steer-channel.test.ts`
 
 ### Phase 2: Tool loop integration + tests
+
 Files: `packages/daemon/src/sessions/tool-loop.ts`, `packages/daemon/src/sessions/session-tool-loop-model-client.ts`, `packages/daemon/test/sessions/tool-loop-steer.test.ts`
 
 ### Phase 3: integration-ops split path + tests
+
 Files: `packages/daemon/src/control/integration-ops.ts`, `packages/daemon/test/control/integration-ops-steer.test.ts`

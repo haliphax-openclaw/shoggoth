@@ -18,15 +18,18 @@ export interface CompactTranscriptResult {
   readonly messages: ChatMessage[];
 }
 
-export function estimateTranscriptChars(messages: readonly ChatMessage[]): number {
+export function estimateTranscriptChars(
+  messages: readonly ChatMessage[],
+): number {
   let n = 0;
   for (const m of messages) n += (m.content ?? "").length;
   return n;
 }
 
-function splitSystemPrefix(
-  messages: readonly ChatMessage[],
-): { prefix: ChatMessage[]; rest: ChatMessage[] } {
+function splitSystemPrefix(messages: readonly ChatMessage[]): {
+  prefix: ChatMessage[];
+  rest: ChatMessage[];
+} {
   const prefix: ChatMessage[] = [];
   let i = 0;
   while (i < messages.length && messages[i]!.role === "system") {

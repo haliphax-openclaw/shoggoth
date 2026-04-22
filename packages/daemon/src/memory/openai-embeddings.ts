@@ -16,7 +16,9 @@ export async function fetchOpenAiCompatibleTextEmbedding(input: {
   const fetchImpl = input.fetchImpl ?? (globalThis.fetch as FetchLike);
   const base = input.baseUrl.replace(/\/+$/, "");
   const url = `${base}/embeddings`;
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
   if (input.apiKey) headers.authorization = `Bearer ${input.apiKey}`;
 
   const res = await fetchImpl(url, {

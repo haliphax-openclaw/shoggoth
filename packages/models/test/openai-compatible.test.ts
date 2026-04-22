@@ -91,7 +91,8 @@ describe("createOpenAICompatibleProvider", () => {
     });
 
     await assert.rejects(
-      () => p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
+      () =>
+        p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
       (e: unknown) => e instanceof ModelHttpError && e.status === 503,
     );
   });
@@ -109,7 +110,10 @@ describe("createOpenAICompatibleProvider", () => {
                   {
                     id: "call_1",
                     type: "function",
-                    function: { name: "builtin-read", arguments: '{"path":"a"}' },
+                    function: {
+                      name: "builtin-read",
+                      arguments: '{"path":"a"}',
+                    },
                   },
                 ],
               },
@@ -133,7 +137,10 @@ describe("createOpenAICompatibleProvider", () => {
           type: "function",
           function: {
             name: "builtin-read",
-            parameters: { type: "object", properties: { path: { type: "string" } } },
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+            },
           },
         },
       ],
@@ -226,7 +233,9 @@ describe("createOpenAICompatibleProvider", () => {
             choices: [
               {
                 delta: {
-                  tool_calls: [{ index: 0, function: { arguments: 'th":"a"}' } }],
+                  tool_calls: [
+                    { index: 0, function: { arguments: 'th":"a"}' } },
+                  ],
                 },
               },
             ],
@@ -248,7 +257,10 @@ describe("createOpenAICompatibleProvider", () => {
           type: "function",
           function: {
             name: "builtin-read",
-            parameters: { type: "object", properties: { path: { type: "string" } } },
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+            },
           },
         },
       ],
@@ -291,14 +303,15 @@ describe("createOpenAICompatibleProvider", () => {
   });
 });
 
-
 describe("serializeChatMessage with ChatContentPart[]", () => {
   it("serializes mixed text + image content parts for user message", async () => {
     let capturedBody: string | undefined;
     const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
       capturedBody = init?.body as string;
       return new Response(
-        JSON.stringify({ choices: [{ message: { content: "I see the image" } }] }),
+        JSON.stringify({
+          choices: [{ message: { content: "I see the image" } }],
+        }),
         { status: 200 },
       );
     };
@@ -319,11 +332,16 @@ describe("serializeChatMessage with ChatContentPart[]", () => {
     ];
 
     await p.complete({ model: "gpt-4o", messages });
-    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    const body = JSON.parse(capturedBody ?? "{}") as {
+      messages: Array<{ content: unknown }>;
+    };
     const content = body.messages[0]!.content as unknown[];
     assert.ok(Array.isArray(content));
     assert.equal(content.length, 2);
-    assert.deepStrictEqual(content[0], { type: "text", text: "What is in this image?" });
+    assert.deepStrictEqual(content[0], {
+      type: "text",
+      text: "What is in this image?",
+    });
     assert.deepStrictEqual(content[1], {
       type: "image_url",
       image_url: { url: "data:image/png;base64,iVBOR" },
@@ -350,13 +368,19 @@ describe("serializeChatMessage with ChatContentPart[]", () => {
         role: "user",
         content: [
           { type: "text", text: "Describe" },
-          { type: "image", mediaType: "image/jpeg", url: "https://example.com/photo.jpg" },
+          {
+            type: "image",
+            mediaType: "image/jpeg",
+            url: "https://example.com/photo.jpg",
+          },
         ],
       },
     ];
 
     await p.complete({ model: "gpt-4o", messages });
-    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    const body = JSON.parse(capturedBody ?? "{}") as {
+      messages: Array<{ content: unknown }>;
+    };
     const content = body.messages[0]!.content as unknown[];
     assert.deepStrictEqual(content[1], {
       type: "image_url",
@@ -383,7 +407,9 @@ describe("serializeChatMessage with ChatContentPart[]", () => {
       model: "gpt-4o",
       messages: [{ role: "user", content: "hello" }],
     });
-    const body = JSON.parse(capturedBody ?? "{}") as { messages: Array<{ content: unknown }> };
+    const body = JSON.parse(capturedBody ?? "{}") as {
+      messages: Array<{ content: unknown }>;
+    };
     assert.equal(body.messages[0]!.content, "hello");
   });
 });

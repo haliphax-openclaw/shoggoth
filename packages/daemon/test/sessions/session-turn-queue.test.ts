@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { TieredTurnQueue, TurnDroppedError, TurnQueueFullError } from "../../src/sessions/session-turn-queue";
+import {
+  TieredTurnQueue,
+  TurnDroppedError,
+  TurnQueueFullError,
+} from "../../src/sessions/session-turn-queue";
 
 describe("TieredTurnQueue", () => {
   let q: TieredTurnQueue;
@@ -28,7 +32,9 @@ describe("TieredTurnQueue", () => {
     it("serializes turns for the same session", async () => {
       const order: number[] = [];
       let resolve1!: () => void;
-      const gate1 = new Promise<void>((r) => { resolve1 = r; });
+      const gate1 = new Promise<void>((r) => {
+        resolve1 = r;
+      });
 
       const p1 = q.enqueue("s1", "user", "msg1", async () => {
         await gate1;
@@ -48,7 +54,9 @@ describe("TieredTurnQueue", () => {
 
     it("runs different sessions in parallel", async () => {
       let resolve1!: () => void;
-      const gate1 = new Promise<void>((r) => { resolve1 = r; });
+      const gate1 = new Promise<void>((r) => {
+        resolve1 = r;
+      });
       let s2Started = false;
 
       const p1 = q.enqueue("s1", "user", "msg", async () => {
@@ -69,7 +77,9 @@ describe("TieredTurnQueue", () => {
     it("system entries run before user entries", async () => {
       const order: string[] = [];
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       // Block the queue with a running turn
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
@@ -94,7 +104,9 @@ describe("TieredTurnQueue", () => {
     it("multiple system entries run before user entries", async () => {
       const order: string[] = [];
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -121,7 +133,9 @@ describe("TieredTurnQueue", () => {
     it("promotes a normal entry after N consecutive high-priority turns", async () => {
       const order: string[] = [];
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -131,10 +145,18 @@ describe("TieredTurnQueue", () => {
       const pU = q.enqueue("s1", "user", "user", async () => {
         order.push("user");
       });
-      const pS1 = q.enqueue("s1", "system", "s1", async () => { order.push("s1"); });
-      const pS2 = q.enqueue("s1", "system", "s2", async () => { order.push("s2"); });
-      const pS3 = q.enqueue("s1", "system", "s3", async () => { order.push("s3"); });
-      const pS4 = q.enqueue("s1", "system", "s4", async () => { order.push("s4"); });
+      const pS1 = q.enqueue("s1", "system", "s1", async () => {
+        order.push("s1");
+      });
+      const pS2 = q.enqueue("s1", "system", "s2", async () => {
+        order.push("s2");
+      });
+      const pS3 = q.enqueue("s1", "system", "s3", async () => {
+        order.push("s3");
+      });
+      const pS4 = q.enqueue("s1", "system", "s4", async () => {
+        order.push("s4");
+      });
 
       resolveFirst();
       await Promise.all([p0, pU, pS1, pS2, pS3, pS4]);
@@ -145,16 +167,26 @@ describe("TieredTurnQueue", () => {
     it("skips starvation check when normal queue is empty", async () => {
       const order: string[] = [];
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
       });
 
-      const pS1 = q.enqueue("s1", "system", "s1", async () => { order.push("s1"); });
-      const pS2 = q.enqueue("s1", "system", "s2", async () => { order.push("s2"); });
-      const pS3 = q.enqueue("s1", "system", "s3", async () => { order.push("s3"); });
-      const pS4 = q.enqueue("s1", "system", "s4", async () => { order.push("s4"); });
+      const pS1 = q.enqueue("s1", "system", "s1", async () => {
+        order.push("s1");
+      });
+      const pS2 = q.enqueue("s1", "system", "s2", async () => {
+        order.push("s2");
+      });
+      const pS3 = q.enqueue("s1", "system", "s3", async () => {
+        order.push("s3");
+      });
+      const pS4 = q.enqueue("s1", "system", "s4", async () => {
+        order.push("s4");
+      });
 
       resolveFirst();
       await Promise.all([p0, pS1, pS2, pS3, pS4]);
@@ -165,18 +197,32 @@ describe("TieredTurnQueue", () => {
       const q2 = new TieredTurnQueue(2);
       const order: string[] = [];
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q2.enqueue("s1", "user", "blocker", async () => {
         await gate;
       });
 
-      const pU1 = q2.enqueue("s1", "user", "u1", async () => { order.push("u1"); });
-      const pU2 = q2.enqueue("s1", "user", "u2", async () => { order.push("u2"); });
-      const pS1 = q2.enqueue("s1", "system", "s1", async () => { order.push("s1"); });
-      const pS2 = q2.enqueue("s1", "system", "s2", async () => { order.push("s2"); });
-      const pS3 = q2.enqueue("s1", "system", "s3", async () => { order.push("s3"); });
-      const pS4 = q2.enqueue("s1", "system", "s4", async () => { order.push("s4"); });
+      const pU1 = q2.enqueue("s1", "user", "u1", async () => {
+        order.push("u1");
+      });
+      const pU2 = q2.enqueue("s1", "user", "u2", async () => {
+        order.push("u2");
+      });
+      const pS1 = q2.enqueue("s1", "system", "s1", async () => {
+        order.push("s1");
+      });
+      const pS2 = q2.enqueue("s1", "system", "s2", async () => {
+        order.push("s2");
+      });
+      const pS3 = q2.enqueue("s1", "system", "s3", async () => {
+        order.push("s3");
+      });
+      const pS4 = q2.enqueue("s1", "system", "s4", async () => {
+        order.push("s4");
+      });
 
       resolveFirst();
       await Promise.all([p0, pU1, pU2, pS1, pS2, pS3, pS4]);
@@ -192,7 +238,9 @@ describe("TieredTurnQueue", () => {
 
     it("reflects queued entries", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -216,7 +264,9 @@ describe("TieredTurnQueue", () => {
 
     it("lists entries filtered by priority", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -245,7 +295,9 @@ describe("TieredTurnQueue", () => {
   describe("removeById", () => {
     it("removes entries by id and rejects their promises", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -269,7 +321,9 @@ describe("TieredTurnQueue", () => {
   describe("removeByRange", () => {
     it("removes entries by index range within a priority", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -296,7 +350,9 @@ describe("TieredTurnQueue", () => {
   describe("removeByCount", () => {
     it("removes first N entries from a priority", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -322,7 +378,9 @@ describe("TieredTurnQueue", () => {
   describe("clear", () => {
     it("clears all queued entries", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -344,7 +402,9 @@ describe("TieredTurnQueue", () => {
 
     it("clears only specified priority", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -378,9 +438,11 @@ describe("TieredTurnQueue", () => {
 
     it("continues processing after a failed turn", async () => {
       let ran = false;
-      await q.enqueue("s1", "user", "bad", async () => {
-        throw new Error("boom");
-      }).catch(() => {});
+      await q
+        .enqueue("s1", "user", "bad", async () => {
+          throw new Error("boom");
+        })
+        .catch(() => {});
 
       await q.enqueue("s1", "user", "good", async () => {
         ran = true;
@@ -396,7 +458,9 @@ describe("TieredTurnQueue", () => {
 
     it("handles removeByRange with out-of-bounds range", async () => {
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = q.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -423,7 +487,9 @@ describe("TieredTurnQueue", () => {
     it("rejects with TurnQueueFullError when tier exceeds maxDepth", async () => {
       const small = new TieredTurnQueue(2, 2);
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = small.enqueue("s1", "user", "blocker", async () => {
         await gate;
@@ -446,7 +512,9 @@ describe("TieredTurnQueue", () => {
     it("enforces maxDepth per tier independently", async () => {
       const small = new TieredTurnQueue(2, 2);
       let resolveFirst!: () => void;
-      const gate = new Promise<void>((r) => { resolveFirst = r; });
+      const gate = new Promise<void>((r) => {
+        resolveFirst = r;
+      });
 
       const p0 = small.enqueue("s1", "user", "blocker", async () => {
         await gate;

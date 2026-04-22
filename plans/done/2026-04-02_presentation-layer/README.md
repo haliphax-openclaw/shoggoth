@@ -44,6 +44,7 @@ Discord Gateway ←→ [platform-discord] ←→ [presentation] ←→ [daemon c
 ## Layer Responsibilities
 
 ### Platform (transport adapter)
+
 - Inbound message reception and normalization
 - Outbound message delivery (text → platform API)
 - Platform-specific message splitting (Discord 2000 char limit, etc.)
@@ -53,6 +54,7 @@ Discord Gateway ←→ [platform-discord] ←→ [presentation] ←→ [daemon c
 - Typing indicators
 
 ### Presentation (new)
+
 - **Reply formatting:** degraded prefix, agent identity prefix, model tag footer
 - **Error formatting:** user-facing error text from internal errors
 - **Streaming:** coalescing stream setup, interval management, failure fallback
@@ -61,6 +63,7 @@ Discord Gateway ←→ [platform-discord] ←→ [presentation] ←→ [daemon c
 - **Stats formatting:** context fill, queue depth (already partially extracted to `buildFormattedStats`)
 
 ### Core (daemon)
+
 - Session management, transcript, stats
 - Model invocation and tool loop
 - HITL approval gate and pending store
@@ -84,11 +87,22 @@ Create `packages/daemon/src/presentation/` with:
 ```ts
 interface PlatformAdapter {
   /** Send a text body to the platform. Platform handles splitting, encoding, etc. */
-  sendBody(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
+  sendBody(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string },
+  ): Promise<void>;
   /** Send an error body to the platform. */
-  sendError(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
+  sendError(
+    sessionId: string,
+    body: string,
+    opts?: { replyTo?: string },
+  ): Promise<void>;
   /** Start a streaming session. Returns a handle for pushing updates. */
-  startStream?(sessionId: string, opts?: { replyTo?: string }): Promise<StreamHandle>;
+  startStream?(
+    sessionId: string,
+    opts?: { replyTo?: string },
+  ): Promise<StreamHandle>;
   /** Send a HITL notice. Platform decides how to render (embed, plain text, etc.). */
   sendHitlNotice(sessionId: string, notice: HitlNoticeData): Promise<void>;
   /** Platform-specific message size limit. */
@@ -149,18 +163,21 @@ interface PlatformCapabilities {
 `register.ts` currently owns `registerBuiltInMessagingPlatforms()`, which creates a hard coupling from daemon core → platform-discord. This is a layer inversion: the daemon must import a specific platform package just to register messaging URN policies.
 
 **Current (wrong):**
+
 ```
 daemon/src/index.ts → import { registerBuiltInMessagingPlatforms } from "@shoggoth/platform-discord"
                       registerBuiltInMessagingPlatforms()  // side-effect: registers Discord URN policy
 ```
 
 **Target:**
+
 ```
 platform-discord exports its URN policy object (data, not a registration function)
 daemon discovers configured platforms at startup and registers their policies
 ```
 
 Changes:
+
 - `platform-discord/src/register.ts` → rename to `urn-policy.ts`, export the `discordUrnPolicy` object only (no registration side-effect)
 - `@shoggoth/messaging` keeps `registerMessagingPlatformUrnPolicy()` as the registration API
 - Daemon startup iterates configured platforms, imports their URN policy exports, and calls `registerMessagingPlatformUrnPolicy()` for each
@@ -168,17 +185,17 @@ Changes:
 
 ## What Moves to Presentation
 
-| Current Location | New Location |
-|---|---|
-| `platform.ts: formatDiscordPlatformDegradedPrefix` | `presentation/reply-formatter.ts: formatDegradedPrefix` |
-| `platform.ts: formatDiscordPlatformModelTagFooter` | `presentation/reply-formatter.ts: formatModelTagFooter` |
-| `platform.ts: formatAgentIdentityPrefix` (imported) | `presentation/reply-formatter.ts` |
-| `errors.ts: formatDiscordPlatformErrorUserText` | `presentation/reply-formatter.ts: formatErrorUserText` |
-| `errors.ts: sliceDiscordPlatformMessageBody` | stays in platform (transport concern: message size limit) |
-| `platform.ts: runInboundSessionTurn options` | `presentation/turn-orchestrator.ts` |
+| Current Location                                            | New Location                                                                      |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `platform.ts: formatDiscordPlatformDegradedPrefix`          | `presentation/reply-formatter.ts: formatDegradedPrefix`                           |
+| `platform.ts: formatDiscordPlatformModelTagFooter`          | `presentation/reply-formatter.ts: formatModelTagFooter`                           |
+| `platform.ts: formatAgentIdentityPrefix` (imported)         | `presentation/reply-formatter.ts`                                                 |
+| `errors.ts: formatDiscordPlatformErrorUserText`             | `presentation/reply-formatter.ts: formatErrorUserText`                            |
+| `errors.ts: sliceDiscordPlatformMessageBody`                | stays in platform (transport concern: message size limit)                         |
+| `platform.ts: runInboundSessionTurn options`                | `presentation/turn-orchestrator.ts`                                               |
 | `platform.ts: dispatchChained + runDiscordInboundModelTurn` | `presentation/turn-orchestrator.ts` (inbound dispatch chain + turn queue enqueue) |
-| `hitl/notifier.ts: buildHitlQueuedNoticeLines` | `presentation/hitl-notice-formatter.ts` |
-| `notices.ts: daemonNotice` | `presentation/notices.ts` (notice template registry) |
+| `hitl/notifier.ts: buildHitlQueuedNoticeLines`              | `presentation/hitl-notice-formatter.ts`                                           |
+| `notices.ts: daemonNotice`                                  | `presentation/notices.ts` (notice template registry)                              |
 
 ## Files to Create/Modify
 

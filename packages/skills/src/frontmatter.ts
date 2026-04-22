@@ -26,7 +26,10 @@ export function parseMarkdownFrontmatter(source: string): ParsedFrontmatter {
   return { fields, body };
 }
 
-export function parseBoolField(raw: string | undefined, defaultValue: boolean): boolean {
+export function parseBoolField(
+  raw: string | undefined,
+  defaultValue: boolean,
+): boolean {
   if (raw === undefined) return defaultValue;
   const v = raw.toLowerCase();
   if (v === "false" || v === "0" || v === "no") return false;

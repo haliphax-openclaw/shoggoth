@@ -1,11 +1,17 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import { classifyToolRisk, DEFAULT_TOOL_RISK } from "../../src/hitl/risk-classify";
+import {
+  classifyToolRisk,
+  DEFAULT_TOOL_RISK,
+} from "../../src/hitl/risk-classify";
 import type { HitlRiskTier } from "@shoggoth/shared";
 
 describe("classifyToolRisk", () => {
   it("uses per-tool map when present", () => {
-    const map: Record<string, HitlRiskTier> = { ...DEFAULT_TOOL_RISK, "builtin-exec": "caution" };
+    const map: Record<string, HitlRiskTier> = {
+      ...DEFAULT_TOOL_RISK,
+      "builtin-exec": "caution",
+    };
     assert.equal(classifyToolRisk("builtin-exec", map), "caution");
   });
 
@@ -45,7 +51,10 @@ describe("classifyToolRisk", () => {
   });
 
   it("compound resource uses direct match over base fallback", () => {
-    const map: Record<string, HitlRiskTier> = { "builtin-exec:curl": "safe", "builtin-exec": "critical" };
+    const map: Record<string, HitlRiskTier> = {
+      "builtin-exec:curl": "safe",
+      "builtin-exec": "critical",
+    };
     assert.equal(classifyToolRisk("builtin-exec:curl", map), "safe");
     assert.equal(classifyToolRisk("builtin-exec:bash", map), "critical");
   });

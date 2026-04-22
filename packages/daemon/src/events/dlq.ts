@@ -35,15 +35,15 @@ export function listDeadLetterEvents(
   `,
     )
     .all({ limit: options.limit }) as Array<{
-      id: number;
-      scope: string;
-      event_type: string;
-      payload_json: string;
-      attempts: number;
-      max_attempts: number;
-      last_error: string | null;
-      created_at: string;
-    }>;
+    id: number;
+    scope: string;
+    event_type: string;
+    payload_json: string;
+    attempts: number;
+    max_attempts: number;
+    last_error: string | null;
+    created_at: string;
+  }>;
 
   return rows.map((r) => ({
     id: r.id,

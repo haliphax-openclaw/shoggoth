@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "vitest";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
   createDaemonSpawnAdapter,
@@ -7,23 +7,29 @@ import {
   createDaemonMessageAdapter,
   type DaemonSpawnAdapterDeps,
   type DaemonPollAdapterDeps,
-  type DaemonKillAdapterDeps,
-  type DaemonMessageAdapterDeps,
 } from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal fakes for daemon internals
 // ---------------------------------------------------------------------------
 
-function fakeSessionManager(overrides: Partial<DaemonSpawnAdapterDeps["sessionManager"]> = {}) {
+function fakeSessionManager(
+  overrides: Partial<DaemonSpawnAdapterDeps["sessionManager"]> = {},
+) {
   return {
-    spawn: overrides.spawn ?? (async () => ({
-      sessionId: "agent:main:discord:channel:abc:child-uuid",
-      agentToken: "tok",
-      agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const,
-    })),
+    spawn:
+      overrides.spawn ??
+      (async () => ({
+        sessionId: "agent:main:discord:channel:abc:child-uuid",
+        agentToken: "tok",
+        agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const,
+      })),
     kill: overrides.kill ?? (() => {}),
-    rotateAgentToken: () => ({ sessionId: "", agentToken: "", agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const }),
+    rotateAgentToken: () => ({
+      sessionId: "",
+      agentToken: "",
+      agentTokenEnvName: "SHOGGOTH_AGENT_TOKEN" as const,
+    }),
     attachPromptStack: () => {},
     setLightContext: () => {},
   };
@@ -88,7 +94,9 @@ describe("createDaemonSpawnAdapter", () => {
     });
     const sessions = fakeSessionStore();
     const updateCalls: unknown[] = [];
-    sessions.update = (...args: unknown[]) => { updateCalls.push(args); };
+    sessions.update = (...args: unknown[]) => {
+      updateCalls.push(args);
+    };
     const turn = fakeRunSessionModelTurn();
 
     const adapter = createDaemonSpawnAdapter({
@@ -134,7 +142,10 @@ describe("createDaemonSpawnAdapter", () => {
     await new Promise((r) => setTimeout(r, 10));
     assert.equal(turn.calls.length, 1);
     const turnInput = turn.calls[0] as Record<string, unknown>;
-    assert.equal(turnInput.sessionId, "agent:main:discord:channel:abc:child-uuid");
+    assert.equal(
+      turnInput.sessionId,
+      "agent:main:discord:channel:abc:child-uuid",
+    );
     assert.equal(turnInput.userContent, "analyze data");
   });
 
@@ -149,7 +160,10 @@ describe("createDaemonSpawnAdapter", () => {
       sessions,
       parentSessionId: "agent:main:discord:channel:abc",
       runSessionModelTurn: turn.fn,
-      requestTurnAbort: (id: string) => { abortedIds.push(id); return true; },
+      requestTurnAbort: (id: string) => {
+        abortedIds.push(id);
+        return true;
+      },
     });
 
     const childId = await adapter.spawn({
@@ -239,7 +253,9 @@ describe("createDaemonPollAdapter", () => {
 
   it("returns done for a terminated session with output in completion map", async () => {
     const rows = new Map([["sess-1", { status: "terminated" }]]);
-    const completionMap = new Map([["sess-1", { ok: true as const, output: "result text" }]]);
+    const completionMap = new Map([
+      ["sess-1", { ok: true as const, output: "result text" }],
+    ]);
     const adapter = createDaemonPollAdapter({
       sessions: fakeSessionStore(rows),
       completionMap,
@@ -263,7 +279,9 @@ describe("createDaemonPollAdapter", () => {
 
   it("returns failed when completion map has an error", async () => {
     const rows = new Map([["sess-1", { status: "terminated" }]]);
-    const completionMap = new Map([["sess-1", { ok: false as const, error: "model crashed" }]]);
+    const completionMap = new Map([
+      ["sess-1", { ok: false as const, error: "model crashed" }],
+    ]);
     const adapter = createDaemonPollAdapter({
       sessions: fakeSessionStore(rows),
       completionMap,
@@ -294,7 +312,9 @@ describe("createDaemonKillAdapter", () => {
   it("calls sessionManager.kill with the session key", async () => {
     const killCalls: string[] = [];
     const sm = fakeSessionManager({
-      kill: (id: string) => { killCalls.push(id); },
+      kill: (id: string) => {
+        killCalls.push(id);
+      },
     });
 
     const adapter = createDaemonKillAdapter({ sessionManager: sm });
@@ -309,7 +329,10 @@ describe("createDaemonKillAdapter", () => {
 
     const adapter = createDaemonKillAdapter({
       sessionManager: sm,
-      requestTurnAbort: (id: string) => { abortCalls.push(id); return true; },
+      requestTurnAbort: (id: string) => {
+        abortCalls.push(id);
+        return true;
+      },
     });
 
     await adapter.kill("sess-abort");
@@ -369,7 +392,9 @@ describe("createDaemonMessageAdapter", () => {
   it("returns false when edit throws", async () => {
     const adapter = createDaemonMessageAdapter({
       getMessageContext: () => ({
-        execute: async () => { throw new Error("edit failed"); },
+        execute: async () => {
+          throw new Error("edit failed");
+        },
       }),
       resolveChannelId: () => "channel-abc",
       sessionId: "agent:main:discord:channel:abc",

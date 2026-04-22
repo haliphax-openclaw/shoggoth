@@ -47,7 +47,10 @@ function rowToStats(r: SessionStatsRow): SessionStats {
 }
 
 /** Get stats for a session. Returns null if no stats row exists yet. */
-export function getSessionStats(db: Database.Database, sessionId: string): SessionStats | null {
+export function getSessionStats(
+  db: Database.Database,
+  sessionId: string,
+): SessionStats | null {
   const row = db
     .prepare(
       `SELECT session_id, turn_count, compaction_count, input_tokens, output_tokens,
@@ -87,7 +90,10 @@ export function recordCompaction(
 }
 
 /** Reset per-segment counters (turn_count, compaction_count, input_tokens, output_tokens, transcript_message_count). Called on context new/reset. */
-export function resetSegmentStats(db: Database.Database, sessionId: string): void {
+export function resetSegmentStats(
+  db: Database.Database,
+  sessionId: string,
+): void {
   db.prepare(
     `UPDATE session_stats SET
        turn_count = 0,
@@ -106,7 +112,7 @@ export function estimateTokens(text: string | null): number {
   return text ? Math.max(1, Math.ceil(text.length / 4)) : 0;
 }
 
-const JSON_STRUCTURAL = new Set(['{', '}', '[', ']', ',', ':', '"']);
+const JSON_STRUCTURAL = new Set(["{", "}", "[", "]", ",", ":", '"']);
 
 /** Estimate tokens using per-character classification: JSON structural chars at 2 chars/token, everything else at 4 chars/token. */
 export function estimateTokensFromContent(text: string): number {
@@ -114,7 +120,7 @@ export function estimateTokensFromContent(text: string): number {
   for (let i = 0; i < text.length; i++) {
     if (JSON_STRUCTURAL.has(text[i])) structural++;
   }
-  return (structural / 2) + ((text.length - structural) / 4);
+  return structural / 2 + (text.length - structural) / 4;
 }
 
 /**
@@ -131,7 +137,9 @@ export function estimateCurrentContextFill(
       `SELECT content FROM transcript_messages
        WHERE session_id = @sessionId AND context_segment_id = @ctxSeg`,
     )
-    .all({ sessionId, ctxSeg: contextSegmentId }) as { content: string | null }[];
+    .all({ sessionId, ctxSeg: contextSegmentId }) as {
+    content: string | null;
+  }[];
   let total = 0;
   for (const r of rows) {
     total += estimateTokens(r.content);
@@ -154,13 +162,16 @@ export function buildFormattedStats(
   stats: SessionStats,
   contextFillTokens: number,
 ): FormattedSessionStats {
-  const contextFill = contextFillTokens > 0
-    ? `~${contextFillTokens.toLocaleString("en-US")}`
-    : "N/A";
+  const contextFill =
+    contextFillTokens > 0
+      ? `~${contextFillTokens.toLocaleString("en-US")}`
+      : "N/A";
 
   let contextWindowSuffix = "";
   if (stats.contextWindowTokens != null && contextFillTokens > 0) {
-    const pct = ((contextFillTokens / stats.contextWindowTokens) * 100).toFixed(1);
+    const pct = ((contextFillTokens / stats.contextWindowTokens) * 100).toFixed(
+      1,
+    );
     contextWindowSuffix = ` / ${stats.contextWindowTokens.toLocaleString("en-US")} (${pct}%)`;
   }
 
@@ -177,7 +188,11 @@ export function buildFormattedStats(
 export function incrementTokenUsage(
   db: Database.Database,
   sessionId: string,
-  input: { inputTokens: number; outputTokens: number; contextWindowTokens?: number },
+  input: {
+    inputTokens: number;
+    outputTokens: number;
+    contextWindowTokens?: number;
+  },
 ): void {
   db.prepare(
     `INSERT INTO session_stats (session_id, input_tokens, output_tokens, context_window_tokens, updated_at)
@@ -211,7 +226,10 @@ export function updateTranscriptMessageCount(
 }
 
 /** Increment turn_count by 1 and set last_turn_at. */
-export function incrementTurnCount(db: Database.Database, sessionId: string): void {
+export function incrementTurnCount(
+  db: Database.Database,
+  sessionId: string,
+): void {
   db.prepare(
     `INSERT INTO session_stats (session_id, turn_count, first_turn_at, last_turn_at, updated_at)
      VALUES (@sessionId, 1, datetime('now'), datetime('now'), datetime('now'))

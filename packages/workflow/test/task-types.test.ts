@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import type { TaskDef, TransformTaskDef, MessageTaskDef } from "../src/types.js";
+import type {
+  TaskDef,
+  TransformTaskDef,
+  MessageTaskDef,
+} from "../src/types.js";
 import {
   Orchestrator,
   type SpawnAdapter,
@@ -41,7 +45,11 @@ function makeTransformTask(id: number, template: string): TransformTaskDef {
   };
 }
 
-function makeMessageTask(id: number, message: string, channel?: string): MessageTaskDef {
+function makeMessageTask(
+  id: number,
+  message: string,
+  channel?: string,
+): MessageTaskDef {
   return {
     kind: "message",
     id,
@@ -74,7 +82,9 @@ function mockPollAdapter(
   };
 }
 
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -84,7 +94,9 @@ function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: strin
   };
 }
 
-function mockMessagePoster(): MessagePoster & { calls: Array<{ sessionId: string; message: string }> } {
+function mockMessagePoster(): MessagePoster & {
+  calls: Array<{ sessionId: string; message: string }>;
+} {
   const calls: Array<{ sessionId: string; message: string }> = [];
   return {
     calls,
@@ -154,7 +166,10 @@ describe("Transform tasks", () => {
 
     const tasks: TaskDef[] = [
       makeAgentTask(1),
-      makeTransformTask(2, "Result: {{task:1:output}}, success: {{task:1:success}}"),
+      makeTransformTask(
+        2,
+        "Result: {{task:1:output}}, success: {{task:1:success}}",
+      ),
     ];
     await orch.start(tasks, "1>2", defaultOpts(baseDir));
 
@@ -240,7 +255,15 @@ describe("Message tasks", () => {
     const poller = mockPollAdapter(new Map());
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [makeMessageTask(1, "hello from workflow")];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -260,9 +283,19 @@ describe("Message tasks", () => {
     const poller = mockPollAdapter(new Map());
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
-    const tasks: TaskDef[] = [makeMessageTask(1, "targeted message", "custom:channel:123")];
+    const tasks: TaskDef[] = [
+      makeMessageTask(1, "targeted message", "custom:channel:123"),
+    ];
     await orch.start(tasks, "1", defaultOpts(baseDir));
 
     assert.equal(poster.calls.length, 1);
@@ -275,7 +308,15 @@ describe("Message tasks", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [
       makeAgentTask(1),
@@ -318,7 +359,15 @@ describe("Message tasks", () => {
         throw new Error("network error");
       },
     };
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [makeMessageTask(1, "will fail")];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -334,7 +383,15 @@ describe("Message tasks", () => {
     const poller = mockPollAdapter(new Map());
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [makeMessageTask(1, "no agent")];
     await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -347,7 +404,15 @@ describe("Message tasks", () => {
     const poller = mockPollAdapter(new Map());
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [
       makeMessageTask(1, "{{task:2:output}}"),
@@ -377,7 +442,15 @@ describe("Mixed task type workflows", () => {
     const poller = mockPollAdapter(pollResults);
     const notifier = mockNotifyAdapter();
     const poster = mockMessagePoster();
-    const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, undefined, poster);
+    const orch = new Orchestrator(
+      spawner,
+      poller,
+      notifier,
+      undefined,
+      undefined,
+      undefined,
+      poster,
+    );
 
     const tasks: TaskDef[] = [
       makeAgentTask(1),
@@ -387,7 +460,10 @@ describe("Mixed task type workflows", () => {
     await orch.start(tasks, "1>2>3", defaultOpts(baseDir));
 
     // Complete agent task
-    pollResults.set("session-1", { status: "done", output: "analysis complete" });
+    pollResults.set("session-1", {
+      status: "done",
+      output: "analysis complete",
+    });
     await orch.tick();
 
     // Transform and message should both be done after one more tick

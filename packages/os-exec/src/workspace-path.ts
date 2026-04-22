@@ -24,17 +24,23 @@ function validatePath(userPath: string): void {
   }
 }
 
-function logicalPathUnderRoot(workspaceRoot: string, userPath: string): { rootReal: string; joined: string } {
+function logicalPathUnderRoot(
+  workspaceRoot: string,
+  userPath: string,
+): { rootReal: string; joined: string } {
   validatePath(userPath);
   const rootReal = realpathSync(workspaceRoot);
-  
+
   // Accept both absolute and relative paths
   const joined = isAbsolute(userPath) ? userPath : resolve(rootReal, userPath);
   assertInsideRoot(rootReal, joined);
   return { rootReal, joined };
 }
 
-function ensureWriteParentContained(rootReal: string, logicalFile: string): void {
+function ensureWriteParentContained(
+  rootReal: string,
+  logicalFile: string,
+): void {
   let dir = dirname(logicalFile);
   const visited = new Set<string>();
   while (!visited.has(dir)) {
@@ -65,7 +71,7 @@ export const DEFAULT_ADDITIONAL_READ_ROOTS: readonly string[] = ["/app"];
  * Resolve a session-relative or absolute path for read: logical path must stay under workspace
  * **or** under one of the additional read roots (default: `/app`).
  * Final target is realpath'd so symlink escapes are rejected.
- * 
+ *
  * Accepts both:
  * - Relative paths (resolved relative to workspace root)
  * - Absolute paths (validated to be within workspace root or an additional read root)
@@ -109,12 +115,15 @@ export function resolvePathForRead(
 
 /**
  * Resolve a session-relative or absolute path for write: parent directories must exist and resolve under workspace.
- * 
+ *
  * Accepts both:
  * - Relative paths (resolved relative to workspace root)
  * - Absolute paths (validated to be within workspace root)
  */
-export function resolvePathForWrite(workspaceRoot: string, userPath: string): string {
+export function resolvePathForWrite(
+  workspaceRoot: string,
+  userPath: string,
+): string {
   const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);
   ensureWriteParentContained(rootReal, joined);
   return joined;

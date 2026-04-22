@@ -1,13 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  createCoalescingStreamPusher,
-} from "../../src/messaging/inbound-session-turn";
-
-let capturedStream: { onModelTextDelta: (t: string) => void } | undefined;
+import { describe, it, expect, vi } from "vitest";
+import { createCoalescingStreamPusher } from "../../src/messaging/inbound-session-turn";
 
 vi.mock("../../src/sessions/session-agent-turn.js", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   executeSessionAgentTurn: vi.fn().mockImplementation(async (input: any) => {
-    capturedStream = input.stream;
     // Simulate streaming: accumulated text grows beyond slice limit
     if (input.stream?.onModelTextDelta) {
       for (let i = 1; i <= 10; i++) {
@@ -22,7 +18,8 @@ vi.mock("../../src/sessions/session-agent-turn.js", () => ({
   }),
 }));
 
-const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn");
+const { runInboundSessionTurn } =
+  await import("../../src/messaging/inbound-session-turn");
 
 describe("createCoalescingStreamPusher", () => {
   it("calls setFull with latest text", async () => {
@@ -50,7 +47,9 @@ describe("runInboundSessionTurn streaming final delivery", () => {
           messages: [],
           tools: [],
           systemPrompt: "",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           config: {} as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           stateDb: {} as any,
         }),
       streaming: {
@@ -86,7 +85,9 @@ describe("runInboundSessionTurn streaming final delivery", () => {
           messages: [],
           tools: [],
           systemPrompt: "",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           config: {} as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           stateDb: {} as any,
         }),
       streaming: {
@@ -105,7 +106,9 @@ describe("runInboundSessionTurn streaming final delivery", () => {
     // The callback should NOT push duplicates — only the first time the
     // sliced content changes should trigger a push.
     const slicedCalls = setFullContent.mock.calls
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((c: any) => c[0] as string)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((s: string) => s.length === MAX_LEN);
 
     // With deduplication, the 50-char sliced content should appear at most

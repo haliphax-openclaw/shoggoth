@@ -44,7 +44,7 @@ export interface TranscriptStore {
 }
 
 export function createTranscriptStore(db: Database.Database): TranscriptStore {
-    /** Global per `session_id`; unique key is `(session_id, seq)`. */
+  /** Global per `session_id`; unique key is `(session_id, seq)`. */
   const nextSeq = db.prepare(`
     SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM transcript_messages WHERE session_id = @session_id
   `);
@@ -75,7 +75,16 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     LIMIT 50
   `);
 
-  function insertRow(sessionId: string, contextSegmentId: string, role: string, content: string | null, toolCallId: string | null, toolCallsJson: string | null, metadataJson: string | null, systemContextJson: string | null): number {
+  function insertRow(
+    sessionId: string,
+    contextSegmentId: string,
+    role: string,
+    content: string | null,
+    toolCallId: string | null,
+    toolCallsJson: string | null,
+    metadataJson: string | null,
+    systemContextJson: string | null,
+  ): number {
     const row = nextSeq.get({ session_id: sessionId }) as { n: number };
     const seq = row.n;
     insert.run({
@@ -96,7 +105,11 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     const rows = selectRecent.all({
       session_id: sessionId,
       context_segment_id: contextSegmentId,
-    }) as Array<{ role: string; tool_call_id: string | null; tool_calls_json: string | null }>;
+    }) as Array<{
+      role: string;
+      tool_call_id: string | null;
+      tool_calls_json: string | null;
+    }>;
 
     const collectedToolResultIds = new Set<string>();
     let expectedIds: string[] | undefined;
@@ -119,9 +132,22 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
     if (missing.length === 0) return;
 
     const log = getLogger("transcript-store");
-    log.info("transcript.orphaned_tool_calls_repaired", { sessionId, toolCallIds: missing, count: missing.length });
+    log.info("transcript.orphaned_tool_calls_repaired", {
+      sessionId,
+      toolCallIds: missing,
+      count: missing.length,
+    });
     for (const id of missing) {
-      insertRow(sessionId, contextSegmentId, "tool", "[Tool call aborted — no result available]", id, null, null, null);
+      insertRow(
+        sessionId,
+        contextSegmentId,
+        "tool",
+        "[Tool call aborted — no result available]",
+        id,
+        null,
+        null,
+        null,
+      );
     }
   }
 
@@ -141,7 +167,9 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         input.toolCallId ?? null,
         input.toolCalls?.length ? JSON.stringify(input.toolCalls) : null,
         input.metadata !== undefined ? JSON.stringify(input.metadata) : null,
-        input.systemContext !== undefined ? JSON.stringify(input.systemContext) : null,
+        input.systemContext !== undefined
+          ? JSON.stringify(input.systemContext)
+          : null,
       );
 
       return { seq };
@@ -171,7 +199,9 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         toolCalls: r.tool_calls_json
           ? (JSON.parse(r.tool_calls_json) as ToolCallEntry[])
           : undefined,
-        metadata: r.metadata_json ? (JSON.parse(r.metadata_json) as unknown) : undefined,
+        metadata: r.metadata_json
+          ? (JSON.parse(r.metadata_json) as unknown)
+          : undefined,
         createdAt: r.created_at,
       }));
 

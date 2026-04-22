@@ -6,15 +6,16 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
+import {
+  createSessionStore,
+  getSessionContextSegmentId,
+} from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { createToolRunStore } from "../../src/sessions/tool-run-store";
 import {
   runToolLoop,
   TurnAbortedError,
-  ToolCallTimeoutError,
   type ModelClient,
-  type ToolExecutor,
 } from "../../src/sessions/tool-loop";
 import { createHitlPendingResolutionStack } from "../../src/hitl/hitl-pending-stack";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
@@ -46,6 +47,7 @@ describe("runToolLoop", () => {
   });
 
   it("invokes executor and audit when policy allows", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const audit = vi.fn((_e: unknown) => {});
     const exec = vi.fn(async () => ({ resultJson: "{}" }));
     let step = 0;
@@ -61,7 +63,7 @@ describe("runToolLoop", () => {
         return { content: "ok", toolCalls: [] };
       },
     };
-    const executor: ToolExecutor = { execute: exec };
+    const executor = { execute: exec };
     const toolRuns = createToolRunStore(db);
     await runToolLoop({
       db,
@@ -132,6 +134,7 @@ describe("runToolLoop", () => {
   });
 
   it("queues HITL pending and skips execute when operator denies", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const audit = vi.fn((_e: unknown) => {});
     const exec = vi.fn(async () => ({ resultJson: "{}" }));
     const stack = createHitlPendingResolutionStack(db);
@@ -143,7 +146,9 @@ describe("runToolLoop", () => {
         if (step === 1) {
           return {
             content: null,
-            toolCalls: [{ id: "h1", name: "builtin-exec", argsJson: '{"x":1}' }],
+            toolCalls: [
+              { id: "h1", name: "builtin-exec", argsJson: '{"x":1}' },
+            ],
           };
         }
         return { content: "ok after hitl", toolCalls: [] };
@@ -183,10 +188,16 @@ describe("runToolLoop", () => {
     assert.equal(row!.status, "denied");
     assert.equal(row!.toolName, "builtin-exec");
     const run = db
-      .prepare(`SELECT status, failure_reason FROM tool_runs WHERE id = 'run-hitl'`)
+      .prepare(
+        `SELECT status, failure_reason FROM tool_runs WHERE id = 'run-hitl'`,
+      )
       .get() as { status: string; failure_reason: string | null };
     assert.equal(run.status, "completed");
-    assert.ok(audit.mock.calls.some((c) => String(JSON.stringify(c)).includes("hitl_queued")));
+    assert.ok(
+      audit.mock.calls.some((c) =>
+        String(JSON.stringify(c)).includes("hitl_queued"),
+      ),
+    );
   });
 
   it("does not queue HITL when role bypass covers tool risk", async () => {
@@ -316,10 +327,18 @@ describe("runToolLoop", () => {
       transcript: tr,
       contextSegmentId: seg,
     });
-    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
+    const page = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 20,
+    });
     const toolMsgs = page.messages.filter((m) => m.role === "tool");
     assert.equal(toolMsgs.length, 1);
-    assert.ok(String(toolMsgs[0]!.metadata).includes("read") || toolMsgs[0]!.toolCallId === "t1");
+    assert.ok(
+      String(toolMsgs[0]!.metadata).includes("read") ||
+        toolMsgs[0]!.toolCallId === "t1",
+    );
   });
 
   it("throws TurnAbortedError when turnAbortSignal fires before the next model hop", async () => {
@@ -392,7 +411,10 @@ describe("runToolLoop", () => {
       model,
       tools: [{ name: "slow" }],
       executor: {
-        execute: () => new Promise((resolve) => setTimeout(() => resolve({ resultJson: '"late"' }), 500)),
+        execute: () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ resultJson: '"late"' }), 500),
+          ),
       },
       toolRuns,
       transcript: tr,
@@ -406,12 +428,19 @@ describe("runToolLoop", () => {
     assert.equal(parsed.tool, "slow");
     assert.equal(parsed.timeoutMs, 50);
     // Transcript should contain the timeout tool message
-    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
+    const page = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 20,
+    });
     const toolMsgs = page.messages.filter((m) => m.role === "tool");
     assert.equal(toolMsgs.length, 1);
     assert.ok(toolMsgs[0]!.content!.includes("tool_call_timeout"));
     // Run should still complete (model recovered)
-    const row = db.prepare(`SELECT status FROM tool_runs WHERE id = 'run-timeout'`).get() as { status: string };
+    const row = db
+      .prepare(`SELECT status FROM tool_runs WHERE id = 'run-timeout'`)
+      .get() as { status: string };
     assert.equal(row.status, "completed");
   });
 
@@ -444,7 +473,9 @@ describe("runToolLoop", () => {
       toolRuns,
     });
     assert.equal(exec.mock.calls.length, 1);
-    const row = db.prepare(`SELECT status FROM tool_runs WHERE id = 'run-no-timeout'`).get() as { status: string };
+    const row = db
+      .prepare(`SELECT status FROM tool_runs WHERE id = 'run-no-timeout'`)
+      .get() as { status: string };
     assert.equal(row.status, "completed");
   });
 
@@ -462,7 +493,9 @@ describe("runToolLoop", () => {
         if (step === 1) {
           return {
             content: null,
-            toolCalls: [{ id: "img1", name: "read", argsJson: '{"path":"test.png"}' }],
+            toolCalls: [
+              { id: "img1", name: "read", argsJson: '{"path":"test.png"}' },
+            ],
           };
         }
         return { content: "I see the image", toolCalls: [] };
@@ -505,7 +538,12 @@ describe("runToolLoop", () => {
     assert.equal(pushedContent[1].base64, "iVBORw0KGgo=");
 
     // Verify the transcript stores the JSON-serialized contentParts
-    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
+    const page = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 20,
+    });
     const toolMsgs = page.messages.filter((m) => m.role === "tool");
     assert.equal(toolMsgs.length, 1);
     const storedContent = JSON.parse(toolMsgs[0]!.content!);
@@ -515,7 +553,9 @@ describe("runToolLoop", () => {
     assert.equal(storedContent[1].base64, "iVBORw0KGgo=");
 
     // Run should complete
-    const row = db.prepare(`SELECT status FROM tool_runs WHERE id = 'run-img'`).get() as { status: string };
+    const row = db
+      .prepare(`SELECT status FROM tool_runs WHERE id = 'run-img'`)
+      .get() as { status: string };
     assert.equal(row.status, "completed");
   });
 
@@ -529,7 +569,9 @@ describe("runToolLoop", () => {
         if (step === 1) {
           return {
             content: null,
-            toolCalls: [{ id: "v1", name: "read", argsJson: '{"limit": "not-a-number"}' }],
+            toolCalls: [
+              { id: "v1", name: "read", argsJson: '{"limit": "not-a-number"}' },
+            ],
           };
         }
         return { content: "recovered", toolCalls: [] };
@@ -576,7 +618,13 @@ describe("runToolLoop", () => {
         if (step === 1) {
           return {
             content: null,
-            toolCalls: [{ id: "ok1", name: "read", argsJson: '{"path":"/tmp/foo","limit":10}' }],
+            toolCalls: [
+              {
+                id: "ok1",
+                name: "read",
+                argsJson: '{"path":"/tmp/foo","limit":10}',
+              },
+            ],
           };
         }
         return { content: "done", toolCalls: [] };
@@ -617,7 +665,13 @@ describe("runToolLoop", () => {
         if (step === 1) {
           return {
             content: null,
-            toolCalls: [{ id: "bad1", name: "builtin-read", argsJson: "not valid json {{{" }],
+            toolCalls: [
+              {
+                id: "bad1",
+                name: "builtin-read",
+                argsJson: "not valid json {{{",
+              },
+            ],
           };
         }
         return { content: "recovered", toolCalls: [] };
@@ -652,11 +706,21 @@ describe("runToolLoop", () => {
     assert.equal(parsed.error, "invalid_arguments");
 
     // The assistant message in the transcript should have valid JSON for argsJson
-    const page = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 20 });
-    const assistantMsgs = page.messages.filter((m) => m.role === "assistant" && m.toolCalls?.length);
+    const page = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 20,
+    });
+    const assistantMsgs = page.messages.filter(
+      (m) => m.role === "assistant" && m.toolCalls?.length,
+    );
     assert.equal(assistantMsgs.length, 1);
     const storedArgsJson = assistantMsgs[0]!.toolCalls![0]!.argsJson;
-    assert.doesNotThrow(() => JSON.parse(storedArgsJson), "argsJson in transcript must be valid JSON");
+    assert.doesNotThrow(
+      () => JSON.parse(storedArgsJson),
+      "argsJson in transcript must be valid JSON",
+    );
     assert.equal(storedArgsJson, "{}");
   });
 });

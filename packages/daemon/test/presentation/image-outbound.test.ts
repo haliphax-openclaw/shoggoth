@@ -64,7 +64,11 @@ describe("extractOutboundImages", () => {
   it("replaces URL-only image with [image] placeholder", () => {
     const parts: ChatContentPart[] = [
       { type: "text", text: "See: " },
-      { type: "image", mediaType: "image/webp", url: "https://example.com/img.webp" },
+      {
+        type: "image",
+        mediaType: "image/webp",
+        url: "https://example.com/img.webp",
+      },
     ];
     const result = extractOutboundImages(parts);
     expect(result.textContent).toBe("See: [image]");
@@ -73,8 +77,16 @@ describe("extractOutboundImages", () => {
 
   it("indexes multiple base64 images sequentially", () => {
     const parts: ChatContentPart[] = [
-      { type: "image", mediaType: "image/png", base64: Buffer.from("a").toString("base64") },
-      { type: "image", mediaType: "image/gif", base64: Buffer.from("b").toString("base64") },
+      {
+        type: "image",
+        mediaType: "image/png",
+        base64: Buffer.from("a").toString("base64"),
+      },
+      {
+        type: "image",
+        mediaType: "image/gif",
+        base64: Buffer.from("b").toString("base64"),
+      },
     ];
     const result = extractOutboundImages(parts);
     expect(result.imageAttachments).toHaveLength(2);
@@ -84,7 +96,11 @@ describe("extractOutboundImages", () => {
 
   it("falls back to .png extension for unknown media type", () => {
     const parts: ChatContentPart[] = [
-      { type: "image", mediaType: "image/bmp", base64: Buffer.from("x").toString("base64") },
+      {
+        type: "image",
+        mediaType: "image/bmp",
+        base64: Buffer.from("x").toString("base64"),
+      },
     ];
     const result = extractOutboundImages(parts);
     expect(result.imageAttachments[0]!.filename).toBe("image-0.png");
@@ -98,8 +114,16 @@ describe("extractOutboundImages", () => {
 
   it("URL-only images do not increment the image index for base64 filenames", () => {
     const parts: ChatContentPart[] = [
-      { type: "image", mediaType: "image/png", url: "https://example.com/a.png" },
-      { type: "image", mediaType: "image/jpeg", base64: Buffer.from("data").toString("base64") },
+      {
+        type: "image",
+        mediaType: "image/png",
+        url: "https://example.com/a.png",
+      },
+      {
+        type: "image",
+        mediaType: "image/jpeg",
+        base64: Buffer.from("data").toString("base64"),
+      },
     ];
     const result = extractOutboundImages(parts);
     expect(result.textContent).toBe("[image]");

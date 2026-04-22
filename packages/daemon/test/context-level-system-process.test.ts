@@ -8,19 +8,10 @@ import { openStateDb } from "../src/db/open";
 import { defaultMigrationsDir, migrate } from "../src/db/migrate";
 import {
   createDaemonSpawnAdapter,
-  type DaemonSpawnAdapterDeps,
 } from "../src/workflow-adapters.js";
-import {
-  upsertCronJob,
-  runCronTick,
-} from "../src/events/cron-scheduler";
-import {
-  createDefaultHeartbeatHandlers,
-} from "../src/events/heartbeat-consumer";
-import {
-  emitEvent,
-  sessionEventScope,
-} from "../src/events/events-queue";
+import { upsertCronJob, runCronTick } from "../src/events/cron-scheduler";
+import { createDefaultHeartbeatHandlers } from "../src/events/heartbeat-consumer";
+
 import { drainSystemContext } from "../src/sessions/system-context-buffer";
 
 // ---------------------------------------------------------------------------
@@ -172,21 +163,30 @@ describe("cron job context level", () => {
     });
 
     // Verify it's stored on the row
-    const row = db.prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-ctx'").get() as {
+    const row = db
+      .prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-ctx'")
+      .get() as {
       context_level: string | null;
     };
     assert.equal(row.context_level, "minimal");
 
     // Fire the cron tick
-    db.prepare(`UPDATE cron_jobs SET next_run_at = datetime('now', '-1 second') WHERE id = 'job-ctx'`).run();
+    db.prepare(
+      `UPDATE cron_jobs SET next_run_at = datetime('now', '-1 second') WHERE id = 'job-ctx'`,
+    ).run();
     const fired = runCronTick(db);
     assert.equal(fired, 1);
 
     // Check the event payload includes contextLevel
     const ev = db
-      .prepare("SELECT payload_json FROM events WHERE event_type = 'cron.fire' ORDER BY id DESC LIMIT 1")
+      .prepare(
+        "SELECT payload_json FROM events WHERE event_type = 'cron.fire' ORDER BY id DESC LIMIT 1",
+      )
       .get() as { payload_json: string };
-    const payload = JSON.parse(ev.payload_json) as { cronJobId: string; contextLevel?: string };
+    const payload = JSON.parse(ev.payload_json) as {
+      cronJobId: string;
+      contextLevel?: string;
+    };
     assert.equal(payload.cronJobId, "job-ctx");
     assert.equal(payload.contextLevel, "minimal");
   });
@@ -199,18 +199,24 @@ describe("cron job context level", () => {
     });
 
     // Verify context_level is null
-    const row = db.prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-no-ctx'").get() as {
+    const row = db
+      .prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-no-ctx'")
+      .get() as {
       context_level: string | null;
     };
     assert.equal(row.context_level, null);
 
     // Fire the cron tick
-    db.prepare(`UPDATE cron_jobs SET next_run_at = datetime('now', '-1 second') WHERE id = 'job-no-ctx'`).run();
+    db.prepare(
+      `UPDATE cron_jobs SET next_run_at = datetime('now', '-1 second') WHERE id = 'job-no-ctx'`,
+    ).run();
     runCronTick(db);
 
     // Check the event payload does NOT include contextLevel
     const ev = db
-      .prepare("SELECT payload_json FROM events WHERE event_type = 'cron.fire' ORDER BY id DESC LIMIT 1")
+      .prepare(
+        "SELECT payload_json FROM events WHERE event_type = 'cron.fire' ORDER BY id DESC LIMIT 1",
+      )
       .get() as { payload_json: string };
     const payload = JSON.parse(ev.payload_json) as Record<string, unknown>;
     assert.equal(payload.cronJobId, "job-no-ctx");
@@ -224,7 +230,9 @@ describe("cron job context level", () => {
       contextLevel: "minimal",
     });
 
-    let row = db.prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-update'").get() as {
+    let row = db
+      .prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-update'")
+      .get() as {
       context_level: string | null;
     };
     assert.equal(row.context_level, "minimal");
@@ -236,7 +244,9 @@ describe("cron job context level", () => {
       contextLevel: "full",
     });
 
-    row = db.prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-update'").get() as {
+    row = db
+      .prepare("SELECT context_level FROM cron_jobs WHERE id = 'job-update'")
+      .get() as {
       context_level: string | null;
     };
     assert.equal(row.context_level, "full");
@@ -271,7 +281,9 @@ describe("heartbeat context level", () => {
   });
 
   it("respects custom heartbeatContextLevel option", async () => {
-    const handlers = createDefaultHeartbeatHandlers({ heartbeatContextLevel: "minimal" });
+    const handlers = createDefaultHeartbeatHandlers({
+      heartbeatContextLevel: "minimal",
+    });
     const sessionId = "test-session-hb-custom";
 
     await handlers["heartbeat.check"]!({

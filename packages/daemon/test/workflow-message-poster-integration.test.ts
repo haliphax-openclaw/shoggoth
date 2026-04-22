@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createDaemonMessagePoster } from "../src/workflow-adapters";
 
 describe("workflow message poster integration", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockLogger: any;
   let mockSendBody: ReturnType<typeof vi.fn>;
 
@@ -56,7 +57,10 @@ describe("workflow message poster integration", () => {
 
     expect(mockLogger.warn).toHaveBeenCalledWith(
       "message task post failed",
-      expect.objectContaining({ target: "channel-456", err: "Error: Network error" }),
+      expect.objectContaining({
+        target: "channel-456",
+        err: "Error: Network error",
+      }),
     );
   });
 

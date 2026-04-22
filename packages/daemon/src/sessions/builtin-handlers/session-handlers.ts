@@ -2,13 +2,14 @@
 // session-query, subagent, session-list, session-send handlers
 // ---------------------------------------------------------------------------
 
-import {
-  isSubagentSessionUrn,
-  resolveAgentIdFromSessionId,
+import {\n  resolveAgentIdFromSessionId,
   resolveEffectiveSessionQueryAllowedAgentIds,
 } from "@shoggoth/shared";
 import { IntegrationOpError } from "../../control/integration-ops";
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 import { getLogger } from "../../logging";
 
 const log = getLogger("subagent");
@@ -30,30 +31,52 @@ async function sessionQuery(
 ): Promise<{ resultJson: string }> {
   const callerAgentId = resolveAgentIdFromSessionId(ctx.sessionId);
   if (!callerAgentId) {
-    return { resultJson: JSON.stringify({ error: "session-query requires a valid agent session URN" }) };
+    return {
+      resultJson: JSON.stringify({
+        error: "session-query requires a valid agent session URN",
+      }),
+    };
   }
-  const requestedAgentId = typeof args.agent_id === "string" && args.agent_id.trim()
-    ? args.agent_id.trim()
-    : callerAgentId;
-  const allowed = resolveEffectiveSessionQueryAllowedAgentIds(ctx.config, callerAgentId);
+  const requestedAgentId =
+    typeof args.agent_id === "string" && args.agent_id.trim()
+      ? args.agent_id.trim()
+      : callerAgentId;
+  const allowed = resolveEffectiveSessionQueryAllowedAgentIds(
+    ctx.config,
+    callerAgentId,
+  );
   if (!allowed.has(requestedAgentId)) {
-    return { resultJson: JSON.stringify({ error: `not allowed to query sessions for agent id: ${requestedAgentId}` }) };
+    return {
+      resultJson: JSON.stringify({
+        error: `not allowed to query sessions for agent id: ${requestedAgentId}`,
+      }),
+    };
   }
-  const limit = Math.min(Math.max(1, Math.trunc(Number(args.limit) || 50)), 100);
+  const limit = Math.min(
+    Math.max(1, Math.trunc(Number(args.limit) || 50)),
+    100,
+  );
   const orderRaw = args.order;
   const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
   const hasExplicitOffset = args.offset !== undefined && args.offset !== null;
   const offset = hasExplicitOffset
     ? Math.max(0, Math.trunc(Number(args.offset) || 0))
-    : (order === "desc" ? Number.MAX_SAFE_INTEGER : 0);
-  const sessionIdFilter = typeof args.session_id === "string" && args.session_id.trim()
-    ? args.session_id.trim()
-    : undefined;
+    : order === "desc"
+      ? Number.MAX_SAFE_INTEGER
+      : 0;
+  const sessionIdFilter =
+    typeof args.session_id === "string" && args.session_id.trim()
+      ? args.session_id.trim()
+      : undefined;
   // Verify requested session belongs to the allowed agent id
   if (sessionIdFilter) {
     const sessionAgent = resolveAgentIdFromSessionId(sessionIdFilter);
     if (sessionAgent !== requestedAgentId) {
-      return { resultJson: JSON.stringify({ error: `session ${sessionIdFilter} does not belong to agent ${requestedAgentId}` }) };
+      return {
+        resultJson: JSON.stringify({
+          error: `session ${sessionIdFilter} does not belong to agent ${requestedAgentId}`,
+        }),
+      };
     }
   }
 
@@ -62,15 +85,29 @@ async function sessionQuery(
   let roleFilter: string[] | undefined;
   if (typeof roleRaw === "string" && roleRaw.trim()) {
     roleFilter = [roleRaw.trim()];
-  } else if (Array.isArray(roleRaw) && roleRaw.length > 0 && roleRaw.every((r: unknown) => typeof r === "string")) {
+  } else if (
+    Array.isArray(roleRaw) &&
+    roleRaw.length > 0 &&
+    roleRaw.every((r: unknown) => typeof r === "string")
+  ) {
     roleFilter = roleRaw as string[];
   }
 
   // --- Search parameters (mutually exclusive) ---
-  const queryStr = typeof args.query === "string" && args.query.trim() ? args.query.trim() : undefined;
-  const queryRegexStr = typeof args.queryRegex === "string" && args.queryRegex.trim() ? args.queryRegex.trim() : undefined;
+  const queryStr =
+    typeof args.query === "string" && args.query.trim()
+      ? args.query.trim()
+      : undefined;
+  const queryRegexStr =
+    typeof args.queryRegex === "string" && args.queryRegex.trim()
+      ? args.queryRegex.trim()
+      : undefined;
   if (queryStr && queryRegexStr) {
-    return { resultJson: JSON.stringify({ error: "query and queryRegex are mutually exclusive; provide only one" }) };
+    return {
+      resultJson: JSON.stringify({
+        error: "query and queryRegex are mutually exclusive; provide only one",
+      }),
+    };
   }
   // Validate regex early to avoid runtime crashes
   let compiledRegex: RegExp | undefined;
@@ -78,7 +115,11 @@ async function sessionQuery(
     try {
       compiledRegex = new RegExp(queryRegexStr, "i");
     } catch (e) {
-      return { resultJson: JSON.stringify({ error: `invalid queryRegex pattern: ${String(e)}` }) };
+      return {
+        resultJson: JSON.stringify({
+          error: `invalid queryRegex pattern: ${String(e)}`,
+        }),
+      };
     }
   }
 
@@ -94,7 +135,9 @@ async function sessionQuery(
     whereClauses.push("session_id = @session_id");
     params.session_id = sessionIdFilter;
   } else {
-    whereClauses.push("session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)");
+    whereClauses.push(
+      "session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)",
+    );
     params.agent_pattern = `agent:${requestedAgentId}:%`;
   }
 
@@ -102,7 +145,9 @@ async function sessionQuery(
   if (roleFilter && roleFilter.length > 0) {
     const rolePlaceholders = roleFilter.map((_, i) => `@role_${i}`);
     whereClauses.push(`role IN (${rolePlaceholders.join(", ")})`);
-    roleFilter.forEach((r, i) => { params[`role_${i}`] = r; });
+    roleFilter.forEach((r, i) => {
+      params[`role_${i}`] = r;
+    });
   }
 
   // Substring search in SQL (SQLite LIKE is case-insensitive for ASCII)
@@ -134,18 +179,26 @@ async function sessionQuery(
 
   const stmt = ctx.db.prepare(sql);
   type RawRow = {
-    seq: number; role: string; content: string | null;
-    tool_call_id: string | null; tool_calls_json: string | null;
-    metadata_json: string | null; session_id: string; created_at: string | null;
+    seq: number;
+    role: string;
+    content: string | null;
+    tool_call_id: string | null;
+    tool_calls_json: string | null;
+    metadata_json: string | null;
+    session_id: string;
+    created_at: string | null;
   };
   let rows = stmt.all(params) as RawRow[];
 
   // JS-side regex filter + pagination when needed
   if (compiledRegex) {
-    rows = rows.filter((r) => r.content != null && compiledRegex!.test(r.content));
-    const startIdx = order === "desc"
-      ? rows.findIndex((r) => r.seq < offset)
-      : rows.findIndex((r) => r.seq > offset);
+    rows = rows.filter(
+      (r) => r.content != null && compiledRegex!.test(r.content),
+    );
+    const startIdx =
+      order === "desc"
+        ? rows.findIndex((r) => r.seq < offset)
+        : rows.findIndex((r) => r.seq > offset);
     if (startIdx === -1) {
       rows = [];
     } else {
@@ -166,7 +219,10 @@ async function sessionQuery(
         `SELECT seq, ROW_NUMBER() OVER (ORDER BY seq ASC) - 1 AS idx
          FROM transcript_messages WHERE session_id = @sid ORDER BY seq ASC`,
       );
-      const indexRows = countStmt.all({ sid }) as { seq: number; idx: number }[];
+      const indexRows = countStmt.all({ sid }) as {
+        seq: number;
+        idx: number;
+      }[];
       for (const ir of indexRows) {
         indexMap.set(`${sid}:${ir.seq}`, ir.idx);
       }
@@ -206,10 +262,14 @@ async function subagentHandler(
 ): Promise<{ resultJson: string }> {
   const inv = ctx.getAgentIntegrationInvoker();
   if (!inv) {
-    return { resultJson: JSON.stringify({ error: "subagent_control_unavailable" }) };
+    return {
+      resultJson: JSON.stringify({ error: "subagent_control_unavailable" }),
+    };
   }
   if (ctx.isSubagentSession) {
-    return { resultJson: JSON.stringify({ error: "subagent_tool_top_level_only" }) };
+    return {
+      resultJson: JSON.stringify({ error: "subagent_tool_top_level_only" }),
+    };
   }
   const action = String(args.action ?? "").trim();
   if (!action) {
@@ -251,9 +311,11 @@ async function subagentHandler(
       payload.platform_thread_id = threadId;
     }
     const du = args.platform_user_id;
-    if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
+    if (typeof du === "string" && du.trim())
+      payload.platform_user_id = du.trim();
     const rt = args.reply_to_message_id;
-    if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
+    if (typeof rt === "string" && rt.trim())
+      payload.reply_to_message_id = rt.trim();
     const lt = args.lifetime_ms;
     if (typeof lt === "number" && Number.isFinite(lt) && lt > 0) {
       payload.lifetime_ms = Math.trunc(lt);
@@ -270,16 +332,20 @@ async function subagentHandler(
     const sid = String(args.session_id ?? "").trim();
     const prompt = String(args.prompt ?? "").trim();
     if (!sid || !prompt) {
-      return { resultJson: JSON.stringify({ error: "session_id and prompt required" }) };
+      return {
+        resultJson: JSON.stringify({ error: "session_id and prompt required" }),
+      };
     }
     op = "session_steer";
     payload = { session_id: sid, prompt };
     const del = args.delivery;
     if (del === "internal") payload.delivery = "internal";
     const du = args.platform_user_id;
-    if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
+    if (typeof du === "string" && du.trim())
+      payload.platform_user_id = du.trim();
     const rt = args.reply_to_message_id;
-    if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
+    if (typeof rt === "string" && rt.trim())
+      payload.reply_to_message_id = rt.trim();
   } else if (action === "abort") {
     const sid = String(args.session_id ?? "").trim();
     if (!sid) {
@@ -302,7 +368,9 @@ async function subagentHandler(
       !sessionIds.every((x: unknown) => typeof x === "string")
     ) {
       return {
-        resultJson: JSON.stringify({ error: "session_ids must be a non-empty array of strings" }),
+        resultJson: JSON.stringify({
+          error: "session_ids must be a non-empty array of strings",
+        }),
       };
     }
     op = "subagent_wait";
@@ -331,26 +399,42 @@ async function subagentHandler(
     }
   } else {
     return {
-      resultJson: JSON.stringify({ error: `unknown subagent action: ${action}` }),
+      resultJson: JSON.stringify({
+        error: `unknown subagent action: ${action}`,
+      }),
     };
   }
 
   // model_options for spawn actions
   const mo = args.model_options;
-  const spawnAction = action === "spawn_one_shot" || action === "spawn_persistent";
+  const spawnAction =
+    action === "spawn_one_shot" || action === "spawn_persistent";
   if (spawnAction && mo && typeof mo === "object" && !Array.isArray(mo)) {
     payload.model_options = mo;
   }
 
   log.info("subagent invoked", { action, sessionId: ctx.sessionId });
   if (spawnAction) {
-    log.info("subagent spawned", { action, parentSessionId: ctx.sessionId, mode: payload.mode });
+    log.info("subagent spawned", {
+      action,
+      parentSessionId: ctx.sessionId,
+      mode: payload.mode,
+    });
   }
   const result = await invokeIntegration(inv, ctx.sessionId, op, payload);
   if (spawnAction) {
     let childId: string | undefined;
-    try { const parsed = JSON.parse(result.resultJson); childId = parsed.session_id; } catch { /* ignore */ }
-    log.info("subagent completed", { action, childId, parentSessionId: ctx.sessionId });
+    try {
+      const parsed = JSON.parse(result.resultJson);
+      childId = parsed.session_id;
+    } catch {
+      /* ignore */
+    }
+    log.info("subagent completed", {
+      action,
+      childId,
+      parentSessionId: ctx.sessionId,
+    });
   }
   return result;
 }
@@ -365,7 +449,9 @@ async function sessionListHandler(
 ): Promise<{ resultJson: string }> {
   const inv = ctx.getAgentIntegrationInvoker();
   if (!inv) {
-    return { resultJson: JSON.stringify({ error: "subagent_control_unavailable" }) };
+    return {
+      resultJson: JSON.stringify({ error: "subagent_control_unavailable" }),
+    };
   }
   const payload: Record<string, unknown> = {};
   const st = args.status;
@@ -385,7 +471,9 @@ async function sessionSendHandler(
 ): Promise<{ resultJson: string }> {
   const inv = ctx.getAgentIntegrationInvoker();
   if (!inv) {
-    return { resultJson: JSON.stringify({ error: "subagent_control_unavailable" }) };
+    return {
+      resultJson: JSON.stringify({ error: "subagent_control_unavailable" }),
+    };
   }
   const message = String(args.message ?? "").trim();
   if (!message) {
@@ -399,7 +487,9 @@ async function sessionSendHandler(
   const hasAg = typeof agid === "string" && agid.trim();
   if (hasSid && hasAg) {
     return {
-      resultJson: JSON.stringify({ error: "set only one of session_id or agent_id" }),
+      resultJson: JSON.stringify({
+        error: "set only one of session_id or agent_id",
+      }),
     };
   }
   if (hasSid) payload.session_id = (sid as string).trim();
@@ -412,7 +502,8 @@ async function sessionSendHandler(
   const du = args.platform_user_id;
   if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
   const rt = args.reply_to_message_id;
-  if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
+  if (typeof rt === "string" && rt.trim())
+    payload.reply_to_message_id = rt.trim();
   return invokeIntegration(inv, ctx.sessionId, "session_send", payload);
 }
 
@@ -420,7 +511,11 @@ async function sessionSendHandler(
 // Shared helper: invoke integration op with IntegrationOpError handling
 // ---------------------------------------------------------------------------
 
-type InvokerFn = (sessionId: string, op: string, payload: unknown) => Promise<unknown>;
+type InvokerFn = (
+  sessionId: string,
+  op: string,
+  payload: unknown,
+) => Promise<unknown>;
 
 async function invokeIntegration(
   inv: InvokerFn,

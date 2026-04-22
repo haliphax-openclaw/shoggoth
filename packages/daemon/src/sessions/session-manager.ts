@@ -78,7 +78,9 @@ export interface SessionManager {
   setLightContext(sessionId: string, value: boolean): void;
 }
 
-export function createSessionManager(options: SessionManagerOptions): SessionManager {
+export function createSessionManager(
+  options: SessionManagerOptions,
+): SessionManager {
   const mintToken = options.mintToken ?? mintAgentCredentialRaw;
   const defaultAgentId = options.agentId ?? "main";
   const agentsConfig = options.agentsConfig;
@@ -116,10 +118,17 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
             `no session platform specified and no platform bindings configured for agent "${aid}" (add platforms under agents.list.${aid}.platforms)`,
           );
         }
-        id = mintAgentSessionUrn(aid, platform, input.resourceType ?? "channel");
+        id = mintAgentSessionUrn(
+          aid,
+          platform,
+          input.resourceType ?? "channel",
+        );
         dirAgentId = aid;
       }
-      const wsPath = resolveAgentWorkspacePath(options.workspacesRoot, dirAgentId);
+      const wsPath = resolveAgentWorkspacePath(
+        options.workspacesRoot,
+        dirAgentId,
+      );
       try {
         await ensureAgentWorkspaceLayout(wsPath, agentCreds);
       } catch (e) {
@@ -131,7 +140,12 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
       const agentToken = mintToken();
       const isSubagent = Boolean(input.parentSessionId);
       const resolvedContextLevel = config
-        ? resolveContextLevel(config, dirAgentId, input.contextLevel, isSubagent)
+        ? resolveContextLevel(
+            config,
+            dirAgentId,
+            input.contextLevel,
+            isSubagent,
+          )
         : input.contextLevel;
       const run = options.db.transaction(() => {
         options.sessions.create({
@@ -146,7 +160,9 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
         if (input.parentSessionId) {
           const parent = options.sessions.getById(input.parentSessionId);
           if (parent?.workingDirectory) {
-            options.sessions.update(id, { workingDirectory: parent.workingDirectory });
+            options.sessions.update(id, {
+              workingDirectory: parent.workingDirectory,
+            });
           }
         }
         options.agentTokens.register(id, agentToken);
@@ -162,10 +178,16 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
     rotateAgentToken(sessionId) {
       const row = options.sessions.getById(sessionId);
       if (!row) {
-        throw new SessionManagerError("ERR_SESSION_NOT_FOUND", `no session ${sessionId}`);
+        throw new SessionManagerError(
+          "ERR_SESSION_NOT_FOUND",
+          `no session ${sessionId}`,
+        );
       }
       if (row.status === "terminated") {
-        throw new SessionManagerError("ERR_SESSION_NOT_ACTIVE", `session ${sessionId} is not active`);
+        throw new SessionManagerError(
+          "ERR_SESSION_NOT_ACTIVE",
+          `session ${sessionId} is not active`,
+        );
       }
       const agentToken = mintToken();
       options.agentTokens.register(sessionId, agentToken);

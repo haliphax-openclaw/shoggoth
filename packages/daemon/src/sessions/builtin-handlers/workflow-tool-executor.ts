@@ -9,9 +9,13 @@ import type Database from "better-sqlite3";
 import type { ShoggothConfig, ShoggothMemoryConfig } from "@shoggoth/shared";
 import type { AgentCredentials } from "@shoggoth/os-exec";
 import type { ProcessManager } from "@shoggoth/procman";
-import type { ChatContentPart, ImageBlockCodec } from "@shoggoth/models";
+import type { ImageBlockCodec } from "@shoggoth/models";
 import type { AgentIntegrationInvoker } from "../../control/integration-invoke";
-import type { BuiltinToolRegistry, BuiltinToolContext, MessageToolCtx } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+  MessageToolCtx,
+} from "../builtin-tool-registry";
 import type { SessionMcpToolContext } from "../session-mcp-tool-context";
 import type { ToolExecutor } from "../tool-loop";
 import { createMcpRoutingToolExecutor } from "../../mcp/tool-loop-mcp";
@@ -27,7 +31,9 @@ interface WorkflowToolExecutorDeps {
   readonly workingDirectory?: string;
   readonly creds: AgentCredentials;
   readonly orchestratorEnv: NodeJS.ProcessEnv;
-  readonly getAgentIntegrationInvoker: () => AgentIntegrationInvoker | undefined;
+  readonly getAgentIntegrationInvoker: () =>
+    | AgentIntegrationInvoker
+    | undefined;
   readonly getProcessManager: () => ProcessManager | undefined;
   readonly messageToolCtx: MessageToolCtx | undefined;
   readonly memoryConfig: ShoggothMemoryConfig;
@@ -67,14 +73,31 @@ export function createWorkflowToolExecutor(
   return createMcpRoutingToolExecutor({
     aggregated: deps.sessionMcpContext.aggregated,
     builtin: async ({ originalName, argsJson, toolCallId }) => {
-      log.debug("workflow tool: executing builtin", { tool: originalName, toolCallId, sessionId });
+      log.debug("workflow tool: executing builtin", {
+        tool: originalName,
+        toolCallId,
+        sessionId,
+      });
       try {
-        const result = await deps.builtinRegistry.execute(originalName, JSON.parse(argsJson), builtinCtx);
-        log.debug("workflow tool: builtin completed", { tool: originalName, toolCallId, sessionId });
+        const result = await deps.builtinRegistry.execute(
+          originalName,
+          JSON.parse(argsJson),
+          builtinCtx,
+        );
+        log.debug("workflow tool: builtin completed", {
+          tool: originalName,
+          toolCallId,
+          sessionId,
+        });
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        log.warn("workflow tool: builtin failed", { tool: originalName, toolCallId, sessionId, error: errMsg });
+        log.warn("workflow tool: builtin failed", {
+          tool: originalName,
+          toolCallId,
+          sessionId,
+          error: errMsg,
+        });
         return {
           resultJson: JSON.stringify({
             error: "tool_execution_failed",

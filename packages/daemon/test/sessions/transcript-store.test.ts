@@ -6,7 +6,10 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
+import {
+  createSessionStore,
+  getSessionContextSegmentId,
+} from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
@@ -36,7 +39,12 @@ describe("TranscriptStore", () => {
   it("appends with monotonic seq", () => {
     const tr = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
-    const a = tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "hi" });
+    const a = tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "hi",
+    });
     const b = tr.append({
       sessionId: "sess",
       contextSegmentId: seg,
@@ -50,10 +58,30 @@ describe("TranscriptStore", () => {
   it("lists page after cursor", () => {
     const tr = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "1" });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "2" });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "3" });
-    const p1 = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 2 });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "1",
+    });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "2",
+    });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "3",
+    });
+    const p1 = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 2,
+    });
     assert.equal(p1.messages.length, 2);
     assert.equal(p1.messages[0]!.content, "1");
     assert.equal(p1.messages[1]!.content, "2");
@@ -72,14 +100,41 @@ describe("TranscriptStore", () => {
     const tr = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
     tr.append({
-      sessionId: "sess", contextSegmentId: seg, role: "assistant",
-      toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }, { id: "tc2", name: "bar", argsJson: "{}" }],
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "assistant",
+      toolCalls: [
+        { id: "tc1", name: "foo", argsJson: "{}" },
+        { id: "tc2", name: "bar", argsJson: "{}" },
+      ],
     });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc1", content: "r1" });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc2", content: "r2" });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "next" });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "tool",
+      toolCallId: "tc1",
+      content: "r1",
+    });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "tool",
+      toolCallId: "tc2",
+      content: "r2",
+    });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "next",
+    });
 
-    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    const { messages } = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 100,
+    });
     assert.equal(messages.length, 4);
     assert.equal(messages[0]!.role, "assistant");
     assert.equal(messages[1]!.role, "tool");
@@ -93,24 +148,50 @@ describe("TranscriptStore", () => {
     const tr = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
     tr.append({
-      sessionId: "sess", contextSegmentId: seg, role: "assistant",
-      toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }, { id: "tc2", name: "bar", argsJson: "{}" }],
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "assistant",
+      toolCalls: [
+        { id: "tc1", name: "foo", argsJson: "{}" },
+        { id: "tc2", name: "bar", argsJson: "{}" },
+      ],
     });
     // No tool results — directly append user message
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "hello" });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "hello",
+    });
 
-    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    const { messages } = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 100,
+    });
     assert.equal(messages.length, 4); // assistant + 2 synthetic + user
     assert.equal(messages[0]!.role, "assistant");
     assert.equal(messages[1]!.role, "tool");
-    assert.equal(messages[1]!.content, "[Tool call aborted — no result available]");
-    assert.ok(messages[1]!.toolCallId === "tc1" || messages[1]!.toolCallId === "tc2");
+    assert.equal(
+      messages[1]!.content,
+      "[Tool call aborted — no result available]",
+    );
+    assert.ok(
+      messages[1]!.toolCallId === "tc1" || messages[1]!.toolCallId === "tc2",
+    );
     assert.equal(messages[2]!.role, "tool");
-    assert.equal(messages[2]!.content, "[Tool call aborted — no result available]");
+    assert.equal(
+      messages[2]!.content,
+      "[Tool call aborted — no result available]",
+    );
     assert.equal(messages[3]!.role, "user");
     assert.equal(messages[3]!.content, "hello");
     // Both tool call IDs are covered
-    const syntheticIds = new Set([messages[1]!.toolCallId, messages[2]!.toolCallId]);
+    const syntheticIds = new Set([
+      messages[1]!.toolCallId,
+      messages[2]!.toolCallId,
+    ]);
     assert.ok(syntheticIds.has("tc1"));
     assert.ok(syntheticIds.has("tc2"));
   });
@@ -119,23 +200,50 @@ describe("TranscriptStore", () => {
     const tr = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
     tr.append({
-      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "assistant",
       toolCalls: [
         { id: "tc1", name: "a", argsJson: "{}" },
         { id: "tc2", name: "b", argsJson: "{}" },
         { id: "tc3", name: "c", argsJson: "{}" },
       ],
     });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc1", content: "ok1" });
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "tool", toolCallId: "tc3", content: "ok3" });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "tool",
+      toolCallId: "tc1",
+      content: "ok1",
+    });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "tool",
+      toolCallId: "tc3",
+      content: "ok3",
+    });
     // tc2 is missing — next user message should inject synthetic for tc2 only
-    tr.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "go" });
+    tr.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "go",
+    });
 
-    const { messages } = tr.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    const { messages } = tr.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 100,
+    });
     assert.equal(messages.length, 5); // assistant + 2 real tools + 1 synthetic + user
     assert.equal(messages[3]!.role, "tool");
     assert.equal(messages[3]!.toolCallId, "tc2");
-    assert.equal(messages[3]!.content, "[Tool call aborted — no result available]");
+    assert.equal(
+      messages[3]!.content,
+      "[Tool call aborted — no result available]",
+    );
     assert.equal(messages[4]!.role, "user");
     assert.equal(messages[4]!.content, "go");
   });
@@ -145,19 +253,34 @@ describe("TranscriptStore", () => {
     const tr1 = createTranscriptStore(db);
     const seg = getSessionContextSegmentId(db, "sess");
     tr1.append({
-      sessionId: "sess", contextSegmentId: seg, role: "assistant",
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "assistant",
       toolCalls: [{ id: "tc1", name: "foo", argsJson: "{}" }],
     });
 
     // New store instance (simulates daemon restart) — no in-memory state
     const tr2 = createTranscriptStore(db);
-    tr2.append({ sessionId: "sess", contextSegmentId: seg, role: "user", content: "after restart" });
+    tr2.append({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      role: "user",
+      content: "after restart",
+    });
 
-    const { messages } = tr2.listPage({ sessionId: "sess", contextSegmentId: seg, afterSeq: 0, limit: 100 });
+    const { messages } = tr2.listPage({
+      sessionId: "sess",
+      contextSegmentId: seg,
+      afterSeq: 0,
+      limit: 100,
+    });
     assert.equal(messages.length, 3); // assistant + synthetic + user
     assert.equal(messages[1]!.role, "tool");
     assert.equal(messages[1]!.toolCallId, "tc1");
-    assert.equal(messages[1]!.content, "[Tool call aborted — no result available]");
+    assert.equal(
+      messages[1]!.content,
+      "[Tool call aborted — no result available]",
+    );
     assert.equal(messages[2]!.role, "user");
   });
 });

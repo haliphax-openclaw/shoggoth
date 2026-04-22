@@ -14,7 +14,10 @@ import {
   type IntegrationOpsContext,
 } from "../../src/control/integration-ops";
 
-function minimalConfig(tmp: string, dynamicConfigDirectory?: string): ShoggothConfig {
+function minimalConfig(
+  tmp: string,
+  dynamicConfigDirectory?: string,
+): ShoggothConfig {
   const configDir = join(tmp, "config.d");
   mkdirSync(configDir, { recursive: true });
   return {
@@ -40,8 +43,17 @@ function minimalConfig(tmp: string, dynamicConfigDirectory?: string): ShoggothCo
   } as ShoggothConfig;
 }
 
-function makeWireRequest(op: string, payload: Record<string, unknown>): WireRequest {
-  return { v: WIRE_VERSION, id: randomUUID(), op, auth: { kind: "operator", token: "t" }, payload };
+function makeWireRequest(
+  op: string,
+  payload: Record<string, unknown>,
+): WireRequest {
+  return {
+    v: WIRE_VERSION,
+    id: randomUUID(),
+    op,
+    auth: { kind: "operator", token: "t" },
+    payload,
+  };
 }
 
 const agentPrincipal: AuthenticatedPrincipal = {
@@ -86,8 +98,15 @@ describe("config_request control op", { concurrency: false }, () => {
       acpxSupervisor: undefined,
       recordIntegrationAudit: () => {},
     };
-    const req = makeWireRequest("config_request", { key: "logLevel", fragment: "debug" });
-    const result = (await handleIntegrationControlOp(req, agentPrincipal, ctx)) as {
+    const req = makeWireRequest("config_request", {
+      key: "logLevel",
+      fragment: "debug",
+    });
+    const result = (await handleIntegrationControlOp(
+      req,
+      agentPrincipal,
+      ctx,
+    )) as {
       ok: boolean;
       path: string;
       key: string;
@@ -114,11 +133,15 @@ describe("config_request control op", { concurrency: false }, () => {
       acpxSupervisor: undefined,
       recordIntegrationAudit: () => {},
     };
-    const req = makeWireRequest("config_request", { key: "logLevel", fragment: "banana" });
+    const req = makeWireRequest("config_request", {
+      key: "logLevel",
+      fragment: "banana",
+    });
     await assert.rejects(
       () => handleIntegrationControlOp(req, agentPrincipal, ctx),
       (err: Error & { code?: string }) => {
         assert.strictEqual(err.name, "IntegrationOpError");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         assert.strictEqual((err as any).code, "ERR_INVALID_PAYLOAD");
         return true;
       },
@@ -136,10 +159,14 @@ describe("config_request control op", { concurrency: false }, () => {
       acpxSupervisor: undefined,
       recordIntegrationAudit: () => {},
     };
-    const req = makeWireRequest("config_request", { key: "logLevel", fragment: "debug" });
+    const req = makeWireRequest("config_request", {
+      key: "logLevel",
+      fragment: "debug",
+    });
     await assert.rejects(
       () => handleIntegrationControlOp(req, agentPrincipal, ctx),
       (err: Error & { code?: string }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         assert.strictEqual((err as any).code, "ERR_CONFIG_REQUEST_UNAVAILABLE");
         return true;
       },
@@ -159,10 +186,14 @@ describe("config_request control op", { concurrency: false }, () => {
       acpxSupervisor: undefined,
       recordIntegrationAudit: () => {},
     };
-    const req = makeWireRequest("config_request", { key: "logLevel", fragment: "debug" });
+    const req = makeWireRequest("config_request", {
+      key: "logLevel",
+      fragment: "debug",
+    });
     await assert.rejects(
       () => handleIntegrationControlOp(req, operatorPrincipal, ctx),
       (err: Error & { code?: string }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         assert.strictEqual((err as any).code, "ERR_FORBIDDEN");
         return true;
       },
@@ -182,8 +213,15 @@ describe("config_request control op", { concurrency: false }, () => {
       acpxSupervisor: undefined,
       recordIntegrationAudit: () => {},
     };
-    const req = makeWireRequest("config_request", { key: "logLevel", fragment: "warn" });
-    const result = (await handleIntegrationControlOp(req, agentPrincipal, ctx)) as {
+    const req = makeWireRequest("config_request", {
+      key: "logLevel",
+      fragment: "warn",
+    });
+    const result = (await handleIntegrationControlOp(
+      req,
+      agentPrincipal,
+      ctx,
+    )) as {
       ok: boolean;
       path: string;
     };
@@ -216,10 +254,14 @@ describe("config_request control op", { concurrency: false }, () => {
     // (already covered above). For merged validation failure, we'd need the base config to be
     // in a state where the overlay breaks it — which is hard to construct.
     // Instead, verify that an unrecognized key in strict mode fails fragment validation.
-    const req = makeWireRequest("config_request", { key: "unknownField", fragment: true });
+    const req = makeWireRequest("config_request", {
+      key: "unknownField",
+      fragment: true,
+    });
     await assert.rejects(
       () => handleIntegrationControlOp(req, agentPrincipal, ctx),
       (err: Error & { code?: string }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         assert.strictEqual((err as any).code, "ERR_INVALID_PAYLOAD");
         return true;
       },

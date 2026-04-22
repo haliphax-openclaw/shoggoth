@@ -1,4 +1,3 @@
-import type { ProcessManager } from "@shoggoth/procman";
 import type { TaskDef } from "./types.js";
 import {
   Orchestrator,

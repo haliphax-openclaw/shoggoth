@@ -18,7 +18,11 @@ export function validateDiscordUrn(parsed: {
   resourceType: string;
   uuidChain: readonly string[];
 }): string | null {
-  if (!DISCORD_RESOURCE_TYPES.includes(parsed.resourceType as (typeof DISCORD_RESOURCE_TYPES)[number])) {
+  if (
+    !DISCORD_RESOURCE_TYPES.includes(
+      parsed.resourceType as (typeof DISCORD_RESOURCE_TYPES)[number],
+    )
+  ) {
     return `unknown Discord resource type: ${JSON.stringify(parsed.resourceType)} (expected one of: ${DISCORD_RESOURCE_TYPES.join(", ")})`;
   }
   const leaf = parsed.uuidChain[parsed.uuidChain.length - 1];
@@ -31,7 +35,8 @@ export function validateDiscordUrn(parsed: {
 const discordUrnPolicy: MessagingPlatformUrnPolicy = {
   platformId: "discord",
   checkRouteSessionUrn: checkDiscordMessagingRouteSessionUrn,
-  assertRoutesDefaultPrimaryUuidMatchesAgent: assertDiscordRoutesDefaultPrimaryUuidMatchesAgent,
+  assertRoutesDefaultPrimaryUuidMatchesAgent:
+    assertDiscordRoutesDefaultPrimaryUuidMatchesAgent,
   parseFirstChannelIdFromRoutesJson: parseFirstDiscordChannelIdFromRoutesJson,
   resolveBootstrapPrimarySessionUrn: resolveDiscordBootstrapPrimarySessionUrn,
 };

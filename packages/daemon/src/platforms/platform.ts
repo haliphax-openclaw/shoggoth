@@ -5,13 +5,9 @@
  * in without coupling the daemon core to any single transport.
  */
 
-import type Database from "better-sqlite3";
 import type { ShoggothConfig } from "@shoggoth/shared";
 import type { SessionModelTurnDelivery } from "../messaging/session-model-turn-delivery";
 import type { SessionAgentTurnResult } from "../sessions/session-agent-turn";
-import type { PolicyEngine } from "../policy/engine";
-import type { HitlConfigRef } from "../config-hot-reload";
-import type { HitlPendingStack } from "../hitl/hitl-pending-stack";
 import type {
   CreateFailoverFromConfigOptions,
   FailoverToolCallingClient,
@@ -85,43 +81,3 @@ interface PlatformAssistantDeps {
   readonly connectShoggothMcpServers: typeof connectShoggothMcpServers;
 }
 
-// ---------------------------------------------------------------------------
-// PlatformOptions
-// ---------------------------------------------------------------------------
-
-/**
- * Common configuration and dependencies passed to a platform's `start*` factory.
- * Each concrete platform extends this with transport-specific fields.
- */
-interface PlatformOptions {
-  /** SQLite database handle for sessions, transcripts, tool runs, and HITL state. */
-  readonly db: Database.Database;
-
-  /** Resolved daemon configuration. */
-  readonly config: ShoggothConfig;
-
-  /** Tool/control authorization engine. When omitted, a default engine is created from config. */
-  readonly policyEngine?: PolicyEngine;
-
-  /** Live-reloadable HITL configuration reference. */
-  readonly hitlConfigRef?: HitlConfigRef;
-
-  /**
-   * Shared pending-action store and resolution waiters.
-   * When omitted, an isolated stack is created (control-socket approve/deny
-   * will not unblock this platform's waiters).
-   */
-  readonly hitlPending?: HitlPendingStack;
-
-  /**
-   * Merged environment variables. Layered with `process.env` and config-derived
-   * `SHOGGOTH_*` keys via `mergeOrchestratorEnv`. Omit to use only process env + config.
-   */
-  readonly env?: NodeJS.ProcessEnv;
-
-  /**
-   * Assistant loop + MCP pool wiring. Production passes platform-specific defaults;
-   * tests may override individual pieces.
-   */
-  readonly deps?: Partial<PlatformAssistantDeps>;
-}

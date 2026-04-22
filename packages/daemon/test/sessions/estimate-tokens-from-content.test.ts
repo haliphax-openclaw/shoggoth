@@ -22,7 +22,7 @@ describe("estimateTokensFromContent", () => {
     const input = '{"key":"value"}';
     const structural = 7;
     const other = input.length - structural;
-    const expected = (structural / 2) + (other / 4);
+    const expected = structural / 2 + other / 4;
     assert.equal(estimateTokensFromContent(input), expected);
   });
 
@@ -39,6 +39,9 @@ describe("estimateTokensFromContent", () => {
     // structural chars: { " " : " " } → 7
     const structural = 7;
     const other = wrapped.length - structural;
-    assert.equal(estimateTokensFromContent(wrapped), (structural / 2) + (other / 4));
+    assert.equal(
+      estimateTokensFromContent(wrapped),
+      structural / 2 + other / 4,
+    );
   });
 });

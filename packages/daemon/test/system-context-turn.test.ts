@@ -10,7 +10,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { DEFAULT_HITL_CONFIG, defaultConfig } from "@shoggoth/shared";
-import { renderSystemContextEnvelope, type SystemContext } from "@shoggoth/shared";
+import {
+  renderSystemContextEnvelope,
+  type SystemContext,
+} from "@shoggoth/shared";
 import { migrate, defaultMigrationsDir } from "../src/db/migrate";
 import { createHitlPendingResolutionStack } from "../src/hitl/hitl-pending-stack";
 import { createPolicyEngine } from "../src/policy/engine";
@@ -95,23 +98,29 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
       summary: "You are a subagent. Complete the task.",
       data: { parent_session_id: "parent-1" },
     };
-    await executeSessionAgentTurn(buildTurnInput({
-      userContent: "Do the thing.",
-      systemContext: ctx,
-    }));
+    await executeSessionAgentTurn(
+      buildTurnInput({
+        userContent: "Do the thing.",
+        systemContext: ctx,
+      }),
+    );
 
     // Read the user message from the transcript
     const transcript = createTranscriptStore(db);
     const page = transcript.listPage({
       sessionId: SESSION_ID,
-      contextSegmentId: createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
+      contextSegmentId:
+        createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
       afterSeq: 0,
       limit: 100,
     });
     const userMsg = page.messages.find((m) => m.role === "user");
     assert.ok(userMsg, "user message should exist in transcript");
 
-    const envelope = renderSystemContextEnvelope(ctx, createSessionStore(db).getById(SESSION_ID)!.systemContextToken);
+    const envelope = renderSystemContextEnvelope(
+      ctx,
+      createSessionStore(db).getById(SESSION_ID)!.systemContextToken,
+    );
     assert.ok(
       userMsg.content!.startsWith(envelope),
       "user content should start with the system context envelope",
@@ -123,14 +132,17 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
   });
 
   it("when systemContext is not provided, the user content is unchanged", async () => {
-    await executeSessionAgentTurn(buildTurnInput({
-      userContent: "Just a normal message.",
-    }));
+    await executeSessionAgentTurn(
+      buildTurnInput({
+        userContent: "Just a normal message.",
+      }),
+    );
 
     const transcript = createTranscriptStore(db);
     const page = transcript.listPage({
       sessionId: SESSION_ID,
-      contextSegmentId: createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
+      contextSegmentId:
+        createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
       afterSeq: 0,
       limit: 100,
     });
@@ -145,15 +157,19 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
       summary: "Fan-out done.",
       data: { workflow_id: "wf-1" },
     };
-    await executeSessionAgentTurn(buildTurnInput({
-      userContent: "Check results.",
-      systemContext: ctx,
-    }));
+    await executeSessionAgentTurn(
+      buildTurnInput({
+        userContent: "Check results.",
+        systemContext: ctx,
+      }),
+    );
 
     // Query the raw DB to verify system_context_json is stored
-    const row = db.prepare(
-      "SELECT system_context_json FROM transcript_messages WHERE session_id = ? AND role = 'user'",
-    ).get(SESSION_ID) as { system_context_json: string | null };
+    const row = db
+      .prepare(
+        "SELECT system_context_json FROM transcript_messages WHERE session_id = ? AND role = 'user'",
+      )
+      .get(SESSION_ID) as { system_context_json: string | null };
     assert.ok(row, "transcript row should exist");
     assert.ok(row.system_context_json, "system_context_json should be stored");
     const stored = JSON.parse(row.system_context_json!);
@@ -165,21 +181,30 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
       kind: "session.steer",
       summary: "Adjust behavior.",
     };
-    await executeSessionAgentTurn(buildTurnInput({
-      userContent: "New instructions.",
-      systemContext: ctx,
-    }));
+    await executeSessionAgentTurn(
+      buildTurnInput({
+        userContent: "New instructions.",
+        systemContext: ctx,
+      }),
+    );
 
     const transcript = createTranscriptStore(db);
     const page = transcript.listPage({
       sessionId: SESSION_ID,
-      contextSegmentId: createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
+      contextSegmentId:
+        createSessionStore(db).getById(SESSION_ID)!.contextSegmentId,
       afterSeq: 0,
       limit: 100,
     });
     const userMsg = page.messages.find((m) => m.role === "user");
     assert.ok(userMsg);
-    assert.match(userMsg.content!, /^--- BEGIN TRUSTED SYSTEM CONTEXT(?: \[token:[0-9a-f]+\])? ---\n/);
-    assert.match(userMsg.content!, /--- END TRUSTED SYSTEM CONTEXT(?: \[token:[0-9a-f]+\])? ---\n\nNew instructions\.$/);
+    assert.match(
+      userMsg.content!,
+      /^--- BEGIN TRUSTED SYSTEM CONTEXT(?: \[token:[0-9a-f]+\])? ---\n/,
+    );
+    assert.match(
+      userMsg.content!,
+      /--- END TRUSTED SYSTEM CONTEXT(?: \[token:[0-9a-f]+\])? ---\n\nNew instructions\.$/,
+    );
   });
 });

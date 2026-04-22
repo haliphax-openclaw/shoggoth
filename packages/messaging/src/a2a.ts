@@ -11,7 +11,10 @@ export function createAgentToAgentBus(): AgentToAgentBus {
   const byTarget = new Map<string, Set<AgentToAgentHandler>>();
 
   return {
-    subscribe(targetSessionId: string, handler: AgentToAgentHandler): () => void {
+    subscribe(
+      targetSessionId: string,
+      handler: AgentToAgentHandler,
+    ): () => void {
       let set = byTarget.get(targetSessionId);
       if (!set) {
         set = new Set();

@@ -1,6 +1,9 @@
 import assert from "node:assert";
 import { describe, it } from "vitest";
-import { formatAgentSessionUrn, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID } from "../src/session-urn.js";
+import {
+  formatAgentSessionUrn,
+  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+} from "../src/session-urn.js";
 import {
   formatAgentIdentityPrefix,
   resolveEffectiveMemoryForSession,
@@ -29,8 +32,14 @@ describe("effective agent config for session", () => {
     plugins: [],
     mcp: { servers: [], poolScope: "global" },
     policy: {
-      operator: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
-      agent: { controlOps: { allow: ["*"], deny: [] }, tools: { allow: ["*"], deny: [] } },
+      operator: {
+        controlOps: { allow: ["*"], deny: [] },
+        tools: { allow: ["*"], deny: [] },
+      },
+      agent: {
+        controlOps: { allow: ["*"], deny: [] },
+        tools: { allow: ["*"], deny: [] },
+      },
       auditRedaction: { jsonPaths: [] },
     },
     models: {
@@ -39,7 +48,12 @@ describe("effective agent config for session", () => {
     },
   };
 
-  const sid = formatAgentSessionUrn("alice", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+  const sid = formatAgentSessionUrn(
+    "alice",
+    "discord",
+    "channel",
+    SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+  );
 
   it("returns global models when no agents.list match", () => {
     const m = resolveEffectiveModelsConfig(base, sid);

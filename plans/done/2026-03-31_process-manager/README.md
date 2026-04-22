@@ -20,20 +20,20 @@ There is no way for a tool or plugin to declare "I need a sidecar daemon running
 ## Design Principles
 
 1. **Single owner** — all child processes go through the process manager. No direct `spawn()` calls elsewhere.
-2. **Declarative specs** — callers describe *what* they want running (command, env, restart policy, health check). The manager handles *how*.
+2. **Declarative specs** — callers describe _what_ they want running (command, env, restart policy, health check). The manager handles _how_.
 3. **Observable** — every managed process has a well-defined state machine, emits lifecycle events, and exposes structured logs.
 4. **Graceful shutdown** — the manager owns the shutdown sequence. Processes are stopped in dependency order with configurable drain/grace periods.
 5. **Prototype-grade** — no backward compat burden. Interfaces can change freely until v1.
 
 ## Terminology
 
-| Term | Meaning |
-|---|---|
-| **Managed Process (MP)** | A subprocess whose full lifecycle is owned by the process manager. |
-| **Spec** | Declarative description of a managed process (command, env, restart policy, health, etc.). |
-| **Handle** | Runtime reference to a running MP — exposes state, output, IPC channels. |
-| **Owner** | The component that requested the MP (e.g. an MCP server config, a tool plugin, the daemon core). |
-| **Process Group** | A set of MPs that share a lifecycle (start together, stop together). |
+| Term                     | Meaning                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Managed Process (MP)** | A subprocess whose full lifecycle is owned by the process manager.                               |
+| **Spec**                 | Declarative description of a managed process (command, env, restart policy, health, etc.).       |
+| **Handle**               | Runtime reference to a running MP — exposes state, output, IPC channels.                         |
+| **Owner**                | The component that requested the MP (e.g. an MCP server config, a tool plugin, the daemon core). |
+| **Process Group**        | A set of MPs that share a lifecycle (start together, stop together).                             |
 
 ## State Machine
 
@@ -165,9 +165,30 @@ interface RestartPolicy {
 
 ```typescript
 type HealthCheck =
-  | { kind: "tcp"; port: number; host?: string; intervalMs?: number; timeoutMs?: number; retries?: number }
-  | { kind: "http"; url: string; expectedStatus?: number; intervalMs?: number; timeoutMs?: number; retries?: number }
-  | { kind: "exec"; command: string; args?: string[]; intervalMs?: number; timeoutMs?: number; retries?: number }
+  | {
+      kind: "tcp";
+      port: number;
+      host?: string;
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
+  | {
+      kind: "http";
+      url: string;
+      expectedStatus?: number;
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
+  | {
+      kind: "exec";
+      command: string;
+      args?: string[];
+      intervalMs?: number;
+      timeoutMs?: number;
+      retries?: number;
+    }
   | { kind: "stdout-match"; pattern: string; timeoutMs?: number };
 ```
 
@@ -235,7 +256,13 @@ interface ProcessHandle {
   readonly spec: ProcessSpec;
 
   /** Current state. */
-  readonly state: "starting" | "running" | "exited" | "stopping" | "failed" | "dead";
+  readonly state:
+    | "starting"
+    | "running"
+    | "exited"
+    | "stopping"
+    | "failed"
+    | "dead";
 
   /** OS PID (undefined if not yet spawned or already dead). */
   readonly pid: number | undefined;
@@ -253,14 +280,23 @@ interface ProcessHandle {
   readonly lastSignal: NodeJS.Signals | null;
 
   /** Read recent stdout/stderr from the ring buffer. */
-  readOutput(stream: "stdout" | "stderr", options?: { tail?: number; since?: number }): string;
+  readOutput(
+    stream: "stdout" | "stderr",
+    options?: { tail?: number; since?: number },
+  ): string;
 
   /** Write to stdin (only if spec.stdio.stdin is true). */
   writeStdin(data: string | Buffer): void;
 
   /** Subscribe to lifecycle events. */
-  on(event: "state-change", listener: (newState: string, oldState: string) => void): void;
-  on(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): void;
+  on(
+    event: "state-change",
+    listener: (newState: string, oldState: string) => void,
+  ): void;
+  on(
+    event: "exit",
+    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
+  ): void;
   on(event: "stdout" | "stderr", listener: (chunk: Buffer) => void): void;
 
   /** Request a graceful stop. Returns a promise that resolves when the process is dead. */
@@ -302,7 +338,10 @@ interface ProcessManager {
   /** Subscribe to manager-level events. */
   on(event: "process-started", listener: (handle: ProcessHandle) => void): void;
   on(event: "process-stopped", listener: (handle: ProcessHandle) => void): void;
-  on(event: "process-failed", listener: (handle: ProcessHandle, error: Error) => void): void;
+  on(
+    event: "process-failed",
+    listener: (handle: ProcessHandle, error: Error) => void,
+  ): void;
 }
 ```
 
@@ -313,6 +352,7 @@ New package: `@shoggoth/procman`
 Rationale: the process manager is a foundational layer that `daemon`, `os-exec`, and `mcp-integration` all depend on. Keeping it in its own package enforces clean boundaries and prevents circular deps.
 
 Dependency graph after:
+
 ```
 daemon ──▶ procman ──▶ (node:child_process, node:net)
 os-exec ──▶ procman

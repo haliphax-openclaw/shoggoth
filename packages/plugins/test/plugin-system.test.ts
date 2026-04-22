@@ -2,10 +2,7 @@ import assert from "node:assert";
 import { describe, test } from "vitest";
 
 // These imports target source files that DO NOT EXIST yet — tests must fail.
-import {
-  ShoggothPluginSystem,
-  freezeConfig,
-} from "../src/plugin-system";
+import { ShoggothPluginSystem, freezeConfig } from "../src/plugin-system";
 import { defineMessagingPlatformPlugin } from "../src/messaging-platform-plugin";
 import type {
   DaemonConfigureCtx,
@@ -70,15 +67,22 @@ describe("ShoggothPluginSystem", () => {
     });
 
     const fakeCtx = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       db: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: { foo: "bar" } as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       configRef: { current: { foo: "bar" } as any },
       registerDrain: () => {},
     } satisfies DaemonStartupCtx;
 
     await system.lifecycle["daemon.startup"].emit(fakeCtx);
 
-    assert.strictEqual(received.length, 1, "handler should have been called once");
+    assert.strictEqual(
+      received.length,
+      1,
+      "handler should have been called once",
+    );
     assert.strictEqual(received[0].config, fakeCtx.config);
   });
 
@@ -95,6 +99,7 @@ describe("ShoggothPluginSystem", () => {
           // Waterfall: return a modified context
           return {
             ...ctx,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             config: { ...ctx.config, injected: true } as any,
           };
         },
@@ -102,17 +107,20 @@ describe("ShoggothPluginSystem", () => {
     });
 
     const initial: DaemonConfigureCtx = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: { original: true } as any,
     };
 
     const result = system.lifecycle["daemon.configure"].emit(initial);
     assert.ok(result, "waterfall should return a result");
     assert.strictEqual(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (result as any).config.original,
       true,
       "original config key should be preserved",
     );
     assert.strictEqual(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (result as any).config.injected,
       true,
       "plugin should have injected a key",
@@ -139,6 +147,7 @@ describe("ShoggothPluginSystem", () => {
     });
 
     system.lifecycle["platform.register"].emit({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as any,
       registerPlatform: () => {},
       setPlatformRuntime: () => {},
@@ -174,14 +183,17 @@ describe("freezeConfig", () => {
 
     // Mutation should throw in strict mode (ESM is always strict)
     assert.throws(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (frozen as any).a = 999;
     }, TypeError);
 
     assert.throws(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (frozen.nested as any).b = 999;
     }, TypeError);
 
     assert.throws(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (frozen.nested.deep as any).c = 999;
     }, TypeError);
   });
@@ -195,9 +207,13 @@ describe("defineMessagingPlatformPlugin", () => {
     const plugin = defineMessagingPlatformPlugin({
       name: "test-platform",
       hooks: {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         "platform.register": (_ctx: PlatformRegisterCtx) => {},
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         "platform.start": async (_ctx: PlatformStartCtx) => {},
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         "platform.stop": async (_ctx: PlatformStopCtx) => {},
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         "health.register": (_ctx: HealthRegisterCtx) => {},
       },
     });
@@ -219,11 +235,14 @@ describe("defineMessagingPlatformPlugin", () => {
         defineMessagingPlatformPlugin({
           name: "incomplete-platform",
           hooks: {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             "platform.register": (_ctx: PlatformRegisterCtx) => {},
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             "platform.start": async (_ctx: PlatformStartCtx) => {},
             // Missing: platform.stop
             // Missing: health.register
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
       },
       (err: Error) => {
@@ -242,11 +261,15 @@ describe("defineMessagingPlatformPlugin", () => {
         defineMessagingPlatformPlugin({
           name: "almost-complete-platform",
           hooks: {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             "platform.register": (_ctx: PlatformRegisterCtx) => {},
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             "platform.start": async (_ctx: PlatformStartCtx) => {},
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             "platform.stop": async (_ctx: PlatformStopCtx) => {},
             // Missing: health.register
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
       },
       (err: Error) => {

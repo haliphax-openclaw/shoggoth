@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { connectDiscordGateway, type DiscordGatewayConnectOptions } from "../src/gateway-client";
+import {
+  connectDiscordGateway,
+  type DiscordGatewayConnectOptions,
+} from "../src/gateway-client";
 
 /* ------------------------------------------------------------------ */
 /*  Mock WebSocket that gives tests full control over the connection   */
@@ -32,16 +35,21 @@ function createFakeSocketFactory() {
 
   /** Returns a promise that resolves the next time createWebSocket is called. */
   function waitForSocket(): Promise<FakeSocket> {
-    const last = sockets[sockets.length - 1];
     // If there's already an un-awaited socket, don't return it — we want the *next* one.
-    return new Promise<FakeSocket>((r) => { nextSocketReady = r; });
+    return new Promise<FakeSocket>((r) => {
+      nextSocketReady = r;
+    });
   }
 
-  function createWebSocket(url: string): WebSocket {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function createWebSocket(_url: string): WebSocket {
     const listeners = new Map<string, Set<(ev: unknown) => void>>();
     const on = (type: string, fn: (ev: unknown) => void) => {
       let s = listeners.get(type);
-      if (!s) { s = new Set(); listeners.set(type, s); }
+      if (!s) {
+        s = new Set();
+        listeners.set(type, s);
+      }
       s.add(fn);
     };
     const emit = (type: string, ev: unknown) => {
@@ -51,7 +59,9 @@ function createFakeSocketFactory() {
     const fake: FakeSocket = {
       sent: [],
       clientCloseCode: undefined,
-      emitOpen() { emit("open", {}); },
+      emitOpen() {
+        emit("open", {});
+      },
       deliver(payload: object) {
         emit("message", { data: JSON.stringify(payload) });
       },
@@ -60,7 +70,9 @@ function createFakeSocketFactory() {
       },
       deliverReady(extra?: Record<string, unknown>) {
         fake.deliver({
-          op: 0, t: "READY", s: 1,
+          op: 0,
+          t: "READY",
+          s: 1,
           d: {
             user: { id: "bot-123", username: "shoggoth" },
             session_id: "sess-abc",
@@ -84,12 +96,17 @@ function createFakeSocketFactory() {
       addEventListener(type: string, fn: (ev: unknown) => void) {
         on(type, fn);
       },
-      send(data: string) { fake.sent.push(data); },
+      send(data: string) {
+        fake.sent.push(data);
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       close(code?: number, _reason?: string) {
         fake.clientCloseCode = code;
         emit("close", { code, reason: _reason ?? "" });
       },
-      get readyState() { return 1; },
+      get readyState() {
+        return 1;
+      },
     };
 
     sockets.push(fake);
@@ -107,12 +124,15 @@ function createFakeSocketFactory() {
 
 function baseFetch(): typeof fetch {
   return (async () =>
-    new Response(JSON.stringify({ url: "wss://gateway.test/" }), { status: 200 })
-  ) as unknown as typeof fetch;
+    new Response(JSON.stringify({ url: "wss://gateway.test/" }), {
+      status: 200,
+    })) as unknown as typeof fetch;
 }
 
 function baseOpts(
-  overrides: Partial<DiscordGatewayConnectOptions> & { createWebSocket: (url: string) => WebSocket },
+  overrides: Partial<DiscordGatewayConnectOptions> & {
+    createWebSocket: (url: string) => WebSocket;
+  },
 ): DiscordGatewayConnectOptions {
   return {
     botToken: "test-token",
@@ -123,8 +143,12 @@ function baseOpts(
 }
 
 /** Connect and complete the initial handshake, returning the session + first socket. */
-async function connectAndHandshake(factory: ReturnType<typeof createFakeSocketFactory>) {
-  const sessionP = connectDiscordGateway(baseOpts({ createWebSocket: factory.createWebSocket }));
+async function connectAndHandshake(
+  factory: ReturnType<typeof createFakeSocketFactory>,
+) {
+  const sessionP = connectDiscordGateway(
+    baseOpts({ createWebSocket: factory.createWebSocket }),
+  );
   await vi.waitFor(() => expect(factory.sockets.length).toBeGreaterThan(0));
   const s0 = factory.sockets[0];
   s0.emitOpen();
@@ -141,8 +165,12 @@ async function connectAndHandshake(factory: ReturnType<typeof createFakeSocketFa
 /* ================================================================== */
 
 describe("gateway reconnection", () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   /* -------------------------------------------------------------- */
   /*  op 7 — Reconnect                                               */
@@ -224,7 +252,9 @@ describe("gateway reconnection", () => {
       const factory = createFakeSocketFactory();
       const heartbeatMs = 5_000;
 
-      const sessionP = connectDiscordGateway(baseOpts({ createWebSocket: factory.createWebSocket }));
+      const sessionP = connectDiscordGateway(
+        baseOpts({ createWebSocket: factory.createWebSocket }),
+      );
       await vi.waitFor(() => expect(factory.sockets.length).toBeGreaterThan(0));
       const s0 = factory.sockets[0];
       s0.emitOpen();
@@ -370,13 +400,18 @@ describe("gateway reconnection", () => {
         return origCreate(url);
       };
 
-      const sessionP = connectDiscordGateway(baseOpts({ createWebSocket: trackingCreate }));
+      const sessionP = connectDiscordGateway(
+        baseOpts({ createWebSocket: trackingCreate }),
+      );
       await vi.waitFor(() => expect(factory.sockets.length).toBeGreaterThan(0));
       const s0 = factory.sockets[0];
       s0.emitOpen();
       s0.deliverHello();
       await vi.waitFor(() => s0.sent.some((m) => m.includes('"op":2')));
-      s0.deliverReady({ session_id: "sess-xyz", resume_gateway_url: "wss://resume.discord.gg" });
+      s0.deliverReady({
+        session_id: "sess-xyz",
+        resume_gateway_url: "wss://resume.discord.gg",
+      });
       const session = await sessionP;
 
       // Trigger reconnect.

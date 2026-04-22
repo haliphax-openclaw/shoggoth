@@ -8,10 +8,7 @@ import { openStateDb } from "../../src/db/open";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
 import { createSessionStore } from "../../src/sessions/session-store";
 import { createToolRunStore } from "../../src/sessions/tool-run-store";
-import {
-  runToolLoop,
-  type ModelClient,
-} from "../../src/sessions/tool-loop";
+import { runToolLoop, type ModelClient } from "../../src/sessions/tool-loop";
 import { pushSteer, _resetAllChannels } from "../../src/sessions/steer-channel";
 
 function openMigratedDb(): { db: Database.Database; dir: string } {
@@ -184,7 +181,9 @@ describe("runToolLoop steer injection", () => {
         model,
         tools: [{ name: "read" }],
         executor: {
-          execute: async () => { throw new Error("boom"); },
+          execute: async () => {
+            throw new Error("boom");
+          },
         },
         toolRuns,
       });

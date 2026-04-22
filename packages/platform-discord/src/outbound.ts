@@ -1,6 +1,16 @@
-import type { MessagingAdapterCapabilities, InternalMessage } from "@shoggoth/messaging";
-import type { DiscordCreateMessageBody, DiscordRestTransport, DiscordMessageUploadFile } from "./transport";
-import { formatMessageWithThinking, type ThinkingDisplayMode } from "./thinking-formatter";
+import type {
+  MessagingAdapterCapabilities,
+  InternalMessage,
+} from "@shoggoth/messaging";
+import type {
+  DiscordCreateMessageBody,
+  DiscordRestTransport,
+  DiscordMessageUploadFile,
+} from "./transport";
+import {
+  formatMessageWithThinking,
+  type ThinkingDisplayMode,
+} from "./thinking-formatter";
 
 export interface OutboundAttachmentFile {
   readonly filename: string;
@@ -21,7 +31,10 @@ export interface SentMessageRef {
 }
 
 export interface OutboundSender {
-  sendDiscord(msg: InternalMessage, opts?: { attachments?: OutboundAttachmentFile[] }): Promise<SentMessageRef>;
+  sendDiscord(
+    msg: InternalMessage,
+    opts?: { attachments?: OutboundAttachmentFile[] },
+  ): Promise<SentMessageRef>;
 }
 
 function assertExtensionsAllowed(
@@ -30,19 +43,28 @@ function assertExtensionsAllowed(
 ): void {
   const x = msg.extensions;
   if (x.attachments?.length && !caps.extensions.attachments) {
-    throw new Error("Outbound: attachments not supported by this adapter capability set");
+    throw new Error(
+      "Outbound: attachments not supported by this adapter capability set",
+    );
   }
   if (x.threadId && !caps.extensions.threads) {
-    throw new Error("Outbound: threads not supported by this adapter capability set");
+    throw new Error(
+      "Outbound: threads not supported by this adapter capability set",
+    );
   }
   if (x.replyToMessageId && !caps.extensions.replies) {
-    throw new Error("Outbound: replies not supported by this adapter capability set");
+    throw new Error(
+      "Outbound: replies not supported by this adapter capability set",
+    );
   }
 }
 
-function toDiscordBody(msg: InternalMessage, thinkingDisplay?: ThinkingDisplayMode): DiscordCreateMessageBody {
+function toDiscordBody(
+  msg: InternalMessage,
+  thinkingDisplay?: ThinkingDisplayMode,
+): DiscordCreateMessageBody {
   let content = msg.body;
-  
+
   // Apply thinking display formatting if configured
   if (thinkingDisplay) {
     content = formatMessageWithThinking(content, thinkingDisplay);
@@ -57,15 +79,22 @@ function toDiscordBody(msg: InternalMessage, thinkingDisplay?: ThinkingDisplayMo
   return { content };
 }
 
-export function createOutboundSender(config: OutboundSenderConfig): OutboundSender {
+export function createOutboundSender(
+  config: OutboundSenderConfig,
+): OutboundSender {
   const { capabilities, transport, sessionToChannel, thinkingDisplay } = config;
 
   return {
-    async sendDiscord(msg: InternalMessage, opts?: { attachments?: OutboundAttachmentFile[] }): Promise<SentMessageRef> {
+    async sendDiscord(
+      msg: InternalMessage,
+      opts?: { attachments?: OutboundAttachmentFile[] },
+    ): Promise<SentMessageRef> {
       assertExtensionsAllowed(capabilities, msg);
       const channelId = sessionToChannel(msg.sessionId);
       if (!channelId) {
-        throw new Error(`Outbound: no Discord channel mapped for session ${msg.sessionId}`);
+        throw new Error(
+          `Outbound: no Discord channel mapped for session ${msg.sessionId}`,
+        );
       }
 
       const files = opts?.attachments;
@@ -82,7 +111,10 @@ export function createOutboundSender(config: OutboundSenderConfig): OutboundSend
         return { channelId, messageId: res.id };
       }
 
-      const res = await transport.createMessage(channelId, toDiscordBody(msg, thinkingDisplay));
+      const res = await transport.createMessage(
+        channelId,
+        toDiscordBody(msg, thinkingDisplay),
+      );
       return { channelId, messageId: res.id };
     },
   };

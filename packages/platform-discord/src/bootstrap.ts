@@ -66,7 +66,11 @@ export async function startDaemonDiscordMessaging(
     reactionBotUserIdRef: opts.reactionBotUserIdRef,
   });
 
-  if (runtime && opts.registerSlashCommands !== false && runtime.discordBotUserId) {
+  if (
+    runtime &&
+    opts.registerSlashCommands !== false &&
+    runtime.discordBotUserId
+  ) {
     try {
       await registerDiscordSlashCommands({
         transport: runtime.discordRestTransport,
@@ -76,7 +80,9 @@ export async function startDaemonDiscordMessaging(
         applicationId: runtime.discordBotUserId,
       });
     } catch (e) {
-      opts.logger.warn("discord.slash_commands.registration_failed", { err: String(e) });
+      opts.logger.warn("discord.slash_commands.registration_failed", {
+        err: String(e),
+      });
     }
   }
 

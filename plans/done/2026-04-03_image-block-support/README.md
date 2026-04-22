@@ -82,7 +82,10 @@ export function getImageBlockCodec(
 // encode — prefer URL when available
 block.url
   ? { type: "image_url", image_url: { url: block.url } }
-  : { type: "image_url", image_url: { url: `data:${mediaType};base64,${base64}` } }
+  : {
+      type: "image_url",
+      image_url: { url: `data:${mediaType};base64,${base64}` },
+    };
 
 // decode — parse data URI or plain URL from image_url.url
 ```
@@ -93,7 +96,10 @@ block.url
 // encode — prefer URL when available
 block.url
   ? { type: "image", source: { type: "url", url: block.url } }
-  : { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } }
+  : {
+      type: "image",
+      source: { type: "base64", media_type: mediaType, data: base64 },
+    };
 
 // decode — match type === "image", handle both source.type === "base64" and source.type === "url"
 ```
@@ -246,10 +252,16 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.type === "string") {
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        typeof parsed[0]?.type === "string"
+      ) {
         return parsed as ChatContentPart[];
       }
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   return raw;
 }
@@ -267,17 +279,25 @@ Shared constants (in `@shoggoth/shared`):
 
 ```ts
 export const IMAGE_MIME_TYPES = new Set([
-  "image/jpeg", "image/png", "image/gif", "image/webp",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
 ]);
 
 export const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
-  ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-  ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
 };
 
 export const IMAGE_MIME_TO_EXTENSION: Record<string, string> = {
-  "image/jpeg": ".jpg", "image/png": ".png",
-  "image/gif": ".gif", "image/webp": ".webp",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
 };
 ```
 
@@ -308,6 +328,7 @@ export const IMAGE_MIME_TO_EXTENSION: Record<string, string> = {
 Introduce `ImageBlock`, `ChatContentPart`, `ImageBlockCodec`, and the three provider codec implementations with URL passthrough support. No message mapping changes yet — this phase is pure types and codec functions with full test coverage.
 
 **Files:**
+
 - `packages/models/src/types.ts` — `ImageBlock`, `ChatContentPart`, `ImageBlockCodec`
 - `packages/models/src/image-codec.ts` — new: codec implementations + `getImageBlockCodec`
 - `packages/models/src/index.ts` — re-exports
@@ -320,6 +341,7 @@ Introduce `ImageBlock`, `ChatContentPart`, `ImageBlockCodec`, and the three prov
 Update each provider's message serializer to handle `ChatContentPart[]` content on user, assistant, and tool messages.
 
 **Files:**
+
 - `packages/models/src/openai-compatible.ts` — `serializeChatMessage` handles array content
 - `packages/models/src/anthropic-messages.ts` — `mapChatMessagesToAnthropicPayload` handles array content
 - `packages/models/src/gemini.ts` — `mapChatMessagesToGeminiPayload` handles array content
@@ -332,6 +354,7 @@ Update each provider's message serializer to handle `ChatContentPart[]` content 
 Extend `ToolExecuteResult` with `contentParts`, update the tool loop to pass structured content through to tool messages, and update transcript storage/retrieval to handle `ChatContentPart[]`.
 
 **Files:**
+
 - `packages/daemon/src/sessions/tool-loop.ts` — handle `contentParts` in tool result → tool message
 - `packages/daemon/src/sessions/transcript-to-chat.ts` — `parseTranscriptContent` for structured content
 - `packages/daemon/src/sessions/builtin-tool-registry.ts` — extend `BuiltinToolContext` with `imageBlockCodec`
@@ -344,6 +367,7 @@ Extend `ToolExecuteResult` with `contentParts`, update the tool loop to pass str
 Detect image files in `readHandler`, read as bytes, return provider-native image blocks via the codec.
 
 **Files:**
+
 - `packages/daemon/src/sessions/builtin-handlers/fs-handlers.ts` — image detection + codec-aware result
 - `packages/os-exec/src/tools.ts` — `toolReadBinary` helper (read file as `Buffer` instead of UTF-8)
 - `packages/daemon/test/sessions/builtin-handlers.test.ts` — image read tests with mock filesystem
@@ -353,6 +377,7 @@ Detect image files in `readHandler`, read as bytes, return provider-native image
 Fetch platform attachments (or pass through URLs), convert to image blocks, enrich user messages before transcript storage. URL passthrough is codec-driven: URL-capable providers skip the fetch.
 
 **Files:**
+
 - `packages/daemon/src/presentation/image-ingest.ts` — new: `ingestAttachmentImage` with URL passthrough
 - `packages/daemon/src/presentation/turn-orchestrator.ts` — call image ingest for attachments
 - `packages/daemon/test/presentation/image-ingest.test.ts` — new: URL passthrough tests, base64 fallback tests, fetch mock tests
@@ -363,6 +388,7 @@ Fetch platform attachments (or pass through URLs), convert to image blocks, enri
 Extract image blocks from assistant replies, decode to raw bytes, deliver as platform file attachments alongside the text reply.
 
 **Files:**
+
 - `packages/daemon/src/presentation/image-outbound.ts` — new: `extractOutboundImages`
 - `packages/daemon/src/presentation/reply-formatter.ts` — integrate `extractOutboundImages` before `sendBody`
 - `packages/daemon/src/presentation/platform-adapter.ts` — add `attachments` to `sendBody` opts
@@ -377,6 +403,7 @@ Extract image blocks from assistant replies, decode to raw bytes, deliver as pla
 Strip image blocks from transcript content before summarization requests.
 
 **Files:**
+
 - `packages/daemon/src/transcript-compact.ts` — strip image blocks to `[image omitted]`
 - `packages/daemon/test/transcript-compact.test.ts` — compaction with image content tests
 
@@ -399,7 +426,7 @@ Strip image blocks from transcript content before summarization requests.
 - **Streaming image deltas:** not a thing — images arrive as complete blocks, not streamed incrementally.
 - **Transcript size:** URL-passthrough images are lightweight in the transcript (just a URL string). Base64 images are ~33% larger than raw bytes. A 10 MB image becomes ~13 MB of transcript text. The size cap and compaction stripping mitigate this.
 - **CDN URL expiry:** Discord CDN URLs are signed and may expire after some time. For the immediate model request the URL is fresh. If transcript replay or long-lived context becomes an issue, a background job could lazily fetch and replace URL-only blocks with base64. Not in scope for this plan.
-- **Image generation:** model-initiated image creation (e.g. DALL-E, Imagen) is a separate feature and not covered here. This plan covers image *understanding* (inbound) and image *passthrough* (outbound blocks the model includes in its reply).
+- **Image generation:** model-initiated image creation (e.g. DALL-E, Imagen) is a separate feature and not covered here. This plan covers image _understanding_ (inbound) and image _passthrough_ (outbound blocks the model includes in its reply).
 
 ## Migration
 

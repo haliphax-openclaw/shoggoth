@@ -192,7 +192,11 @@ function estimateRuntimeMs(id: string): number {
 // ---------------------------------------------------------------------------
 
 function validatePollOptions(opts: PollOptions): void {
-  if (opts.pid === undefined || opts.pid === null || typeof opts.pid !== "number") {
+  if (
+    opts.pid === undefined ||
+    opts.pid === null ||
+    typeof opts.pid !== "number"
+  ) {
     throw new Error("`pid` is required and must be a number.");
   }
   if (!Number.isInteger(opts.pid) || opts.pid <= 0) {
@@ -200,11 +204,17 @@ function validatePollOptions(opts: PollOptions): void {
   }
   if (opts.timeout !== undefined) {
     if (typeof opts.timeout !== "number" || opts.timeout < 0) {
-      throw new Error("`timeout` must be a non-negative number (milliseconds).");
+      throw new Error(
+        "`timeout` must be a non-negative number (milliseconds).",
+      );
     }
   }
   if (opts.tail !== undefined) {
-    if (typeof opts.tail !== "number" || !Number.isInteger(opts.tail) || opts.tail < 1) {
+    if (
+      typeof opts.tail !== "number" ||
+      !Number.isInteger(opts.tail) ||
+      opts.tail < 1
+    ) {
       throw new Error("`tail` must be a positive integer.");
     }
   }
@@ -261,7 +271,9 @@ async function pollLegacyHandle(
     const waitStart = Date.now();
     const finished = await Promise.race([
       handle.done.then(() => true),
-      new Promise<false>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+      new Promise<false>((resolve) =>
+        setTimeout(() => resolve(false), timeoutMs),
+      ),
     ]);
     waitedMs = Date.now() - waitStart;
     waited = true;
@@ -332,7 +344,8 @@ async function pollManagedProcess(
   let waited = false;
   let waitedMs = 0;
 
-  const isExited = mp.state === "dead" || mp.state === "exited" || mp.state === "failed";
+  const isExited =
+    mp.state === "dead" || mp.state === "exited" || mp.state === "failed";
 
   // If the process is still running and timeout > 0, wait for it
   if (!isExited && timeoutMs > 0) {
@@ -347,19 +360,26 @@ async function pollManagedProcess(
         };
         mp.on("state-change", check);
         // Already exited while we were setting up?
-        if (mp.state === "dead" || mp.state === "exited" || mp.state === "failed") {
+        if (
+          mp.state === "dead" ||
+          mp.state === "exited" ||
+          mp.state === "failed"
+        ) {
           mp.removeListener("state-change", check);
           resolve(true);
         }
       }),
-      new Promise<false>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+      new Promise<false>((resolve) =>
+        setTimeout(() => resolve(false), timeoutMs),
+      ),
     ]);
     waitedMs = Date.now() - waitStart;
     waited = true;
   }
 
   const runtimeMs = estimateRuntimeMs(specId);
-  const nowExited = mp.state === "dead" || mp.state === "exited" || mp.state === "failed";
+  const nowExited =
+    mp.state === "dead" || mp.state === "exited" || mp.state === "failed";
 
   // Build base result
   const base: PollResultBase = {

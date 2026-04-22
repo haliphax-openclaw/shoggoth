@@ -28,16 +28,17 @@ function isAllTerminal(wf: TaskList): boolean {
   return wf.tasks.every((t) => t.status === "done" || t.status === "failed");
 }
 
-function isAllDone(wf: TaskList): boolean {
-  return wf.tasks.every((t) => t.status === "done");
-}
 
 function isPaused(wf: TaskList): boolean {
-  return wf.tasks.some((t) => t.status === "paused") ||
+  return (
+    wf.tasks.some((t) => t.status === "paused") ||
     // A workflow is effectively paused if it has pending tasks and no in_progress tasks
     // but the real signal is the orchestrator's paused flag. Since we only have disk state,
     // check for the pattern: has non-terminal tasks but nothing in_progress.
-    (!isAllTerminal(wf) && !wf.tasks.some((t) => t.status === "in_progress") && wf.tasks.some((t) => t.status === "pending"));
+    (!isAllTerminal(wf) &&
+      !wf.tasks.some((t) => t.status === "in_progress") &&
+      wf.tasks.some((t) => t.status === "pending"))
+  );
 }
 
 /**
@@ -58,7 +59,10 @@ function workflowAgeRef(wf: TaskList): number {
 /**
  * Run retention: prune old completed and paused workflows from disk.
  */
-export function retentionRun(baseDir: string, opts?: RetentionOptions): RetentionSummary {
+export function retentionRun(
+  baseDir: string,
+  opts?: RetentionOptions,
+): RetentionSummary {
   const completedMaxAge = opts?.completedMaxAgeMs ?? COMPLETED_MAX_AGE_MS;
   const pausedMaxAge = opts?.pausedMaxAgeMs ?? PAUSED_MAX_AGE_MS;
   const now = opts?.now ?? Date.now();
@@ -86,7 +90,11 @@ export function retentionRun(baseDir: string, opts?: RetentionOptions): Retentio
 
 let retentionTimer: ReturnType<typeof setInterval> | null = null;
 
-export function startRetentionSchedule(baseDir: string, intervalMs: number, opts?: RetentionOptions): void {
+export function startRetentionSchedule(
+  baseDir: string,
+  intervalMs: number,
+  opts?: RetentionOptions,
+): void {
   stopRetentionSchedule();
   retentionTimer = setInterval(() => retentionRun(baseDir, opts), intervalMs);
 }

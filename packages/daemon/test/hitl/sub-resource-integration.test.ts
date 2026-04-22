@@ -28,13 +28,21 @@ describe("resolveCompoundResource", () => {
     const registry: SubResourceExtractorRegistry = new Map([
       ["exec", execSubResourceExtractor],
     ]);
-    const result = resolveCompoundResource("exec", { command: "curl https://example.com" }, registry);
+    const result = resolveCompoundResource(
+      "exec",
+      { command: "curl https://example.com" },
+      registry,
+    );
     assert.strictEqual(result, "exec:curl");
   });
 
   it("returns bare tool name when no extractor is registered", () => {
     const registry: SubResourceExtractorRegistry = new Map();
-    const result = resolveCompoundResource("read", { path: "/etc/passwd" }, registry);
+    const result = resolveCompoundResource(
+      "read",
+      { path: "/etc/passwd" },
+      registry,
+    );
     assert.strictEqual(result, "read");
   });
 
@@ -50,7 +58,11 @@ describe("resolveCompoundResource", () => {
     const registry: SubResourceExtractorRegistry = new Map([
       ["exec", execSubResourceExtractor],
     ]);
-    const result = resolveCompoundResource("exec", { command: "git status" }, registry);
+    const result = resolveCompoundResource(
+      "exec",
+      { command: "git status" },
+      registry,
+    );
     assert.strictEqual(result, "exec:git");
   });
 
@@ -58,7 +70,11 @@ describe("resolveCompoundResource", () => {
     const registry: SubResourceExtractorRegistry = new Map([
       ["exec", execSubResourceExtractor],
     ]);
-    const result = resolveCompoundResource("exec", { command: "/usr/bin/ls -la" }, registry);
+    const result = resolveCompoundResource(
+      "exec",
+      { command: "/usr/bin/ls -la" },
+      registry,
+    );
     assert.strictEqual(result, "exec:ls");
   });
 });

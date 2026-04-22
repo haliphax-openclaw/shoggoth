@@ -36,11 +36,11 @@ export function reconcilePersistentSubagents(input: {
     agentsConfig: input.config.agents,
   });
 
-  const candidates = sessions.list().filter(
-    (s) =>
-      s.subagentMode === "persistent" &&
-      s.status !== "terminated",
-  );
+  const candidates = sessions
+    .list()
+    .filter(
+      (s) => s.subagentMode === "persistent" && s.status !== "terminated",
+    );
 
   let restored = 0;
   let expiredKilled = 0;
@@ -49,7 +49,11 @@ export function reconcilePersistentSubagents(input: {
   for (const s of candidates) {
     const threadId = s.subagentPlatformThreadId?.trim() || undefined;
     let expiresAt = s.subagentExpiresAtMs;
-    if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+    if (
+      typeof expiresAt !== "number" ||
+      !Number.isFinite(expiresAt) ||
+      expiresAt <= 0
+    ) {
       expiresAt = now + SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS;
       sessions.update(s.id, { subagentExpiresAtMs: expiresAt });
     }

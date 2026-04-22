@@ -1,14 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { setNoticeResolver, daemonNotice } from "../../src/presentation/notices";
+import {
+  setNoticeResolver,
+  daemonNotice,
+} from "../../src/presentation/notices";
 
 describe("notices", () => {
   // Save and restore resolver state between tests.
   // setNoticeResolver mutates module-level state, so we reset it after each test.
-  let originalResolver: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let _originalResolver: unknown;
 
   beforeEach(() => {
     // Capture current state (there's no getter, so we just set a known resolver)
-    originalResolver = undefined;
+    _originalResolver = undefined;
   });
 
   afterEach(() => {

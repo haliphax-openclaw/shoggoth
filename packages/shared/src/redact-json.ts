@@ -38,7 +38,10 @@ export function redactToolArgsJson(
   try {
     parsed = JSON.parse(argsJson) as unknown;
   } catch {
-    return JSON.stringify({ _redactionNote: "non_json_args", preview: argsJson.slice(0, 256) });
+    return JSON.stringify({
+      _redactionNote: "non_json_args",
+      preview: argsJson.slice(0, 256),
+    });
   }
   if (typeof parsed === "object" && parsed !== null) {
     const clone = JSON.parse(JSON.stringify(parsed)) as unknown;
@@ -54,7 +57,10 @@ export function redactToolArgsJson(
 /**
  * Redact arbitrary JSON-serializable value (e.g. audit metadata objects).
  */
-export function redactJsonValue(value: unknown, jsonPaths: readonly string[]): string {
+export function redactJsonValue(
+  value: unknown,
+  jsonPaths: readonly string[],
+): string {
   if (jsonPaths.length === 0) {
     return JSON.stringify(value);
   }

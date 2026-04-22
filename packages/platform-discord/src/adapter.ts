@@ -1,4 +1,7 @@
-import { createInboundMessage, type MessageAttachment } from "@shoggoth/messaging";
+import {
+  createInboundMessage,
+  type MessageAttachment,
+} from "@shoggoth/messaging";
 
 export interface DiscordSessionRoute {
   readonly guildId?: string;
@@ -49,7 +52,9 @@ export interface DiscordAdapterConfig {
 }
 
 export interface DiscordAdapter {
-  inboundToInternal(ev: DiscordInboundEvent): ReturnType<typeof createInboundMessage>;
+  inboundToInternal(
+    ev: DiscordInboundEvent,
+  ): ReturnType<typeof createInboundMessage>;
 }
 
 function resolveSessionId(
@@ -60,7 +65,9 @@ function resolveSessionId(
   threadId: string | undefined,
 ): string {
   if (resolveThread) {
-    const keys = [channelId.trim(), threadId?.trim()].filter((k): k is string => Boolean(k));
+    const keys = [channelId.trim(), threadId?.trim()].filter((k): k is string =>
+      Boolean(k),
+    );
     const seen = new Set<string>();
     for (const key of keys) {
       if (seen.has(key)) continue;
@@ -81,20 +88,30 @@ function resolveSessionId(
   );
 }
 
-export function createDiscordAdapter(config: DiscordAdapterConfig): DiscordAdapter {
+export function createDiscordAdapter(
+  config: DiscordAdapterConfig,
+): DiscordAdapter {
   const routes = config.routes;
   const resolveThread = config.resolveThreadSessionId;
 
   return {
     inboundToInternal(ev: DiscordInboundEvent) {
-      const sessionId = resolveSessionId(routes, ev.guildId, ev.channelId, resolveThread, ev.threadId);
-      const attachments: MessageAttachment[] | undefined = ev.attachments?.map((a) => ({
-        id: a.id,
-        url: a.url,
-        filename: a.filename,
-        contentType: a.contentType,
-        sizeBytes: a.sizeBytes,
-      }));
+      const sessionId = resolveSessionId(
+        routes,
+        ev.guildId,
+        ev.channelId,
+        resolveThread,
+        ev.threadId,
+      );
+      const attachments: MessageAttachment[] | undefined = ev.attachments?.map(
+        (a) => ({
+          id: a.id,
+          url: a.url,
+          filename: a.filename,
+          contentType: a.contentType,
+          sizeBytes: a.sizeBytes,
+        }),
+      );
       return createInboundMessage({
         id: ev.messageId,
         sessionId,

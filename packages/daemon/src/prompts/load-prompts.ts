@@ -27,12 +27,16 @@ export function loadDaemonPrompts(): void {
   for (const name of readdirSync(PROMPTS_DIR)) {
     if (!name.endsWith(".md") || name === "README.md") continue;
     const key = name.slice(0, -".md".length);
-    const text = readFileSync(join(PROMPTS_DIR, name), "utf8").replace(/\r\n/g, "\n").trim();
+    const text = readFileSync(join(PROMPTS_DIR, name), "utf8")
+      .replace(/\r\n/g, "\n")
+      .trim();
     cache.set(key, text);
   }
   const missing = REQUIRED_PROMPT_KEYS.filter((k) => !cache!.get(k));
   if (missing.length) {
-    throw new Error(`Missing or empty daemon prompts at startup: ${missing.join(", ")}`);
+    throw new Error(
+      `Missing or empty daemon prompts at startup: ${missing.join(", ")}`,
+    );
   }
 }
 
@@ -46,10 +50,16 @@ function promptText(key: string): string {
 }
 
 /** Replace `{{name}}` placeholders; missing keys become empty string. */
-export function fillPromptTemplate(template: string, vars: Record<string, string>): string {
+export function fillPromptTemplate(
+  template: string,
+  vars: Record<string, string>,
+): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? "");
 }
 
-export function daemonPrompt(key: string, vars: Record<string, string> = {}): string {
+export function daemonPrompt(
+  key: string,
+  vars: Record<string, string> = {},
+): string {
   return fillPromptTemplate(promptText(key), vars);
 }

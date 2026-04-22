@@ -6,7 +6,9 @@
 const channels = new Map<string, string[]>();
 
 /** Registers a steer channel for a session. Returns an unregister handle. */
-export function registerSteerChannel(sessionId: string): { unregister: () => void } {
+export function registerSteerChannel(sessionId: string): {
+  unregister: () => void;
+} {
   const queue: string[] = [];
   channels.set(sessionId, queue);
   return {

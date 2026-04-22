@@ -187,6 +187,7 @@ Per-agent override:
 Add `thinkingFormat` to `ModelCapabilities` in types and to `ShoggothModelFailoverHop` in the config schema. Wire it through the failover chain so each hop's capabilities are available to the adapter.
 
 **Files:**
+
 - `packages/models/src/types.ts` — add `thinkingFormat` to `ModelCapabilities`
 - `packages/shared/src/schema.ts` — add `thinkingFormat` to hop capabilities schema
 - `packages/models/src/failover.ts` — ensure capabilities propagate to the active provider
@@ -196,6 +197,7 @@ Add `thinkingFormat` to `ModelCapabilities` in types and to `ShoggothModelFailov
 Implement `normalizeThinkingBlocks` and `extractXmlThinkingBlocks` as a shared utility in the models package.
 
 **Files:**
+
 - `packages/models/src/thinking-normalize.ts` — new: extraction functions
 - `packages/models/test/thinking-normalize.test.ts` — new: unit tests for extraction edge cases
 
@@ -204,6 +206,7 @@ Implement `normalizeThinkingBlocks` and `extractXmlThinkingBlocks` as a shared u
 Wire the normalization into each adapter's response parsing for non-streaming completions.
 
 **Files:**
+
 - `packages/models/src/anthropic-messages.ts` — call normalization on assistant content
 - `packages/models/src/openai-compatible.ts` — call normalization on assistant content
 - `packages/models/src/gemini.ts` — call normalization on assistant content
@@ -213,6 +216,7 @@ Wire the normalization into each adapter's response parsing for non-streaming co
 Add the tag-detection state machine for streaming responses. Each adapter's streaming path buffers and normalizes thinking tags as chunks arrive.
 
 **Files:**
+
 - `packages/models/src/thinking-normalize.ts` — add `ThinkingStreamNormalizer` class
 - `packages/models/src/anthropic-messages.ts` — integrate stream normalizer
 - `packages/models/src/openai-compatible.ts` — integrate stream normalizer
@@ -223,6 +227,7 @@ Add the tag-detection state machine for streaming responses. Each adapter's stre
 Strip thinking blocks from transcript messages before replaying to the model, regardless of provider. Extend the `sanitizeTranscriptForProvider` pass (from the `show` tool plan) or add a parallel pass.
 
 **Files:**
+
 - `packages/daemon/src/sessions/transcript-to-chat.ts` — strip thinking blocks on replay
 - `packages/daemon/src/sessions/transcript-compact.ts` — strip thinking blocks before compaction summarization
 
@@ -231,6 +236,7 @@ Strip thinking blocks from transcript messages before replaying to the model, re
 Wire `thinkingDisplay` config into the platform adapter's outbound path. When the adapter receives content parts containing thinking blocks, format them according to the display mode before streaming/posting.
 
 **Files:**
+
 - `packages/shared/src/schema.ts` — add `thinkingDisplay` to global and per-agent config schema
 - `packages/daemon/src/presentation/turn-orchestrator.ts` — pass `thinkingDisplay` setting to the platform adapter
 - `packages/daemon/src/presentation/platform-adapter.ts` — format thinking blocks based on display mode (blockquote for `full`, indicator for `indicator`, strip for `none`)

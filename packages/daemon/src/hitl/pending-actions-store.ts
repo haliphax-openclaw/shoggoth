@@ -155,12 +155,16 @@ export function createPendingActionsStore(
     },
 
     getById(id) {
-      const r = selectOne.get({ id }) as Parameters<typeof rowToPending>[0] | undefined;
+      const r = selectOne.get({ id }) as
+        | Parameters<typeof rowToPending>[0]
+        | undefined;
       return r ? rowToPending(r) : undefined;
     },
 
     listPendingForSession(sessionId) {
-      const rows = listPending.all({ session_id: sessionId }) as Parameters<typeof rowToPending>[0][];
+      const rows = listPending.all({ session_id: sessionId }) as Parameters<
+        typeof rowToPending
+      >[0][];
       return rows.map(rowToPending);
     },
 
@@ -169,7 +173,9 @@ export function createPendingActionsStore(
         limit === undefined
           ? DEFAULT_LIST_ALL_PENDING_LIMIT
           : Math.min(Math.max(1, limit), 10_000);
-      const rows = listAllPendingStmt.all({ limit: lim }) as Parameters<typeof rowToPending>[0][];
+      const rows = listAllPendingStmt.all({ limit: lim }) as Parameters<
+        typeof rowToPending
+      >[0][];
       return rows.map(rowToPending);
     },
 
@@ -227,7 +233,11 @@ export function createPendingActionsStore(
         const info = upd.run({ id, now_iso: nowIso });
         if (info.changes > 0) {
           n++;
-          hooks?.onResolved?.({ id, status: "denied", denialReason: "timeout" });
+          hooks?.onResolved?.({
+            id,
+            status: "denied",
+            denialReason: "timeout",
+          });
         }
       }
       return n;

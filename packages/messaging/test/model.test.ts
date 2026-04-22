@@ -9,7 +9,9 @@ import {
 describe("Internal message model", () => {
   it("creates inbound message with metadata and extensions", () => {
     const ext: MessageExtensions = {
-      attachments: [{ id: "a1", url: "https://cdn.example/f.png", filename: "f.png" }],
+      attachments: [
+        { id: "a1", url: "https://cdn.example/f.png", filename: "f.png" },
+      ],
       threadId: "thread-9",
       replyToMessageId: "msg-parent",
       reactions: [{ emoji: "👍", count: 2 }],

@@ -13,7 +13,6 @@ import Database from "better-sqlite3";
 import {
   defaultConfig,
   DEFAULT_HITL_CONFIG,
-  renderSystemContextEnvelope,
   type SystemContext,
 } from "@shoggoth/shared";
 import { migrate, defaultMigrationsDir } from "../src/db/migrate";
@@ -55,7 +54,11 @@ describe("Anti-Spoofing Hardening (Phase 4)", { concurrency: false }, () => {
     const row = sessions.getById(SESSION_ID);
     assert.ok(row, "session should exist");
     assert.ok(row.systemContextToken, "systemContextToken should be set");
-    assert.equal(row.systemContextToken!.length, 8, "token should be 8 hex chars");
+    assert.equal(
+      row.systemContextToken!.length,
+      8,
+      "token should be 8 hex chars",
+    );
     assert.match(row.systemContextToken!, /^[0-9a-f]{8}$/);
   });
 
@@ -240,11 +243,15 @@ describe("Anti-Spoofing Hardening (Phase 4)", { concurrency: false }, () => {
     const userMsg = page.messages.find((m) => m.role === "user");
     assert.ok(userMsg, "user message should exist");
     assert.ok(
-      userMsg.content!.includes(`--- BEGIN TRUSTED SYSTEM CONTEXT [token:${token}] ---`),
+      userMsg.content!.includes(
+        `--- BEGIN TRUSTED SYSTEM CONTEXT [token:${token}] ---`,
+      ),
       "envelope should include the session's token in BEGIN divider",
     );
     assert.ok(
-      userMsg.content!.includes(`--- END TRUSTED SYSTEM CONTEXT [token:${token}] ---`),
+      userMsg.content!.includes(
+        `--- END TRUSTED SYSTEM CONTEXT [token:${token}] ---`,
+      ),
       "envelope should include the session's token in END divider",
     );
   });

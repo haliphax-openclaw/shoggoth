@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import type { TaskDef, TaskStatus } from "../src/types.js";
+import type { TaskDef } from "../src/types.js";
 import {
   Orchestrator,
   type SpawnAdapter,
@@ -56,7 +56,9 @@ function mockPollAdapter(
 }
 
 /** A mock notify adapter that records calls. */
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -152,10 +154,7 @@ describe("Orchestrator", () => {
 
       const tasks = [makeTask(1)];
       const opts = { ...defaultOpts(baseDir), currentDepth: 2, maxDepth: 2 };
-      await assert.rejects(
-        () => orch.start(tasks, "1", opts),
-        /spawn depth/i,
-      );
+      await assert.rejects(() => orch.start(tasks, "1", opts), /spawn depth/i);
     });
 
     it("validates template refs against the graph", async () => {
@@ -388,12 +387,21 @@ describe("Orchestrator", () => {
     it("calls abortTask on spawner when enforceRuntimeLimits times out a task", async () => {
       const abortedKeys: string[] = [];
       const spawner = mockSpawnAdapter();
-      spawner.abortTask = (key: string) => { abortedKeys.push(key); };
+      spawner.abortTask = (key: string) => {
+        abortedKeys.push(key);
+      };
       const pollResults = new Map<string, PollResult>();
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        undefined,
+        killer,
+      );
 
       const tasks = [makeTask(1)];
       tasks[0].runtimeLimitMs = 1; // 1ms — will expire immediately
@@ -409,12 +417,21 @@ describe("Orchestrator", () => {
     it("calls abortTask for in-progress tasks during abort-behavior workflow abort", async () => {
       const abortedKeys: string[] = [];
       const spawner = mockSpawnAdapter();
-      spawner.abortTask = (key: string) => { abortedKeys.push(key); };
+      spawner.abortTask = (key: string) => {
+        abortedKeys.push(key);
+      };
       const pollResults = new Map<string, PollResult>();
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        undefined,
+        killer,
+      );
 
       // Task 1 has abort behavior; tasks 2 and 3 are independent roots
       const task1 = makeTask(1);
@@ -438,7 +455,14 @@ describe("Orchestrator", () => {
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        undefined,
+        undefined,
+        killer,
+      );
 
       const tasks = [makeTask(1)];
       tasks[0].runtimeLimitMs = 1;
@@ -481,10 +505,19 @@ describe("Orchestrator", () => {
       const updateCalls: unknown[] = [];
       const statusManager = {
         postInitialStatus: async () => {},
-        updateStatus: async () => { updateCalls.push("update"); },
+        updateStatus: async () => {
+          updateCalls.push("update");
+        },
         postSummary: async () => {},
       };
-      const orch = new Orchestrator(spawner, poller, notifier, statusManager as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const orch = new Orchestrator(
+        spawner,
+        poller,
+        notifier,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        statusManager as any,
+      );
 
       const tasks = [makeTask(1)];
       await orch.start(tasks, "1", defaultOpts(baseDir));
@@ -517,6 +550,7 @@ describe("Orchestrator", () => {
       // Read persisted state and verify it reflects the completed task
       const stateFile = path.join(baseDir, `${wfId}.json`);
       const raw = JSON.parse(fs.readFileSync(stateFile, "utf-8"));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const task1 = raw.tasks.find((t: any) => t.taskDef.id === 1);
       assert.equal(task1.status, "done");
       assert.equal(task1.output, "ok");

@@ -9,14 +9,21 @@ import {
   stripImageBlocksFromContent,
   stripImageBlocksForCompaction,
 } from "../src/transcript-compact";
-import { createSessionStore, getSessionContextSegmentId } from "../src/sessions/session-store";
+import {
+  createSessionStore,
+  getSessionContextSegmentId,
+} from "../src/sessions/session-store";
 import type { FailoverModelClient } from "@shoggoth/models";
 
 describe("transcript-compact", () => {
   it("loads and replaces transcript rows", () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s1", workspacePath: "/tmp/w", status: "active" });
+    createSessionStore(db).create({
+      id: "s1",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "s1");
     db.prepare(
       `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content) VALUES (?, ?, ?, ?, ?)`,
@@ -39,10 +46,16 @@ describe("transcript-compact", () => {
   it("round-trips tool_calls_json through load and replace", () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s1", workspacePath: "/tmp/w", status: "active" });
+    createSessionStore(db).create({
+      id: "s1",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "s1");
 
-    const toolCallsJson = JSON.stringify([{ id: "tc1", name: "foo", argsJson: '{"x":1}' }]);
+    const toolCallsJson = JSON.stringify([
+      { id: "tc1", name: "foo", argsJson: '{"x":1}' },
+    ]);
     db.prepare(
       `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, tool_calls_json) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("s1", seg, 1, "assistant", null, toolCallsJson);
@@ -70,7 +83,11 @@ describe("transcript-compact", () => {
   it("compactSessionTranscript rewrites DB when over threshold", async () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s1", workspacePath: "/tmp/w", status: "active" });
+    createSessionStore(db).create({
+      id: "s1",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "s1");
     const big = "y".repeat(120);
     db.prepare(
@@ -116,25 +133,45 @@ describe("transcript-compact", () => {
     it("replaces base64 image blocks with [image omitted]", () => {
       const parts = JSON.stringify([
         { type: "text", text: "Look at this:" },
-        { type: "image", mediaType: "image/png", base64: "iVBORw0KGgoAAAANS..." },
+        {
+          type: "image",
+          mediaType: "image/png",
+          base64: "iVBORw0KGgoAAAANS...",
+        },
       ]);
       const result = stripImageBlocksFromContent(parts);
       const parsed = JSON.parse(result);
       assert.equal(parsed.length, 2);
-      assert.deepStrictEqual(parsed[0], { type: "text", text: "Look at this:" });
-      assert.deepStrictEqual(parsed[1], { type: "text", text: "[image omitted]" });
+      assert.deepStrictEqual(parsed[0], {
+        type: "text",
+        text: "Look at this:",
+      });
+      assert.deepStrictEqual(parsed[1], {
+        type: "text",
+        text: "[image omitted]",
+      });
     });
 
     it("replaces URL-only image blocks with [image omitted]", () => {
       const parts = JSON.stringify([
         { type: "text", text: "Check this image" },
-        { type: "image", mediaType: "image/jpeg", url: "https://cdn.example.com/photo.jpg" },
+        {
+          type: "image",
+          mediaType: "image/jpeg",
+          url: "https://cdn.example.com/photo.jpg",
+        },
       ]);
       const result = stripImageBlocksFromContent(parts);
       const parsed = JSON.parse(result);
       assert.equal(parsed.length, 2);
-      assert.deepStrictEqual(parsed[0], { type: "text", text: "Check this image" });
-      assert.deepStrictEqual(parsed[1], { type: "text", text: "[image omitted]" });
+      assert.deepStrictEqual(parsed[0], {
+        type: "text",
+        text: "Check this image",
+      });
+      assert.deepStrictEqual(parsed[1], {
+        type: "text",
+        text: "[image omitted]",
+      });
     });
 
     it("leaves plain string content unchanged", () => {
@@ -143,9 +180,7 @@ describe("transcript-compact", () => {
     });
 
     it("leaves text-only ChatContentPart[] unchanged", () => {
-      const parts = JSON.stringify([
-        { type: "text", text: "just text" },
-      ]);
+      const parts = JSON.stringify([{ type: "text", text: "just text" }]);
       const result = stripImageBlocksFromContent(parts);
       const parsed = JSON.parse(result);
       assert.equal(parsed.length, 1);
@@ -179,7 +214,10 @@ describe("transcript-compact", () => {
       assert.equal(result.length, 2);
       // User message should have image replaced
       const userParts = JSON.parse(result[0]!.content as string);
-      assert.deepStrictEqual(userParts[1], { type: "text", text: "[image omitted]" });
+      assert.deepStrictEqual(userParts[1], {
+        type: "text",
+        text: "[image omitted]",
+      });
       // Assistant message unchanged
       assert.equal(result[1]!.content, "It looks like a cat.");
     });
@@ -203,14 +241,22 @@ describe("transcript-compact", () => {
   it("compactSessionTranscript strips image blocks before summarization", async () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "s1", workspacePath: "/tmp/w", status: "active" });
+    createSessionStore(db).create({
+      id: "s1",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     const seg = getSessionContextSegmentId(db, "s1");
 
     // Use a unique marker for the base64 payload so we can distinguish it from other content
     const base64Marker = "iVBORw0KGgoXYZFAKEBASE64PAYLOAD";
     const imageContent = JSON.stringify([
       { type: "text", text: "What is this?" },
-      { type: "image", mediaType: "image/png", base64: base64Marker.repeat(10) },
+      {
+        type: "image",
+        mediaType: "image/png",
+        base64: base64Marker.repeat(10),
+      },
     ]);
     db.prepare(
       `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content) VALUES (?, ?, ?, ?, ?)`,
@@ -249,8 +295,14 @@ describe("transcript-compact", () => {
     assert.ok(capturedMessages, "summarizer should have been called");
     const userMsg = capturedMessages[1] as { content: string };
     // The excerpt is built from m.content, so the serialized JSON should contain [image omitted]
-    assert.ok(userMsg.content.includes("[image omitted]"), "image blocks should be replaced with [image omitted]");
-    assert.ok(!userMsg.content.includes(base64Marker), "base64 payload should not reach the summarizer");
+    assert.ok(
+      userMsg.content.includes("[image omitted]"),
+      "image blocks should be replaced with [image omitted]",
+    );
+    assert.ok(
+      !userMsg.content.includes(base64Marker),
+      "base64 payload should not reach the summarizer",
+    );
     db.close();
   });
 });

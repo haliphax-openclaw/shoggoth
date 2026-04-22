@@ -69,7 +69,9 @@ interface ModelProvider {
   readonly id: string;
   readonly capabilities?: ModelCapabilities;
   complete(input: ModelCompleteInput): Promise<ModelCompleteOutput>;
-  completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput>;
+  completeWithTools(
+    input: ModelToolCompleteInput,
+  ): Promise<ModelToolCompleteOutput>;
 }
 ```
 
@@ -101,7 +103,7 @@ Factory: `createOpenAICompatibleProvider(options)`
 ```typescript
 interface OpenAICompatibleProviderOptions {
   id: string;
-  baseUrl: string;       // Must include /v1 suffix
+  baseUrl: string; // Must include /v1 suffix
   apiKey?: string;
   fetchImpl?: FetchLike;
 }
@@ -120,9 +122,9 @@ Factory: `createAnthropicMessagesProvider(options)`
 ```typescript
 interface AnthropicMessagesProviderOptions {
   id: string;
-  baseUrl: string;              // Origin only (no path); requests go to {origin}/v1/messages
+  baseUrl: string; // Origin only (no path); requests go to {origin}/v1/messages
   apiKey?: string;
-  anthropicVersion?: string;    // Default: "2023-06-01"
+  anthropicVersion?: string; // Default: "2023-06-01"
   auth?: "x-api-key" | "bearer";
   fetchImpl?: FetchLike;
 }
@@ -144,9 +146,9 @@ Factory: `createGeminiProvider(options)`
 ```typescript
 interface GeminiProviderOptions {
   id: string;
-  baseUrl?: string;       // Default: "https://generativelanguage.googleapis.com"
+  baseUrl?: string; // Default: "https://generativelanguage.googleapis.com"
   apiKey?: string;
-  apiVersion?: string;    // Default: "v1beta"
+  apiVersion?: string; // Default: "v1beta"
   fetchImpl?: FetchLike;
 }
 ```
@@ -172,7 +174,10 @@ The failover chain walks an ordered list of `(provider, model)` entries. On a fa
 ```typescript
 // From config (preferred):
 const client = createFailoverClientFromModelsConfig(modelsConfig, { hooks });
-const toolClient = createFailoverToolCallingClientFromModelsConfig(modelsConfig, { hooks });
+const toolClient = createFailoverToolCallingClientFromModelsConfig(
+  modelsConfig,
+  { hooks },
+);
 
 // Manual:
 const client = createFailoverModelClient(chain, hooks);
@@ -186,7 +191,7 @@ interface FailoverChainEntry {
   provider: ModelProvider;
   model: string;
   thinkingFormat?: "native" | "xml-tags" | "none";
-  contextWindowTokens?: number;   // Override from provider model definition
+  contextWindowTokens?: number; // Override from provider model definition
 }
 ```
 
@@ -196,7 +201,7 @@ The daemon wires DB-backed provider failure tracking via hooks:
 
 ```typescript
 interface FailoverHooks {
-  isProviderFailed?(providerId: string): boolean;    // Skip if true
+  isProviderFailed?(providerId: string): boolean; // Skip if true
   onProviderExhausted?(providerId: string, error?: string): void;
   onProviderSuccess?(providerId: string): void;
 }
@@ -216,12 +221,12 @@ interface FailoverHooks {
 
 Determined by `isFailoverEligibleError()` in `classify.ts`:
 
-| Condition | Eligible? |
-|---|---|
-| `ModelHttpError` with status 429 | Yes |
-| `ModelHttpError` with status 500–599 | Yes |
+| Condition                                   | Eligible?             |
+| ------------------------------------------- | --------------------- |
+| `ModelHttpError` with status 429            | Yes                   |
+| `ModelHttpError` with status 500–599        | Yes                   |
 | `TypeError` with message containing "fetch" | Yes (network failure) |
-| Everything else | No |
+| Everything else                             | No                    |
 
 ---
 
@@ -241,11 +246,11 @@ When `failoverChain` is empty or absent, a single-hop provider is created from e
 
 Priority order when no `failoverChain` is configured:
 
-| Env Var | Provider | Default Model |
-|---|---|---|
-| `ANTHROPIC_BASE_URL` set | Anthropic Messages | `claude-3-5-sonnet-20241022` |
-| `GEMINI_API_KEY` set | Gemini | `gemini-2.5-flash` |
-| `OPENAI_BASE_URL` or `OLLAMA_HOST` or default | OpenAI-Compatible | `gpt-4o-mini` |
+| Env Var                                       | Provider           | Default Model                |
+| --------------------------------------------- | ------------------ | ---------------------------- |
+| `ANTHROPIC_BASE_URL` set                      | Anthropic Messages | `claude-3-5-sonnet-20241022` |
+| `GEMINI_API_KEY` set                          | Gemini             | `gemini-2.5-flash`           |
+| `OPENAI_BASE_URL` or `OLLAMA_HOST` or default | OpenAI-Compatible  | `gpt-4o-mini`                |
 
 `SHOGGOTH_MODEL` overrides the default model name in all cases.
 
@@ -254,7 +259,7 @@ Additional env vars: `ANTHROPIC_API_KEY`, `ANTHROPIC_VERSION`, `ANTHROPIC_AUTH` 
 ### Compaction Policy from Config
 
 ```typescript
-resolveCompactionPolicyFromModelsConfig(modelsConfig)
+resolveCompactionPolicyFromModelsConfig(modelsConfig);
 // → { preserveRecentMessages: number, summaryMaxOutputTokens?: number }
 // Default preserveRecentMessages: 8
 ```
@@ -311,12 +316,12 @@ Per-provider state tracking:
 
 `classifyModelError(status, code)` returns:
 
-| Input | Classification |
-|---|---|
-| Status 429 | `rate_limited` |
-| Status 408, 500, 502, 503, 504 | `retryable` |
-| Network codes `ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED` | `retryable` |
-| Everything else | `non_retryable` |
+| Input                                                   | Classification  |
+| ------------------------------------------------------- | --------------- |
+| Status 429                                              | `rate_limited`  |
+| Status 408, 500, 502, 503, 504                          | `retryable`     |
+| Network codes `ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED` | `retryable`     |
+| Everything else                                         | `non_retryable` |
 
 ### Rate-Limit Header Parsing
 
@@ -336,10 +341,10 @@ interface ParsedRateLimitHeaders {
 
 Provider-specific header mappings:
 
-| Provider Kind | Request Limit Header | Remaining Header | Token Headers |
-|---|---|---|---|
+| Provider Kind                     | Request Limit Header         | Remaining Header                 | Token Headers                                              |
+| --------------------------------- | ---------------------------- | -------------------------------- | ---------------------------------------------------------- |
 | `anthropic` / `openai-compatible` | `x-ratelimit-limit-requests` | `x-ratelimit-remaining-requests` | `x-ratelimit-limit-tokens`, `x-ratelimit-remaining-tokens` |
-| `gemini` | `x-ratelimit-limit` | `x-ratelimit-remaining` | — |
+| `gemini`                          | `x-ratelimit-limit`          | `x-ratelimit-remaining`          | —                                                          |
 
 Reset values are parsed as epoch seconds (>year 2000), seconds-from-now, or ISO 8601 / HTTP-date. `Retry-After` is parsed as seconds or date.
 
@@ -354,9 +359,9 @@ interface ModelInvocationParams {
   maxOutputTokens?: number;
   temperature?: number;
   thinking?: { enabled: boolean; budgetTokens?: number };
-  reasoningEffort?: string;          // OpenAI-style reasoning_effort
+  reasoningEffort?: string; // OpenAI-style reasoning_effort
   thinkingFormat?: "native" | "xml-tags" | "none";
-  requestExtras?: Record<string, unknown>;  // Escape hatch: shallow-merged into request body
+  requestExtras?: Record<string, unknown>; // Escape hatch: shallow-merged into request body
 }
 ```
 
@@ -389,8 +394,8 @@ mergeSubagentSpawnModelSelection(parentSelection, modelOptions, modelRef?)
 
 ```typescript
 interface CompactionPolicy {
-  preserveRecentMessages: number;   // Non-system messages kept verbatim at the tail
-  summaryMaxOutputTokens?: number;  // Cap for the summarization call
+  preserveRecentMessages: number; // Non-system messages kept verbatim at the tail
+  summaryMaxOutputTokens?: number; // Cap for the summarization call
 }
 ```
 
@@ -419,8 +424,8 @@ Provider-agnostic image handling via `ImageBlockCodec`:
 
 ```typescript
 interface ImageBlockCodec {
-  encode(block: ImageBlock): unknown;       // Canonical → provider wire format
-  decode(part: unknown): ImageBlock | null;  // Provider wire → canonical
+  encode(block: ImageBlock): unknown; // Canonical → provider wire format
+  decode(part: unknown): ImageBlock | null; // Provider wire → canonical
   readonly supportsUrl: boolean;
   readonly supportsImageInput: boolean;
 }
@@ -431,19 +436,19 @@ interface ImageBlockCodec {
 ```typescript
 interface ImageBlock {
   type: "image";
-  mediaType: string;    // e.g. "image/jpeg", "image/png"
-  base64?: string;      // Raw bytes, base64-encoded
-  url?: string;         // Source URL
+  mediaType: string; // e.g. "image/jpeg", "image/png"
+  base64?: string; // Raw bytes, base64-encoded
+  url?: string; // Source URL
 }
 ```
 
 ### Per-Provider Codecs
 
-| Provider | Codec | URL Support | Wire Format |
-|---|---|---|---|
-| OpenAI-Compatible | `openaiImageBlockCodec` | Yes | `{ type: "image_url", image_url: { url } }` (data URI or plain URL) |
-| Anthropic Messages | `anthropicImageBlockCodec` | Yes | `{ type: "image", source: { type: "base64" \| "url", ... } }` |
-| Gemini | `geminiImageBlockCodec` | No (base64 only) | `{ inlineData: { mimeType, data } }` |
+| Provider           | Codec                      | URL Support      | Wire Format                                                         |
+| ------------------ | -------------------------- | ---------------- | ------------------------------------------------------------------- |
+| OpenAI-Compatible  | `openaiImageBlockCodec`    | Yes              | `{ type: "image_url", image_url: { url } }` (data URI or plain URL) |
+| Anthropic Messages | `anthropicImageBlockCodec` | Yes              | `{ type: "image", source: { type: "base64" \| "url", ... } }`       |
+| Gemini             | `geminiImageBlockCodec`    | No (base64 only) | `{ inlineData: { mimeType, data } }`                                |
 
 `getImageBlockCodec(kind)` returns the codec by provider kind.
 
@@ -457,11 +462,11 @@ Handles models that emit reasoning/thinking content alongside their response.
 
 ### Thinking Formats
 
-| Format | Behavior |
-|---|---|
-| `"native"` | Content returned unchanged (provider handles thinking natively, e.g. Anthropic `thinking` blocks) |
-| `"xml-tags"` | `<thinking>...</thinking>` and `<think>...</think>` tags are extracted/stripped |
-| `"none"` | No thinking processing |
+| Format       | Behavior                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `"native"`   | Content returned unchanged (provider handles thinking natively, e.g. Anthropic `thinking` blocks) |
+| `"xml-tags"` | `<thinking>...</thinking>` and `<think>...</think>` tags are extracted/stripped                   |
+| `"none"`     | No thinking processing                                                                            |
 
 ### Functions
 
@@ -487,11 +492,11 @@ interface ModelUsage {
 }
 ```
 
-| Provider | Input Source | Output Source |
-|---|---|---|
-| OpenAI-Compatible | `usage.prompt_tokens` | `usage.completion_tokens` |
-| Anthropic | `message.usage.input_tokens` (from `message_start` event in streaming) | `usage.output_tokens` (from `message_delta` event) |
-| Gemini | `usageMetadata.promptTokenCount` | `usageMetadata.candidatesTokenCount` |
+| Provider          | Input Source                                                           | Output Source                                      |
+| ----------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| OpenAI-Compatible | `usage.prompt_tokens`                                                  | `usage.completion_tokens`                          |
+| Anthropic         | `message.usage.input_tokens` (from `message_start` event in streaming) | `usage.output_tokens` (from `message_delta` event) |
+| Gemini            | `usageMetadata.promptTokenCount`                                       | `usageMetadata.candidatesTokenCount`               |
 
 For streaming, usage is captured from the final chunk/event.
 
@@ -522,7 +527,7 @@ interface ChatMessage {
 interface ChatToolCall {
   id: string;
   name: string;
-  arguments: string;   // JSON string
+  arguments: string; // JSON string
 }
 ```
 
@@ -554,7 +559,7 @@ class ModelHttpError extends Error {
 interface FailoverCompleteOutput extends ModelCompleteOutput {
   usedProviderId: string;
   usedModel: string;
-  degraded: boolean;                              // true when a non-primary entry produced the response
+  degraded: boolean; // true when a non-primary entry produced the response
   thinkingFormat?: "native" | "xml-tags" | "none";
 }
 
@@ -572,19 +577,19 @@ interface FailoverToolCompleteOutput extends ModelToolCompleteOutput {
 
 All public API is re-exported from `src/index.ts`:
 
-| Category | Exports |
-|---|---|
-| Providers | `createOpenAICompatibleProvider`, `createAnthropicMessagesProvider`, `createGeminiProvider` |
-| Failover | `createFailoverModelClient`, `createFailoverToolCallingClient` |
-| Config | `createFailoverClientFromModelsConfig`, `createFailoverToolCallingClientFromModelsConfig`, `resolveCompactionPolicyFromModelsConfig` |
-| Resilience | `ModelResilienceGate`, `setResilienceGate`, `getResilienceGate`, `classifyModelError`, `DEFAULT_BACKOFF_CONFIG`, `computeBackoffDelay`, `BackoffState`, `parseRateLimitHeaders`, `ProviderResilienceManager` |
-| Compaction | `estimateTranscriptChars`, `compactTranscriptIfNeeded` |
-| Invocation | `mergeModelInvocationParams`, `mergeModelInvocationOverlay`, `mergeSubagentSpawnModelSelection`, `parseModelInvocationFromUnknown` |
-| Image | `getImageBlockCodec`, `openaiImageBlockCodec`, `anthropicImageBlockCodec`, `geminiImageBlockCodec`, `wrapCodecWithCapabilities` |
-| Thinking | `extractXmlThinkingBlocks`, `normalizeThinkingBlocks` |
-| Errors | `ModelHttpError`, `isFailoverEligibleError` |
-| Anthropic Helpers | `buildOpenAiToAnthropicToolNameMap`, `consumeAnthropicMessagesStream`, `mapChatMessagesToAnthropicPayload`, `normalizeAnthropicMessagesOrigin`, `normalizeAnthropicWireModelId` |
-| Gemini Helpers | `consumeGeminiStream`, `mapChatMessagesToGeminiPayload` |
+| Category          | Exports                                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Providers         | `createOpenAICompatibleProvider`, `createAnthropicMessagesProvider`, `createGeminiProvider`                                                                                                                  |
+| Failover          | `createFailoverModelClient`, `createFailoverToolCallingClient`                                                                                                                                               |
+| Config            | `createFailoverClientFromModelsConfig`, `createFailoverToolCallingClientFromModelsConfig`, `resolveCompactionPolicyFromModelsConfig`                                                                         |
+| Resilience        | `ModelResilienceGate`, `setResilienceGate`, `getResilienceGate`, `classifyModelError`, `DEFAULT_BACKOFF_CONFIG`, `computeBackoffDelay`, `BackoffState`, `parseRateLimitHeaders`, `ProviderResilienceManager` |
+| Compaction        | `estimateTranscriptChars`, `compactTranscriptIfNeeded`                                                                                                                                                       |
+| Invocation        | `mergeModelInvocationParams`, `mergeModelInvocationOverlay`, `mergeSubagentSpawnModelSelection`, `parseModelInvocationFromUnknown`                                                                           |
+| Image             | `getImageBlockCodec`, `openaiImageBlockCodec`, `anthropicImageBlockCodec`, `geminiImageBlockCodec`, `wrapCodecWithCapabilities`                                                                              |
+| Thinking          | `extractXmlThinkingBlocks`, `normalizeThinkingBlocks`                                                                                                                                                        |
+| Errors            | `ModelHttpError`, `isFailoverEligibleError`                                                                                                                                                                  |
+| Anthropic Helpers | `buildOpenAiToAnthropicToolNameMap`, `consumeAnthropicMessagesStream`, `mapChatMessagesToAnthropicPayload`, `normalizeAnthropicMessagesOrigin`, `normalizeAnthropicWireModelId`                              |
+| Gemini Helpers    | `consumeGeminiStream`, `mapChatMessagesToGeminiPayload`                                                                                                                                                      |
 
 ---
 

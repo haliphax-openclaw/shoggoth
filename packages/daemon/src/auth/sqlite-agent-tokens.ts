@@ -1,13 +1,12 @@
-import {
-  hashAgentToken,
-  type AgentTokenStore,
-} from "@shoggoth/authn";
+import { hashAgentToken, type AgentTokenStore } from "@shoggoth/authn";
 import type Database from "better-sqlite3";
 
 /**
  * Persists SHA-256 hashes in `agent_tokens`; validates against active session rows.
  */
-export function createSqliteAgentTokenStore(db: Database.Database): AgentTokenStore {
+export function createSqliteAgentTokenStore(
+  db: Database.Database,
+): AgentTokenStore {
   const revokeForSession = db.prepare(`
     UPDATE agent_tokens SET revoked_at = datetime('now')
     WHERE session_id = @session_id AND revoked_at IS NULL

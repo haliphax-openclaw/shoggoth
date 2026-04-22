@@ -29,14 +29,19 @@ function readThinking(raw: unknown): ModelThinkingOptions | undefined {
  * Parses `sessions.model_selection` JSON (or subagent `model_options`) for invocation fields.
  * Unknown keys are ignored except `requestExtras` / `extraBody` (either name accepted).
  */
-export function parseModelInvocationFromUnknown(raw: unknown): ModelInvocationParams {
+export function parseModelInvocationFromUnknown(
+  raw: unknown,
+): ModelInvocationParams {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const o = raw as Record<string, unknown>;
   const mot = o.maxOutputTokens;
   const maxOutputTokens =
-    typeof mot === "number" && Number.isFinite(mot) && mot > 0 ? Math.trunc(mot) : undefined;
+    typeof mot === "number" && Number.isFinite(mot) && mot > 0
+      ? Math.trunc(mot)
+      : undefined;
   const temp = o.temperature;
-  const temperature = typeof temp === "number" && Number.isFinite(temp) ? temp : undefined;
+  const temperature =
+    typeof temp === "number" && Number.isFinite(temp) ? temp : undefined;
   const thinking = readThinking(o.thinking);
   const reasoningEffort =
     typeof o.reasoningEffort === "string" && o.reasoningEffort.trim()
@@ -98,7 +103,9 @@ const SESSION_INVOCATION_KEYS = new Set([
   "extraBody",
 ]);
 
-function stripInvocationKeys(o: Record<string, unknown>): Record<string, unknown> {
+function stripInvocationKeys(
+  o: Record<string, unknown>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(o)) {
     if (!SESSION_INVOCATION_KEYS.has(k)) out[k] = v;
@@ -106,18 +113,25 @@ function stripInvocationKeys(o: Record<string, unknown>): Record<string, unknown
   return out;
 }
 
-function modelInvocationParamsToSessionJson(p: ModelInvocationParams): Record<string, unknown> {
+function modelInvocationParamsToSessionJson(
+  p: ModelInvocationParams,
+): Record<string, unknown> {
   const o: Record<string, unknown> = {};
   if (p.maxOutputTokens !== undefined) o.maxOutputTokens = p.maxOutputTokens;
   if (p.temperature !== undefined) o.temperature = p.temperature;
   if (p.thinking !== undefined) {
     o.thinking = {
       enabled: p.thinking.enabled,
-      ...(p.thinking.budgetTokens !== undefined ? { budgetTokens: p.thinking.budgetTokens } : {}),
+      ...(p.thinking.budgetTokens !== undefined
+        ? { budgetTokens: p.thinking.budgetTokens }
+        : {}),
     };
   }
   if (p.reasoningEffort !== undefined) o.reasoningEffort = p.reasoningEffort;
-  if (p.requestExtras !== undefined && Object.keys(p.requestExtras).length > 0) {
+  if (
+    p.requestExtras !== undefined &&
+    Object.keys(p.requestExtras).length > 0
+  ) {
     o.requestExtras = { ...p.requestExtras };
   }
   return o;
@@ -134,11 +148,15 @@ export function mergeSubagentSpawnModelSelection(
   modelRef?: string,
 ): unknown {
   const base =
-    parentModelSelection && typeof parentModelSelection === "object" && !Array.isArray(parentModelSelection)
+    parentModelSelection &&
+    typeof parentModelSelection === "object" &&
+    !Array.isArray(parentModelSelection)
       ? { ...(parentModelSelection as Record<string, unknown>) }
       : {};
   const over =
-    modelOptionsOverlay && typeof modelOptionsOverlay === "object" && !Array.isArray(modelOptionsOverlay)
+    modelOptionsOverlay &&
+    typeof modelOptionsOverlay === "object" &&
+    !Array.isArray(modelOptionsOverlay)
       ? { ...(modelOptionsOverlay as Record<string, unknown>) }
       : undefined;
 
@@ -146,7 +164,10 @@ export function mergeSubagentSpawnModelSelection(
     parseModelInvocationFromUnknown(base),
     parseModelInvocationFromUnknown(over ?? {}),
   );
-  const rest = { ...stripInvocationKeys(base), ...stripInvocationKeys(over ?? {}) };
+  const rest = {
+    ...stripInvocationKeys(base),
+    ...stripInvocationKeys(over ?? {}),
+  };
   const invOut = modelInvocationParamsToSessionJson(mergedInv);
   const out: Record<string, unknown> = { ...rest, ...invOut };
   if (modelRef && modelRef.trim()) {

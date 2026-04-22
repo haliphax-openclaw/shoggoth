@@ -33,7 +33,11 @@ export interface DiscordRestTransport {
     body: DiscordCreateMessageBody,
     files: readonly DiscordMessageUploadFile[],
   ): Promise<{ readonly id: string }>;
-  editMessage(channelId: string, messageId: string, body: DiscordEditMessageBody): Promise<void>;
+  editMessage(
+    channelId: string,
+    messageId: string,
+    body: DiscordEditMessageBody,
+  ): Promise<void>;
   /** DELETE `/channels/{channel.id}/messages/{message.id}` */
   deleteMessage(channelId: string, messageId: string): Promise<void>;
   /**
@@ -42,24 +46,41 @@ export interface DiscordRestTransport {
   createThreadFromMessage(
     channelId: string,
     messageId: string,
-    body: { readonly name: string; readonly auto_archive_duration?: 60 | 1440 | 4320 | 10080 },
+    body: {
+      readonly name: string;
+      readonly auto_archive_duration?: 60 | 1440 | 4320 | 10080;
+    },
   ): Promise<{ readonly id: string }>;
   /** DELETE `/channels/{channel.id}` — also deletes thread channels. */
   deleteChannel(channelId: string): Promise<void>;
   /** GET `/channels/{channel.id}/messages/{message.id}` — returns raw API message object. */
-  getMessage(channelId: string, messageId: string): Promise<Record<string, unknown>>;
+  getMessage(
+    channelId: string,
+    messageId: string,
+  ): Promise<Record<string, unknown>>;
   /** GET `/channels/{channel.id}/messages` — returns newest-first array per Discord API. */
-  getChannelMessages(channelId: string, query: DiscordChannelMessagesQuery): Promise<readonly Record<string, unknown>[]>;
+  getChannelMessages(
+    channelId: string,
+    query: DiscordChannelMessagesQuery,
+  ): Promise<readonly Record<string, unknown>[]>;
   /**
    * PUT `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me` — unicode `emoji` is
    * passed raw and URL-encoded (e.g. `✅`). Custom emojis use `name:id`.
    */
-  createMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+  createMessageReaction(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void>;
   /**
    * DELETE `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me` — remove the bot's
    * own reaction. Unicode `emoji` is URL-encoded; custom emojis use `name:id`.
    */
-  deleteMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+  deleteMessageReaction(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void>;
   /**
    * GET `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}` — returns users who
    * reacted with this emoji. When `emoji` is omitted by the caller, the message-tool layer
@@ -77,14 +98,20 @@ export interface DiscordRestTransport {
   searchMessages(
     guildId: string,
     query: DiscordSearchQuery,
-  ): Promise<{ readonly messages: readonly Record<string, unknown>[][]; readonly total_results: number }>;
+  ): Promise<{
+    readonly messages: readonly Record<string, unknown>[][];
+    readonly total_results: number;
+  }>;
   /** POST `/channels/{channel.id}/typing` — lasts ~10s; renew for long model turns. */
   triggerTypingIndicator(channelId: string): Promise<void>;
   /** POST `/interactions/{id}/{token}/callback` — respond to a slash command interaction. */
   interactionCallback(
     interactionId: string,
     interactionToken: string,
-    body: { readonly type: number; readonly data?: { readonly content: string } },
+    body: {
+      readonly type: number;
+      readonly data?: { readonly content: string };
+    },
   ): Promise<void>;
   /** PUT `/applications/{appId}/commands` — register global slash commands. */
   registerGlobalCommands(

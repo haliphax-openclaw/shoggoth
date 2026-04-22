@@ -10,16 +10,16 @@ The workflow package orchestrates parallel and sequential subagent workflows. It
 
 A workflow is a named collection of tasks plus a dependency graph. It is the top-level unit of execution.
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | `string` | UUID, auto-generated on start |
-| `name` | `string` | Human-readable name |
-| `tasks` | `TaskState[]` | Array of task runtime states |
-| `graph` | `DependencyGraph` | `Map<number, Set<number>>` — task ID → set of dependency task IDs |
-| `pollingIntervalMs` | `number` | How often the orchestrator polls in-progress tasks |
-| `createdAt` | `number` | Epoch ms |
-| `concurrency` | `number?` | Max simultaneously in-progress tasks. `0` or `undefined` = unlimited |
-| `runtimeLimitMs` | `number?` | Default per-task runtime limit in ms |
+| Field               | Type              | Description                                                          |
+| ------------------- | ----------------- | -------------------------------------------------------------------- |
+| `id`                | `string`          | UUID, auto-generated on start                                        |
+| `name`              | `string`          | Human-readable name                                                  |
+| `tasks`             | `TaskState[]`     | Array of task runtime states                                         |
+| `graph`             | `DependencyGraph` | `Map<number, Set<number>>` — task ID → set of dependency task IDs    |
+| `pollingIntervalMs` | `number`          | How often the orchestrator polls in-progress tasks                   |
+| `createdAt`         | `number`          | Epoch ms                                                             |
+| `concurrency`       | `number?`         | Max simultaneously in-progress tasks. `0` or `undefined` = unlimited |
+| `runtimeLimitMs`    | `number?`         | Default per-task runtime limit in ms                                 |
 
 ### Task Status Lifecycle
 
@@ -39,21 +39,21 @@ Status transitions are forward-only. Terminal states (`done`, `failed`, `skipped
 
 Every task has a `kind` discriminator. All kinds share these base fields:
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `id` | `number` | required | Unique task number (1-based) |
-| `title` | `string?` | — | Display title for status posts (max 60 chars). Falls back to truncated prompt/label |
-| `failureBehavior` | `FailureBehavior` | `"continue"` | What to do when this task fails: `abort`, `pause`, or `continue` |
-| `failureNotification` | `FailureNotification` | `"silent"` | Who to notify on failure |
-| `runtimeLimitMs` | `number?` | workflow default | Per-task runtime limit override in ms |
-| `outputTemplate` | `string?` | — | Reshape task output before downstream consumption. Supports `{{self.output}}`, `{{self.error}}` |
+| Field                 | Type                  | Default          | Description                                                                                     |
+| --------------------- | --------------------- | ---------------- | ----------------------------------------------------------------------------------------------- |
+| `id`                  | `number`              | required         | Unique task number (1-based)                                                                    |
+| `title`               | `string?`             | —                | Display title for status posts (max 60 chars). Falls back to truncated prompt/label             |
+| `failureBehavior`     | `FailureBehavior`     | `"continue"`     | What to do when this task fails: `abort`, `pause`, or `continue`                                |
+| `failureNotification` | `FailureNotification` | `"silent"`       | Who to notify on failure                                                                        |
+| `runtimeLimitMs`      | `number?`             | workflow default | Per-task runtime limit override in ms                                                           |
+| `outputTemplate`      | `string?`             | —                | Reshape task output before downstream consumption. Supports `{{self.output}}`, `{{self.error}}` |
 
 ### agent
 
 Spawns a subagent session with a prompt. This is the default kind.
 
-| Field | Type | Description |
-|---|---|---|
+| Field    | Type     | Description                                                                                            |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------ |
 | `prompt` | `string` | The prompt sent to the subagent. May contain `{{task:N:output}}` or `{{task:N:success}}` template refs |
 
 Agent tasks are the only asynchronous task type — they are spawned as [subagent sessions](daemon.md#subagents) and polled until completion. The orchestrator checks for the `ERROR:TASK_FAILED` marker in agent output to detect self-reported failures.
@@ -62,9 +62,9 @@ Agent tasks are the only asynchronous task type — they are spawned as [subagen
 
 Invokes a tool directly (no subagent session).
 
-| Field | Type | Description |
-|---|---|---|
-| `tool` | `string` | Tool name |
+| Field  | Type                      | Description                                         |
+| ------ | ------------------------- | --------------------------------------------------- |
+| `tool` | `string`                  | Tool name                                           |
 | `args` | `Record<string, unknown>` | Tool arguments. String values support template refs |
 
 Tool args are recursively resolved — template refs in nested objects and arrays are expanded. Requires a `ToolExecutor` adapter (see [MCP Integration — Built-in Tools](mcp-integration.md#built-in-shoggoth-tools) for the tool catalog).
@@ -73,8 +73,8 @@ Tool args are recursively resolved — template refs in nested objects and array
 
 Evaluates a boolean condition expression synchronously. If the condition is false, the gate's output is `"skip"` and all transitive dependents are marked `skipped`.
 
-| Field | Type | Description |
-|---|---|---|
+| Field       | Type     | Description        |
+| ----------- | -------- | ------------------ |
 | `condition` | `string` | Boolean expression |
 
 #### Gate Expression Language
@@ -88,6 +88,7 @@ The gate evaluator is a custom safe expression parser (no `eval`). Supported syn
 - **Grouping:** parentheses `()`
 
 Example conditions:
+
 ```
 task.1.success == true
 task.1.output contains "approved" && task.2.success
@@ -98,17 +99,17 @@ task.1.output contains "approved" && task.2.success
 
 Pure string interpolation — no I/O, no subagent. Resolves template refs in a template string and stores the result as output.
 
-| Field | Type | Description |
-|---|---|---|
+| Field      | Type     | Description                                                          |
+| ---------- | -------- | -------------------------------------------------------------------- |
 | `template` | `string` | Template string with `{{task:N:output}}` / `{{task:N:success}}` refs |
 
 ### message
 
 Posts a message to a channel or session.
 
-| Field | Type | Description |
-|---|---|---|
-| `message` | `string` | Message body. Supports template refs |
+| Field     | Type      | Description                                                          |
+| --------- | --------- | -------------------------------------------------------------------- |
+| `message` | `string`  | Message body. Supports template refs                                 |
 | `channel` | `string?` | Target channel/session. Defaults to the workflow's `replyTo` session |
 
 Requires a `MessagePoster` adapter.
@@ -119,16 +120,17 @@ Requires a `MessagePoster` adapter.
 
 The graph is specified as a string using a compact DSL. Lanes are space-separated.
 
-| Syntax | Meaning | Example |
-|---|---|---|
-| `A>B` | Task A must complete before task B | `1>2` |
-| `A-B` | Chain from A to B (all integers in range) | `1-4` = `1→2→3→4` |
-| `A,B>C` | Group: tasks A and B must both complete before C | `1,3>5` |
-| `A>B C-E` | Multiple lanes (space-separated) | Two independent subgraphs |
+| Syntax    | Meaning                                          | Example                   |
+| --------- | ------------------------------------------------ | ------------------------- |
+| `A>B`     | Task A must complete before task B               | `1>2`                     |
+| `A-B`     | Chain from A to B (all integers in range)        | `1-4` = `1→2→3→4`         |
+| `A,B>C`   | Group: tasks A and B must both complete before C | `1,3>5`                   |
+| `A>B C-E` | Multiple lanes (space-separated)                 | Two independent subgraphs |
 
 Chains expand to sequential dependencies: `1-4` creates edges `1→2`, `2→3`, `3→4`.
 
 The graph is validated on workflow start:
+
 - All referenced task IDs must exist in the task list
 - Cycle detection via iterative DFS with coloring (throws on cycle with path)
 - Template refs are validated to ensure they only reference direct or transitive dependencies
@@ -139,9 +141,9 @@ The graph is validated on workflow start:
 
 Prompts, templates, messages, and tool args can reference outputs from upstream tasks:
 
-| Template | Resolves To |
-|---|---|
-| `{{task:N:output}}` | The `output` string of task N (empty string if none) |
+| Template             | Resolves To                                              |
+| -------------------- | -------------------------------------------------------- |
+| `{{task:N:output}}`  | The `output` string of task N (empty string if none)     |
 | `{{task:N:success}}` | `"true"` if task N status is `done`, `"false"` otherwise |
 
 Templates are validated at workflow start — a task can only reference its own direct or transitive dependencies. This prevents referencing tasks that haven't completed yet.
@@ -197,29 +199,31 @@ The orchestrator runs on a timer-based polling loop (`startPolling` / `stopPolli
 
 Each task specifies what happens when it fails:
 
-| Behavior | Effect |
-|---|---|
+| Behavior   | Effect                                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------------- |
 | `continue` | Default. The workflow continues. Downstream tasks that depend on the failed task are marked as blocked/failed |
-| `pause` | The orchestrator pauses — in-flight tasks continue running, but no new tasks are spawned. Resume to continue |
-| `abort` | All in-progress tasks are killed, all pending tasks are marked failed. The workflow terminates immediately |
+| `pause`    | The orchestrator pauses — in-flight tasks continue running, but no new tasks are spawned. Resume to continue  |
+| `abort`    | All in-progress tasks are killed, all pending tasks are marked failed. The workflow terminates immediately    |
 
 ### Failure Notifications
 
-| Config | Effect |
-|---|---|
-| `"silent"` | Default. No notification |
-| `{ kind: "notify-parent" }` | Send failure message to the workflow's `replyTo` session |
-| `{ kind: "notify-target", targetId: "..." }` | Send failure message to a specific session/channel |
+| Config                                       | Effect                                                   |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `"silent"`                                   | Default. No notification                                 |
+| `{ kind: "notify-parent" }`                  | Send failure message to the workflow's `replyTo` session |
+| `{ kind: "notify-target", targetId: "..." }` | Send failure message to a specific session/channel       |
 
 ### Blocked Task Propagation
 
 When a task fails with `continue` behavior:
+
 - Direct dependents with all deps met except the failed one → marked `failed` with error `"blocked: dependency failed"`
 - This cascades transitively through the graph
 
 ### Skipped Task Propagation
 
 When a gate evaluates to false:
+
 - The gate itself completes as `done` with output `"skip"`
 - All transitive dependents are marked `skipped`
 - Pending tasks with any skipped dependency are also marked `skipped`
@@ -231,6 +235,7 @@ Agent tasks can signal failure by including the literal string `ERROR:TASK_FAILE
 ### Runtime Limits
 
 Tasks that exceed their runtime limit (per-task override or workflow default) are:
+
 1. Aborted via `SpawnAdapter.abortTask()` (cancels in-flight model turn)
 2. Killed via `KillAdapter.kill()` (terminates the session)
 3. Marked `failed` with error `"timeout: task exceeded runtime limit of Xms"`
@@ -243,22 +248,23 @@ The `ControlPlane` class provides operational control over running and persisted
 
 ### Actions
 
-| Action | Description |
-|---|---|
-| `abort` | Kill all sessions, mark all non-terminal tasks as failed, stop polling, post summary |
-| `pause` | Set paused flag — in-flight tasks continue, no new spawns |
-| `resume` | Clear paused flag — ready tasks spawn on next tick |
-| `status` | Return current workflow state (in-memory or from disk) |
-| `list` | List all workflows from disk with summary info (status counts) |
-| `post` | Repost the status message for a workflow |
-| `edit` | Modify a task definition (prompt, failure_behavior, failure_notification, runtime_limit_ms). Rejects edits to `in_progress` tasks |
-| `retry` | Reset a failed/done task to pending, reset blocked downstream tasks, resume if paused, restart polling if stopped. With `cascade: true`, also resets completed downstream tasks |
-| `wait` | Block until all tasks are terminal (with timeout). Used programmatically |
-| `retention` | Prune old workflows from disk and memory |
+| Action      | Description                                                                                                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `abort`     | Kill all sessions, mark all non-terminal tasks as failed, stop polling, post summary                                                                                            |
+| `pause`     | Set paused flag — in-flight tasks continue, no new spawns                                                                                                                       |
+| `resume`    | Clear paused flag — ready tasks spawn on next tick                                                                                                                              |
+| `status`    | Return current workflow state (in-memory or from disk)                                                                                                                          |
+| `list`      | List all workflows from disk with summary info (status counts)                                                                                                                  |
+| `post`      | Repost the status message for a workflow                                                                                                                                        |
+| `edit`      | Modify a task definition (prompt, failure_behavior, failure_notification, runtime_limit_ms). Rejects edits to `in_progress` tasks                                               |
+| `retry`     | Reset a failed/done task to pending, reset blocked downstream tasks, resume if paused, restart polling if stopped. With `cascade: true`, also resets completed downstream tasks |
+| `wait`      | Block until all tasks are terminal (with timeout). Used programmatically                                                                                                        |
+| `retention` | Prune old workflows from disk and memory                                                                                                                                        |
 
 ### Retry Mechanics
 
 When retrying a task:
+
 1. The target task is reset: status → `pending`, error/output/timestamps/sessionKey cleared
 2. All downstream tasks (transitive dependents) that are `failed` are also reset
 3. If `cascade: true`, downstream `done` tasks are also reset
@@ -272,6 +278,7 @@ When retrying a task:
 Workflows are persisted as JSON files in the configured `stateDir` (`{workflowId}.json`). The graph is serialized as `{ [taskId: string]: number[] }`.
 
 State is saved:
+
 - After initial task spawn wave
 - After every tick cycle
 - After control plane operations (pause, resume, edit, retry)
@@ -319,10 +326,10 @@ Posted on workflow completion:
 
 Automatic cleanup of old workflow state files.
 
-| Category | Default Max Age |
-|---|---|
-| Completed workflows (all tasks terminal) | 48 hours |
-| Paused workflows (has pending tasks, nothing in-progress) | 7 days |
+| Category                                                  | Default Max Age |
+| --------------------------------------------------------- | --------------- |
+| Completed workflows (all tasks terminal)                  | 48 hours        |
+| Paused workflows (has pending tasks, nothing in-progress) | 7 days          |
 
 Age is measured from the latest `completedAt` timestamp (for completed workflows) or `createdAt` (for paused workflows).
 
@@ -358,11 +365,20 @@ The workflow engine is exposed as a single tool called `workflow` with an `actio
   "name": "my-workflow",
   "tasks": [
     { "id": 1, "prompt": "Do step one" },
-    { "id": 2, "prompt": "Do step two using {{task:1:output}}", "failure_behavior": "abort" },
+    {
+      "id": 2,
+      "prompt": "Do step two using {{task:1:output}}",
+      "failure_behavior": "abort"
+    },
     { "id": 3, "kind": "gate", "condition": "task.1.success == true" },
     { "id": 4, "kind": "transform", "template": "Results: {{task:1:output}}" },
     { "id": 5, "kind": "message", "message": "Done: {{task:4:output}}" },
-    { "id": 6, "kind": "tool", "tool": "builtin-fetch", "args": { "url": "https://example.com" } }
+    {
+      "id": 6,
+      "kind": "tool",
+      "tool": "builtin-fetch",
+      "args": { "url": "https://example.com" }
+    }
   ],
   "graph": "1-2 1>3 3>4 4>5 1>6",
   "reply_to": "session-id",
@@ -374,17 +390,17 @@ The workflow engine is exposed as a single tool called `workflow` with an `actio
 
 ### Control actions
 
-| Action | Required Fields |
-|---|---|
-| `abort` | `workflow_id` |
-| `pause` | `workflow_id` |
-| `resume` | `workflow_id` |
-| `status` | `workflow_id` |
-| `list` | (optional `agent_chain_id`) |
-| `post` | `workflow_id` |
-| `edit` | `workflow_id`, `task_id`, plus optional `prompt`, `failure_behavior`, `failure_notification` |
-| `retry` | `workflow_id`, `task_id`, optional `cascade` |
-| `retention` | (none) |
+| Action      | Required Fields                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `abort`     | `workflow_id`                                                                                |
+| `pause`     | `workflow_id`                                                                                |
+| `resume`    | `workflow_id`                                                                                |
+| `status`    | `workflow_id`                                                                                |
+| `list`      | (optional `agent_chain_id`)                                                                  |
+| `post`      | `workflow_id`                                                                                |
+| `edit`      | `workflow_id`, `task_id`, plus optional `prompt`, `failure_behavior`, `failure_notification` |
+| `retry`     | `workflow_id`, `task_id`, optional `cascade`                                                 |
+| `retention` | (none)                                                                                       |
 
 ---
 

@@ -31,6 +31,7 @@ describe("createDiscordPlugin", () => {
     const plugin = createDiscordPlugin();
     const registerPlatform = vi.fn();
     const ctx = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as any,
       registerPlatform,
       setPlatformRuntime: vi.fn(),

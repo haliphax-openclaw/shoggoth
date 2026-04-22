@@ -1,7 +1,10 @@
 import type { SessionManager } from "../sessions/session-manager";
 import { requestSessionTurnAbort } from "../sessions/session-turn-abort";
 import { disposeSubagentRuntime } from "./subagent-disposables";
-import { subagentRuntimeExtensionRef, type PersistentSubagentSessionEndReason } from "./subagent-extension-ref";
+import {
+  subagentRuntimeExtensionRef,
+  type PersistentSubagentSessionEndReason,
+} from "./subagent-extension-ref";
 
 /**
  * Aborts any in-flight tool loop, clears in-process bindings, then terminates the session
@@ -17,7 +20,10 @@ export function terminatePersistentSubagentSession(
   const ext = subagentRuntimeExtensionRef.current;
   if (endReason && ext?.announcePersistentSubagentSessionEnded) {
     try {
-      ext.announcePersistentSubagentSessionEnded({ sessionId: sid, reason: endReason });
+      ext.announcePersistentSubagentSessionEnded({
+        sessionId: sid,
+        reason: endReason,
+      });
     } catch {
       /* best-effort notice */
     }

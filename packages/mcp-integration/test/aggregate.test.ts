@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import {
-  aggregateMcpCatalogs,
-  routeMcpToolInvocation,
-} from "../src/aggregate";
+import { aggregateMcpCatalogs, routeMcpToolInvocation } from "../src/aggregate";
 import { toMcpToolsListPayload } from "../src/advertise";
 import { builtinShoggothToolsCatalog } from "../src/builtin-shoggoth-tools";
 
@@ -16,7 +13,10 @@ describe("aggregateMcpCatalogs", () => {
         tools: [
           {
             name: "ping",
-            inputSchema: { type: "object", properties: { x: { type: "number" } } },
+            inputSchema: {
+              type: "object",
+              properties: { x: { type: "number" } },
+            },
           },
         ],
       },
@@ -26,7 +26,11 @@ describe("aggregateMcpCatalogs", () => {
     assert.ok(read);
     assert.equal(read?.originalName, "read");
     const payload = toMcpToolsListPayload(agg);
-    assert.ok(payload.tools.some((t) => t.name === "a-read" && t.inputSchema.properties));
+    assert.ok(
+      payload.tools.some(
+        (t) => t.name === "a-read" && t.inputSchema.properties,
+      ),
+    );
   });
 
   it("rejects duplicate aggregated names", () => {

@@ -31,41 +31,41 @@ Hooks are grouped by lifecycle phase. Each hook has a defined type (sync/async/w
 
 #### Daemon Lifecycle Hooks
 
-| Hook Name | Type | Args | Fires When |
-|---|---|---|---|
-| `daemon.configure` | `SyncWaterfallHook` | `DaemonConfigureCtx` | After config is loaded, before any subsystem starts. Plugins can inspect/augment config. |
-| `daemon.startup` | `AsyncHook` | `DaemonStartupCtx` | After DB, control plane, and core subsystems are initialized. Plugins perform async setup. |
-| `daemon.ready` | `AsyncHook` | `DaemonReadyCtx` | After all plugins have started and platforms are connected. Final "system is live" signal. |
-| `daemon.shutdown` | `AsyncHook` | `DaemonShutdownCtx` | Graceful shutdown initiated. Plugins release resources. |
+| Hook Name          | Type                | Args                 | Fires When                                                                                 |
+| ------------------ | ------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| `daemon.configure` | `SyncWaterfallHook` | `DaemonConfigureCtx` | After config is loaded, before any subsystem starts. Plugins can inspect/augment config.   |
+| `daemon.startup`   | `AsyncHook`         | `DaemonStartupCtx`   | After DB, control plane, and core subsystems are initialized. Plugins perform async setup. |
+| `daemon.ready`     | `AsyncHook`         | `DaemonReadyCtx`     | After all plugins have started and platforms are connected. Final "system is live" signal. |
+| `daemon.shutdown`  | `AsyncHook`         | `DaemonShutdownCtx`  | Graceful shutdown initiated. Plugins release resources.                                    |
 
 #### Platform Lifecycle Hooks
 
-| Hook Name | Type | Args | Fires When |
-|---|---|---|---|
-| `platform.register` | `SyncHook` | `PlatformRegisterCtx` | During startup. Platforms register their URN policy, capabilities, and health probes. |
-| `platform.start` | `AsyncHook` | `PlatformStartCtx` | After `platform.register`. Platforms connect to external services (gateway, API). |
-| `platform.stop` | `AsyncHook` | `PlatformStopCtx` | During shutdown. Platforms disconnect gracefully. |
+| Hook Name           | Type        | Args                  | Fires When                                                                            |
+| ------------------- | ----------- | --------------------- | ------------------------------------------------------------------------------------- |
+| `platform.register` | `SyncHook`  | `PlatformRegisterCtx` | During startup. Platforms register their URN policy, capabilities, and health probes. |
+| `platform.start`    | `AsyncHook` | `PlatformStartCtx`    | After `platform.register`. Platforms connect to external services (gateway, API).     |
+| `platform.stop`     | `AsyncHook` | `PlatformStopCtx`     | During shutdown. Platforms disconnect gracefully.                                     |
 
 #### Messaging Hooks
 
-| Hook Name | Type | Args | Fires When |
-|---|---|---|---|
-| `message.inbound` | `AsyncHook` | `MessageInboundCtx` | A normalized inbound message is ready for dispatch. Platform adapters produce these. |
-| `message.outbound` | `AsyncWaterfallHook` | `MessageOutboundCtx` | An outbound message is about to be delivered. Plugins can transform content. |
-| `message.reaction` | `AsyncHook` | `MessageReactionCtx` | A reaction event is received from a platform. |
+| Hook Name          | Type                 | Args                 | Fires When                                                                           |
+| ------------------ | -------------------- | -------------------- | ------------------------------------------------------------------------------------ |
+| `message.inbound`  | `AsyncHook`          | `MessageInboundCtx`  | A normalized inbound message is ready for dispatch. Platform adapters produce these. |
+| `message.outbound` | `AsyncWaterfallHook` | `MessageOutboundCtx` | An outbound message is about to be delivered. Plugins can transform content.         |
+| `message.reaction` | `AsyncHook`          | `MessageReactionCtx` | A reaction event is received from a platform.                                        |
 
 #### Session Hooks
 
-| Hook Name | Type | Args | Fires When |
-|---|---|---|---|
-| `session.turn.before` | `AsyncHook` | `SessionTurnBeforeCtx` | Before a model turn executes. |
-| `session.turn.after` | `AsyncHook` | `SessionTurnAfterCtx` | After a model turn completes (success or failure). |
-| `session.segment.change` | `SyncHook` | `SessionSegmentChangeCtx` | A session's context segment changes (new/reset). |
+| Hook Name                | Type        | Args                      | Fires When                                         |
+| ------------------------ | ----------- | ------------------------- | -------------------------------------------------- |
+| `session.turn.before`    | `AsyncHook` | `SessionTurnBeforeCtx`    | Before a model turn executes.                      |
+| `session.turn.after`     | `AsyncHook` | `SessionTurnAfterCtx`     | After a model turn completes (success or failure). |
+| `session.segment.change` | `SyncHook`  | `SessionSegmentChangeCtx` | A session's context segment changes (new/reset).   |
 
 #### Health Hooks
 
-| Hook Name | Type | Args | Fires When |
-|---|---|---|---|
+| Hook Name         | Type       | Args                | Fires When                                      |
+| ----------------- | ---------- | ------------------- | ----------------------------------------------- |
 | `health.register` | `SyncHook` | `HealthRegisterCtx` | During startup. Plugins register health probes. |
 
 ### `MessagingPlatformPlugin` Interface
@@ -77,10 +77,10 @@ interface MessagingPlatformPlugin {
   readonly name: string;
   readonly platformId: string;
   hooks: {
-    'platform.register': (ctx: PlatformRegisterCtx) => void;
-    'platform.start': (ctx: PlatformStartCtx) => Promise<void>;
-    'platform.stop': (ctx: PlatformStopCtx) => Promise<void>;
-    'health.register': (ctx: HealthRegisterCtx) => void;
+    "platform.register": (ctx: PlatformRegisterCtx) => void;
+    "platform.start": (ctx: PlatformStartCtx) => Promise<void>;
+    "platform.stop": (ctx: PlatformStopCtx) => Promise<void>;
+    "health.register": (ctx: HealthRegisterCtx) => void;
   };
 }
 ```
@@ -141,6 +141,7 @@ The `entrypoint` field is kept explicit rather than inferred from `main`/`export
 Install `hooks-plugin` in `@shoggoth/plugins`. Define all hook context types and the `ShoggothPluginSystem` class that instantiates the typed hooks. Implement a configuration freeze mechanism: after the `daemon.configure` waterfall completes, the resulting config object is deep-frozen (`Object.freeze`, recursive) to prevent downstream plugins or hooks from mutating it. This mitigates the risk of a misbehaving plugin corrupting config via the waterfall.
 
 **Files:**
+
 - `packages/plugins/package.json` — add `hooks-plugin` dependency
 - `packages/plugins/src/hook-types.ts` — NEW: all hook context type definitions
 - `packages/plugins/src/plugin-system.ts` — NEW: `ShoggothPluginSystem` class wrapping `PluginSystem` from `hooks-plugin`; includes `freezeConfig` utility that deep-freezes the config object returned from the `daemon.configure` waterfall
@@ -153,6 +154,7 @@ Install `hooks-plugin` in `@shoggoth/plugins`. Define all hook context types and
 Delete the hand-rolled `HookRegistry` and replace all usages with `ShoggothPluginSystem`. Update `loadPluginFromDirectory` and `loadAllPluginsFromConfig` to use the new system. Update the manifest schema to read `shoggothPlugin` from `package.json`.
 
 **Files:**
+
 - `packages/plugins/src/hook-registry.ts` — DELETE (replaced by `ShoggothPluginSystem`)
 - `packages/plugins/src/plugin-loader.ts` — update to use `ShoggothPluginSystem`; read `package.json` for `shoggothPlugin` metadata, import entrypoint module, call factory, pass result to `pluginSystem.use()`
 - `packages/plugins/src/shoggoth-manifest.ts` — rewrite: parse `shoggothPlugin` property bag from `package.json` instead of a separate `shoggoth.json`; validate `kind` and `entrypoint`
@@ -165,6 +167,7 @@ Delete the hand-rolled `HookRegistry` and replace all usages with `ShoggothPlugi
 Wire the daemon's boot sequence to fire hooks at the appropriate points. The daemon creates the `ShoggothPluginSystem`, loads plugins, and fires hooks in order. Initially, no plugins consume the new hooks — this phase just establishes the firing points.
 
 **Files:**
+
 - `packages/daemon/src/index.ts` — restructure boot sequence around hook firing points
 - `packages/daemon/src/plugins/bootstrap.ts` — expose `ShoggothPluginSystem` instance to daemon
 - `packages/daemon/src/plugins/daemon-hooks.ts` — NEW: helper that fires hooks at the right points
@@ -175,6 +178,7 @@ Wire the daemon's boot sequence to fire hooks at the appropriate points. The dae
 Move all Discord-specific wiring from `daemon/src/index.ts` into `platform-discord/src/plugin.ts`. The plugin implements `MessagingPlatformPlugin` and registers itself via hooks. The daemon's `index.ts` becomes platform-agnostic.
 
 **Files:**
+
 - `packages/platform-discord/src/plugin.ts` — NEW: Discord plugin implementing `MessagingPlatformPlugin`; exports `createDiscordPlugin` factory
 - `packages/platform-discord/src/index.ts` — export plugin factory
 - `packages/platform-discord/package.json` — add `shoggothPlugin` property bag (`kind: "messaging-platform"`, `entrypoint: "./src/plugin.ts"`)
@@ -187,6 +191,7 @@ Move all Discord-specific wiring from `daemon/src/index.ts` into `platform-disco
 Update docs to reflect the new plugin system, hook catalog, and platform plugin authoring guide.
 
 **Files:**
+
 - `docs/plugins.md` — rewrite for new plugin system
 - `docs/platform-discord.md` — update bootstrap/architecture sections
 - `docs/daemon.md` — update boot sequence, plugin section

@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  createCoalescingStreamPusher,
-} from "../../src/presentation/stream-coordinator";
+import { createCoalescingStreamPusher } from "../../src/presentation/stream-coordinator";
 
 describe("createCoalescingStreamPusher", () => {
   it("calls setFull immediately when minIntervalMs is 0", async () => {

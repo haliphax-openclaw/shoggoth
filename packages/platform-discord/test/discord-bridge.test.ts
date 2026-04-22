@@ -76,7 +76,9 @@ describe("discord-bridge", () => {
   it("parseDiscordRoutesJson accepts channel snowflake session URNs", () => {
     const sid = "agent:main:discord:channel:1487579255616573533";
     const routes = parseDiscordRoutesJson(
-      JSON.stringify([{ guildId: "g", channelId: "1487579255616573533", sessionId: sid }]),
+      JSON.stringify([
+        { guildId: "g", channelId: "1487579255616573533", sessionId: sid },
+      ]),
     );
     assert.equal(routes.length, 1);
     assert.equal(routes[0]!.sessionId, sid);
@@ -98,7 +100,10 @@ describe("discord-bridge", () => {
   it("parseDiscordRoutesJson drops routes when discord tail is not uuid or snowflake", () => {
     const { routes, inputRowCount } = parseDiscordRoutesWithMeta(
       JSON.stringify([
-        { channelId: "1487579255616573533", sessionId: "agent:main:discord:channel:not-a-uuid-or-snowflake" },
+        {
+          channelId: "1487579255616573533",
+          sessionId: "agent:main:discord:channel:not-a-uuid-or-snowflake",
+        },
       ]),
     );
     assert.equal(inputRowCount, 1);
@@ -139,7 +144,11 @@ describe("discord-bridge", () => {
           logger: stubLogger(),
           botToken: "token",
           routes: [
-            { channelId: "ch", sessionId: "agent:wrong:discord:channel:00000000-0000-4000-8000-000000000001" },
+            {
+              channelId: "ch",
+              sessionId:
+                "agent:wrong:discord:channel:00000000-0000-4000-8000-000000000001",
+            },
           ],
           routeGuard,
           deps: {

@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "vitest";
 import type { ShoggothConfig } from "@shoggoth/shared";
-import { listSkillsForConfig, skillAbsolutePathById } from "../src/skills-config";
+import {
+  listSkillsForConfig,
+  skillAbsolutePathById,
+} from "../src/skills-config";
 
 function minimalConfig(
   configDirectory: string,
@@ -37,10 +40,7 @@ describe("skills-config", () => {
     const cfgDir = mkdtempSync(join(tmpdir(), "sh-skillcfg-"));
     const skillsDir = join(cfgDir, "my-skills");
     mkdirSync(skillsDir);
-    writeFileSync(
-      join(skillsDir, "one.md"),
-      `---\nid: one\ntitle: One\n---\n`,
-    );
+    writeFileSync(join(skillsDir, "one.md"), `---\nid: one\ntitle: One\n---\n`);
     const cfg = minimalConfig(cfgDir, { scanRoots: [skillsDir] });
     const list = listSkillsForConfig(cfg);
     assert.strictEqual(list.length, 1);
@@ -85,10 +85,7 @@ describe("skills-config", () => {
     const skillsDir = join(cfgDir, "s");
     mkdirSync(skillsDir);
     const p = join(skillsDir, "z.md");
-    writeFileSync(
-      p,
-      `---\nid: zed\n---\n`,
-    );
+    writeFileSync(p, `---\nid: zed\n---\n`);
     const cfg = minimalConfig(cfgDir, { scanRoots: [skillsDir] });
     assert.strictEqual(skillAbsolutePathById(cfg, "zed"), p);
   });

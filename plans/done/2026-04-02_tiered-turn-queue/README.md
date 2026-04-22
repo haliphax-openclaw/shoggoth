@@ -7,16 +7,17 @@ completed: 2026-04-02
 # Tiered Turn Queue — Implementation Plan
 
 ## Overview
+
 Replace the simple per-session mutex (`SessionTurnLock`) with a two-tier priority queue that serializes model turns per session. System messages (heartbeats, cron, subagent completions, workflow tasks) are processed at high priority; user messages at normal priority. An anti-starvation mechanism ensures normal-priority messages aren't permanently blocked.
 
 Expose per-tier queue depths in `/status` and the agent's system prompt stats. Add a control op and slash command for queue management (remove entries by index, range, count, or clear).
 
 ## Tier Definitions
 
-| Tier | Label | Sources |
-|------|-------|---------|
-| High | `system` | Heartbeats, cron jobs, subagent completions, workflow tasks |
-| Normal | `user` | Regular user messages |
+| Tier   | Label    | Sources                                                     |
+| ------ | -------- | ----------------------------------------------------------- |
+| High   | `system` | Heartbeats, cron jobs, subagent completions, workflow tasks |
+| Normal | `user`   | Regular user messages                                       |
 
 Abort signals are out of scope — they already bypass the queue via `TurnAbortedError`.
 
@@ -30,10 +31,10 @@ Location: `packages/daemon/src/sessions/session-turn-queue.ts`
 type TurnPriority = "system" | "user";
 
 interface QueueEntry {
-  id: string;           // unique entry id (for removal)
+  id: string; // unique entry id (for removal)
   priority: TurnPriority;
-  label: string;        // human-readable description (e.g. "heartbeat", "cron:daily-check", "user message")
-  enqueuedAt: number;   // Date.now()
+  label: string; // human-readable description (e.g. "heartbeat", "cron:daily-check", "user message")
+  enqueuedAt: number; // Date.now()
   execute: () => Promise<void>;
 }
 
@@ -44,6 +45,7 @@ interface QueueDepth {
 ```
 
 **Core behavior:**
+
 - Per-session queue: `Map<sessionId, { high: QueueEntry[], normal: QueueEntry[], running: boolean }>`
 - When a turn completes, the queue picks the next entry:
   1. If the high-priority queue is non-empty, dequeue from it
@@ -52,6 +54,7 @@ interface QueueDepth {
 - Only one turn runs at a time per session (same serialization guarantee as current mutex)
 
 **Anti-starvation counter:**
+
 - Per-session counter tracks consecutive high-priority turns since last normal-priority turn
 - When counter reaches threshold N, next dequeue pulls from normal (if non-empty), then resets counter
 - If normal queue is empty when starvation check fires, skip and continue with high
@@ -62,22 +65,44 @@ interface QueueDepth {
 ```ts
 class TieredTurnQueue {
   /** Enqueue a turn. Returns a promise that resolves when the turn completes. */
-  enqueue(sessionId: string, priority: TurnPriority, label: string, fn: () => Promise<void>): Promise<void>;
+  enqueue(
+    sessionId: string,
+    priority: TurnPriority,
+    label: string,
+    fn: () => Promise<void>,
+  ): Promise<void>;
 
   /** Get current queue depths for a session. */
   getDepth(sessionId: string): QueueDepth;
 
   /** List queued entries for a session (does not include the currently running entry). */
-  listQueued(sessionId: string, priority?: TurnPriority): ReadonlyArray<{ id: string; priority: TurnPriority; label: string; enqueuedAt: number }>;
+  listQueued(
+    sessionId: string,
+    priority?: TurnPriority,
+  ): ReadonlyArray<{
+    id: string;
+    priority: TurnPriority;
+    label: string;
+    enqueuedAt: number;
+  }>;
 
   /** Remove entries by id(s). Returns count removed. */
   removeById(sessionId: string, ids: string[]): number;
 
   /** Remove entries by index range (0-based, within a priority tier or across all). */
-  removeByRange(sessionId: string, priority: TurnPriority | "all", start: number, end: number): number;
+  removeByRange(
+    sessionId: string,
+    priority: TurnPriority | "all",
+    start: number,
+    end: number,
+  ): number;
 
   /** Remove the first `count` entries from a priority tier (or all). */
-  removeByCount(sessionId: string, priority: TurnPriority | "all", count: number): number;
+  removeByCount(
+    sessionId: string,
+    priority: TurnPriority | "all",
+    count: number,
+  ): number;
 
   /** Clear all queued entries for a session (optionally filtered by priority). */
   clear(sessionId: string, priority?: TurnPriority): number;
@@ -94,23 +119,25 @@ Same pattern as the logger — export `getTurnQueue()` / `setTurnQueue()` so any
 
 ### Callers (enqueue with priority)
 
-| Caller | Priority | Label |
-|--------|----------|-------|
-| `platform.ts` — user inbound message | `user` | `"user message"` |
-| `platform.ts` — heartbeat delivery | `system` | `"heartbeat"` |
-| `platform.ts` — cron delivery | `system` | `"cron:<jobName>"` |
-| `integration-ops.ts` — subagent one_shot | `system` | `"subagent:one_shot"` |
-| `workflow-adapters.ts` — workflow task | `system` | `"workflow:<taskType>"` |
+| Caller                                   | Priority | Label                   |
+| ---------------------------------------- | -------- | ----------------------- |
+| `platform.ts` — user inbound message     | `user`   | `"user message"`        |
+| `platform.ts` — heartbeat delivery       | `system` | `"heartbeat"`           |
+| `platform.ts` — cron delivery            | `system` | `"cron:<jobName>"`      |
+| `integration-ops.ts` — subagent one_shot | `system` | `"subagent:one_shot"`   |
+| `workflow-adapters.ts` — workflow task   | `system` | `"workflow:<taskType>"` |
 
 Each caller currently calls `turnLock.acquire(sessionId)` → replace with `turnQueue.enqueue(sessionId, priority, label, fn)`.
 
 ### Queue Depth in Stats
 
 **System prompt** (`buildSessionStatsSection` in `session-system-prompt.ts`):
+
 - Import `getTurnQueue()`, call `getDepth(sessionId)`
 - Append to stats line: `Queue: {system}S / {user}U`
 
 **`/status` slash command** (via `session_context_status` control op):
+
 - Control op returns `queueDepth: { system: number, user: number }` alongside existing stats
 - Slash command formats: `Queue: {system} system / {user} user`
 
@@ -119,6 +146,7 @@ Each caller currently calls `turnLock.acquire(sessionId)` → replace with `turn
 **Op:** `session_queue_manage`
 
 **Payload:**
+
 ```json
 {
   "session_id": "agent:main:discord:...",
@@ -134,6 +162,7 @@ Each caller currently calls `turnLock.acquire(sessionId)` → replace with `turn
 ```
 
 **Responses:**
+
 - `list`: returns array of `{ id, priority, label, enqueuedAt, index }`
 - `remove`: returns `{ removed: number }`
 - `clear`: returns `{ removed: number }`
@@ -143,6 +172,7 @@ Each caller currently calls `turnLock.acquire(sessionId)` → replace with `turn
 **`/queue`** — new slash command
 
 Options:
+
 - `action` (required): `list`, `remove`, `clear`
 - `priority` (optional, default `all`): `system`, `user`, `all`
 - `index` (optional): single index to remove
@@ -151,6 +181,7 @@ Options:
 - `session_id` (optional): defaults to channel-bound session
 
 Examples:
+
 - `/queue list` — show all queued entries
 - `/queue list priority:system` — show only system entries
 - `/queue clear` — clear all queues

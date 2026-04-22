@@ -20,7 +20,10 @@ const store = new Map<ModelKey, ModelMetadataEntry>();
  */
 export function initModelMetadataFromConfig(
   failoverChain: ReadonlyArray<string>,
-  providers?: ReadonlyArray<{ id: string; models?: ReadonlyArray<{ name: string; contextWindowTokens?: number }> }>,
+  providers?: ReadonlyArray<{
+    id: string;
+    models?: ReadonlyArray<{ name: string; contextWindowTokens?: number }>;
+  }>,
 ): void {
   for (const entry of failoverChain) {
     const slash = entry.indexOf("/");
@@ -53,7 +56,11 @@ export function setModelMetadataFromProvider(
   const existing = store.get(key);
   let warning: string | undefined;
 
-  if (existing && existing.source === "config" && existing.contextWindowTokens !== contextWindowTokens) {
+  if (
+    existing &&
+    existing.source === "config" &&
+    existing.contextWindowTokens !== contextWindowTokens
+  ) {
     warning = `Context window mismatch for ${key}: config says ${existing.contextWindowTokens}, provider reports ${contextWindowTokens}. Using provider value.`;
   }
 
@@ -147,7 +154,7 @@ const OPENAI_KNOWN_CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
   "gpt-3.5-turbo-0125": 16_385,
   "gpt-3.5-turbo-1106": 16_385,
   // o-series reasoning models
-  "o1": 200_000,
+  o1: 200_000,
   "o1-2024-12-17": 200_000,
   "o1-preview": 128_000,
   "o1-preview-2024-09-12": 128_000,
@@ -155,7 +162,7 @@ const OPENAI_KNOWN_CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
   "o1-mini-2024-09-12": 128_000,
   "o1-pro": 200_000,
   "o1-pro-2025-03-19": 200_000,
-  "o3": 200_000,
+  o3: 200_000,
   "o3-2025-04-16": 200_000,
   "o3-pro": 200_000,
   "o3-mini": 200_000,

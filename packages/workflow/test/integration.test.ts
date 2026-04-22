@@ -25,7 +25,9 @@ import { COMPLETED_MAX_AGE_MS } from "../src/retention.js";
 // --- Mock helpers ---
 
 function makeTmpDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-integration-test-"));
+  const dir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "fanout-integration-test-"),
+  );
   fs.chmodSync(dir, 0o777);
   return dir;
 }
@@ -33,7 +35,9 @@ function makeTmpDir(): string {
 function makeTask(
   id: number,
   prompt = `do task ${id}`,
-  opts: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">> = {},
+  opts: Partial<
+    Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">
+  > = {},
 ): TaskDef {
   return {
     kind: "agent",
@@ -67,7 +71,9 @@ function mockPollAdapter(
   };
 }
 
-function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> } {
+function mockNotifyAdapter(): NotifyAdapter & {
+  calls: Array<{ workflowId: string; success: boolean }>;
+} {
   const calls: Array<{ workflowId: string; success: boolean }> = [];
   return {
     calls,
@@ -77,7 +83,9 @@ function mockNotifyAdapter(): NotifyAdapter & { calls: Array<{ workflowId: strin
   };
 }
 
-function mockNotificationAdapter(): NotificationAdapter & { calls: Array<{ target: string; message: string }> } {
+function mockNotificationAdapter(): NotificationAdapter & {
+  calls: Array<{ target: string; message: string }>;
+} {
   const calls: Array<{ target: string; message: string }> = [];
   return {
     calls,
@@ -136,10 +144,18 @@ interface IntegrationSetup {
   spawner: SpawnAdapter & { calls: SpawnRequest[] };
   poller: PollAdapter & { results: Map<string, PollResult> };
   pollResults: Map<string, PollResult>;
-  notifier: NotifyAdapter & { calls: Array<{ workflowId: string; success: boolean }> };
-  notifications: NotificationAdapter & { calls: Array<{ target: string; message: string }> };
+  notifier: NotifyAdapter & {
+    calls: Array<{ workflowId: string; success: boolean }>;
+  };
+  notifications: NotificationAdapter & {
+    calls: Array<{ target: string; message: string }>;
+  };
   killer: KillAdapter & { calls: string[] };
-  msgAdapter: MessageAdapter & { posted: string[]; edited: Array<{ id: string; content: string }>; nextId: number };
+  msgAdapter: MessageAdapter & {
+    posted: string[];
+    edited: Array<{ id: string; content: string }>;
+    nextId: number;
+  };
   statusManager: StatusManager;
   orchestrators: Map<string, Orchestrator>;
   baseDir: string;
@@ -159,7 +175,14 @@ async function setup(
   const msgAdapter = mockMessageAdapter();
   const statusManager = new StatusManager(msgAdapter);
 
-  const orch = new Orchestrator(spawner, poller, notifier, statusManager, notifications, killer);
+  const orch = new Orchestrator(
+    spawner,
+    poller,
+    notifier,
+    statusManager,
+    notifications,
+    killer,
+  );
   const opts = defaultOpts(baseDir);
   const wfId = await orch.start(tasks, graphDsl, opts);
 
@@ -173,8 +196,19 @@ async function setup(
   });
 
   return {
-    orch, cp, wfId, spawner, poller, pollResults, notifier,
-    notifications, killer, msgAdapter, statusManager, orchestrators, baseDir,
+    orch,
+    cp,
+    wfId,
+    spawner,
+    poller,
+    pollResults,
+    notifier,
+    notifications,
+    killer,
+    msgAdapter,
+    statusManager,
+    orchestrators,
+    baseDir,
   };
 }
 
@@ -183,12 +217,20 @@ async function setup(
 describe("Integration: happy path", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("executes tasks in dependency order and posts summary on completion", async () => {
     // Graph: 1 → 2 → 3 (sequential chain)
-    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1>2>3");
+    const s = await setup(
+      baseDir,
+      [makeTask(1), makeTask(2), makeTask(3)],
+      "1>2>3",
+    );
 
     // Task 1 should be spawned immediately
     assert.equal(s.spawner.calls.length, 1);
@@ -233,7 +275,11 @@ describe("Integration: happy path", () => {
 
   it("executes parallel tasks concurrently", async () => {
     // Graph: 1,2 → 3 (parallel roots, then join)
-    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1,2>3");
+    const s = await setup(
+      baseDir,
+      [makeTask(1), makeTask(2), makeTask(3)],
+      "1,2>3",
+    );
 
     // Tasks 1 and 2 should be spawned immediately
     assert.equal(s.spawner.calls.length, 2);
@@ -261,17 +307,25 @@ describe("Integration: happy path", () => {
 describe("Integration: failure + retry", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("fails a task, retries it, and completes the workflow", async () => {
-    const s = await setup(baseDir, [
-      makeTask(1, "do task 1", { failureBehavior: "pause" }),
-      makeTask(2),
-    ], "1>2");
+    const s = await setup(
+      baseDir,
+      [makeTask(1, "do task 1", { failureBehavior: "pause" }), makeTask(2)],
+      "1>2",
+    );
 
     // Fail task 1
-    s.pollResults.set("session-1", { status: "failed", error: "transient error" });
+    s.pollResults.set("session-1", {
+      status: "failed",
+      error: "transient error",
+    });
     await s.orch.tick();
 
     const wf1 = s.orch.getWorkflowStatus()!;
@@ -310,22 +364,33 @@ describe("Integration: failure + retry", () => {
 describe("Integration: failure + abort", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("aborts the workflow when a task fails with abort behavior", async () => {
-    const s = await setup(baseDir, [
-      makeTask(1, "root task"),
-      makeTask(2, "abort task", { failureBehavior: "abort" }),
-      makeTask(3, "downstream"),
-    ], "1>2>3");
+    const s = await setup(
+      baseDir,
+      [
+        makeTask(1, "root task"),
+        makeTask(2, "abort task", { failureBehavior: "abort" }),
+        makeTask(3, "downstream"),
+      ],
+      "1>2>3",
+    );
 
     // Complete task 1
     s.pollResults.set("session-1", { status: "done", output: "ok" });
     await s.orch.tick();
 
     // Fail task 2 with abort behavior
-    s.pollResults.set("session-2", { status: "failed", error: "critical failure" });
+    s.pollResults.set("session-2", {
+      status: "failed",
+      error: "critical failure",
+    });
     await s.orch.tick();
 
     // All tasks should be terminal
@@ -357,11 +422,19 @@ describe("Integration: failure + abort", () => {
 describe("Integration: pause + resume", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("pauses, lets in-flight finish, resumes, and completes remaining tasks", async () => {
-    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1>2>3");
+    const s = await setup(
+      baseDir,
+      [makeTask(1), makeTask(2), makeTask(3)],
+      "1>2>3",
+    );
 
     // Task 1 is in_progress. Pause the workflow.
     await s.cp.pause(s.wfId);
@@ -373,7 +446,10 @@ describe("Integration: pause + resume", () => {
 
     // Task 1 should be done, but task 2 should NOT be spawned (paused)
     const wfPaused = s.orch.getWorkflowStatus()!;
-    assert.equal(wfPaused.tasks.find((t) => t.taskDef.id === 1)!.status, "done");
+    assert.equal(
+      wfPaused.tasks.find((t) => t.taskDef.id === 1)!.status,
+      "done",
+    );
     assert.equal(s.spawner.calls.filter((c) => c.taskId === 2).length, 0);
 
     // Resume
@@ -403,11 +479,19 @@ describe("Integration: pause + resume", () => {
 describe("Integration: edit", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("edits a pending task prompt, then uses the edited prompt when spawned", async () => {
-    const s = await setup(baseDir, [makeTask(1), makeTask(2, "original prompt")], "1>2");
+    const s = await setup(
+      baseDir,
+      [makeTask(1), makeTask(2, "original prompt")],
+      "1>2",
+    );
 
     // Pause so we can edit task 2 before it runs
     await s.cp.pause(s.wfId);
@@ -444,8 +528,12 @@ describe("Integration: edit", () => {
 describe("Integration: retention via control plane", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("prunes old completed workflows via control plane retention", async () => {
     const now = Date.now();
@@ -456,7 +544,13 @@ describe("Integration: retention via control plane", () => {
       id: "wf-old",
       name: "old-workflow",
       tasks: [
-        { taskDef: makeTask(1), status: "done", output: "ok", startedAt: oldTime - 5_000, completedAt: oldTime },
+        {
+          taskDef: makeTask(1),
+          status: "done",
+          output: "ok",
+          startedAt: oldTime - 5_000,
+          completedAt: oldTime,
+        },
       ],
       graph: parseGraph("1"),
       pollingIntervalMs: 50,
@@ -508,8 +602,12 @@ describe("Integration: retention via control plane", () => {
 describe("Integration: status message lifecycle", () => {
   let baseDir: string;
 
-  beforeEach(() => { baseDir = makeTmpDir(); });
-  afterEach(() => { fs.rmSync(baseDir, { recursive: true, force: true }); });
+  beforeEach(() => {
+    baseDir = makeTmpDir();
+  });
+  afterEach(() => {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+  });
 
   it("posts initial status, edits on tick, and posts summary on completion", async () => {
     const s = await setup(baseDir, [makeTask(1)], "1");

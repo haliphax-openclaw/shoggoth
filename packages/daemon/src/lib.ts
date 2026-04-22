@@ -29,8 +29,15 @@ export {
   principalAuditFields,
   type AuditLogSource,
 } from "./policy/audit-source";
-export { redactToolArgsJson, redactJsonValue, redactDeep } from "@shoggoth/shared";
-export { createToolLoopPolicyAndAudit, type ToolLoopBridgeOptions } from "./policy/tool-loop-bridge";
+export {
+  redactToolArgsJson,
+  redactJsonValue,
+  redactDeep,
+} from "@shoggoth/shared";
+export {
+  createToolLoopPolicyAndAudit,
+  type ToolLoopBridgeOptions,
+} from "./policy/tool-loop-bridge";
 export {
   runRetentionJobs,
   retentionScheduleIntervalMs,
@@ -56,7 +63,10 @@ export {
   type UpdateSessionInput,
   type SessionStatus,
 } from "./sessions/session-store";
-export { applySessionContextSegmentNew, applySessionContextSegmentReset } from "./sessions/session-context-segment";
+export {
+  applySessionContextSegmentNew,
+  applySessionContextSegmentReset,
+} from "./sessions/session-context-segment";
 export {
   parseSessionSegmentInlineCommand,
   sessionSegmentStartupUserContent,
@@ -71,7 +81,10 @@ export {
   type TranscriptMessageRow,
   type AppendTranscriptInput,
 } from "./sessions/transcript-store";
-export { createToolRunStore, type ToolRunStore } from "./sessions/tool-run-store";
+export {
+  createToolRunStore,
+  type ToolRunStore,
+} from "./sessions/tool-run-store";
 export {
   createSessionManager,
   SessionManagerError,
@@ -80,7 +93,10 @@ export {
   type SpawnSessionInput,
   type SpawnSessionResult,
 } from "./sessions/session-manager";
-export { createSessionRouter, type SessionRouter } from "./sessions/session-router";
+export {
+  createSessionRouter,
+  type SessionRouter,
+} from "./sessions/session-router";
 export {
   runToolLoop,
   type ToolCall,
@@ -111,8 +127,15 @@ export {
   type EventStatus,
   type EmitResult,
 } from "./events/events-queue";
-export { runCronTick, upsertCronJob, parseEverySchedule } from "./events/cron-scheduler";
-export { runBootReconciliation, type BootReconciliationResult } from "./events/boot-reconciliation";
+export {
+  runCronTick,
+  upsertCronJob,
+  parseEverySchedule,
+} from "./events/cron-scheduler";
+export {
+  runBootReconciliation,
+  type BootReconciliationResult,
+} from "./events/boot-reconciliation";
 export {
   runHeartbeatBatch,
   createDefaultHeartbeatHandlers,
@@ -126,18 +149,32 @@ export {
   type HitlPendingStack,
 } from "./hitl/hitl-pending-stack";
 export type { HitlNotifier } from "./hitl/hitl-notifier";
-export { createHitlResolutionHub, type HitlResolutionHub } from "./hitl/hitl-resolution-hub";
+export {
+  createHitlResolutionHub,
+  type HitlResolutionHub,
+} from "./hitl/hitl-resolution-hub";
 export {
   createPendingActionsStore,
   type PendingActionsStore,
   type PendingActionRow,
   type PendingActionStatus,
 } from "./hitl/pending-actions-store";
-export { invokeControlRequest, type InvokeControlRequestInput } from "./control/control-client";
+export {
+  invokeControlRequest,
+  type InvokeControlRequestInput,
+} from "./control/control-client";
 export { SUBAGENT_DEFAULT_PERSISTENT_LIFETIME_MS } from "./subagent/subagent-constants";
 export { resolveSessionTargetFromCliArg } from "./control/resolve-session-cli-target";
-export { createLogger, type Logger, type LogLevel, type LogFields } from "./logging";
-export { createHitlAutoApproveGate, type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
+export {
+  createLogger,
+  type Logger,
+  type LogLevel,
+  type LogFields,
+} from "./logging";
+export {
+  createHitlAutoApproveGate,
+  type HitlAutoApproveGate,
+} from "./hitl/hitl-auto-approve";
 export { transcriptRowsToModelChatMessages } from "./sessions/transcript-to-chat";
 export { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
 export {
@@ -151,8 +188,18 @@ export {
   type ExecuteSessionAgentTurnInput,
   type SessionAgentTurnResult,
 } from "./sessions/session-agent-turn";
-export { TieredTurnQueue, TurnDroppedError, TurnQueueFullError, type TurnPriority, type QueueDepth, type QueueEntryInfo } from "./sessions/session-turn-queue";
-export { getTurnQueue, setTurnQueue } from "./sessions/session-turn-queue-singleton";
+export {
+  TieredTurnQueue,
+  TurnDroppedError,
+  TurnQueueFullError,
+  type TurnPriority,
+  type QueueDepth,
+  type QueueEntryInfo,
+} from "./sessions/session-turn-queue";
+export {
+  getTurnQueue,
+  setTurnQueue,
+} from "./sessions/session-turn-queue-singleton";
 export {
   runInboundSessionTurn,
   createCoalescingStreamPusher,
@@ -176,9 +223,7 @@ export type {
   SessionToolLoopFailoverState,
   SessionToolLoopModelClient,
 } from "./sessions/session-tool-loop-model-client";
-export {
-  resolveSessionBypassUpTo,
-} from "./hitl/session-agent-principals";
+export { resolveSessionBypassUpTo } from "./hitl/session-agent-principals";
 export {
   resolveModel,
   resolveRetryConfig,
@@ -232,9 +277,7 @@ export {
   formatAdhocReactionEventContext,
   type MinimalContextInput,
 } from "./presentation/minimal-context";
-export {
-  setNoticeResolver as setPresentationNoticeResolver,
-} from "./presentation/notices";
+export { setNoticeResolver as setPresentationNoticeResolver } from "./presentation/notices";
 
 // --- Presentation layer: platform adapter interface ---
 export type {

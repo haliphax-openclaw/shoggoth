@@ -1,2 +1,1 @@
-⚠️ *Degraded:* backup model `{{usedModel}}` ({{usedProviderId}}) — primary unavailable.
-
+⚠️ _Degraded:_ backup model `{{usedModel}}` ({{usedProviderId}}) — primary unavailable.

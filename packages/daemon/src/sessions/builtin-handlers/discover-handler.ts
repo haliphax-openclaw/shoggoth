@@ -2,7 +2,10 @@
 // builtin-discover — dynamic tool enable/disable/list/reset
 // ---------------------------------------------------------------------------
 
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 import {
   getSessionToolState,
   setSessionToolState,
@@ -22,7 +25,9 @@ async function discoverHandler(
 ): Promise<{ resultJson: string }> {
   const resolved = resolveToolDiscoveryConfig(ctx.config, ctx.sessionId);
   if (!resolved.enabled) {
-    return { resultJson: JSON.stringify({ error: "tool discovery is not enabled" }) };
+    return {
+      resultJson: JSON.stringify({ error: "tool discovery is not enabled" }),
+    };
   }
 
   const enable = Array.isArray(args.enable) ? (args.enable as string[]) : [];
@@ -72,7 +77,11 @@ async function discoverHandler(
   }
 
   // Signal refresh needed if any state changed
-  if (applied.enabled.length > 0 || applied.disabled.length > 0 || applied.reset) {
+  if (
+    applied.enabled.length > 0 ||
+    applied.disabled.length > 0 ||
+    applied.reset
+  ) {
     toolRefreshNeeded.set(ctx.sessionId, true);
   }
 
@@ -83,7 +92,12 @@ async function discoverHandler(
     const updatedState = getSessionToolState(ctx.db, ctx.sessionId);
     const descriptions = toolCatalogCache.get(ctx.sessionId);
 
-    const catalog: Array<{ id: string; description: string; enabled: boolean; alwaysOn: boolean }> = [];
+    const catalog: Array<{
+      id: string;
+      description: string;
+      enabled: boolean;
+      alwaysOn: boolean;
+    }> = [];
     // Tools known from the aggregated catalog (via cached descriptions)
     if (descriptions) {
       for (const [toolId, description] of descriptions) {

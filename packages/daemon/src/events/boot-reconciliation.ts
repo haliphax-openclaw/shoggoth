@@ -17,7 +17,9 @@ export function runBootReconciliation(
     readonly orphanedToolRunReason: string;
   },
 ): BootReconciliationResult {
-  const staleEventsRequeued = reconcileStaleProcessing(db, { staleMs: options.staleClaimMs });
+  const staleEventsRequeued = reconcileStaleProcessing(db, {
+    staleMs: options.staleClaimMs,
+  });
   const toolRunsMarkedFailed = createToolRunStore(db).markAllRunningFailed(
     options.orphanedToolRunReason,
   );

@@ -14,6 +14,7 @@ Remove Discord-specific coupling from core packages (`daemon`, `shared`, `messag
 ### 1. `packages/daemon/src/config/effective-runtime.ts` (biggest offender)
 
 **Functions to rename/abstract:**
+
 - `resolveDiscordRoutesJson` → `resolvePlatformRoutesJson` (or make it generic per-platform)
 - `resolveEffectiveDiscordRoutesJson` → `resolveEffectivePlatformRoutesJson`
 - `resolveDiscordIntents` → move to `platform-discord` (intents are Discord-specific)
@@ -22,6 +23,7 @@ Remove Discord-specific coupling from core packages (`daemon`, `shared`, `messag
 - Default session platform hardcoded to `"discord"` → should have no default, or use a config-driven default
 
 **Env vars referenced:**
+
 - `SHOGGOTH_DISCORD_ROUTES` → `SHOGGOTH_PLATFORM_ROUTES` (or keep env vars as-is but abstract the function names — env vars are operator-facing config, renaming them is a separate concern)
 - `SHOGGOTH_DISCORD_OWNER_USER_ID` → similar
 - Various `SHOGGOTH_DISCORD_*` env vars for stream, model tag, HITL reply, etc.

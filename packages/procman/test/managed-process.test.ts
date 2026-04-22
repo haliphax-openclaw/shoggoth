@@ -31,16 +31,21 @@ describe("ManagedProcess", () => {
     });
 
     assert.equal(mp.state, "dead");
-    assert.ok(states.includes("running"), "should have transitioned through running");
+    assert.ok(
+      states.includes("running"),
+      "should have transitioned through running",
+    );
     assert.ok(states.includes("dead"), "should have reached dead");
     assert.equal(mp.lastExitCode, 0);
   });
 
   it("captures stdout output", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      command: "echo",
-      args: ["captured-output"],
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        command: "echo",
+        args: ["captured-output"],
+      }),
+    );
 
     await mp.start();
     await new Promise<void>((resolve) => {
@@ -51,22 +56,27 @@ describe("ManagedProcess", () => {
     });
 
     const output = mp.readOutput("stdout");
-    assert.ok(output.includes("captured-output"), `stdout should contain 'captured-output', got: ${output}`);
+    assert.ok(
+      output.includes("captured-output"),
+      `stdout should contain 'captured-output', got: ${output}`,
+    );
   });
 
   it("restarts on failure with on-failure policy", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      id: "restart-test",
-      command: "sh",
-      args: ["-c", "exit 1"],
-      restart: {
-        mode: "on-failure",
-        maxRetries: 2,
-        initialDelayMs: 50,
-        backoffMultiplier: 1,
-        maxDelayMs: 100,
-      },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        id: "restart-test",
+        command: "sh",
+        args: ["-c", "exit 1"],
+        restart: {
+          mode: "on-failure",
+          maxRetries: 2,
+          initialDelayMs: 50,
+          backoffMultiplier: 1,
+          maxDelayMs: 100,
+        },
+      }),
+    );
 
     await mp.start();
 
@@ -82,15 +92,20 @@ describe("ManagedProcess", () => {
     });
 
     assert.equal(mp.state, "dead");
-    assert.ok(mp.restartCount >= 1, `should have restarted at least once, got ${mp.restartCount}`);
+    assert.ok(
+      mp.restartCount >= 1,
+      `should have restarted at least once, got ${mp.restartCount}`,
+    );
   });
 
   it("does not restart with never policy", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      command: "sh",
-      args: ["-c", "exit 1"],
-      restart: { mode: "never" },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        command: "sh",
+        args: ["-c", "exit 1"],
+        restart: { mode: "never" },
+      }),
+    );
 
     await mp.start();
     await new Promise<void>((resolve) => {
@@ -106,13 +121,15 @@ describe("ManagedProcess", () => {
   });
 
   it("graceful stop sends signal and transitions to dead", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      id: "stop-test",
-      command: "sleep",
-      args: ["60"],
-      restart: { mode: "never" },
-      shutdown: { signal: "SIGTERM", graceMs: 2000 },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        id: "stop-test",
+        command: "sleep",
+        args: ["60"],
+        restart: { mode: "never" },
+        shutdown: { signal: "SIGTERM", graceMs: 2000 },
+      }),
+    );
 
     await mp.start();
     assert.equal(mp.state, "running");
@@ -123,12 +140,14 @@ describe("ManagedProcess", () => {
   });
 
   it("kill force-kills the process", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      id: "kill-test",
-      command: "sleep",
-      args: ["60"],
-      restart: { mode: "never" },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        id: "kill-test",
+        command: "sleep",
+        args: ["60"],
+        restart: { mode: "never" },
+      }),
+    );
 
     await mp.start();
     assert.equal(mp.state, "running");
@@ -147,13 +166,15 @@ describe("ManagedProcess", () => {
   });
 
   it("stdout-match health check transitions to running on match", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      id: "health-stdout",
-      command: "sh",
-      args: ["-c", "echo 'READY'; sleep 60"],
-      restart: { mode: "never" },
-      health: { kind: "stdout-match", pattern: "READY", timeoutMs: 5000 },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        id: "health-stdout",
+        command: "sh",
+        args: ["-c", "echo 'READY'; sleep 60"],
+        restart: { mode: "never" },
+        health: { kind: "stdout-match", pattern: "READY", timeoutMs: 5000 },
+      }),
+    );
 
     await mp.start();
     assert.equal(mp.state, "running");
@@ -162,13 +183,18 @@ describe("ManagedProcess", () => {
   });
 
   it("emits exit event with code and signal", async () => {
-    const mp = new ManagedProcess(makeSpec({
-      command: "sh",
-      args: ["-c", "exit 42"],
-      restart: { mode: "never" },
-    }));
+    const mp = new ManagedProcess(
+      makeSpec({
+        command: "sh",
+        args: ["-c", "exit 42"],
+        restart: { mode: "never" },
+      }),
+    );
 
-    const exitInfo = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+    const exitInfo = await new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) => {
       mp.on("exit", (code: number | null, signal: NodeJS.Signals | null) => {
         resolve({ code, signal });
       });

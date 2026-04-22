@@ -53,9 +53,9 @@ export class TimerScheduler {
     const removed = this.heap.removeById(id);
     if (!removed) {
       // Maybe already fired or doesn't exist
-      const row = db.prepare("SELECT id FROM timers WHERE id = ? AND fired = 0").get(id) as
-        | { id: string }
-        | undefined;
+      const row = db
+        .prepare("SELECT id FROM timers WHERE id = ? AND fired = 0")
+        .get(id) as { id: string } | undefined;
       if (!row) return false;
     }
     db.prepare("UPDATE timers SET fired = 1 WHERE id = ?").run(id);
@@ -90,7 +90,9 @@ export class TimerScheduler {
   /** Count active (unfired) timers for a session. */
   countForSession(db: Database.Database, sessionId: string): number {
     const row = db
-      .prepare("SELECT COUNT(*) as cnt FROM timers WHERE session_id = ? AND fired = 0")
+      .prepare(
+        "SELECT COUNT(*) as cnt FROM timers WHERE session_id = ? AND fired = 0",
+      )
       .get(sessionId) as { cnt: number };
     return row.cnt;
   }
@@ -128,7 +130,10 @@ export class TimerScheduler {
     }
     this.reschedule();
     if (rows.length > 0) {
-      log.info("timers restored", { total: rows.length, pending: this.heap.size });
+      log.info("timers restored", {
+        total: rows.length,
+        pending: this.heap.size,
+      });
     }
   }
 
@@ -142,13 +147,24 @@ export class TimerScheduler {
 
   // ---- internal ----
 
-  private async fireTimer(db: Database.Database, entry: TimerEntry): Promise<void> {
+  private async fireTimer(
+    db: Database.Database,
+    entry: TimerEntry,
+  ): Promise<void> {
     try {
       db.prepare("UPDATE timers SET fired = 1 WHERE id = ?").run(entry.id);
       await this.deliver(entry.sessionId, entry.message);
-      log.debug("timer fired", { id: entry.id, sessionId: entry.sessionId, label: entry.label });
+      log.debug("timer fired", {
+        id: entry.id,
+        sessionId: entry.sessionId,
+        label: entry.label,
+      });
     } catch (e) {
-      log.warn("timer delivery failed", { id: entry.id, sessionId: entry.sessionId, err: String(e) });
+      log.warn("timer delivery failed", {
+        id: entry.id,
+        sessionId: entry.sessionId,
+        err: String(e),
+      });
     }
   }
 
@@ -165,7 +181,11 @@ export class TimerScheduler {
       void this.tick();
     }, delayMs);
     // Prevent the timer from keeping the process alive during shutdown
-    if (this.timeout && typeof this.timeout === "object" && "unref" in this.timeout) {
+    if (
+      this.timeout &&
+      typeof this.timeout === "object" &&
+      "unref" in this.timeout
+    ) {
       (this.timeout as NodeJS.Timeout).unref();
     }
   }

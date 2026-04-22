@@ -1,7 +1,4 @@
-import {
-  parseResponseLine,
-  WIRE_VERSION,
-} from "@shoggoth/authn";
+import { parseResponseLine, WIRE_VERSION } from "@shoggoth/authn";
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
@@ -18,7 +15,10 @@ import { ShutdownCoordinator } from "../../src/shutdown";
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 import type { AcpxSpawnFn } from "../../src/acpx/acpx-process-supervisor";
-import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
+import {
+  createSessionStore,
+  getSessionContextSegmentId,
+} from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { insertSessionToolAutoApprove } from "../../src/hitl/hitl-session-tool-auto-store";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
@@ -42,7 +42,8 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined)
+    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 
@@ -143,7 +144,9 @@ async function withControlPlaneSession(
       requestId: number;
     }) => boolean;
   },
-  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
+  fn: (
+    send: (body: Record<string, unknown>) => Promise<string>,
+  ) => Promise<void>,
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-cp-"));
   const sock = join(dir, "c.sock");
@@ -425,7 +428,11 @@ describe("control plane (unix socket + JSONL)", () => {
     const db = new Database(":memory:");
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
-    sessions.create({ id: "acpx-sess", workspacePath: "/tmp/w", status: "active" });
+    sessions.create({
+      id: "acpx-sess",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     let nextPid = 60_000;
     const acpxSpawn: AcpxSpawnFn = () => fakeChildProcess(++nextPid);
 
@@ -435,7 +442,10 @@ describe("control plane (unix socket + JSONL)", () => {
         acpxSpawn,
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
 
         const lineBind = await send({
           v: WIRE_VERSION,
@@ -487,7 +497,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const listRes = parseResponseLine(lineList);
         assert.equal(listRes.ok, true);
-        assert.equal((listRes.result as { processes: unknown[] }).processes.length, 1);
+        assert.equal(
+          (listRes.result as { processes: unknown[] }).processes.length,
+          1,
+        );
 
         const lineStop = await send({
           v: WIRE_VERSION,
@@ -503,10 +516,16 @@ describe("control plane (unix socket + JSONL)", () => {
     );
 
     const audits = db
-      .prepare(`SELECT action, resource, outcome FROM audit_log WHERE action LIKE 'acpx.%' ORDER BY id`)
+      .prepare(
+        `SELECT action, resource, outcome FROM audit_log WHERE action LIKE 'acpx.%' ORDER BY id`,
+      )
       .all() as { action: string; resource: string; outcome: string }[];
-    assert.ok(audits.some((a) => a.action === "acpx.agent_start" && a.outcome === "ok"));
-    assert.ok(audits.some((a) => a.action === "acpx.agent_stop" && a.outcome === "ok"));
+    assert.ok(
+      audits.some((a) => a.action === "acpx.agent_start" && a.outcome === "ok"),
+    );
+    assert.ok(
+      audits.some((a) => a.action === "acpx.agent_stop" && a.outcome === "ok"),
+    );
 
     db.close();
   });
@@ -536,7 +555,10 @@ describe("control plane (unix socket + JSONL)", () => {
         hitlPending: pending,
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const lineList = await send({
           v: WIRE_VERSION,
           id: "hl1",
@@ -569,7 +591,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const getRes = parseResponseLine(lineGet);
         assert.equal(getRes.ok, true);
-        assert.equal((getRes.result as { row: { status: string } | null }).row?.status, "approved");
+        assert.equal(
+          (getRes.result as { row: { status: string } | null }).row?.status,
+          "approved",
+        );
 
         pending.enqueue({
           id: "hp2",
@@ -598,7 +623,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const get2 = parseResponseLine(lineGet2);
         assert.equal(get2.ok, true);
-        assert.equal((get2.result as { row: { status: string } | null }).row?.status, "denied");
+        assert.equal(
+          (get2.result as { row: { status: string } | null }).row?.status,
+          "denied",
+        );
       },
     );
 
@@ -614,8 +642,17 @@ describe("control plane (unix socket + JSONL)", () => {
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
     const pending = createPendingActionsStore(db);
-    const sid = formatAgentSessionUrn("aghitl", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+    const sid = formatAgentSessionUrn(
+      "aghitl",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: sid,
+      workspacePath: "/w",
+      status: "active",
+    });
     pending.enqueue({
       id: "hp-cl1",
       sessionId: sid,
@@ -629,7 +666,9 @@ describe("control plane (unix socket + JSONL)", () => {
     const countSessionAuto = () =>
       (
         db
-          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
+          .prepare(
+            `SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`,
+          )
           .get(sid) as { c: number }
       ).c;
 
@@ -640,7 +679,10 @@ describe("control plane (unix socket + JSONL)", () => {
         hitlPending: pending,
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const lineNoAuto = await send({
           v: WIRE_VERSION,
           id: "hc-na",
@@ -672,7 +714,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resSess = parseResponseLine(lineSess);
         assert.equal(resSess.ok, true);
-        assert.equal((resSess.result as { deleted_pending: number }).deleted_pending, 1);
+        assert.equal(
+          (resSess.result as { deleted_pending: number }).deleted_pending,
+          1,
+        );
         assert.equal(countSessionAuto(), 1);
       },
     );
@@ -689,8 +734,17 @@ describe("control plane (unix socket + JSONL)", () => {
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
     const pending = createPendingActionsStore(db);
-    const sid = formatAgentSessionUrn("agx", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+    const sid = formatAgentSessionUrn(
+      "agx",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: sid,
+      workspacePath: "/w",
+      status: "active",
+    });
 
     await withControlPlaneSession(
       {
@@ -699,7 +753,10 @@ describe("control plane (unix socket + JSONL)", () => {
         hitlPending: pending,
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const line = await send({
           v: WIRE_VERSION,
           id: "hc-need",
@@ -727,8 +784,17 @@ describe("control plane (unix socket + JSONL)", () => {
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
     const pending = createPendingActionsStore(db);
-    const sid = formatAgentSessionUrn("wipeme", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: sid, workspacePath: "/w", status: "active" });
+    const sid = formatAgentSessionUrn(
+      "wipeme",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: sid,
+      workspacePath: "/w",
+      status: "active",
+    });
     pending.enqueue({
       id: "hp-wipe",
       sessionId: sid,
@@ -739,10 +805,16 @@ describe("control plane (unix socket + JSONL)", () => {
     });
     insertSessionToolAutoApprove(db, sid, "builtin-write");
 
-    const testConfig: ShoggothConfig = { ...minimalConfig(sock), configDirectory: cfgDir };
+    const testConfig: ShoggothConfig = {
+      ...minimalConfig(sock),
+      configDirectory: cfgDir,
+    };
     const configRef = { current: testConfig };
     const hitlRef = { value: { ...DEFAULT_HITL_CONFIG, ...testConfig.hitl } };
-    const hitlLog = createLogger({ component: "test", minLevel: "error" }).child({
+    const hitlLog = createLogger({
+      component: "test",
+      minLevel: "error",
+    }).child({
       subsystem: "hitl",
     });
     const autoGate = createPersistingHitlAutoApproveGate({
@@ -768,7 +840,10 @@ describe("control plane (unix socket + JSONL)", () => {
         },
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const line = await send({
           v: WIRE_VERSION,
           id: "hc-all",
@@ -778,7 +853,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const res = parseResponseLine(line);
         assert.equal(res.ok, true);
-        const body = res.result as { deleted_pending: number; cleared_session_auto_approve: number };
+        const body = res.result as {
+          deleted_pending: number;
+          cleared_session_auto_approve: number;
+        };
         assert.equal(body.deleted_pending, 1);
         assert.ok(body.cleared_session_auto_approve >= 1);
 
@@ -789,16 +867,23 @@ describe("control plane (unix socket + JSONL)", () => {
           auth: opAuth,
           payload: {},
         });
-        assert.equal((parseResponseLine(lineList).result as { pending: unknown[] }).pending.length, 0);
+        assert.equal(
+          (parseResponseLine(lineList).result as { pending: unknown[] }).pending
+            .length,
+          0,
+        );
 
         const sessRows = (
-          db.prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve`).get() as { c: number }
+          db
+            .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve`)
+            .get() as { c: number }
         ).c;
         assert.equal(sessRows, 0);
 
         assert.equal(autoGate.shouldAutoApprove(sid, "builtin-read"), false);
         const afterConfig = loadLayeredConfig(cfgDir);
-        const after = afterConfig.agents?.list?.["wipeme"]?.hitl?.toolAutoApprove ?? [];
+        const after =
+          afterConfig.agents?.list?.["wipeme"]?.hitl?.toolAutoApprove ?? [];
         assert.deepStrictEqual(after, []);
       },
     );
@@ -814,15 +899,26 @@ describe("control plane (unix socket + JSONL)", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-cx", workspacePath: "/tmp/w", status: "active" });
+    createSessionStore(db).create({
+      id: "sess-cx",
+      workspacePath: "/tmp/w",
+      status: "active",
+    });
     const seg1 = getSessionContextSegmentId(db, "sess-cx");
     const tr = createTranscriptStore(db);
-    tr.append({ sessionId: "sess-cx", contextSegmentId: seg1, role: "user", content: "x" });
+    tr.append({
+      sessionId: "sess-cx",
+      contextSegmentId: seg1,
+      role: "user",
+      content: "x",
+    });
     insertSessionToolAutoApprove(db, "sess-cx", "builtin-write");
     const countSessionAutoApprove = () =>
       (
         db
-          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
+          .prepare(
+            `SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`,
+          )
           .get("sess-cx") as { c: number }
       ).c;
     assert.equal(countSessionAutoApprove(), 1);
@@ -833,7 +929,10 @@ describe("control plane (unix socket + JSONL)", () => {
         config: minimalConfig(sock),
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const lineNew = await send({
           v: WIRE_VERSION,
           id: "scn1",
@@ -853,12 +952,19 @@ describe("control plane (unix socket + JSONL)", () => {
 
         // Transcript rows are abandoned (not deleted); old rows remain in SQLite.
         const nAll = db
-          .prepare(`SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ?`)
+          .prepare(
+            `SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ?`,
+          )
           .get("sess-cx") as { c: number };
         assert.equal(nAll.c, 1);
 
         const seg2 = getSessionContextSegmentId(db, "sess-cx");
-        tr.append({ sessionId: "sess-cx", contextSegmentId: seg2, role: "user", content: "y" });
+        tr.append({
+          sessionId: "sess-cx",
+          contextSegmentId: seg2,
+          role: "user",
+          content: "y",
+        });
         insertSessionToolAutoApprove(db, "sess-cx", "builtin-write");
         assert.equal(countSessionAutoApprove(), 1);
         const lineReset = await send({
@@ -870,7 +976,10 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resetRes = parseResponseLine(lineReset);
         assert.equal(resetRes.ok, true);
-        const rr = resetRes.result as { previousContextSegmentId: string; contextSegmentId: string };
+        const rr = resetRes.result as {
+          previousContextSegmentId: string;
+          contextSegmentId: string;
+        };
         assert.equal(rr.previousContextSegmentId, seg2);
         assert.notEqual(rr.contextSegmentId, seg2);
         // Transcript rows for seg2 are abandoned, not deleted.
@@ -895,8 +1004,16 @@ describe("control plane (unix socket + JSONL)", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    createSessionStore(db).create({ id: "sess-list-a", workspacePath: "/wa", status: "active" });
-    createSessionStore(db).create({ id: "sess-list-z", workspacePath: "/wb", status: "terminated" });
+    createSessionStore(db).create({
+      id: "sess-list-a",
+      workspacePath: "/wa",
+      status: "active",
+    });
+    createSessionStore(db).create({
+      id: "sess-list-z",
+      workspacePath: "/wb",
+      status: "terminated",
+    });
 
     await withControlPlaneSession(
       {
@@ -904,7 +1021,10 @@ describe("control plane (unix socket + JSONL)", () => {
         config: minimalConfig(sock),
       },
       async (send) => {
-        const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+        const opAuth = {
+          kind: "operator_token",
+          token: "test-op-token",
+        } as const;
         const line = await send({
           v: WIRE_VERSION,
           id: "sl1",
@@ -914,9 +1034,13 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const res = parseResponseLine(line);
         assert.equal(res.ok, true);
-        const rows = (res.result as { sessions: { id: string; status: string }[] }).sessions;
+        const rows = (
+          res.result as { sessions: { id: string; status: string }[] }
+        ).sessions;
         assert.ok(rows.length >= 2);
-        assert.ok(rows.some((r) => r.id === "sess-list-a" && r.status === "active"));
+        assert.ok(
+          rows.some((r) => r.id === "sess-list-a" && r.status === "active"),
+        );
 
         const lineF = await send({
           v: WIRE_VERSION,
@@ -927,18 +1051,47 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resF = parseResponseLine(lineF);
         assert.equal(resF.ok, true);
-        const rowsF = (resF.result as { sessions: { id: string; status: string }[] }).sessions;
+        const rowsF = (
+          resF.result as { sessions: { id: string; status: string }[] }
+        ).sessions;
         assert.ok(rowsF.length >= 1);
         assert.ok(rowsF.every((r) => r.status === "terminated"));
         assert.ok(rowsF.some((r) => r.id === "sess-list-z"));
         assert.ok(!rowsF.some((r) => r.id === "sess-list-a"));
 
-        const alfA = formatAgentSessionUrn("alf", "discord", "channel", randomUUID());
-        const alfB = formatAgentSessionUrn("alf", "discord", "channel", randomUUID());
-        const bobA = formatAgentSessionUrn("bob", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-        createSessionStore(db).create({ id: alfA, workspacePath: "/wa", status: "active" });
-        createSessionStore(db).create({ id: alfB, workspacePath: "/wb", status: "active" });
-        createSessionStore(db).create({ id: bobA, workspacePath: "/wc", status: "active" });
+        const alfA = formatAgentSessionUrn(
+          "alf",
+          "discord",
+          "channel",
+          randomUUID(),
+        );
+        const alfB = formatAgentSessionUrn(
+          "alf",
+          "discord",
+          "channel",
+          randomUUID(),
+        );
+        const bobA = formatAgentSessionUrn(
+          "bob",
+          "discord",
+          "channel",
+          SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+        );
+        createSessionStore(db).create({
+          id: alfA,
+          workspacePath: "/wa",
+          status: "active",
+        });
+        createSessionStore(db).create({
+          id: alfB,
+          workspacePath: "/wb",
+          status: "active",
+        });
+        createSessionStore(db).create({
+          id: bobA,
+          workspacePath: "/wc",
+          status: "active",
+        });
 
         const lineAg = await send({
           v: WIRE_VERSION,
@@ -949,7 +1102,8 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resAg = parseResponseLine(lineAg);
         assert.equal(resAg.ok, true);
-        const rowsAg = (resAg.result as { sessions: { id: string }[] }).sessions;
+        const rowsAg = (resAg.result as { sessions: { id: string }[] })
+          .sessions;
         const idsAg = new Set(rowsAg.map((r) => r.id));
         assert.ok(idsAg.has(alfA));
         assert.ok(idsAg.has(alfB));
@@ -970,9 +1124,24 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const sidA = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
-    const sidB = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
-    const sidOther = formatAgentSessionUrn("other", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const sidA = formatAgentSessionUrn(
+      "scoped",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
+    const sidB = formatAgentSessionUrn(
+      "scoped",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
+    const sidOther = formatAgentSessionUrn(
+      "other",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     sessions.create({ id: sidA, workspacePath: "/w1", status: "active" });
     sessions.create({ id: sidB, workspacePath: "/w2", status: "active" });
     sessions.create({ id: sidOther, workspacePath: "/w3", status: "active" });
@@ -1013,8 +1182,17 @@ describe("control plane (unix socket + JSONL)", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    const target = formatAgentSessionUrn("snd", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    createSessionStore(db).create({ id: target, workspacePath: "/w", status: "active" });
+    const target = formatAgentSessionUrn(
+      "snd",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: target,
+      workspacePath: "/w",
+      status: "active",
+    });
 
     let deliveryKind: string | undefined;
     setSubagentRuntimeExtension({
@@ -1032,13 +1210,20 @@ describe("control plane (unix socket + JSONL)", () => {
           config: minimalConfig(sock),
         },
         async (send) => {
-          const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+          const opAuth = {
+            kind: "operator_token",
+            token: "test-op-token",
+          } as const;
           const line = await send({
             v: WIRE_VERSION,
             id: "ss1",
             op: "session_send",
             auth: opAuth,
-            payload: { session_id: target, message: "hello operator", silent: true },
+            payload: {
+              session_id: target,
+              message: "hello operator",
+              silent: true,
+            },
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, true);
@@ -1064,9 +1249,24 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const sidA = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
-    const sidB = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
-    const sidOther = formatAgentSessionUrn("other", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const sidA = formatAgentSessionUrn(
+      "scoped",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
+    const sidB = formatAgentSessionUrn(
+      "scoped",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
+    const sidOther = formatAgentSessionUrn(
+      "other",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     sessions.create({ id: sidA, workspacePath: "/w1", status: "active" });
     sessions.create({ id: sidB, workspacePath: "/w2", status: "active" });
     sessions.create({ id: sidOther, workspacePath: "/w3", status: "active" });
@@ -1096,7 +1296,11 @@ describe("control plane (unix socket + JSONL)", () => {
             id: "ssa-same",
             op: "session_send",
             auth,
-            payload: { session_id: sidB, message: "hi peer session", silent: true },
+            payload: {
+              session_id: sidB,
+              message: "hi peer session",
+              silent: true,
+            },
           });
           const resSame = parseResponseLine(okSame);
           assert.equal(resSame.ok, true);
@@ -1126,11 +1330,18 @@ describe("control plane (unix socket + JSONL)", () => {
             id: "ssa-allow",
             op: "session_send",
             auth,
-            payload: { session_id: sidOther, message: "cross ok", silent: true },
+            payload: {
+              session_id: sidOther,
+              message: "cross ok",
+              silent: true,
+            },
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, true);
-          assert.equal((res.result as { reply: string }).reply, "AGENT_SEND_OK");
+          assert.equal(
+            (res.result as { reply: string }).reply,
+            "AGENT_SEND_OK",
+          );
         },
       );
 
@@ -1170,7 +1381,12 @@ describe("control plane (unix socket + JSONL)", () => {
     const dbPath = join(dir, "state.db");
     const db = new Database(dbPath);
     migrate(db, defaultMigrationsDir());
-    const parentId = formatAgentSessionUrn("par", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const parentId = formatAgentSessionUrn(
+      "par",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     createSessionStore(db).create({
       id: parentId,
       workspacePath: "/tmp/w",
@@ -1197,7 +1413,10 @@ describe("control plane (unix socket + JSONL)", () => {
           config: minimalConfig(sock),
         },
         async (send) => {
-          const opAuth = { kind: "operator_token", token: "test-op-token" } as const;
+          const opAuth = {
+            kind: "operator_token",
+            token: "test-op-token",
+          } as const;
           const line = await send({
             v: WIRE_VERSION,
             id: "sub1",
@@ -1211,7 +1430,11 @@ describe("control plane (unix socket + JSONL)", () => {
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, true);
-          const r = res.result as { session_id: string; reply: string; mode: string };
+          const r = res.result as {
+            session_id: string;
+            reply: string;
+            mode: string;
+          };
           assert.equal(r.mode, "one_shot");
           assert.equal(r.reply, "SUBAGENT_REPLY");
           assert.match(r.session_id, /^agent:par:discord:channel:/);
@@ -1261,7 +1484,12 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const parentId = formatAgentSessionUrn("par", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const parentId = formatAgentSessionUrn(
+      "par",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     sessions.create({
       id: parentId,
       workspacePath: "/tmp/w",
@@ -1288,8 +1516,16 @@ describe("control plane (unix socket + JSONL)", () => {
             v: WIRE_VERSION,
             id: "sub-spawn-off",
             op: "subagent_spawn",
-            auth: { kind: "agent", session_id: parentId, token: "tok-spawn-off" },
-            payload: { parent_session_id: parentId, prompt: "task", mode: "one_shot" },
+            auth: {
+              kind: "agent",
+              session_id: parentId,
+              token: "tok-spawn-off",
+            },
+            payload: {
+              parent_session_id: parentId,
+              prompt: "task",
+              mode: "one_shot",
+            },
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, false);
@@ -1312,7 +1548,12 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const parentId = formatAgentSessionUrn("par", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const parentId = formatAgentSessionUrn(
+      "par",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     sessions.create({
       id: parentId,
       workspacePath: "/tmp/w",
@@ -1342,8 +1583,16 @@ describe("control plane (unix socket + JSONL)", () => {
             v: WIRE_VERSION,
             id: "sub-allow-deny",
             op: "subagent_spawn",
-            auth: { kind: "agent", session_id: parentId, token: "tok-allow-deny" },
-            payload: { parent_session_id: parentId, prompt: "task", mode: "one_shot" },
+            auth: {
+              kind: "agent",
+              session_id: parentId,
+              token: "tok-allow-deny",
+            },
+            payload: {
+              parent_session_id: parentId,
+              prompt: "task",
+              mode: "one_shot",
+            },
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, false);
@@ -1366,7 +1615,12 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const sid = formatAgentSessionUrn("insp", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
+    const sid = formatAgentSessionUrn(
+      "insp",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
     sessions.create({ id: sid, workspacePath: "/w", status: "active" });
     tokens.register(sid, "tok-insp-off");
     await withControlPlaneSession(
@@ -1400,11 +1654,24 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const parentId = formatAgentSessionUrn("st", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    const childId = formatAgentSessionUrn("st", "discord", "channel", randomUUID());
+    const parentId = formatAgentSessionUrn(
+      "st",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    const childId = formatAgentSessionUrn(
+      "st",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
     sessions.create({ id: parentId, workspacePath: "/wp", status: "active" });
     sessions.create({ id: childId, workspacePath: "/wc", status: "active" });
-    sessions.update(childId, { parentSessionId: parentId, subagentMode: "persistent" });
+    sessions.update(childId, {
+      parentSessionId: parentId,
+      subagentMode: "persistent",
+    });
     tokens.register(parentId, "tok-steer-ag");
     setSubagentRuntimeExtension({
       runSessionModelTurn: async () => ({
@@ -1425,7 +1692,11 @@ describe("control plane (unix socket + JSONL)", () => {
             v: WIRE_VERSION,
             id: "steer-ag",
             op: "session_steer",
-            auth: { kind: "agent", session_id: parentId, token: "tok-steer-ag" },
+            auth: {
+              kind: "agent",
+              session_id: parentId,
+              token: "tok-steer-ag",
+            },
             payload: { session_id: childId, prompt: "continue" },
           });
           const res = parseResponseLine(line);
@@ -1449,13 +1720,35 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const callerId = formatAgentSessionUrn("caller", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    const otherParent = formatAgentSessionUrn("otherp", "discord", "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
-    const childId = formatAgentSessionUrn("otherp", "discord", "channel", randomUUID());
+    const callerId = formatAgentSessionUrn(
+      "caller",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    const otherParent = formatAgentSessionUrn(
+      "otherp",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    const childId = formatAgentSessionUrn(
+      "otherp",
+      "discord",
+      "channel",
+      randomUUID(),
+    );
     sessions.create({ id: callerId, workspacePath: "/w1", status: "active" });
-    sessions.create({ id: otherParent, workspacePath: "/w2", status: "active" });
+    sessions.create({
+      id: otherParent,
+      workspacePath: "/w2",
+      status: "active",
+    });
     sessions.create({ id: childId, workspacePath: "/w3", status: "active" });
-    sessions.update(childId, { parentSessionId: otherParent, subagentMode: "persistent" });
+    sessions.update(childId, {
+      parentSessionId: otherParent,
+      subagentMode: "persistent",
+    });
     tokens.register(callerId, "tok-steer-bad");
     setSubagentRuntimeExtension({
       runSessionModelTurn: async () => ({
@@ -1476,7 +1769,11 @@ describe("control plane (unix socket + JSONL)", () => {
             v: WIRE_VERSION,
             id: "steer-bad",
             op: "session_steer",
-            auth: { kind: "agent", session_id: callerId, token: "tok-steer-bad" },
+            auth: {
+              kind: "agent",
+              session_id: callerId,
+              token: "tok-steer-bad",
+            },
             payload: { session_id: childId, prompt: "nope" },
           });
           const res = parseResponseLine(line);
@@ -1493,7 +1790,9 @@ describe("control plane (unix socket + JSONL)", () => {
   it("mcp_http_cancel_request forwards to injected cancel hook", async () => {
     if (process.platform !== "linux") return;
 
-    let seen: { sessionId: string; sourceId: string; requestId: number } | undefined;
+    let seen:
+      | { sessionId: string; sourceId: string; requestId: number }
+      | undefined;
     await withControlPlaneSession(
       {
         cancelMcpHttpRequest: (input) => {
@@ -1514,6 +1813,10 @@ describe("control plane (unix socket + JSONL)", () => {
         assert.deepStrictEqual(res.result, { cancelled: true });
       },
     );
-    assert.deepStrictEqual(seen, { sessionId: "s1", sourceId: "srv", requestId: 7 });
+    assert.deepStrictEqual(seen, {
+      sessionId: "s1",
+      sourceId: "srv",
+      requestId: 7,
+    });
   });
 });

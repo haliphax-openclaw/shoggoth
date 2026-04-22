@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "vitest";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 
 // We need to test the singleton in isolation. Since it uses module-level state,
@@ -37,8 +37,16 @@ describe("workflow-singleton", () => {
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "stub-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "stub-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
       });
@@ -67,8 +75,16 @@ describe("workflow-singleton", () => {
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "other-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "other-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
       });
@@ -89,15 +105,23 @@ describe("workflow-singleton", () => {
       const tmpDir = path.join(os.tmpdir(), `workflow-test-${randomUUID()}`);
 
       const mockToolExecutor = {
-        async execute(toolName: string, args: Record<string, unknown>) {
+        async execute(_toolName: string, _args: Record<string, unknown>) {
           return { ok: true, output: "mock result" };
         },
       };
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "stub-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "stub-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
         createToolExecutor: () => mockToolExecutor,
@@ -119,18 +143,29 @@ describe("workflow-singleton", () => {
 
       const tmpDir = path.join(os.tmpdir(), `workflow-test-${randomUUID()}`);
 
-      const executeCalls: Array<{ toolName: string; args: Record<string, unknown> }> = [];
+      const executeCalls: Array<{
+        toolName: string;
+        args: Record<string, unknown>;
+      }> = [];
       const mockToolExecutor = {
-        async execute(toolName: string, args: Record<string, unknown>) {
-          executeCalls.push({ toolName, args });
+        async execute(_toolName: string, _args: Record<string, unknown>) {
+          executeCalls.push({ toolName: _toolName, args: _args });
           return { ok: true, output: "mock result" };
         },
       };
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "stub-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "stub-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
         createToolExecutor: () => mockToolExecutor,
@@ -158,8 +193,16 @@ describe("workflow-singleton", () => {
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "stub-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "stub-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
         // createToolExecutor intentionally omitted
@@ -182,15 +225,23 @@ describe("workflow-singleton", () => {
       const tmpDir = path.join(os.tmpdir(), `workflow-test-${randomUUID()}`);
 
       const mockToolExecutor = {
-        async execute(toolName: string, args: Record<string, unknown>) {
+        async execute(_toolName: string, _args: Record<string, unknown>) {
           return { ok: true, output: "test output" };
         },
       };
 
       const result = mod.initWorkflow({
         stateDir: tmpDir,
-        spawner: { async spawn() { return "stub-session"; } },
-        poller: { async poll() { return { status: "running" as const }; } },
+        spawner: {
+          async spawn() {
+            return "stub-session";
+          },
+        },
+        poller: {
+          async poll() {
+            return { status: "running" as const };
+          },
+        },
         notifier: { async notify() {} },
         killer: { async kill() {} },
         createToolExecutor: () => mockToolExecutor,
@@ -224,7 +275,9 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "start" } as Parameters<typeof mod.executeWorkflowToolCall>[0],
+        { action: "start" } as Parameters<
+          typeof mod.executeWorkflowToolCall
+        >[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 
@@ -236,7 +289,9 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "status" } as Parameters<typeof mod.executeWorkflowToolCall>[0],
+        { action: "status" } as Parameters<
+          typeof mod.executeWorkflowToolCall
+        >[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 
@@ -248,7 +303,9 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "explode" } as unknown as Parameters<typeof mod.executeWorkflowToolCall>[0],
+        { action: "explode" } as unknown as Parameters<
+          typeof mod.executeWorkflowToolCall
+        >[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 

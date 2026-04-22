@@ -18,7 +18,13 @@ describe("discordMessageCreateToInboundEvent", () => {
         timestamp: "2026-03-27T12:00:00.000000+00:00",
         message_reference: { message_id: "parent" },
         attachments: [
-          { id: "a1", url: "https://cdn/x.png", filename: "x.png", content_type: "image/png", size: 12 },
+          {
+            id: "a1",
+            url: "https://cdn/x.png",
+            filename: "x.png",
+            content_type: "image/png",
+            size: 12,
+          },
         ],
       },
       { allowBotMessages: false },
@@ -35,12 +41,24 @@ describe("discordMessageCreateToInboundEvent", () => {
 
   it("drops bot messages unless allowed", () => {
     const ev = discordMessageCreateToInboundEvent(
-      { id: "1", channel_id: "c", author: { id: "b", bot: true }, content: "", timestamp: "2026-01-01T00:00:00.000000+00:00" },
+      {
+        id: "1",
+        channel_id: "c",
+        author: { id: "b", bot: true },
+        content: "",
+        timestamp: "2026-01-01T00:00:00.000000+00:00",
+      },
       { allowBotMessages: false },
     );
     assert.equal(ev, null);
     const ev2 = discordMessageCreateToInboundEvent(
-      { id: "1", channel_id: "c", author: { id: "b", bot: true }, content: "", timestamp: "2026-01-01T00:00:00.000000+00:00" },
+      {
+        id: "1",
+        channel_id: "c",
+        author: { id: "b", bot: true },
+        content: "",
+        timestamp: "2026-01-01T00:00:00.000000+00:00",
+      },
       { allowBotMessages: true },
     );
     assert.ok(ev2);
@@ -79,7 +97,13 @@ describe("discordInteractionCreateToEvent", () => {
       member: { user: { id: "user-1" } },
       data: {
         name: "abort",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     });
     assert.ok(ev);
@@ -91,7 +115,10 @@ describe("discordInteractionCreateToEvent", () => {
     assert.strictEqual(ev!.guildId, "g-1");
     assert.strictEqual(ev!.userId, "user-1");
     assert.strictEqual(ev!.data.name, "abort");
-    assert.strictEqual(ev!.data.options?.[0]?.value, "agent:main:discord:channel:abc");
+    assert.strictEqual(
+      ev!.data.options?.[0]?.value,
+      "agent:main:discord:channel:abc",
+    );
   });
 
   it("maps DM interaction (user at top level, no member)", () => {

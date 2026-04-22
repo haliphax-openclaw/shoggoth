@@ -14,8 +14,14 @@ describe("effectiveSpawnSubagentsEnabled", () => {
   });
 
   it("honors top-level spawnSubagents", () => {
-    assert.equal(effectiveSpawnSubagentsEnabled(cfg({ spawnSubagents: false }), "a"), false);
-    assert.equal(effectiveSpawnSubagentsEnabled(cfg({ spawnSubagents: true }), "a"), true);
+    assert.equal(
+      effectiveSpawnSubagentsEnabled(cfg({ spawnSubagents: false }), "a"),
+      false,
+    );
+    assert.equal(
+      effectiveSpawnSubagentsEnabled(cfg({ spawnSubagents: true }), "a"),
+      true,
+    );
   });
 
   it("per-agent overrides global when boolean", () => {

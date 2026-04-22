@@ -4,12 +4,23 @@
 
 import { lookup } from "node:dns/promises";
 import { isPrivateIp } from "@shoggoth/shared";
-import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import type {
+  BuiltinToolRegistry,
+  BuiltinToolContext,
+} from "../builtin-tool-registry";
 import { truncateToolOutput } from "./truncate-output";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576; // 1 MB
 const DEFAULT_TIMEOUT_MS = 30_000;
-const VALID_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+const VALID_METHODS = new Set([
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "HEAD",
+  "OPTIONS",
+]);
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("fetch", fetchHandler);
@@ -19,7 +30,9 @@ export function register(registry: BuiltinToolRegistry): void {
 // CIDR matching
 // ---------------------------------------------------------------------------
 
-function parseCidr(cidr: string): { ip: number[]; prefixLen: number; version: 4 | 6 } | null {
+function parseCidr(
+  cidr: string,
+): { ip: number[]; prefixLen: number; version: 4 | 6 } | null {
   const slash = cidr.lastIndexOf("/");
   if (slash === -1) return null;
   const ipStr = cidr.slice(0, slash);
@@ -40,12 +53,16 @@ function parseCidr(cidr: string): { ip: number[]; prefixLen: number; version: 4 
   }
 
   const parts = ipStr.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return null;
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255))
+    return null;
   if (prefixLen < 0 || prefixLen > 32) return null;
   return { ip: parts, prefixLen, version: 4 };
 }
 
-function ipMatchesCidr(ipStr: string, cidr: ReturnType<typeof parseCidr>): boolean {
+function ipMatchesCidr(
+  ipStr: string,
+  cidr: ReturnType<typeof parseCidr>,
+): boolean {
   if (!cidr) return false;
 
   if (cidr.version === 4) {
@@ -55,7 +72,8 @@ function ipMatchesCidr(ipStr: string, cidr: ReturnType<typeof parseCidr>): boole
     for (let bit = 0; bit < cidr.prefixLen; bit++) {
       const byteIdx = bit >> 3;
       const bitMask = 0x80 >> (bit & 7);
-      if ((parts[byteIdx] & bitMask) !== (cidr.ip[byteIdx] & bitMask)) return false;
+      if ((parts[byteIdx] & bitMask) !== (cidr.ip[byteIdx] & bitMask))
+        return false;
     }
     return true;
   }
@@ -71,7 +89,8 @@ function ipMatchesCidr(ipStr: string, cidr: ReturnType<typeof parseCidr>): boole
   for (let bit = 0; bit < cidr.prefixLen; bit++) {
     const byteIdx = bit >> 3;
     const bitMask = 0x80 >> (bit & 7);
-    if ((bytes[byteIdx] & bitMask) !== (cidr.ip[byteIdx] & bitMask)) return false;
+    if ((bytes[byteIdx] & bitMask) !== (cidr.ip[byteIdx] & bitMask))
+      return false;
   }
   return true;
 }
@@ -127,7 +146,11 @@ async function fetchHandler(
 ): Promise<{ resultJson: string }> {
   const url = args.url as string | undefined;
   if (!url || typeof url !== "string") {
-    return { resultJson: JSON.stringify({ error: "url is required and must be a string" }) };
+    return {
+      resultJson: JSON.stringify({
+        error: "url is required and must be a string",
+      }),
+    };
   }
 
   let parsed: URL;
@@ -138,19 +161,30 @@ async function fetchHandler(
   }
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return { resultJson: JSON.stringify({ error: `Unsupported protocol: ${parsed.protocol}` }) };
+    return {
+      resultJson: JSON.stringify({
+        error: `Unsupported protocol: ${parsed.protocol}`,
+      }),
+    };
   }
 
   const method = ((args.method as string) ?? "GET").toUpperCase();
   if (!VALID_METHODS.has(method)) {
-    return { resultJson: JSON.stringify({ error: `Unsupported HTTP method: ${method}` }) };
+    return {
+      resultJson: JSON.stringify({
+        error: `Unsupported HTTP method: ${method}`,
+      }),
+    };
   }
 
   const maxResponseBytes = Math.max(
     (args.maxResponseBytes as number) ?? DEFAULT_MAX_RESPONSE_BYTES,
     0,
   );
-  const timeoutMs = Math.max((args.timeoutMs as number) ?? DEFAULT_TIMEOUT_MS, 0);
+  const timeoutMs = Math.max(
+    (args.timeoutMs as number) ?? DEFAULT_TIMEOUT_MS,
+    0,
+  );
   const binary = (args.binary as boolean) ?? false;
 
   // --- Fetch config from runtime config ---
@@ -165,7 +199,14 @@ async function fetchHandler(
   try {
     const resolved = await lookup(hostname, { all: true });
     for (const entry of resolved) {
-      if (!isIpAllowed(entry.address, hostname, allowPrivateIps, privateIpAllowlist)) {
+      if (
+        !isIpAllowed(
+          entry.address,
+          hostname,
+          allowPrivateIps,
+          privateIpAllowlist,
+        )
+      ) {
         return {
           resultJson: JSON.stringify({
             error: `Blocked: ${hostname} resolves to private/internal IP ${entry.address}. Configure fetch.allowPrivateIps or fetch.privateIpAllowlist to permit.`,
@@ -184,7 +225,9 @@ async function fetchHandler(
   // --- Build request ---
   const headers: Record<string, string> = {};
   if (args.headers && typeof args.headers === "object") {
-    for (const [k, v] of Object.entries(args.headers as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(
+      args.headers as Record<string, unknown>,
+    )) {
       headers[k] = String(v);
     }
   }
@@ -221,7 +264,9 @@ async function fetchHandler(
     let truncated = false;
 
     if (res.body) {
-      const reader = (res.body as unknown as ReadableStream<Uint8Array>).getReader();
+      const reader = (
+        res.body as unknown as ReadableStream<Uint8Array>
+      ).getReader();
       try {
         for (;;) {
           const { done, value } = await reader.read();
@@ -286,8 +331,16 @@ async function fetchHandler(
   } catch (err: unknown) {
     clearTimeout(timer);
     if ((err as Error).name === "AbortError") {
-      return { resultJson: JSON.stringify({ error: `Request timed out after ${timeoutMs}ms` }) };
+      return {
+        resultJson: JSON.stringify({
+          error: `Request timed out after ${timeoutMs}ms`,
+        }),
+      };
     }
-    return { resultJson: JSON.stringify({ error: `Fetch failed: ${(err as Error).message}` }) };
+    return {
+      resultJson: JSON.stringify({
+        error: `Fetch failed: ${(err as Error).message}`,
+      }),
+    };
   }
 }

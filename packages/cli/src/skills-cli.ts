@@ -17,7 +17,10 @@ export function formatSkillsListJson(config: ShoggothConfig): string {
   return `${JSON.stringify(rows, null, 2)}\n`;
 }
 
-export function formatSkillPathLine(config: ShoggothConfig, id: string): string {
+export function formatSkillPathLine(
+  config: ShoggothConfig,
+  id: string,
+): string {
   const p = skillAbsolutePathById(config, id);
   if (!p) {
     throw new Error(`unknown skill id: ${id}`);
@@ -48,7 +51,10 @@ export function formatSkillsSearchJson(
   return `${JSON.stringify(rows, null, 2)}\n`;
 }
 
-export function formatSkillReadJson(config: ShoggothConfig, id: string): string {
+export function formatSkillReadJson(
+  config: ShoggothConfig,
+  id: string,
+): string {
   const p = skillAbsolutePathById(config, id);
   if (!p) {
     throw new Error(`unknown skill id: ${id}`);

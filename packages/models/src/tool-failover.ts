@@ -1,6 +1,10 @@
 import { isFailoverEligibleError } from "./classify";
 import type { FailoverChainEntry, FailoverHooks } from "./failover";
-import type { ModelCapabilities, ModelToolCompleteInput, ModelToolCompleteOutput } from "./types";
+import type {
+  ModelCapabilities,
+  ModelToolCompleteInput,
+  ModelToolCompleteOutput,
+} from "./types";
 
 export type FailoverToolCompleteOutput = ModelToolCompleteOutput & {
   readonly usedProviderId: string;
@@ -12,7 +16,9 @@ export type FailoverToolCompleteOutput = ModelToolCompleteOutput & {
 
 export interface FailoverToolCallingClient {
   readonly capabilities?: ModelCapabilities;
-  completeWithTools(input: ModelToolCompleteInput): Promise<FailoverToolCompleteOutput>;
+  completeWithTools(
+    input: ModelToolCompleteInput,
+  ): Promise<FailoverToolCompleteOutput>;
 }
 
 export function createFailoverToolCallingClient(
@@ -41,7 +47,10 @@ export function createFailoverToolCallingClient(
         };
         try {
           const out = await entry.provider.completeWithTools(req);
-          const thinkingFormat = input.thinkingFormat ?? entry.thinkingFormat ?? entry.provider.capabilities?.thinkingFormat;
+          const thinkingFormat =
+            input.thinkingFormat ??
+            entry.thinkingFormat ??
+            entry.provider.capabilities?.thinkingFormat;
           hooks?.onProviderSuccess?.(entry.provider.id);
           return {
             ...out,
@@ -54,11 +63,17 @@ export function createFailoverToolCallingClient(
           lastErr = e;
           const more = i < chain.length - 1;
           if (more && isFailoverEligibleError(e)) {
-            hooks?.onProviderExhausted?.(entry.provider.id, e instanceof Error ? e.message : String(e));
+            hooks?.onProviderExhausted?.(
+              entry.provider.id,
+              e instanceof Error ? e.message : String(e),
+            );
             continue;
           }
           if (isFailoverEligibleError(e)) {
-            hooks?.onProviderExhausted?.(entry.provider.id, e instanceof Error ? e.message : String(e));
+            hooks?.onProviderExhausted?.(
+              entry.provider.id,
+              e instanceof Error ? e.message : String(e),
+            );
           }
           throw e;
         }

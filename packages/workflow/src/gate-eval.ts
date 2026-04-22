@@ -29,19 +29,22 @@ export function buildGateContext(tasks: Map<number, TaskState>): GateContext {
  * Converts `{{task:N:field}}` syntax to `task.N.field` dot notation.
  */
 function resolveGateTemplates(condition: string): string {
-  return condition.replace(/\{\{task:(\d+):(output|success)\}\}/g, "task.$1.$2");
+  return condition.replace(
+    /\{\{task:(\d+):(output|success)\}\}/g,
+    "task.$1.$2",
+  );
 }
 
 // --- Tokenizer ---
 
 type TokenType =
-  | "TASK_REF"    // task.N.success or task.N.output
-  | "BOOL"        // true / false
-  | "STRING"      // "..." or '...'
-  | "OP"          // ==, !=, &&, ||, !
-  | "CONTAINS"    // contains
-  | "LPAREN"      // (
-  | "RPAREN"      // )
+  | "TASK_REF" // task.N.success or task.N.output
+  | "BOOL" // true / false
+  | "STRING" // "..." or '...'
+  | "OP" // ==, !=, &&, ||, !
+  | "CONTAINS" // contains
+  | "LPAREN" // (
+  | "RPAREN" // )
   | "EOF";
 
 interface Token {
@@ -56,17 +59,48 @@ function tokenize(expr: string): Token[] {
   let i = 0;
 
   while (i < expr.length) {
-    if (/\s/.test(expr[i])) { i++; continue; }
+    if (/\s/.test(expr[i])) {
+      i++;
+      continue;
+    }
 
-    if (expr[i] === "(") { tokens.push({ type: "LPAREN", value: "(" }); i++; continue; }
-    if (expr[i] === ")") { tokens.push({ type: "RPAREN", value: ")" }); i++; continue; }
+    if (expr[i] === "(") {
+      tokens.push({ type: "LPAREN", value: "(" });
+      i++;
+      continue;
+    }
+    if (expr[i] === ")") {
+      tokens.push({ type: "RPAREN", value: ")" });
+      i++;
+      continue;
+    }
 
-    if (expr[i] === "=" && expr[i + 1] === "=") { tokens.push({ type: "OP", value: "==" }); i += 2; continue; }
-    if (expr[i] === "!" && expr[i + 1] === "=") { tokens.push({ type: "OP", value: "!=" }); i += 2; continue; }
-    if (expr[i] === "&" && expr[i + 1] === "&") { tokens.push({ type: "OP", value: "&&" }); i += 2; continue; }
-    if (expr[i] === "|" && expr[i + 1] === "|") { tokens.push({ type: "OP", value: "||" }); i += 2; continue; }
+    if (expr[i] === "=" && expr[i + 1] === "=") {
+      tokens.push({ type: "OP", value: "==" });
+      i += 2;
+      continue;
+    }
+    if (expr[i] === "!" && expr[i + 1] === "=") {
+      tokens.push({ type: "OP", value: "!=" });
+      i += 2;
+      continue;
+    }
+    if (expr[i] === "&" && expr[i + 1] === "&") {
+      tokens.push({ type: "OP", value: "&&" });
+      i += 2;
+      continue;
+    }
+    if (expr[i] === "|" && expr[i + 1] === "|") {
+      tokens.push({ type: "OP", value: "||" });
+      i += 2;
+      continue;
+    }
 
-    if (expr[i] === "!") { tokens.push({ type: "OP", value: "!" }); i++; continue; }
+    if (expr[i] === "!") {
+      tokens.push({ type: "OP", value: "!" });
+      i++;
+      continue;
+    }
 
     if (expr[i] === '"' || expr[i] === "'") {
       const quote = expr[i];
@@ -81,7 +115,8 @@ function tokenize(expr: string): Token[] {
           i++;
         }
       }
-      if (i >= expr.length) throw new Error("Unterminated string literal in gate condition");
+      if (i >= expr.length)
+        throw new Error("Unterminated string literal in gate condition");
       i++;
       tokens.push({ type: "STRING", value: str });
       continue;
@@ -112,7 +147,9 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
-    throw new Error(`Unexpected character in gate condition: "${expr[i]}" at position ${i}`);
+    throw new Error(
+      `Unexpected character in gate condition: "${expr[i]}" at position ${i}`,
+    );
   }
 
   tokens.push({ type: "EOF", value: "" });
@@ -123,7 +160,10 @@ type Value = string | boolean;
 
 function resolveRef(token: Token, ctx: GateContext): Value {
   const entry = ctx.task.get(token.taskId!);
-  if (!entry) throw new Error(`Gate condition references task ${token.taskId} which has no result`);
+  if (!entry)
+    throw new Error(
+      `Gate condition references task ${token.taskId} which has no result`,
+    );
   if (token.field === "success") return entry.success;
   return entry.output;
 }
@@ -147,12 +187,17 @@ export function evaluateGateCondition(expr: string, ctx: GateContext): boolean {
   const tokens = tokenize(normalized);
   let pos = 0;
 
-  function peek(): Token { return tokens[pos]; }
-  function advance(): Token { return tokens[pos++]; }
+  function peek(): Token {
+    return tokens[pos];
+  }
+  function advance(): Token {
+    return tokens[pos++];
+  }
 
   function expect(type: TokenType): Token {
     const t = advance();
-    if (t.type !== type) throw new Error(`Expected ${type} but got ${t.type} ("${t.value}")`);
+    if (t.type !== type)
+      throw new Error(`Expected ${type} but got ${t.type} ("${t.value}")`);
     return t;
   }
 
@@ -230,12 +275,16 @@ export function evaluateGateCondition(expr: string, ctx: GateContext): boolean {
       return val;
     }
 
-    throw new Error(`Unexpected token in gate condition: ${t.type} ("${t.value}")`);
+    throw new Error(
+      `Unexpected token in gate condition: ${t.type} ("${t.value}")`,
+    );
   }
 
   const result = parseExpr();
   if (peek().type !== "EOF") {
-    throw new Error(`Unexpected trailing tokens in gate condition: "${peek().value}"`);
+    throw new Error(
+      `Unexpected trailing tokens in gate condition: "${peek().value}"`,
+    );
   }
   return toBool(result);
 }

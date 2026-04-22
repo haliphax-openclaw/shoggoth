@@ -91,7 +91,9 @@ export async function runQueueCli(argv: string[]): Promise<void> {
   });
 
   if (!res.ok) {
-    console.error(`error: ${(res.error as { message?: string })?.message ?? "unknown"}`);
+    console.error(
+      `error: ${(res.error as { message?: string })?.message ?? "unknown"}`,
+    );
     process.exitCode = 1;
     return;
   }

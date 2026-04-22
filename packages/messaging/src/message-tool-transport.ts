@@ -1,5 +1,3 @@
-import type { MessagingAdapterCapabilities } from "./capabilities";
-
 export interface CreateMessageBody {
   readonly content: string;
   readonly message_reference?: { readonly message_id: string };
@@ -32,16 +30,58 @@ export interface SearchQuery {
 }
 
 export interface MessageToolTransport {
-  createMessage(channelId: string, body: CreateMessageBody): Promise<{ readonly id: string }>;
-  createMessageWithFiles(channelId: string, body: CreateMessageBody, files: readonly MessageUploadFile[]): Promise<{ readonly id: string }>;
-  editMessage(channelId: string, messageId: string, body: EditMessageBody): Promise<void>;
+  createMessage(
+    channelId: string,
+    body: CreateMessageBody,
+  ): Promise<{ readonly id: string }>;
+  createMessageWithFiles(
+    channelId: string,
+    body: CreateMessageBody,
+    files: readonly MessageUploadFile[],
+  ): Promise<{ readonly id: string }>;
+  editMessage(
+    channelId: string,
+    messageId: string,
+    body: EditMessageBody,
+  ): Promise<void>;
   deleteMessage(channelId: string, messageId: string): Promise<void>;
-  getMessage(channelId: string, messageId: string): Promise<Record<string, unknown>>;
-  getChannelMessages(channelId: string, query: ChannelMessagesQuery): Promise<readonly Record<string, unknown>[]>;
-  createThreadFromMessage(channelId: string, messageId: string, body: { readonly name: string; readonly auto_archive_duration?: 60 | 1440 | 4320 | 10080 }): Promise<{ readonly id: string }>;
+  getMessage(
+    channelId: string,
+    messageId: string,
+  ): Promise<Record<string, unknown>>;
+  getChannelMessages(
+    channelId: string,
+    query: ChannelMessagesQuery,
+  ): Promise<readonly Record<string, unknown>[]>;
+  createThreadFromMessage(
+    channelId: string,
+    messageId: string,
+    body: {
+      readonly name: string;
+      readonly auto_archive_duration?: 60 | 1440 | 4320 | 10080;
+    },
+  ): Promise<{ readonly id: string }>;
   deleteChannel(channelId: string): Promise<void>;
-  createMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
-  deleteMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
-  getMessageReactions(channelId: string, messageId: string, emoji: string): Promise<readonly Record<string, unknown>[]>;
-  searchMessages(guildId: string, query: SearchQuery): Promise<{ readonly messages: readonly Record<string, unknown>[][]; readonly total_results: number }>;
+  createMessageReaction(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void>;
+  deleteMessageReaction(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void>;
+  getMessageReactions(
+    channelId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<readonly Record<string, unknown>[]>;
+  searchMessages(
+    guildId: string,
+    query: SearchQuery,
+  ): Promise<{
+    readonly messages: readonly Record<string, unknown>[][];
+    readonly total_results: number;
+  }>;
 }

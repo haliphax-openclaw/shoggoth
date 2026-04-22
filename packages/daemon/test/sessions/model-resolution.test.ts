@@ -5,7 +5,12 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
 import { markProviderFailed } from "../../src/sessions/provider-failure-store";
-import { resolveModel, resolveRetryConfig, resolveBootstrapModelRef, getSessionPrimaryModelRef } from "../../src/sessions/model-resolution";
+import {
+  resolveModel,
+  resolveRetryConfig,
+  resolveBootstrapModelRef,
+  getSessionPrimaryModelRef,
+} from "../../src/sessions/model-resolution";
 import type { ShoggothConfig } from "@shoggoth/shared";
 
 const TMP = join(import.meta.dirname ?? ".", ".tmp-model-resolution-test");
@@ -27,23 +32,47 @@ function makeConfig(overrides?: Partial<ShoggothConfig>): ShoggothConfig {
     inboundMediaRoot: "/tmp",
     operatorDirectory: "/tmp",
     configDirectory: "/tmp",
-    hitl: { defaultApprovalTimeoutMs: 300_000, toolRisk: {}, bypassUpTo: "safe" },
+    hitl: {
+      defaultApprovalTimeoutMs: 300_000,
+      toolRisk: {},
+      bypassUpTo: "safe",
+    },
     memory: { paths: [], embeddings: { enabled: false } },
     skills: { scanRoots: [], disabledIds: [] },
     plugins: [],
     mcp: { servers: [], poolScope: "global" },
     policy: {
-      operator: { controlOps: { allow: ["*"], deny: [], review: [] }, tools: { allow: ["*"], deny: [], review: [] } },
-      agent: { controlOps: { allow: [], deny: [], review: [] }, tools: { allow: ["*"], deny: [], review: [] } },
+      operator: {
+        controlOps: { allow: ["*"], deny: [], review: [] },
+        tools: { allow: ["*"], deny: [], review: [] },
+      },
+      agent: {
+        controlOps: { allow: [], deny: [], review: [] },
+        tools: { allow: ["*"], deny: [], review: [] },
+      },
       auditRedaction: { jsonPaths: [] },
     },
     models: {
       providers: [
-        { id: "openai", kind: "openai-compatible", baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
-        { id: "anthropic", kind: "anthropic-messages", baseUrl: "https://api.anthropic.com", models: [{ name: "claude-sonnet" }] },
+        {
+          id: "openai",
+          kind: "openai-compatible",
+          baseUrl: "https://api.openai.com/v1",
+          models: [{ name: "gpt-4o" }],
+        },
+        {
+          id: "anthropic",
+          kind: "anthropic-messages",
+          baseUrl: "https://api.anthropic.com",
+          models: [{ name: "claude-sonnet" }],
+        },
         { id: "gemini", kind: "gemini", models: [{ name: "gemini-pro" }] },
       ],
-      failoverChain: ["openai/gpt-4o", "anthropic/claude-sonnet", "gemini/gemini-pro"],
+      failoverChain: [
+        "openai/gpt-4o",
+        "anthropic/claude-sonnet",
+        "gemini/gemini-pro",
+      ],
     },
     ...overrides,
   } as ShoggothConfig;
@@ -73,7 +102,9 @@ describe("model-resolution", () => {
 
     it("resolves an explicit ref", () => {
       const config = makeConfig();
-      const result = resolveModel(db, config, { ref: "anthropic/claude-sonnet" });
+      const result = resolveModel(db, config, {
+        ref: "anthropic/claude-sonnet",
+      });
       assert.ok(result);
       assert.strictEqual(result.ref, "anthropic/claude-sonnet");
       assert.strictEqual(result.provider.id, "anthropic");
@@ -131,7 +162,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: [],
         },
@@ -144,7 +180,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: ["missing-provider/some-model"],
         },
@@ -157,7 +198,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: ["openai/nonexistent-model"],
         },
@@ -170,7 +216,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: ["openai/gpt-4o"],
         },
@@ -194,7 +245,9 @@ describe("model-resolution", () => {
           },
         },
       });
-      const result = resolveModel(db, config, { sessionId: "agent:main:discord:channel:123:abc" });
+      const result = resolveModel(db, config, {
+        sessionId: "agent:main:discord:channel:123:abc",
+      });
       assert.ok(result);
       assert.strictEqual(result.ref, "anthropic/claude-sonnet");
       assert.strictEqual(result.provider.id, "anthropic");
@@ -204,8 +257,19 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }], markFailedDurationMs: 1000 },
-            { id: "anthropic", kind: "anthropic-messages" as const, baseUrl: "https://api.anthropic.com", models: [{ name: "claude-sonnet" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+              markFailedDurationMs: 1000,
+            },
+            {
+              id: "anthropic",
+              kind: "anthropic-messages" as const,
+              baseUrl: "https://api.anthropic.com",
+              models: [{ name: "claude-sonnet" }],
+            },
           ],
           failoverChain: ["openai/gpt-4o", "anthropic/claude-sonnet"],
         },
@@ -291,7 +355,10 @@ describe("model-resolution", () => {
           },
         },
       });
-      const result = resolveBootstrapModelRef(config, "agent:main:discord:channel:123:abc");
+      const result = resolveBootstrapModelRef(
+        config,
+        "agent:main:discord:channel:123:abc",
+      );
       assert.strictEqual(result, "anthropic/claude-sonnet");
     });
 
@@ -305,7 +372,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: [],
         },
@@ -318,7 +390,12 @@ describe("model-resolution", () => {
       const config = makeConfig({
         models: {
           providers: [
-            { id: "openai", kind: "openai-compatible" as const, baseUrl: "https://api.openai.com/v1", models: [{ name: "gpt-4o" }] },
+            {
+              id: "openai",
+              kind: "openai-compatible" as const,
+              baseUrl: "https://api.openai.com/v1",
+              models: [{ name: "gpt-4o" }],
+            },
           ],
           failoverChain: ["gpt-4o"],
         },
@@ -355,6 +432,7 @@ describe("model-resolution", () => {
     });
 
     it("returns undefined for non-object values", () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = getSessionPrimaryModelRef("openai/gpt-4o" as any);
       assert.strictEqual(result, undefined);
     });

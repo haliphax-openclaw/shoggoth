@@ -13,7 +13,13 @@ describe("discordInteractionCreateToEvent", () => {
       member: { user: { id: "u-1", username: "tester" } },
       data: {
         name: "abort",
-        options: [{ name: "session_id", type: 3, value: "agent:main:discord:channel:abc" }],
+        options: [
+          {
+            name: "session_id",
+            type: 3,
+            value: "agent:main:discord:channel:abc",
+          },
+        ],
       },
     });
     assert.ok(ev);
@@ -26,7 +32,10 @@ describe("discordInteractionCreateToEvent", () => {
     assert.strictEqual(ev.userId, "u-1");
     assert.strictEqual(ev.data.name, "abort");
     assert.strictEqual(ev.data.options?.[0]?.name, "session_id");
-    assert.strictEqual(ev.data.options?.[0]?.value, "agent:main:discord:channel:abc");
+    assert.strictEqual(
+      ev.data.options?.[0]?.value,
+      "agent:main:discord:channel:abc",
+    );
   });
 
   it("maps INTERACTION_CREATE payload with DM user (no member)", () => {
