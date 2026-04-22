@@ -1,14 +1,14 @@
 # builtin-fs
 
-File-system operations: mkdir, move, copy, rename, delete, stat, chmod. All paths are workspace-relative.
+File-system operations: mkdir, move, copy, delete, stat, chmod. All paths are workspace-relative.
 
 ## Parameters
 
 | Param | Type | Required | Notes |
 |-------|------|----------|-------|
-| `action` | string | yes | One of: `mkdir`, `move`, `copy`, `rename`, `delete`, `stat`, `chmod` |
+| `action` | string | yes | One of: `mkdir`, `move`, `copy`, `delete`, `stat`, `chmod` |
 | `path` | string | yes | Source path (workspace-relative) |
-| `dest` | string | move/copy/rename | Destination path (`rename`: bare filename only) |
+| `dest` | string | move/copy | Destination path |
 | `mode` | string | chmod | Octal permission string, e.g. `"755"` or `"0644"` |
 | `recursive` | boolean | no | For `delete`: remove non-empty dirs. For `mkdir`: create intermediate dirs. |
 
@@ -32,11 +32,6 @@ File-system operations: mkdir, move, copy, rename, delete, stat, chmod. All path
 **Copy a file or directory:**
 ```json
 { "action": "copy", "path": "src/foo.ts", "dest": "src/foo.backup.ts" }
-```
-
-**Rename in the same directory:**
-```json
-{ "action": "rename", "path": "src/foo.ts", "dest": "bar.ts" }
 ```
 
 **Delete a file:**
@@ -63,8 +58,7 @@ Returns: `type`, `size`, `mtime`, `atime`, `mode`, `uid`, `gid`.
 
 ## Tips
 
-- `move` auto-creates parent directories at the destination.
+- `move` auto-creates parent directories at the destination and can be used for renames.
 - `copy` is recursive for directories.
-- `rename` is same-directory only — use `move` for cross-directory operations.
 - `delete` on a non-empty directory fails unless `recursive: true`.
 - `mkdir` is a no-op if the directory already exists.

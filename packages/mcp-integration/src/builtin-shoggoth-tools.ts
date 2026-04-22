@@ -356,11 +356,11 @@ const showToolArgs = {
 const fsArgs = {
   type: "object",
   description:
-    "File operations: move, copy, rename, delete, stat, chmod. All paths are workspace-relative. Sandboxed to the workspace root.",
+    "File operations: move, copy, delete, stat, chmod, mkdir. All paths are workspace-relative. Sandboxed to the workspace root.",
   properties: {
     action: {
       type: "string",
-      enum: ["move", "copy", "delete", "stat", "chmod", "rename"],
+      enum: ["move", "copy", "delete", "stat", "chmod", "mkdir"],
       description: "Operation to perform.",
     },
     path: {
@@ -369,7 +369,7 @@ const fsArgs = {
     },
     dest: {
       type: "string",
-      description: "Destination path (workspace-relative). Required for move, copy, rename.",
+      description: "Destination path (workspace-relative). Required for move, copy.",
     },
     mode: {
       type: "string",
@@ -622,7 +622,7 @@ export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSo
       {
         name: "fs",
         description:
-          "File operations: move, copy, rename, delete, stat, chmod. All paths are workspace-relative. Sandboxed to the workspace root.",
+          "File operations: move, copy, delete, stat, chmod, mkdir. All paths are workspace-relative. Sandboxed to the workspace root.",
         inputSchema: fsArgs,
       },
       {

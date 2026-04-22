@@ -353,7 +353,7 @@ const catalog = builtinShoggothToolsCatalog();
 | `config-request` | Request a dynamic configuration change for a config key. |
 | `config-show` | Show current daemon configuration (redacted). |
 | `show` | Display images or visual content to the user. |
-| `fs` | File operations: move, copy, rename, delete, stat, chmod. |
+| `fs` | File operations: move, copy, delete, stat, chmod, mkdir. |
 | `ls` | List directory contents with glob, recursion, and metadata support. |
 | `fetch` | Make HTTP requests (private IPs blocked by default). |
 | `kv` | Workspace-scoped key-value store (state DB backed). |

@@ -1,15 +1,15 @@
 // ---------------------------------------------------------------------------
-// builtin-fs — file operations: move, copy, delete, stat, chmod, rename, mkdir
+// builtin-fs — file operations: move, copy, delete, stat, chmod, mkdir
 // ---------------------------------------------------------------------------
 
 import { realpathSync } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
+import { relative } from "node:path";
 import { resolvePathForRead, resolvePathForWrite, runAsUser } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext, BuiltinToolResult } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 import { checkAgentsMdGate } from "../agents-md-gate";
 
-type FsAction = "move" | "copy" | "delete" | "stat" | "chmod" | "rename" | "mkdir";
+type FsAction = "move" | "copy" | "delete" | "stat" | "chmod" | "mkdir";
 
 interface FsArgs {
   action: FsAction;
@@ -75,7 +75,7 @@ function isValidMode(mode: string): boolean {
 
 async function doMove(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   if (!args.dest) throw new Error("`dest` is required for move");
-  const src = resolveSrc(ctx, args.path);
+  const src = resolveDst(ctx, args.path);
   const dst = resolveDst(ctx, args.dest);
 
   const script = [
@@ -125,7 +125,7 @@ async function doCopy(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToo
 }
 
 async function doDelete(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
-  const src = resolveSrc(ctx, args.path);
+  const src = resolveDst(ctx, args.path);
   const recursive = args.recursive === true;
 
   const script = [
@@ -219,7 +219,7 @@ async function doChmod(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinTo
   if (!isValidMode(args.mode)) {
     throw new Error(`invalid mode "${args.mode}": expected 3 or 4 octal digits (e.g. "755", "0644")`);
   }
-  const src = resolveSrc(ctx, args.path);
+  const src = resolveDst(ctx, args.path);
   const modeInt = parseInt(args.mode, 8).toString();
 
   const script = [
@@ -235,43 +235,6 @@ async function doChmod(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinTo
       action: "chmod",
       path: relPath(ctx, args.path),
       mode: args.mode,
-    }),
-  };
-}
-
-async function doRename(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
-  if (!args.dest) throw new Error("`dest` is required for rename");
-
-  // rename is same-directory only — dest must be a bare filename
-  const destBase = basename(args.dest);
-  if (args.dest !== destBase && args.dest !== `./${destBase}`) {
-    throw new Error("`rename` is same-directory only; use `move` for cross-directory operations");
-  }
-
-  const src = resolveSrc(ctx, args.path);
-  const srcDir = dirname(src);
-  const dst = join(srcDir, destBase);
-
-  // Ensure the destination still resolves inside the workspace
-  const rootReal = realpathSync(ctx.workspacePath);
-  const rel = relative(rootReal, dst);
-  if (rel.startsWith("..")) {
-    throw new Error("destination escapes workspace");
-  }
-
-  const script = [
-    `const fs = require("fs");`,
-    `fs.renameSync(process.env._SRC, process.env._DST);`,
-    `process.stdout.write("ok");`,
-  ].join(" ");
-
-  await runScript(ctx, script, { _SRC: src, _DST: dst });
-  return {
-    resultJson: JSON.stringify({
-      ok: true,
-      action: "rename",
-      from: relPath(ctx, src),
-      to: relPath(ctx, dst),
     }),
   };
 }
@@ -313,7 +276,6 @@ const ACTIONS: Record<FsAction, (ctx: BuiltinToolContext, args: FsArgs) => Promi
   delete: doDelete,
   stat: doStat,
   chmod: doChmod,
-  rename: doRename,
   mkdir: doMkdir,
 };
 
@@ -330,7 +292,7 @@ async function fsHandler(
   }
 
   // AGENTS.md discovery gate — mutating actions only
-  const MUTATING: Set<FsAction> = new Set(["move", "copy", "delete", "rename", "mkdir"]);
+  const MUTATING: Set<FsAction> = new Set(["move", "copy", "delete", "mkdir"]);
   if (MUTATING.has(action)) {
     const cwd = ctx.workingDirectory ?? ctx.workspacePath;
     const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, cwd, ctx.workspacePath);

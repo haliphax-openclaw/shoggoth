@@ -1,10 +1,9 @@
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // builtin-ls — structured directory listing
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 import { realpathSync } from "node:fs";
-import { relative, resolve, isAbsolute, sep } from "node:path";
-import { runAsUser } from "@shoggoth/os-exec";
+import { runAsUser, resolvePathForRead } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 
@@ -12,28 +11,11 @@ export function register(registry: BuiltinToolRegistry): void {
   registry.register("ls", lsHandler);
 }
 
-// ---------------------------------------------------------------------------
-// Sandbox helper — mirrors workspace-path.ts logic without requiring the
-// target to exist (resolvePathForRead calls realpathSync which throws on
-// missing paths; for ls we just need the logical check).
-// ---------------------------------------------------------------------------
-
-function resolveAndGuard(workspaceRoot: string, userPath: string): { rootReal: string; abs: string } {
-  if (userPath.includes("\0")) throw new Error("NUL byte in path");
-  const rootReal = realpathSync(workspaceRoot);
-  const abs = isAbsolute(userPath) ? userPath : resolve(rootReal, userPath);
-  const rel = relative(rootReal, abs);
-  if (rel === ".." || rel.startsWith(`..${sep}`)) {
-    throw new Error("path escapes workspace");
-  }
-  return { rootReal, abs };
-}
-
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Subprocess script — runs as agent UID/GID so kernel DAC applies.
 // Receives parameters via env vars, writes JSON to stdout.
 // Uses the same string-array pattern as other builtin handler scripts.
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 function buildLsScript(): string {
   return [
@@ -52,7 +34,7 @@ function buildLsScript(): string {
     "let globRe = null;",
     "if (globPattern) {",
     "  const escaped = globPattern",
-    "    .replace(/([.+^${}()|\\[\\]\\\\])/g, '\\\\$1')",
+    "    .replace(/([.+^${}()|[\\]\\\\])/g, '\\\\$1')",
     "    .replace(/\\*\\*/g, '%%GLOBSTAR%%')",
     "    .replace(/\\*/g, '[^/]*')",
     "    .replace(/%%GLOBSTAR%%/g, '.*')",
@@ -139,9 +121,9 @@ function buildLsScript(): string {
   ].join("\n");
 }
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Handler
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 async function lsHandler(
   args: Record<string, unknown>,
@@ -157,19 +139,13 @@ async function lsHandler(
 
   // Resolve and sandbox-check the target directory
   const resolvedPath = resolveUserPath(ctx, userPath);
-  const { rootReal, abs } = resolveAndGuard(ctx.workspacePath, resolvedPath);
-
-  // Also verify the real path stays inside workspace (catches symlink escapes)
   let realAbs: string;
   try {
-    realAbs = realpathSync(abs);
+    realAbs = resolvePathForRead(ctx.workspacePath, resolvedPath);
   } catch {
-    return { resultJson: JSON.stringify({ error: `path does not exist: ${userPath}` }) };
+    return { resultJson: JSON.stringify({ error: `path does not exist or escapes workspace: ${userPath}` }) };
   }
-  const relCheck = relative(rootReal, realAbs);
-  if (relCheck === ".." || relCheck.startsWith(`..${sep}`)) {
-    return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
-  }
+  const rootReal = realpathSync(ctx.workspacePath);
 
   const cwd = rootReal;
   const r = await runAsUser({

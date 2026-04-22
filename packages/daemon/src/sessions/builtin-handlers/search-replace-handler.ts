@@ -1,27 +1,16 @@
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // builtin-search-replace — search (via rg) and replace text in files
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 import { realpathSync, statSync } from "node:fs";
-import { relative, resolve, isAbsolute, sep, dirname, basename } from "node:path";
-import { runAsUser } from "@shoggoth/os-exec";
+import { dirname, basename } from "node:path";
+import { runAsUser, resolvePathForRead, resolvePathForWrite } from "@shoggoth/os-exec";
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 import { checkAgentsMdGate } from "../agents-md-gate";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("search-replace", searchReplaceHandler);
-}
-
-function resolveAndGuard(workspaceRoot: string, userPath: string): string {
-  if (userPath.includes("\0")) throw new Error("path escapes workspace");
-  const rootReal = realpathSync(workspaceRoot);
-  const abs = isAbsolute(userPath) ? userPath : resolve(rootReal, userPath);
-  const rel = relative(rootReal, abs);
-  if (rel === ".." || rel.startsWith(`..${sep}`)) {
-    throw new Error("path escapes workspace");
-  }
-  return abs;
 }
 
 async function searchReplaceHandler(
@@ -34,9 +23,9 @@ async function searchReplaceHandler(
   return { resultJson: JSON.stringify({ error: `unknown action: ${action}` }) };
 }
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Search
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 async function handleSearch(
   args: Record<string, unknown>,
@@ -47,7 +36,7 @@ async function handleSearch(
 
   let searchPath: string;
   try {
-    searchPath = resolveAndGuard(ctx.workspacePath, resolveUserPath(ctx, String(args.path ?? ".")));
+    searchPath = resolvePathForRead(ctx.workspacePath, resolveUserPath(ctx, String(args.path ?? ".")));
   } catch {
     return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
   }
@@ -97,9 +86,9 @@ async function handleSearch(
   return { resultJson: JSON.stringify({ output, truncated }) };
 }
 
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Replace
-// ---------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 async function handleReplace(
   args: Record<string, unknown>,
@@ -131,7 +120,7 @@ async function handleReplace(
 
   let absPath: string;
   try {
-    absPath = resolveAndGuard(ctx.workspacePath, resolveUserPath(ctx, file));
+    absPath = resolvePathForWrite(ctx.workspacePath, resolveUserPath(ctx, file));
   } catch {
     return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
   }
