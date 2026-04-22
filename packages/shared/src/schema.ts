@@ -1022,7 +1022,7 @@ export function defaultConfig(configDirectory: string): ShoggothConfig {
     hitl: DEFAULT_HITL_CONFIG,
     memory: DEFAULT_MEMORY_CONFIG,
     skills: DEFAULT_SKILLS_CONFIG,
-    plugins: [],
+    plugins: [{ package: "@shoggoth/platform-discord" }],
     mcp: { servers: [], poolScope: "global" },
     policy: DEFAULT_POLICY_CONFIG,
     platforms: { discord: { enabled: true } },

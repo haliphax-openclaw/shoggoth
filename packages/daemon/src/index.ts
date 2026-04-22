@@ -2,8 +2,6 @@ import {
   DEFAULT_HITL_CONFIG,
   loadLayeredConfig,
   LAYOUT,
-  parseAgentSessionUrn,
-  resolvePlatformConfig,
   VERSION,
 } from "@shoggoth/shared";
 import { routeMcpToolInvocation } from "@shoggoth/mcp-integration";
@@ -65,7 +63,7 @@ import { initLogger, getLogger } from "./logging";
 
 const log = getLogger("shoggoth-daemon");
 import { createDelegatingPolicyEngine, createPolicyEngine } from "./policy/engine";
-import { bootstrapPlugins } from "./plugins/bootstrap";
+import { pluginAuditToRow } from "./plugins/bootstrap";
 import { bootstrapMainSession } from "./bootstrap-main-session";
 import { createDaemonRuntime } from "./runtime";
 import { initProcessManager } from "./process-manager-singleton";
@@ -73,26 +71,14 @@ import { setProcessManager } from "@shoggoth/os-exec";
 import type { ProcessDeclaration } from "@shoggoth/shared";
 import type { ProcessSpec } from "@shoggoth/procman";
 import { createToolRunStore } from "./sessions/tool-run-store";
-import {
-  startDiscordPlatform,
-  startDaemonDiscordMessaging,
-  createDiscordInteractionHandler,
-  type DiscordMessagingRuntime,
-  handleDiscordHitlReactionAdd,
-  createHitlDiscordNoticeRegistry,
-  type HitlDiscordNoticeRegistry,
-  discordPlatformRegistration,
-  createDiscordProbe,
-  resolveDiscordOwnerUserId,
-} from "@shoggoth/platform-discord";
-import { registerPlatform as registerMessagingPlatform, executeMessageToolAction } from "@shoggoth/messaging";
+import { registerPlatform as registerMessagingPlatform } from "@shoggoth/messaging";
 import { registerPlatform, stopAllPlatforms } from "./platforms/platform-registry";
 import { reconcilePersistentSubagents } from "./subagent/reconcile-persistent-subagents";
 import {
   messageToolContextRef,
   messageToolSliceFromCapabilities,
 } from "./messaging/message-tool-context-ref";
-import { setSubagentRuntimeExtension } from "./subagent/subagent-extension-ref";
+import { setSubagentRuntimeExtension, subagentRuntimeExtensionRef } from "./subagent/subagent-extension-ref";
 import { defaultPlatformAssistantDeps } from "./sessions/assistant-runtime";
 import { createPersistingHitlAutoApproveGate } from "./hitl/hitl-auto-approve-persisting";
 import { type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
@@ -129,15 +115,16 @@ import { createSqliteAgentTokenStore } from "./auth/sqlite-agent-tokens";
 import {
   resolveShoggothAgentId,
 } from "./config/effective-runtime";
-import { subagentRuntimeExtensionRef } from "./subagent/subagent-extension-ref";
 import { TimerScheduler } from "./timers/timer-scheduler";
 import { setTimerScheduler } from "./sessions/builtin-handlers/timer-handler";
+import { ShoggothPluginSystem, type PlatformDeps } from "@shoggoth/plugins";
+import { fireDaemonHooks } from "./plugins/daemon-hooks";
+import { appendAuditRow } from "./audit/append-audit";
 
 process.umask(0o007);
 loadDaemonPrompts();
 loadDaemonNotices();
 setPresentationNoticeResolver(daemonNotice);
-registerMessagingPlatform(discordPlatformRegistration);
 registerContextFinalizer(messageToolFinalizer);
 registerContextFinalizer(subagentToolStripFinalizer);
 
@@ -172,13 +159,7 @@ if (config.models?.providers && config.models?.failoverChain) {
   registerOpenAIDefaultsForProviders(config.models.providers, config.models.failoverChain);
 }
 
-/** Env `DISCORD_BOT_TOKEN` overrides layered `discord.token` (hot-reload picks up config changes). */
-function resolvedDiscordBotToken(): string | undefined {
-  const fromEnv = process.env.DISCORD_BOT_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-  const dc = resolvePlatformConfig(configRef.current, "discord");
-  return (dc?.token as string | undefined)?.trim() || undefined;
-}
+
 const policyRef = { engine: createPolicyEngine(config.policy, config.agents) };
 const policyEngine = createDelegatingPolicyEngine(() => policyRef.engine);
 const hitlRef = { value: { ...DEFAULT_HITL_CONFIG, ...config.hitl } };
@@ -193,7 +174,6 @@ const stateShutdown: {
 } = { db: undefined, toolRuns: undefined };
 
 let stopEventLoops: () => void = () => {};
-let discordMessaging: DiscordMessagingRuntime | undefined;
 
 const rt = createDaemonRuntime({
   component: "shoggoth-daemon",
@@ -245,12 +225,8 @@ void (async () => {
     });
   }
 
-  let hitlDiscordNoticeRegistry: HitlDiscordNoticeRegistry | undefined;
   let hitlAutoApproveGate: HitlAutoApproveGate | undefined;
-  const reactionBotUserIdRef = { current: undefined as string | undefined };
-  const reactionPassthroughRef: { current: ((ev: import("@shoggoth/platform-discord").DiscordReactionAddEvent) => void) | undefined } = { current: undefined };
   if (hitlStack && stateDb) {
-    hitlDiscordNoticeRegistry = createHitlDiscordNoticeRegistry();
     hitlAutoApproveGate = createPersistingHitlAutoApproveGate({
       db: stateDb,
       configDirectory: configRef.current.configDirectory,
@@ -298,96 +274,6 @@ void (async () => {
     stopEventLoops();
   });
 
-  try {
-    const interactionTransportRef: { current: DiscordMessagingRuntime["discordRestTransport"] | undefined } = { current: undefined };
-    discordMessaging = await startDaemonDiscordMessaging({
-      logger: getLogger("messaging"),
-      config: configRef.current,
-      botToken: resolvedDiscordBotToken(),
-      noticeResolver: daemonNotice,
-      onInteractionCreate: createDiscordInteractionHandler({
-        transport: new Proxy({} as DiscordMessagingRuntime["discordRestTransport"], {
-          get(_t, prop, receiver) {
-            if (!interactionTransportRef.current) throw new Error("discord transport not ready");
-            return Reflect.get(interactionTransportRef.current, prop, receiver);
-          },
-        }),
-        get applicationId() { return reactionBotUserIdRef.current ?? ""; },
-        logger: getLogger("messaging"),
-        abortSession: async (sessionId) => requestSessionTurnAbort(sessionId ?? ""),
-        invokeControlOp: async (op, payload) => {
-          if (!stateDb) return { ok: false, error: "state database unavailable" };
-          const sessions = createSessionStore(stateDb);
-          const ctx: IntegrationOpsContext = {
-            config: configRef.current,
-            stateDb,
-            acpxStore: undefined,
-            sessions,
-            sessionManager: undefined,
-            acpxSupervisor: undefined,
-            hitlPending: hitlStack?.pending,
-            recordIntegrationAudit: () => {},
-          };
-          const req = {
-            v: WIRE_VERSION,
-            id: randomUUID(),
-            op,
-            auth: { kind: "operator_token" as const, token: "__internal__" },
-            payload,
-          };
-          const principal = { kind: "operator" as const, operatorId: "discord-slash", roles: ["admin"], source: "cli_operator_token" as const };
-          const result = await handleIntegrationControlOp(req, principal, ctx);
-          return { ok: true, result };
-        },
-        resolveSessionForChannel: (channelId, guildId) => {
-          try {
-            const agentsList = (configRef.current.agents as Record<string, unknown>)?.list as Record<string, unknown> | undefined;
-            if (!agentsList) return undefined;
-            for (const agentDef of Object.values(agentsList)) {
-              if (typeof agentDef !== "object" || agentDef === null) continue;
-              const discordPlatform = ((agentDef as Record<string, unknown>).platforms as Record<string, unknown>)?.discord as Record<string, unknown> | undefined;
-              const routesList = discordPlatform?.routes;
-              if (!Array.isArray(routesList)) continue;
-              for (const r of routesList) {
-                if (typeof r !== "object" || r === null) continue;
-                const route = r as { channelId?: string; sessionId?: string; guildId?: string };
-                if (route.channelId !== channelId) continue;
-                if (route.guildId !== undefined && route.guildId !== guildId) continue;
-                if (route.guildId === undefined && guildId !== undefined) continue;
-                return route.sessionId;
-              }
-            }
-            return undefined;
-          } catch {
-            return undefined;
-          }
-        },
-      }),
-      onMessageReactionAdd:
-        hitlStack && hitlDiscordNoticeRegistry && hitlAutoApproveGate
-          ? (ev) => {
-              const consumed = handleDiscordHitlReactionAdd({
-                ev,
-                pending: hitlStack.pending,
-                registry: hitlDiscordNoticeRegistry!,
-                autoApprove: hitlAutoApproveGate!,
-                ownerUserId: resolveDiscordOwnerUserId(configRef.current),
-                botUserIdRef: reactionBotUserIdRef,
-                logger: getLogger("discord-reactions"),
-              });
-              if (!consumed) reactionPassthroughRef.current?.(ev);
-            }
-          : (ev) => { reactionPassthroughRef.current?.(ev); },
-      reactionBotUserIdRef,
-    });
-    if (discordMessaging) {
-      interactionTransportRef.current = discordMessaging.discordRestTransport;
-      rt.shutdown.registerDrain("discord-messaging", () => discordMessaging!.stop());
-    }
-  } catch (e) {
-    getLogger("messaging").warn("discord messaging failed to start", { err: String(e) });
-  }
-
   if (!stateDb) {
     getLogger("daemon").warn("plugins and event loops skipped (no state database)");
     return;
@@ -405,16 +291,119 @@ void (async () => {
     });
   }
 
-  try {
-    await bootstrapPlugins({
-      config,
-      db,
-      rt,
-      resolveFromFile: fileURLToPath(import.meta.url),
-    });
-  } catch (e) {
-    getLogger("daemon").warn("plugin bootstrap failed", { err: String(e) });
+  // --- Process Manager: init singleton early so MCP stdio spawns go through procman ---
+  const procman = initProcessManager();
+  setProcessManager(procman);
+
+  // --- Turn Queue: init singleton early (needed during hook-triggered turns) ---
+  const starvationThreshold = config.runtime?.turnQueue?.starvationThreshold ?? 2;
+  const maxQueueDepth = config.runtime?.turnQueue?.maxDepth ?? 6;
+  setTurnQueue(new TieredTurnQueue(starvationThreshold, maxQueueDepth));
+
+  // --- Model Resilience Gate: init singleton early ---
+  {
+    const rc = config.runtime?.modelResilience;
+    const gate = new ModelResilienceGate(
+      {
+        maxRetries: rc?.maxRetries,
+        baseDelayMs: rc?.baseDelayMs,
+        maxDelayMs: rc?.maxDelayMs,
+        jitterMs: rc?.jitterMs,
+        defaultConcurrency: rc?.defaultConcurrency,
+      },
+      rc?.providers,
+    );
+    setResilienceGate(gate);
   }
+
+  // Create plugin system and load plugins via standard discovery
+  const pluginSystem = new ShoggothPluginSystem();
+  const resolveFromFile = fileURLToPath(import.meta.url);
+  {
+    const { loadAllPluginsFromConfig } = await import("@shoggoth/plugins");
+    const loaded = await loadAllPluginsFromConfig({
+      config,
+      system: pluginSystem,
+      resolveFromFile,
+      audit: (e) => {
+        appendAuditRow(db, pluginAuditToRow(e));
+        if (e.outcome === "failure") {
+          getLogger("daemon").error("plugin load failed", { plugin: e.resource, detail: e.detail });
+        }
+      },
+    });
+    if (loaded.length > 0) {
+      getLogger("daemon").info("plugins loaded", { count: loaded.length, plugins: loaded.map(p => p.manifestName) });
+    }
+  }
+
+  // Build PlatformDeps - platform-agnostic callbacks the plugins need
+  const platformsMap = new Map<string, any>();
+  const { PlatformDeliveryRegistry } = await import("@shoggoth/plugins");
+  const deliveryRegistry = new PlatformDeliveryRegistry();
+
+  const platformDeps: PlatformDeps = {
+    hitlStack,
+    policyEngine,
+    hitlConfigRef: hitlRef,
+    hitlAutoApproveGate,
+    logger: getLogger("messaging"),
+    platformAssistantDeps: defaultPlatformAssistantDeps as unknown,
+    abortSession: async (sessionId) => { await requestSessionTurnAbort(sessionId ?? ""); },
+    invokeControlOp: async (op, payload) => {
+      if (!stateDb) return { ok: false, error: "state database unavailable" };
+      const sessions = createSessionStore(stateDb);
+      const ctx: IntegrationOpsContext = {
+        config: configRef.current,
+        stateDb,
+        acpxStore: undefined,
+        sessions,
+        sessionManager: undefined,
+        acpxSupervisor: undefined,
+        hitlPending: hitlStack?.pending,
+        recordIntegrationAudit: () => {},
+      };
+      const req = {
+        v: WIRE_VERSION,
+        id: randomUUID(),
+        op,
+        auth: { kind: "operator_token" as const, token: "__internal__" },
+        payload,
+      };
+      const principal = { kind: "operator" as const, operatorId: "platform-slash", roles: ["admin"], source: "cli_operator_token" as const };
+      const result = await handleIntegrationControlOp(req, principal, ctx);
+      return { ok: true, result };
+    },
+    registerPlatform: (platformId, handle) => {
+      registerPlatform(platformId, handle as any);
+      platformsMap.set(platformId, handle);
+    },
+    stopAllPlatforms,
+    reconcilePersistentSubagents: reconcilePersistentSubagents as PlatformDeps["reconcilePersistentSubagents"],
+    noticeResolver: daemonNotice as (key: string, params?: Record<string, unknown>) => string,
+  };
+
+  // Fire daemon hooks — plugins handle platform.start, health.register, etc.
+  const hookResult = await fireDaemonHooks(pluginSystem, {
+    config,
+    db,
+    configRef,
+    env: process.env,
+    platforms: platformsMap,
+    deliveryRegistry,
+    registerDrain: (name, fn) => rt.shutdown.registerDrain(name, fn),
+    registerPlatform: (reg) => registerMessagingPlatform(reg),
+    setPlatformRuntime: (platformId, runtime) => platformsMap.set(platformId, runtime),
+    registerProbe: (probe) => rt.health.register(probe as any),
+    deps: platformDeps,
+    setSubagentRuntimeExtension: (ext) => setSubagentRuntimeExtension(ext as any),
+    setMessageToolContext: (ctx) => { messageToolContextRef.current = ctx as any; },
+    setPlatformAdapter: (adapter) => { platformAdapterRef.current = adapter as any; },
+  });
+
+  // Register plugin shutdown drains
+  rt.shutdown.registerDrain("plugin-platform-stop", hookResult.drains.platformStop);
+  rt.shutdown.registerDrain("plugin-daemon-shutdown", hookResult.drains.daemonShutdown);
   stateShutdown.db = db;
   stateShutdown.toolRuns = createToolRunStore(db);
 
@@ -441,30 +430,9 @@ void (async () => {
   rt.shutdown.registerDrain("timer-scheduler", () => {
     timerScheduler.shutdown();
   });
-  // --- Process Manager: init singleton, start boot-time processes, register shutdown ---
-  const procman = initProcessManager();
-  setProcessManager(procman);
+  // --- Process Manager: start boot-time processes, register shutdown ---
 
-  // --- Turn Queue: init singleton ---
-  const starvationThreshold = config.runtime?.turnQueue?.starvationThreshold ?? 2;
-  const maxQueueDepth = config.runtime?.turnQueue?.maxDepth ?? 6;
-  setTurnQueue(new TieredTurnQueue(starvationThreshold, maxQueueDepth));
-
-  // --- Model Resilience Gate: init singleton ---
-  {
-    const rc = config.runtime?.modelResilience;
-    const gate = new ModelResilienceGate(
-      {
-        maxRetries: rc?.maxRetries,
-        baseDelayMs: rc?.baseDelayMs,
-        maxDelayMs: rc?.maxDelayMs,
-        jitterMs: rc?.jitterMs,
-        defaultConcurrency: rc?.defaultConcurrency,
-      },
-      rc?.providers,
-    );
-    setResilienceGate(gate);
-  }
+  // (TurnQueue and ModelResilienceGate initialized earlier, before fireDaemonHooks)
 
   function processDeclarationToSpec(decl: ProcessDeclaration): ProcessSpec {
     return {
@@ -504,7 +472,7 @@ void (async () => {
   });
 
   // --- Workflow tool: init server, resume incomplete workflows, register shutdown ---
-  // Adapters use lazy refs because the Discord platform (and thus sessionManager,
+  // Adapters use lazy refs because the platform plugin (and thus sessionManager,
   // runSessionModelTurn, messageToolContextRef) are initialized later in this file.
   const workflowStateDir = resolve(config.stateDbPath, "..", "workflow-state");
   try {
@@ -560,16 +528,8 @@ void (async () => {
             const message = `**Workflow ${status}:** \`${workflowId}\``;
 
             getLogger("daemon").debug("workflow notify: delivering to session", { sessionId });
-            const parsed = parseAgentSessionUrn(sessionId);
-            const delivery = (() => {
-              if (parsed?.platform === "discord") {
-                const ownerUserId = resolveDiscordOwnerUserId(configRef.current);
-                if (ownerUserId) {
-                  return { kind: "messaging_surface" as const, userId: ownerUserId };
-                }
-              }
-              return { kind: "internal" as const };
-            })();
+            const delivery = deliveryRegistry.resolveOperatorDelivery(sessionId, configRef.current)
+              ?? { kind: "internal" as const };
             getLogger("daemon").debug("workflow notify: resolved delivery", { sessionId, deliveryKind: delivery.kind });
             await ext.runSessionModelTurn({
               sessionId,
@@ -593,8 +553,8 @@ void (async () => {
       createMessageAdapter: (sessionId: string) => createDaemonMessageAdapter({
         getMessageContext: () => messageToolContextRef.current ?? undefined,
         resolveChannelId: () => {
-          if (!discordMessaging?.resolveOutboundChannelIdForSession) return undefined;
-          return discordMessaging.resolveOutboundChannelIdForSession(sessionId);
+          // This will be resolved after platform starts - the platform adapter handles this
+          return undefined;
         },
         sessionId,
       }),
@@ -644,14 +604,8 @@ void (async () => {
         async sendNotification(target: string, message: string): Promise<void> {
           const ext = subagentRuntimeExtensionRef.current;
           if (!ext) { getLogger("daemon").warn("workflow task notification: subagent runtime not available"); return; }
-          const parsed = parseAgentSessionUrn(target);
-          const delivery = (() => {
-            if (parsed?.platform === "discord") {
-              const ownerUserId = resolveDiscordOwnerUserId(configRef.current);
-              if (ownerUserId) return { kind: "messaging_surface" as const, userId: ownerUserId };
-            }
-            return { kind: "internal" as const };
-          })();
+          const delivery = deliveryRegistry.resolveOperatorDelivery(target, configRef.current)
+            ?? { kind: "internal" as const };
           try {
             await ext.runSessionModelTurn({
               sessionId: target,
@@ -681,130 +635,6 @@ void (async () => {
     });
   } catch (e) {
     getLogger("daemon").warn("workflow server failed to initialize", { err: String(e) });
-  }
-
-  const dm = discordMessaging;
-  if (dm && hitlStack) {
-    const discordPlatform = await startDiscordPlatform({
-      db,
-      config,
-      configRef,
-      policyEngine,
-      hitlConfigRef: hitlRef,
-      hitlPending: hitlStack,
-      hitlDiscordNoticeRegistry,
-      hitlAutoApproveGate,
-      logger: getLogger("discord"),
-      discord: dm,
-      deps: defaultPlatformAssistantDeps,
-    });
-    registerPlatform("discord", discordPlatform);
-    platformAdapterRef.current = discordPlatform.adapter;
-
-    // Wire reaction passthrough: resolve raw Discord events into the processed format.
-    const passthroughLogger = getLogger("reaction-passthrough");
-    reactionPassthroughRef.current = (ev) => {
-      const botId = reactionBotUserIdRef.current;
-      if (botId && ev.userId === botId) return; // ignore self-reactions
-      const owner = resolveDiscordOwnerUserId(configRef.current)?.trim();
-      if (!owner || ev.userId !== owner) return; // operator-only
-      // Resolve session from channel
-      const sessionId = dm.resolveOutboundChannelIdForSession
-        ? (() => {
-            // Reverse lookup: find session whose outbound channel matches the event channel
-            for (const r of dm.routes) {
-              if (r.channelId === ev.channelId) return r.sessionId;
-            }
-            return undefined;
-          })()
-        : undefined;
-      if (!sessionId) {
-        passthroughLogger.debug("reaction.passthrough.no_session", { channelId: ev.channelId });
-        return;
-      }
-      // Format emoji string
-      const emojiStr = ev.emoji.id ? `<:${ev.emoji.name ?? "_"}:${ev.emoji.id}>` : (ev.emoji.name ?? "");
-      if (!emojiStr) return;
-      // Fetch message content and check if it's from the bot
-      void (async () => {
-        try {
-          const msg = await dm.discordRestTransport.getMessage(ev.channelId, ev.messageId);
-          const authorId = (msg.author as Record<string, unknown> | undefined)?.id;
-          if (typeof authorId !== "string" || authorId !== botId) {
-            passthroughLogger.debug("reaction.passthrough.not_bot_message", { messageId: ev.messageId });
-            return;
-          }
-          const content = typeof msg.content === "string" ? msg.content : "";
-          const timestamp = typeof msg.timestamp === "string" ? new Date(msg.timestamp).getTime() : Date.now();
-          await discordPlatform.handleReactionPassthrough({
-            sessionId,
-            messageContent: content,
-            messageTimestamp: timestamp,
-            emoji: emojiStr,
-            userId: ev.userId,
-          });
-        } catch (e) {
-          passthroughLogger.warn("reaction.passthrough.fetch_failed", { err: String(e), messageId: ev.messageId });
-        }
-      })();
-    };
-    const subagentExt = {
-      runSessionModelTurn: discordPlatform.runSessionModelTurn,
-      subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
-      registerPlatformThreadBinding: dm.registerPlatformThreadBinding,
-      announcePersistentSubagentSessionEnded: discordPlatform.announcePersistentSubagentSessionEnded,
-    };
-    setSubagentRuntimeExtension(subagentExt);
-    messageToolContextRef.current = {
-      slice: messageToolSliceFromCapabilities(dm.capabilities),
-      execute: (sessionId, args) =>
-        executeMessageToolAction(
-          {
-            capabilities: dm.capabilities,
-            transport: dm.discordRestTransport,
-            sessionToChannel: (sid) => dm.resolveOutboundChannelIdForSession?.(sid),
-            sessionToGuild: (sid) => dm.resolveGuildIdForSession?.(sid),
-            getSessionWorkspace: (sid) => {
-              try {
-                const row = db.prepare("SELECT workspace_path FROM sessions WHERE id = ?").get(sid) as
-                  | { workspace_path: string }
-                  | undefined;
-                return row?.workspace_path;
-              } catch {
-                return undefined;
-              }
-            },
-            downloadFile: async (url, destPath) => {
-              const res = await fetch(url);
-              if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
-              const buf = Buffer.from(await res.arrayBuffer());
-              const { writeFile, mkdir } = await import("node:fs/promises");
-              const { dirname } = await import("node:path");
-              await mkdir(dirname(destPath), { recursive: true });
-              await writeFile(destPath, buf);
-              return buf.byteLength;
-            },
-          },
-          sessionId,
-          args,
-        ),
-    };
-    const subRecon = reconcilePersistentSubagents({
-      db,
-      config,
-      ext: subagentExt,
-    });
-    if (subRecon.restored > 0 || subRecon.expiredKilled > 0) {
-      getLogger("messaging").info("subagent.persisted_reconciled", {
-        restored: subRecon.restored,
-        expired_killed: subRecon.expiredKilled,
-      });
-    }
-    rt.shutdown.registerDrain("platforms", async () => {
-      await stopAllPlatforms();
-      setSubagentRuntimeExtension(undefined);
-      messageToolContextRef.current = undefined;
-    });
   }
 
   const heartbeatMs = resolveHeartbeatIntervalMs(configRef.current);
@@ -859,7 +689,7 @@ void (async () => {
 })();
 
 rt.health.register(createSqliteProbe({ getPath: () => config.stateDbPath }));
-rt.health.register(createDiscordProbe({ getToken: resolvedDiscordBotToken }));
+// Note: Platform health probes are registered by plugins via health.register hook
 rt.health.register(
   createModelEndpointProbe({
     getBaseUrl: () => resolveModelHealthProbeBaseUrl(configRef.current),
@@ -899,7 +729,7 @@ void (async () => {
   const sqliteFailed = checks.some((c) => c.name === "sqlite" && c.status === "fail");
   const modelChecks = checks.filter((c) => c.name === "model");
   const allModelsFailed = modelChecks.length > 0 && modelChecks.every((c) => c.status === "fail");
-  const anyNonModelFailed = checks.some((c) => (c.name === "embeddings" || c.name === "discord") && c.status === "fail");
+  const anyNonModelFailed = checks.some((c) => c.name !== "sqlite" && c.name !== "model" && c.status === "fail");
   const someModelFailed = modelChecks.some((c) => c.status === "fail");
 
   const level = sqliteFailed || allModelsFailed ? "error" : anyNonModelFailed || someModelFailed ? "warn" : "info";

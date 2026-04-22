@@ -1,34 +1,61 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { HookHandler, HookName, HookRegistry } from "./hook-registry";
-import { parseShoggothPluginManifest } from "./shoggoth-manifest";
+import type { ShoggothPluginSystem } from "./plugin-system";
+import { resolvePluginMeta } from "./shoggoth-manifest";
+import { defineMessagingPlatformPlugin } from "./messaging-platform-plugin";
 
 export interface LoadedPluginMeta {
   readonly name: string;
   readonly version: string;
   readonly rootDir: string;
+  readonly kind: string;
 }
 
+/**
+ * Load a plugin from a directory.
+ * Expects a package.json with a `shoggothPlugin` property bag + factory entrypoint.
+ */
 export async function loadPluginFromDirectory(
   rootDir: string,
-  registry: HookRegistry,
+  system: ShoggothPluginSystem,
 ): Promise<LoadedPluginMeta> {
-  const manifestPath = join(rootDir, "shoggoth.json");
-  const raw = readFileSync(manifestPath, "utf8");
-  const manifest = parseShoggothPluginManifest(JSON.parse(raw) as unknown);
-  if (manifest.hooks) {
-    for (const [hook, relPath] of Object.entries(manifest.hooks)) {
-      const url = pathToFileURL(join(rootDir, relPath)).href;
-      const mod = (await import(url)) as { default?: unknown };
-      const fn = mod.default;
-      if (typeof fn !== "function") {
-        throw new Error(
-          `Plugin "${manifest.name}" hook "${hook}" must default-export a function`,
-        );
-      }
-      registry.register(hook as HookName, fn as HookHandler);
-    }
+  const pkgPath = join(rootDir, "package.json");
+
+  if (!existsSync(pkgPath)) {
+    throw new Error(`Plugin at "${rootDir}" has no package.json`);
   }
-  return { name: manifest.name, version: manifest.version, rootDir };
+
+  const raw = readFileSync(pkgPath, "utf8");
+  const packageJson = JSON.parse(raw) as Record<string, unknown>;
+
+  if (!packageJson.shoggothPlugin) {
+    throw new Error(
+      `Plugin at "${rootDir}" package.json is missing the "shoggothPlugin" property`,
+    );
+  }
+
+  const meta = resolvePluginMeta(packageJson);
+  const entrypointUrl = pathToFileURL(join(rootDir, meta.entrypoint)).href;
+  const mod = (await import(entrypointUrl)) as { default?: unknown };
+  let plugin = mod.default;
+
+  // If the default export is a factory function, call it
+  if (typeof plugin === "function") {
+    plugin = await plugin();
+  }
+
+  // For messaging-platform kind, validate required hooks
+  if (meta.kind === "messaging-platform") {
+    plugin = defineMessagingPlatformPlugin(plugin as any);
+  }
+
+  system.use(plugin as any);
+
+  return {
+    name: meta.name,
+    version: meta.version,
+    rootDir,
+    kind: meta.kind,
+  };
 }
