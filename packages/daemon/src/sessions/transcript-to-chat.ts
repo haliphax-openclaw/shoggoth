@@ -7,7 +7,7 @@ import { createTranscriptStore } from "./transcript-store";
  * Detects whether a content string is a JSON-serialized `ChatContentPart[]` or a plain string.
  * Returns the parsed array when valid, otherwise the original string.
  */
-export function parseTranscriptContent(raw: string): string | ChatContentPart[] {
+function parseTranscriptContent(raw: string): string | ChatContentPart[] {
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);

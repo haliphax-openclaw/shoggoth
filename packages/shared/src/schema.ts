@@ -11,7 +11,7 @@ export const contextLevelSchema = z.enum(CONTEXT_LEVELS);
 
 export type ContextLevel = z.infer<typeof contextLevelSchema>;
 
-export const THINKING_DISPLAY_MODES = ["full", "indicator", "none"] as const;
+const THINKING_DISPLAY_MODES = ["full", "indicator", "none"] as const;
 
 export const thinkingDisplaySchema = z.enum(THINKING_DISPLAY_MODES);
 
@@ -663,7 +663,7 @@ const toolDiscoveryTriggerSchema = z
   })
   .strict();
 
-export const shoggothToolDiscoveryConfigSchema = z
+const shoggothToolDiscoveryConfigSchema = z
   .object({
     /** When true, tool discovery/collapse is active. Default: false (all tools advertised). */
     enabled: z.boolean().optional(),
@@ -678,9 +678,9 @@ export const shoggothToolDiscoveryConfigSchema = z
   })
   .strict();
 
-export type ShoggothToolDiscoveryConfig = z.infer<typeof shoggothToolDiscoveryConfigSchema>;
+type ShoggothToolDiscoveryConfig = z.infer<typeof shoggothToolDiscoveryConfigSchema>;
 
-export const shoggothAgentToolDiscoveryConfigSchema = z
+const shoggothAgentToolDiscoveryConfigSchema = z
   .object({
     /** Per-agent always-on additions (merged with global). */
     alwaysOn: z.array(z.string().min(1)).optional(),
@@ -691,7 +691,7 @@ export const shoggothAgentToolDiscoveryConfigSchema = z
   })
   .strict();
 
-export type ShoggothAgentToolDiscoveryConfig = z.infer<typeof shoggothAgentToolDiscoveryConfigSchema>;
+type ShoggothAgentToolDiscoveryConfig = z.infer<typeof shoggothAgentToolDiscoveryConfigSchema>;
 
 const shoggothAgentIdKeySchema = z
   .string()
@@ -840,7 +840,7 @@ export type ProcessDeclaration = z.infer<typeof processDeclarationSchema>;
 // SearXNG web search
 // ---------------------------------------------------------------------------
 
-export const shoggothSearxngConfigSchema = z
+const shoggothSearxngConfigSchema = z
   .object({
     /** Base URL of the SearXNG instance (e.g. "http://searxng:8080") */
     baseUrl: z.string(),
@@ -857,7 +857,7 @@ export const shoggothSearxngConfigSchema = z
   })
   .strict();
 
-export type ShoggothSearxngConfig = z.infer<typeof shoggothSearxngConfigSchema>;
+type ShoggothSearxngConfig = z.infer<typeof shoggothSearxngConfigSchema>;
 
 
 

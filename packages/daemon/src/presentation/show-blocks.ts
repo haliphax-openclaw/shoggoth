@@ -26,16 +26,16 @@ export interface ShowToolParams {
   readonly filename?: string;
 }
 
-export type ResolvedBlock =
+type ResolvedBlock =
   | { readonly kind: "contentPart"; readonly parts: ChatContentPart[] }
   | { readonly kind: "attachment"; readonly attachments: OutboundAttachment[] };
 
-export type BlockResolver = (
+type BlockResolver = (
   params: ShowToolParams,
   ctx: BlockResolverContext,
 ) => Promise<ResolvedBlock>;
 
-export interface BlockResolverContext {
+interface BlockResolverContext {
   readonly workspacePath: string;
   readonly creds: AgentCredentials;
   readonly fetchImpl?: typeof fetch;
@@ -47,7 +47,7 @@ export interface BlockResolverContext {
 
 const resolvers = new Map<string, BlockResolver>();
 
-export function registerBlockResolver(type: string, resolver: BlockResolver): void {
+function registerBlockResolver(type: string, resolver: BlockResolver): void {
   resolvers.set(type, resolver);
 }
 

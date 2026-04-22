@@ -14,7 +14,9 @@
     "@shoggoth/models": "*",
     "@shoggoth/shared": "*",
     "@shoggoth/skills": "*",
-    "@shoggoth/plugins": "*",
     "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.7.0"
   }
 }

@@ -4,7 +4,7 @@ import type { TaskState } from "./types.js";
  * Context for gate condition evaluation.
  * Built from completed upstream task states.
  */
-export interface GateContext {
+interface GateContext {
   task: Map<number, { output: string; success: boolean }>;
 }
 

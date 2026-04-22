@@ -8,7 +8,7 @@ import { getLogger } from "../logging";
 
 const log = getLogger("timer-scheduler");
 
-export interface TimerRecord {
+interface TimerRecord {
   readonly id: string;
   readonly sessionId: string;
   readonly label: string;
@@ -16,7 +16,7 @@ export interface TimerRecord {
   readonly message: string;
 }
 
-export type TimerDeliveryFn = (sessionId: string, message: string) => Promise<void>;
+type TimerDeliveryFn = (sessionId: string, message: string) => Promise<void>;
 
 export class TimerScheduler {
   private readonly heap = new TimerHeap();

@@ -132,7 +132,7 @@ export function formatAssistantReply(
 // Image-aware reply formatting
 // ---------------------------------------------------------------------------
 
-export interface FormattedReplyWithImages {
+interface FormattedReplyWithImages {
   readonly body: string;
   readonly attachments: OutboundAttachment[];
 }
@@ -142,7 +142,7 @@ export interface FormattedReplyWithImages {
  * blocks. Extracts images as platform attachments and formats the remaining
  * text through the standard reply pipeline.
  */
-export function formatAssistantReplyWithImages(
+function formatAssistantReplyWithImages(
   config: ShoggothConfig,
   sessionId: string,
   env: NodeJS.ProcessEnv | undefined,

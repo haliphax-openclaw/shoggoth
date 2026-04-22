@@ -78,7 +78,7 @@ export function formatMessageWithThinking(
  * Check if a chunk contains a thinking→response transition.
  * Returns true if the chunk has both thinking content and response content.
  */
-export function hasThinkingTransition(chunk: string): boolean {
+function hasThinkingTransition(chunk: string): boolean {
   const hasThinking = /<thinking>[\s\S]*?<\/thinking>/.test(chunk);
   const { thinking, response } = extractThinkingAndResponse(chunk);
   return hasThinking && thinking.length > 0 && response.length > 0;
@@ -88,7 +88,7 @@ export function hasThinkingTransition(chunk: string): boolean {
  * Format a chunk that may contain a thinking→response transition.
  * Ensures proper formatting with blockquote closure before response.
  */
-export function formatChunkWithTransition(
+function formatChunkWithTransition(
   chunk: string,
   mode: ThinkingDisplayMode,
 ): string {

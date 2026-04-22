@@ -19,7 +19,7 @@ import { getLogger } from "../../logging";
 
 const log = getLogger("workflow-tool-executor");
 
-export interface WorkflowToolExecutorDeps {
+interface WorkflowToolExecutorDeps {
   readonly db: Database.Database;
   readonly config: ShoggothConfig;
   readonly env: NodeJS.ProcessEnv;

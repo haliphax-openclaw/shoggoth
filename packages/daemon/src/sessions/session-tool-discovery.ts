@@ -71,7 +71,7 @@ export function setSessionToolState(
 // Config resolution
 // ---------------------------------------------------------------------------
 
-export interface ResolvedToolDiscoveryConfig {
+interface ResolvedToolDiscoveryConfig {
   readonly enabled: boolean;
   readonly alwaysOn: Set<string>;
   readonly triggers: ReadonlyArray<{ match: string; tools: string[] }>;

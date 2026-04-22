@@ -272,7 +272,7 @@ export function createDaemonMessageAdapter(deps: DaemonMessageAdapterDeps): Mess
 // MessagePoster (for workflow message tasks)
 // ---------------------------------------------------------------------------
 
-export interface DaemonMessagePosterDeps {
+interface DaemonMessagePosterDeps {
   /** Platform-agnostic message sender. Resolves lazily since the platform may start after the workflow singleton. */
   readonly sendBody: (sessionId: string, body: string) => Promise<void>;
   readonly logger: ReturnType<typeof getLogger>;
@@ -297,7 +297,7 @@ export function createDaemonMessagePoster(deps: DaemonMessagePosterDeps): Messag
 // Workflow Notifier (for workflow completion notifications)
 // ---------------------------------------------------------------------------
 
-export interface WorkflowNotifierDeps {
+interface WorkflowNotifierDeps {
   readonly getRunSessionModelTurn: () => (input: {
     readonly sessionId: string;
     readonly userContent: string;
@@ -347,7 +347,7 @@ export function createWorkflowNotifier(deps: WorkflowNotifierDeps): NotifyAdapte
 // ToolExecutor (for workflow tool tasks)
 // ---------------------------------------------------------------------------
 
-export interface DaemonToolExecutorFactoryDeps {
+interface DaemonToolExecutorFactoryDeps {
   readonly builtinRegistry: BuiltinToolRegistry;
   readonly sessionMcpRuntime: SessionMcpRuntime;
   readonly logger: ReturnType<typeof getLogger>;
@@ -437,7 +437,7 @@ export function createDaemonToolExecutorFactory(
 // Simplified ToolExecutor for workflow tasks (lazy-loaded context)
 // ---------------------------------------------------------------------------
 
-export interface DaemonToolExecutorDeps {
+interface DaemonToolExecutorDeps {
   readonly getToolContext: () => Promise<import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined>;
   readonly logger: ReturnType<typeof getLogger>;
 }
@@ -490,7 +490,7 @@ export function createDaemonToolExecutor(deps: DaemonToolExecutorDeps): ToolExec
 // Workflow Tool Executor Adapter (custom interface for tests)
 // ---------------------------------------------------------------------------
 
-export interface WorkflowToolExecutorAdapterDeps {
+interface WorkflowToolExecutorAdapterDeps {
   readonly sessionId?: string;
   readonly getToolContext: () => Promise<import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined>;
   readonly logger: ReturnType<typeof getLogger>;

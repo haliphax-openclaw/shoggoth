@@ -7,7 +7,7 @@ export interface OutboundImageAttachment {
   readonly bytes: Buffer;
 }
 
-export interface OutboundImageResult {
+interface OutboundImageResult {
   readonly textContent: string;
   readonly imageAttachments: OutboundImageAttachment[];
 }

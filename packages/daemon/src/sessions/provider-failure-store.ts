@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-export interface ProviderFailure {
+interface ProviderFailure {
   readonly failedAt: Date;
   readonly error?: string;
   readonly retryCount: number;

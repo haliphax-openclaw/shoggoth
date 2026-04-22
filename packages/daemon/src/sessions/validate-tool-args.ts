@@ -16,7 +16,7 @@ interface SchemaLike {
   readonly maximum?: number;
 }
 
-export interface ToolArgValidationError {
+interface ToolArgValidationError {
   readonly field: string;
   readonly message: string;
 }

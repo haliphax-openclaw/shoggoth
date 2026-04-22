@@ -129,7 +129,7 @@ export function stripImageBlocksFromContent(content: string): string {
  * removes them entirely and re-serializes.
  * Plain string content is returned unchanged.
  */
-export function stripThinkingBlocksFromContent(content: string): string {
+function stripThinkingBlocksFromContent(content: string): string {
   if (!content.startsWith("[")) return content;
   try {
     const parsed = JSON.parse(content);
@@ -161,7 +161,7 @@ export function stripImageBlocksForCompaction(messages: readonly ChatMessage[]):
  * Return a copy of the messages with thinking blocks stripped from content,
  * suitable for sending to the summarizer model during compaction.
  */
-export function stripThinkingBlocksForCompaction(messages: readonly ChatMessage[]): ChatMessage[] {
+function stripThinkingBlocksForCompaction(messages: readonly ChatMessage[]): ChatMessage[] {
   return messages.map((m) => {
     if (typeof m.content !== "string" || !m.content) return { ...m };
     const stripped = stripThinkingBlocksFromContent(m.content);

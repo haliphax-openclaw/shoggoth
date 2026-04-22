@@ -6,7 +6,7 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type Database from "better-sqlite3";
 
-export interface AgentsMdGateResult {
+interface AgentsMdGateResult {
   readonly gated: true;
   readonly message: string;
   readonly files: readonly { path: string; content: string }[];

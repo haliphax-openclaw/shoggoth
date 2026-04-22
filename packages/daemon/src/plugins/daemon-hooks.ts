@@ -8,7 +8,7 @@ import type { PlatformRegistration, PlatformRuntime } from "@shoggoth/messaging"
 import type { SubagentRuntimeExtension, MessageToolContext, PlatformAdapter } from "@shoggoth/shared";
 import type { HealthProbe } from "@shoggoth/plugins";
 
-export interface DaemonHooksContext {
+interface DaemonHooksContext {
   config: ShoggothConfig;
   db: unknown;
   configRef: { current: ShoggothConfig };
@@ -25,7 +25,7 @@ export interface DaemonHooksContext {
   setPlatformAdapter: (adapter: PlatformAdapter) => void;
 }
 
-export interface DaemonHooksResult {
+interface DaemonHooksResult {
   config: ShoggothConfig;
   drains: {
     platformStop: () => Promise<void>;
