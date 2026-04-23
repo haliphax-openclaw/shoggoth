@@ -1,6 +1,6 @@
 ---
 date: 2026-04-23
-completed: never
+completed: 2026-04-23
 ---
 
 # Media Generation via Control Plane
@@ -48,18 +48,14 @@ Request payload:
 
 ```ts
 interface MediaGeneratePayload {
-  /** Model identifier, e.g. "nano-banana-pro", "imagen-4.0-generate-preview-06-2025", "veo-3.1-generate-preview", "lyria-3-pro-preview", "gemini-2.5-flash-preview-tts" */
+  /** Model identifier, e.g. "gemini-2.5-flash-image", "gemini-3-pro-image-preview", "veo-3.1-generate-preview", "lyria-3-pro-preview", "gemini-2.5-flash-preview-tts" */
   model: string;
   /** Text prompt for generation */
   prompt: string;
   /** Provider ID from models.providers config (must be kind: "gemini") */
   provider_id: string;
   /** Model-specific parameters, discriminated by `kind` */
-  params:
-    | ImageGenerateParams
-    | VideoGenerateParams
-    | SpeechGenerateParams
-    | MusicGenerateParams;
+  params: ImageGenerateParams | VideoGenerateParams | SpeechGenerateParams | MusicGenerateParams;
   /** Where to write the output file. Workspace-relative path. Auto-generated if omitted. */
   output_path?: string;
   /** For async models (Veo): max poll time in ms before returning in-progress status. Default 300000 (5 min). */
@@ -99,10 +95,7 @@ interface MusicGenerateParams {
 Response:
 
 ```ts
-type MediaGenerateResult =
-  | MediaGenerateComplete
-  | MediaGenerateInProgress
-  | MediaGenerateError;
+type MediaGenerateResult = MediaGenerateComplete | MediaGenerateInProgress | MediaGenerateError;
 
 interface MediaGenerateComplete {
   status: "complete";
@@ -217,14 +210,13 @@ A built-in lookup table maps model names to adapters. At runtime, the operator-c
 Built-in defaults:
 
 ```ts
-const BUILTIN_MODEL_ADAPTER_MAP: Record<
-  string,
-  "generateContent" | "predict" | "longRunning"
-> = {
-  "nano-banana": "generateContent",
+const BUILTIN_MODEL_ADAPTER_MAP: Record<string, "generateContent" | "predict" | "longRunning"> = {
+  "gemini-2.5-flash-image": "generateContent",
+  "gemini-3-pro-image-preview": "generateContent",
+  "gemini-3.1-flash-image-preview": "generateContent",
   "gemini-2.5-flash-preview-tts": "generateContent",
   "gemini-2.5-pro-preview-tts": "generateContent",
-  "gemini-3.1-flash-tts": "generateContent",
+  "gemini-3.1-flash-tts-preview": "generateContent",
   "lyria-3": "generateContent",
   imagen: "predict",
   veo: "longRunning",
@@ -261,7 +253,7 @@ Schema exposed to agents:
     "properties": {
       "model": {
         "type": "string",
-        "description": "Model name (e.g. nano-banana-pro, imagen-4.0-generate-preview-06-2025, veo-3.1-generate-preview, lyria-3-pro-preview)"
+        "description": "Model name (e.g. gemini-2.5-flash-image, gemini-3-pro-image-preview, veo-3.1-generate-preview, lyria-3-pro-preview)"
       },
       "prompt": { "type": "string", "description": "Generation prompt" },
       "params": {

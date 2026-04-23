@@ -1,9 +1,6 @@
 import type { McpSourceCatalog } from "@shoggoth/mcp-integration";
 import type Database from "better-sqlite3";
-import {
-  SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS,
-  type ShoggothConfig,
-} from "@shoggoth/shared";
+import { SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS, type ShoggothConfig } from "@shoggoth/shared";
 import { getLogger } from "../logging";
 import {
   connectShoggothMcpServers,
@@ -21,6 +18,7 @@ import {
   buildSessionMcpToolContext,
   createContextLevelToolFinalizer,
   createMcpServerRulesFinalizer,
+  createMediaGenerateToolFinalizer,
   createWebSearchToolFinalizer,
   type SessionMcpToolContext,
 } from "./session-mcp-tool-context";
@@ -57,9 +55,7 @@ export interface CreateSessionMcpRuntimeOptions {
 }
 
 export interface SessionMcpRuntime {
-  readonly resolveContext: (
-    sessionId: string,
-  ) => Promise<SessionMcpToolContext>;
+  readonly resolveContext: (sessionId: string) => Promise<SessionMcpToolContext>;
   /** Call when an inbound user turn starts (clears per-session idle eviction timer). */
   readonly notifyTurnBegin: (sessionId: string) => void;
   /** Call when a turn finishes (schedules idle eviction when configured). */
@@ -93,6 +89,8 @@ export async function createSessionMcpRuntime(
   registerContextFinalizer(createContextLevelToolFinalizer(opts.config));
   // Register web-search tool finalizer (adds builtin-web-search when SearXNG is configured).
   registerContextFinalizer(createWebSearchToolFinalizer(opts.config));
+  // Register media-generate tool finalizer (adds builtin-media-generate when a gemini provider exists).
+  registerContextFinalizer(createMediaGenerateToolFinalizer(opts.config));
   // Register elevation tool finalizer (conditionally injects builtin-elevate when grant is active).
   registerContextFinalizer(createElevationToolFinalizer(opts.db));
   // Register tool discovery finalizer (must be last — sees the full catalog including web-search).
@@ -100,13 +98,14 @@ export async function createSessionMcpRuntime(
 
   const mcpServers = opts.config.mcp?.servers ?? [];
   const mcpPoolScope = opts.config.mcp?.poolScope ?? "global";
-  const connectMcpPool =
-    opts.deps?.connectShoggothMcpServers ?? connectShoggothMcpServers;
+  const connectMcpPool = opts.deps?.connectShoggothMcpServers ?? connectShoggothMcpServers;
   const builtinMcpCtx = buildBuiltinOnlySessionMcpToolContext();
   const mcpConnectOpts = buildMcpPoolConnectOptions(opts.env);
 
-  const { globalServers, perSessionServers } =
-    partitionMcpServersByEffectiveScope(mcpServers, mcpPoolScope);
+  const { globalServers, perSessionServers } = partitionMcpServersByEffectiveScope(
+    mcpServers,
+    mcpPoolScope,
+  );
   const globalSourceIds = new Set(globalServers.map((s) => s.id));
   const perSessionSourceIds = new Set(perSessionServers.map((s) => s.id));
 
@@ -116,14 +115,10 @@ export async function createSessionMcpRuntime(
 
   if (globalServers.length > 0) {
     try {
-      const { pool, external } = await connectMcpPool(
-        globalServers,
-        mcpConnectOpts,
-      );
+      const { pool, external } = await connectMcpPool(globalServers, mcpConnectOpts);
       const unregisterGlobal = registerMcpHttpCancelHandler(
         SHOGGOTH_GLOBAL_MCP_SESSION_KEY,
-        (sourceId, requestId) =>
-          pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
+        (sourceId, requestId) => pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
       );
       mcpShutdownGlobal = async () => {
         unregisterGlobal();
@@ -150,14 +145,8 @@ export async function createSessionMcpRuntime(
 
   const perSessionMcpClose = new Map<string, () => Promise<void>>();
   const perSessionMcpCtx = new Map<string, SessionMcpToolContext>();
-  const perSessionMcpConnect = new Map<
-    string,
-    Promise<SessionMcpToolContext>
-  >();
-  const perSessionMcpIdleTimers = new Map<
-    string,
-    ReturnType<typeof setTimeout>
-  >();
+  const perSessionMcpConnect = new Map<string, Promise<SessionMcpToolContext>>();
+  const perSessionMcpIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function resolvePerSessionMcpIdleMs(): number {
     if (perSessionServers.length === 0) return 0;
@@ -169,9 +158,7 @@ export async function createSessionMcpRuntime(
 
   const perSessionMcpIdleMs = resolvePerSessionMcpIdleMs();
   const trackPerSessionIdle =
-    mcpServers.length > 0 &&
-    perSessionMcpIdleMs > 0 &&
-    perSessionServers.length > 0;
+    mcpServers.length > 0 && perSessionMcpIdleMs > 0 && perSessionServers.length > 0;
 
   function cancelPerSessionMcpIdleTimer(sessionId: string): void {
     const t = perSessionMcpIdleTimers.get(sessionId);
@@ -201,9 +188,7 @@ export async function createSessionMcpRuntime(
     perSessionMcpIdleTimers.set(sessionId, t);
   }
 
-  async function resolveContext(
-    sessionId: string,
-  ): Promise<SessionMcpToolContext> {
+  async function resolveContext(sessionId: string): Promise<SessionMcpToolContext> {
     if (mcpServers.length === 0) {
       return runContextFinalizers(builtinMcpCtx, sessionId);
     }
@@ -219,23 +204,16 @@ export async function createSessionMcpRuntime(
       if (!inflight) {
         inflight = (async () => {
           try {
-            const { pool, external } = await connectMcpPool(
-              perSessionServers,
-              mcpConnectOpts,
-            );
+            const { pool, external } = await connectMcpPool(perSessionServers, mcpConnectOpts);
             const unregister = registerMcpHttpCancelHandler(
               sessionId,
-              (sourceId, requestId) =>
-                pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
+              (sourceId, requestId) => pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
             );
             perSessionMcpClose.set(sessionId, async () => {
               unregister();
               await pool.close();
             });
-            const ctx = buildSessionMcpToolContext(
-              pool.externalSources,
-              external,
-            );
+            const ctx = buildSessionMcpToolContext(pool.externalSources, external);
             perSessionMcpCtx.set(sessionId, ctx);
             return ctx;
           } catch (e) {
@@ -263,14 +241,10 @@ export async function createSessionMcpRuntime(
     if (!inflight) {
       inflight = (async () => {
         try {
-          const { pool, external } = await connectMcpPool(
-            perSessionServers,
-            mcpConnectOpts,
-          );
+          const { pool, external } = await connectMcpPool(perSessionServers, mcpConnectOpts);
           const unregister = registerMcpHttpCancelHandler(
             sessionId,
-            (sourceId, requestId) =>
-              pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
+            (sourceId, requestId) => pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
           );
           perSessionMcpClose.set(sessionId, async () => {
             unregister();
@@ -328,9 +302,7 @@ export async function createSessionMcpRuntime(
       if (mcpShutdownGlobal) {
         await mcpShutdownGlobal();
       }
-      await Promise.all(
-        [...perSessionMcpClose.values()].map((fn) => fn().catch(() => {})),
-      );
+      await Promise.all([...perSessionMcpClose.values()].map((fn) => fn().catch(() => {})));
       perSessionMcpClose.clear();
       perSessionMcpCtx.clear();
       perSessionMcpConnect.clear();

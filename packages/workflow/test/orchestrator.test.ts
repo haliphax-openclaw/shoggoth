@@ -164,11 +164,7 @@ describe("Orchestrator", () => {
       const orch = new Orchestrator(spawner, poller, notifier);
 
       // Task 2 references task 3's output, but 3 is not a dependency of 2
-      const tasks = [
-        makeTask(1),
-        makeTask(2, "use {{task:3:output}} here"),
-        makeTask(3),
-      ];
+      const tasks = [makeTask(1), makeTask(2, "use {{task:3:output}} here"), makeTask(3)];
       const graphDsl = "1>2 1>3"; // 2 depends on 1, 3 depends on 1, but 2 does NOT depend on 3
       await assert.rejects(
         () => orch.start(tasks, graphDsl, defaultOpts(baseDir)),
@@ -225,10 +221,7 @@ describe("Orchestrator", () => {
       const notifier = mockNotifyAdapter();
       const orch = new Orchestrator(spawner, poller, notifier);
 
-      const tasks = [
-        makeTask(1),
-        makeTask(2, "use {{task:1:output}} and {{task:1:success}}"),
-      ];
+      const tasks = [makeTask(1), makeTask(2, "use {{task:1:output}} and {{task:1:success}}")];
       const graphDsl = "1>2";
       await orch.start(tasks, graphDsl, defaultOpts(baseDir));
 
@@ -394,14 +387,7 @@ describe("Orchestrator", () => {
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(
-        spawner,
-        poller,
-        notifier,
-        undefined,
-        undefined,
-        killer,
-      );
+      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
 
       const tasks = [makeTask(1)];
       tasks[0].runtimeLimitMs = 1; // 1ms — will expire immediately
@@ -424,14 +410,7 @@ describe("Orchestrator", () => {
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(
-        spawner,
-        poller,
-        notifier,
-        undefined,
-        undefined,
-        killer,
-      );
+      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
 
       // Task 1 has abort behavior; tasks 2 and 3 are independent roots
       const task1 = makeTask(1);
@@ -455,14 +434,7 @@ describe("Orchestrator", () => {
       const poller = mockPollAdapter(pollResults);
       const notifier = mockNotifyAdapter();
       const killer = mockKillAdapter();
-      const orch = new Orchestrator(
-        spawner,
-        poller,
-        notifier,
-        undefined,
-        undefined,
-        killer,
-      );
+      const orch = new Orchestrator(spawner, poller, notifier, undefined, undefined, killer);
 
       const tasks = [makeTask(1)];
       tasks[0].runtimeLimitMs = 1;
@@ -510,7 +482,7 @@ describe("Orchestrator", () => {
         },
         postSummary: async () => {},
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const orch = new Orchestrator(
         spawner,
         poller,

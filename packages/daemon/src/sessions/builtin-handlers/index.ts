@@ -24,13 +24,12 @@ import { register as registerDiscover } from "./discover-handler";
 import { register as registerSearchReplace } from "./search-replace-handler";
 import { register as registerCd } from "./cd-handler";
 import { register as registerElevate } from "./elevate-handler";
+import { register as registerMediaGenerate } from "./media-generate-handler";
 
 /**
  * Register all builtin tool handlers on the given registry.
  */
-export function registerAllBuiltinHandlers(
-  registry: BuiltinToolRegistry,
-): void {
+export function registerAllBuiltinHandlers(registry: BuiltinToolRegistry): void {
   registerConfig(registry);
   registerMessage(registry);
   registerProcman(registry);
@@ -51,4 +50,5 @@ export function registerAllBuiltinHandlers(
   registerSearchReplace(registry);
   registerCd(registry);
   registerElevate(registry);
+  registerMediaGenerate(registry);
 }

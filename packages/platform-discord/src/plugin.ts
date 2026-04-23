@@ -53,7 +53,7 @@ function resolveDiscordBotToken(config: any): string | undefined {
 }
 
 /** Resolve session ID for a given channel/guild from agent routes config. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function resolveSessionForChannel(
   config: any,
   channelId: string,
@@ -67,10 +67,7 @@ function resolveSessionForChannel(
     for (const agentDef of Object.values(agentsList)) {
       if (typeof agentDef !== "object" || agentDef === null) continue;
       const discordPlatform = (
-        (agentDef as Record<string, unknown>).platforms as Record<
-          string,
-          unknown
-        >
+        (agentDef as Record<string, unknown>).platforms as Record<string, unknown>
       )?.discord as Record<string, unknown> | undefined;
       const routesList = discordPlatform?.routes;
       if (!Array.isArray(routesList)) continue;
@@ -97,15 +94,11 @@ function resolveSessionForChannel(
  * Discord delivery resolver — tells the daemon how to reach the operator
  * on Discord-owned sessions.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function createDiscordDeliveryResolver(configRef: {
-  current: any;
-}): PlatformDeliveryResolver {
+
+function createDiscordDeliveryResolver(configRef: { current: any }): PlatformDeliveryResolver {
   return {
     resolveOperatorDelivery(_sessionId, config) {
-      const ownerUserId = resolveDiscordOwnerUserId(
-        config ?? configRef.current,
-      );
+      const ownerUserId = resolveDiscordOwnerUserId(config ?? configRef.current);
       if (ownerUserId) {
         return { kind: "messaging_surface", userId: ownerUserId };
       }
@@ -155,26 +148,20 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
         state.getToken = () => resolveDiscordBotToken(configRef.current);
 
         // Register delivery resolver for the "discord" platform segment
-        deliveryRegistry.register(
-          "discord",
-          createDiscordDeliveryResolver(configRef),
-        );
+        deliveryRegistry.register("discord", createDiscordDeliveryResolver(configRef));
 
         // Get dependencies from context
         const hitlStack = platformDeps.hitlStack;
         const hitlAutoApproveGate = platformDeps.hitlAutoApproveGate;
         // Plugin owns its own notice registry
-        const hitlDiscordNoticeRegistry = hitlStack
-          ? createHitlDiscordNoticeRegistry()
-          : undefined;
+        const hitlDiscordNoticeRegistry = hitlStack ? createHitlDiscordNoticeRegistry() : undefined;
         const logger = platformDeps.logger;
         const platformAssistantDeps = platformDeps.platformAssistantDeps;
         const abortSession = platformDeps.abortSession;
         const invokeControlOp = platformDeps.invokeControlOp;
         const registerPlatformFn = platformDeps.registerPlatform;
         const stopAllPlatforms = platformDeps.stopAllPlatforms;
-        const reconcilePersistentSubagents =
-          platformDeps.reconcilePersistentSubagents;
+        const reconcilePersistentSubagents = platformDeps.reconcilePersistentSubagents;
         const noticeResolver = platformDeps.noticeResolver;
 
         // Create interaction transport ref for the interaction handler
@@ -189,20 +176,13 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
           botToken: state.getToken(),
           noticeResolver: noticeResolver as any,
           onInteractionCreate: createDiscordInteractionHandler({
-            transport: new Proxy(
-              {} as DiscordMessagingRuntime["discordRestTransport"],
-              {
-                get(_t, prop, receiver) {
-                  if (!interactionTransportRef.current)
-                    throw new Error("discord transport not ready");
-                  return Reflect.get(
-                    interactionTransportRef.current,
-                    prop,
-                    receiver,
-                  );
-                },
+            transport: new Proxy({} as DiscordMessagingRuntime["discordRestTransport"], {
+              get(_t, prop, receiver) {
+                if (!interactionTransportRef.current)
+                  throw new Error("discord transport not ready");
+                return Reflect.get(interactionTransportRef.current, prop, receiver);
               },
-            ),
+            }),
             get applicationId() {
               return state.reactionBotUserIdRef.current ?? "";
             },
@@ -234,8 +214,7 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
 
         if (discordMessaging) {
           state.messaging = discordMessaging;
-          interactionTransportRef.current =
-            discordMessaging.discordRestTransport;
+          interactionTransportRef.current = discordMessaging.discordRestTransport;
           registerDrain("discord-messaging", () => discordMessaging.stop());
         }
 
@@ -296,26 +275,20 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
 
           void (async () => {
             try {
-              const msg =
-                await discordMessaging.discordRestTransport.getMessage(
-                  ev.channelId,
-                  ev.messageId,
-                );
-              const authorId = (
-                msg.author as Record<string, unknown> | undefined
-              )?.id;
+              const msg = await discordMessaging.discordRestTransport.getMessage(
+                ev.channelId,
+                ev.messageId,
+              );
+              const authorId = (msg.author as Record<string, unknown> | undefined)?.id;
               if (typeof authorId !== "string" || authorId !== botId) {
                 logger.debug("reaction.passthrough.not_bot_message", {
                   messageId: ev.messageId,
                 });
                 return;
               }
-              const content =
-                typeof msg.content === "string" ? msg.content : "";
+              const content = typeof msg.content === "string" ? msg.content : "";
               const timestamp =
-                typeof msg.timestamp === "string"
-                  ? new Date(msg.timestamp).getTime()
-                  : Date.now();
+                typeof msg.timestamp === "string" ? new Date(msg.timestamp).getTime() : Date.now();
               await discordPlatform.handleReactionPassthrough({
                 sessionId,
                 messageContent: content,
@@ -336,8 +309,7 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
         const subagentExt = {
           runSessionModelTurn: discordPlatform.runSessionModelTurn,
           subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
-          registerPlatformThreadBinding:
-            discordMessaging.registerPlatformThreadBinding,
+          registerPlatformThreadBinding: discordMessaging.registerPlatformThreadBinding,
           announcePersistentSubagentSessionEnded:
             discordPlatform.announcePersistentSubagentSessionEnded,
         };
@@ -345,10 +317,7 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
 
         // Build message tool context from capabilities
         const msgCtx = {
-          slice: discordMessaging.capabilities.extensions as unknown as Record<
-            string,
-            boolean
-          >,
+          slice: discordMessaging.capabilities.extensions as unknown as Record<string, boolean>,
           execute: (sessionId: string, args: any) =>
             executeMessageToolAction(
               {
@@ -356,14 +325,11 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
                 transport: discordMessaging.discordRestTransport,
                 sessionToChannel: (sid) =>
                   discordMessaging.resolveOutboundChannelIdForSession?.(sid),
-                sessionToGuild: (sid) =>
-                  discordMessaging.resolveGuildIdForSession?.(sid),
+                sessionToGuild: (sid) => discordMessaging.resolveGuildIdForSession?.(sid),
                 getSessionWorkspace: (sid) => {
                   try {
                     const row = (db as any)
-                      .prepare(
-                        "SELECT workspace_path FROM sessions WHERE id = ?",
-                      )
+                      .prepare("SELECT workspace_path FROM sessions WHERE id = ?")
                       .get(sid) as { workspace_path: string } | undefined;
                     return row?.workspace_path;
                   } catch {
@@ -372,8 +338,7 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
                 },
                 downloadFile: async (url, destPath) => {
                   const res = await fetch(url);
-                  if (!res.ok)
-                    throw new Error(`download failed: HTTP ${res.status}`);
+                  if (!res.ok) throw new Error(`download failed: HTTP ${res.status}`);
                   const buf = Buffer.from(await res.arrayBuffer());
                   const { writeFile, mkdir } = await import("node:fs/promises");
                   const { dirname } = await import("node:path");
