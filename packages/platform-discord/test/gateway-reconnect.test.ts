@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  connectDiscordGateway,
-  type DiscordGatewayConnectOptions,
-} from "../src/gateway-client";
+import { connectDiscordGateway, type DiscordGatewayConnectOptions } from "../src/gateway-client";
 
 /* ------------------------------------------------------------------ */
 /*  Mock WebSocket that gives tests full control over the connection   */
@@ -99,7 +96,7 @@ function createFakeSocketFactory() {
       send(data: string) {
         fake.sent.push(data);
       },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       close(code?: number, _reason?: string) {
         fake.clientCloseCode = code;
         emit("close", { code, reason: _reason ?? "" });
@@ -143,12 +140,8 @@ function baseOpts(
 }
 
 /** Connect and complete the initial handshake, returning the session + first socket. */
-async function connectAndHandshake(
-  factory: ReturnType<typeof createFakeSocketFactory>,
-) {
-  const sessionP = connectDiscordGateway(
-    baseOpts({ createWebSocket: factory.createWebSocket }),
-  );
+async function connectAndHandshake(factory: ReturnType<typeof createFakeSocketFactory>) {
+  const sessionP = connectDiscordGateway(baseOpts({ createWebSocket: factory.createWebSocket }));
   await vi.waitFor(() => expect(factory.sockets.length).toBeGreaterThan(0));
   const s0 = factory.sockets[0];
   s0.emitOpen();
@@ -400,9 +393,7 @@ describe("gateway reconnection", () => {
         return origCreate(url);
       };
 
-      const sessionP = connectDiscordGateway(
-        baseOpts({ createWebSocket: trackingCreate }),
-      );
+      const sessionP = connectDiscordGateway(baseOpts({ createWebSocket: trackingCreate }));
       await vi.waitFor(() => expect(factory.sockets.length).toBeGreaterThan(0));
       const s0 = factory.sockets[0];
       s0.emitOpen();

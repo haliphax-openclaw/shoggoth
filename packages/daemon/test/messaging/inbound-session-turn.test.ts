@@ -18,8 +18,7 @@ vi.mock("../../src/sessions/session-agent-turn.js", () => ({
   }),
 }));
 
-const { runInboundSessionTurn } =
-  await import("../../src/messaging/inbound-session-turn");
+const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn");
 
 describe("createCoalescingStreamPusher", () => {
   it("calls setFull with latest text", async () => {
@@ -108,7 +107,7 @@ describe("runInboundSessionTurn streaming final delivery", () => {
     const slicedCalls = setFullContent.mock.calls
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((c: any) => c[0] as string)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       .filter((s: string) => s.length === MAX_LEN);
 
     // With deduplication, the 50-char sliced content should appear at most

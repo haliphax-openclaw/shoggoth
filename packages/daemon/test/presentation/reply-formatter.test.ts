@@ -59,9 +59,7 @@ describe("formatModelTagFooter", () => {
   });
 
   it("returns empty string when meta is undefined", () => {
-    expect(formatModelTagFooter({ SHOGGOTH_MODEL_TAG: "1" }, undefined)).toBe(
-      "",
-    );
+    expect(formatModelTagFooter({ SHOGGOTH_MODEL_TAG: "1" }, undefined)).toBe("");
   });
 
   it("returns footer when SHOGGOTH_MODEL_TAG=1", () => {
@@ -82,10 +80,7 @@ describe("formatModelTagFooter", () => {
       usedModel: "m",
       usedProviderId: "p",
     };
-    const result = formatModelTagFooter(
-      { SHOGGOTH_DISCORD_MODEL_TAG: "1" },
-      meta,
-    );
+    const result = formatModelTagFooter({ SHOGGOTH_DISCORD_MODEL_TAG: "1" }, meta);
     expect(result).toContain("model-tag-footer");
   });
 });
@@ -160,7 +155,6 @@ describe("formatErrorUserText", () => {
 
 describe("formatAssistantReply", () => {
   it("composes degraded prefix + identity + text + footer", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = {
       agents: { list: { main: { emoji: "🤖" } } },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -186,13 +180,7 @@ describe("formatAssistantReply", () => {
   it("returns just text when no degradation and no model tag", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config = { agents: {} } as any;
-    const result = formatAssistantReply(
-      config,
-      "sess1",
-      {},
-      "hello",
-      undefined,
-    );
+    const result = formatAssistantReply(config, "sess1", {}, "hello", undefined);
     expect(result).toContain("hello");
     expect(result).not.toContain("degraded-banner");
     expect(result).not.toContain("model-tag-footer");

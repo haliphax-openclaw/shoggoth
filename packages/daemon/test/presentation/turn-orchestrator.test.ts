@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setNoticeResolver } from "../../src/presentation/notices";
 import { PresentationTurnOrchestrator } from "../../src/presentation/turn-orchestrator";
-import type {
-  PlatformAdapter,
-  StreamHandle,
-} from "../../src/presentation/platform-adapter";
+import type { PlatformAdapter, StreamHandle } from "../../src/presentation/platform-adapter";
 import type { ShoggothConfig } from "@shoggoth/shared";
 
 // Minimal notice resolver
@@ -12,9 +9,7 @@ beforeEach(() => {
   setNoticeResolver((key) => `[${key}]`);
 });
 
-function createMockAdapter(
-  overrides: Partial<PlatformAdapter> = {},
-): PlatformAdapter {
+function createMockAdapter(overrides: Partial<PlatformAdapter> = {}): PlatformAdapter {
   return {
     sendBody: vi.fn().mockResolvedValue(undefined),
     sendError: vi.fn().mockResolvedValue(undefined),
@@ -34,7 +29,6 @@ describe("PresentationTurnOrchestrator", () => {
   it("constructs with required deps", () => {
     const adapter = createMockAdapter();
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
     });
@@ -44,7 +38,6 @@ describe("PresentationTurnOrchestrator", () => {
   it("defaults streamingIntervalMs to 0", async () => {
     const adapter = createMockAdapter();
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
     });
@@ -57,7 +50,6 @@ describe("PresentationTurnOrchestrator", () => {
   it("uses provided streamingIntervalMs", () => {
     const adapter = createMockAdapter();
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
       streamingIntervalMs: 500,
@@ -67,11 +59,9 @@ describe("PresentationTurnOrchestrator", () => {
   });
 
   it("orchestrateInboundTurn calls runInboundSessionTurn", async () => {
-    const { runInboundSessionTurn } =
-      await import("../../src/messaging/inbound-session-turn.js");
+    const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn.js");
     const adapter = createMockAdapter();
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
     });
@@ -85,8 +75,7 @@ describe("PresentationTurnOrchestrator", () => {
   });
 
   it("configures streaming when adapter has startStream and interval > 0", async () => {
-    const { runInboundSessionTurn } =
-      await import("../../src/messaging/inbound-session-turn.js");
+    const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn.js");
     const mockHandle: StreamHandle = {
       setFullContent: vi.fn().mockResolvedValue(undefined),
     };
@@ -94,7 +83,6 @@ describe("PresentationTurnOrchestrator", () => {
       startStream: vi.fn().mockResolvedValue(mockHandle),
     });
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
       streamingIntervalMs: 400,
@@ -112,13 +100,11 @@ describe("PresentationTurnOrchestrator", () => {
   });
 
   it("does not configure streaming when interval is 0", async () => {
-    const { runInboundSessionTurn } =
-      await import("../../src/messaging/inbound-session-turn.js");
+    const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn.js");
     const adapter = createMockAdapter({
       startStream: vi.fn(),
     });
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
       streamingIntervalMs: 0,
@@ -135,11 +121,9 @@ describe("PresentationTurnOrchestrator", () => {
   });
 
   it("sliceDisplayText truncates to maxBodyLength", async () => {
-    const { runInboundSessionTurn } =
-      await import("../../src/messaging/inbound-session-turn.js");
+    const { runInboundSessionTurn } = await import("../../src/messaging/inbound-session-turn.js");
     const adapter = createMockAdapter({ maxBodyLength: 10 });
     const orch = new PresentationTurnOrchestrator({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       config: {} as ShoggothConfig,
       adapter,
     });

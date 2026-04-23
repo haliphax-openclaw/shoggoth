@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
-import {
-  formatSkillPathLine,
-  formatSkillReadJson,
-  formatSkillsListJson,
-} from "./skills-cli";
+import { formatSkillPathLine, formatSkillReadJson, formatSkillsListJson } from "./skills-cli";
 import { runRetentionCli } from "./run-retention";
 import { runEventsDlqCli } from "./run-events-dlq";
 import { runSessionCli } from "./run-session";
@@ -16,6 +12,7 @@ import { runProcmanCli } from "./run-procman";
 import { runQueueCli } from "./run-queue";
 import { printConfigHelp, runConfigShow } from "./run-config";
 import { runElevationCli } from "./run-elevation";
+import { runMediaCli } from "./run-media";
 
 const argv = process.argv.slice(2);
 
@@ -41,6 +38,7 @@ Usage:
   shoggoth procman              Process manager (see: shoggoth procman --help)
   shoggoth queue                Turn queue management (see: shoggoth queue --help)
   shoggoth elevation            Permission elevation (see: shoggoth elevation --help)
+  shoggoth media                Media generation (see: shoggoth media --help)
 
 Env: SHOGGOTH_CONTROL_SOCKET, SHOGGOTH_OPERATOR_TOKEN (non-Linux), SHOGGOTH_CONFIG_DIR`);
 }
@@ -226,6 +224,16 @@ if (argv[0] === "queue") {
 if (argv[0] === "elevation") {
   try {
     await runElevationCli(argv.slice(1));
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+  }
+  process.exit(process.exitCode ?? 0);
+}
+
+if (argv[0] === "media") {
+  try {
+    await runMediaCli(argv.slice(1));
   } catch (e) {
     console.error(e instanceof Error ? e.message : String(e));
     process.exit(1);
