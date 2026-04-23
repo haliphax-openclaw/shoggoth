@@ -2,11 +2,11 @@
   "name": "shoggoth",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Shoggoth agent orchestration platform",
   "workspaces": [
     "packages/*"
   ],
+  "type": "module",
   "scripts": {
     "clean": "rm -rf packages/*/dist dist",
     "cli": "node --import tsx/esm packages/cli/src/cli.ts",
@@ -15,37 +15,33 @@
     "test": "vitest run",
     "test:ci-agent-isolation": "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 npx vitest run packages/os-exec",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "prepare": "husky install",
-    "format": "prettier --write src/"
-  },
-  "engines": {
-    "node": "~22"
+    "prepare": "husky || true",
+    "format": "oxfmt"
   },
   "dependencies": {
     "tsx": "^4.19.3"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.5.0",
-    "@eslint/js": "^10.0.1",
     "@types/node": "~22",
     "commitlint": "^20.5.0",
-    "eslint": "^10.2.1",
     "globals": "^17.5.0",
     "husky": "^9.1.7",
-    "jiti": "^2.6.1",
     "nano-staged": "^1.0.2",
-    "prettier": "^3.8.3",
-    "prettier-plugin-organize-imports": "^4.3.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
     "typescript": "~5.7.2",
-    "typescript-eslint": "^8.59.0",
     "vitest": "^4.1.2"
   },
   "nano-staged": {
     "*": [
-      "prettier -luw"
+      "oxfmt --no-error-on-unmatched-pattern"
     ],
     "*.ts": [
-      "eslint --fix"
+      "oxlint --fix"
     ]
+  },
+  "engines": {
+    "node": "~22"
   }
 }
