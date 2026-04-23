@@ -212,7 +212,7 @@ The adapter polls internally up to `timeout_ms`, then returns either the complet
 
 ### Model Routing
 
-A built-in lookup table maps model name prefixes to adapters. This is merged at runtime with an operator-configured `modelAdapterMap` from the `mediaGeneration` config section, so new models can be added without a code change.
+A built-in lookup table maps model names to adapters. At runtime, the operator-configured `modelAdapterMap` from the `mediaGeneration` config section is merged on top (`{ ...BUILTIN_MAP, ...config.modelAdapterMap }`), so config values take precedence and new models can be added without a code change.
 
 Built-in defaults:
 
@@ -231,7 +231,7 @@ const BUILTIN_MODEL_ADAPTER_MAP: Record<
 };
 ```
 
-Operator overrides in config (merged on top of built-ins — operator entries win on conflict):
+Operator overrides in config (spread on top of built-ins, config wins):
 
 ```json
 {
@@ -244,7 +244,7 @@ Operator overrides in config (merged on top of built-ins — operator entries wi
 }
 ```
 
-Resolution: prefix-match against the merged map, longest prefix wins. If no prefix matches, the op returns an error.
+Resolution: exact key match against the merged map. If no match, the op returns an error.
 
 ### Builtin Tool
 
