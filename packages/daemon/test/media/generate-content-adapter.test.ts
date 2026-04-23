@@ -18,7 +18,7 @@ import type { MediaAdapterRequest, MediaAdapterResult } from "../../src/media/ad
 
 function makeRequest(overrides?: Partial<MediaAdapterRequest>): MediaAdapterRequest {
   return {
-    model: "nano-banana",
+    model: "gemini-2.5-flash-image",
     prompt: "a cat wearing a hat",
     apiKey: "test-api-key",
     baseUrl: "https://generativelanguage.googleapis.com",
@@ -60,11 +60,11 @@ describe("generateContentAdapter", () => {
     const base64 = Buffer.from("fake-png-bytes").toString("base64");
     mockFetch.mockResolvedValue(makeGenerateContentResponse("image/png", base64));
 
-    await generateContentAdapter(makeRequest({ model: "nano-banana" }));
+    await generateContentAdapter(makeRequest({ model: "gemini-2.5-flash-image" }));
 
     assert.strictEqual(mockFetch.mock.calls.length, 1);
     const [url, opts] = mockFetch.mock.calls[0];
-    assert.ok(url.includes("nano-banana"));
+    assert.ok(url.includes("gemini-2.5-flash-image"));
     assert.ok(url.includes("generateContent"));
     assert.strictEqual(opts.method, "POST");
 

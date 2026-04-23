@@ -48,7 +48,7 @@ Request payload:
 
 ```ts
 interface MediaGeneratePayload {
-  /** Model identifier, e.g. "nano-banana-pro", "imagen-4.0-generate-preview-06-2025", "veo-3.1-generate-preview", "lyria-3-pro-preview", "gemini-2.5-flash-preview-tts" */
+  /** Model identifier, e.g. "gemini-2.5-flash-image", "gemini-3-pro-image-preview", "veo-3.1-generate-preview", "lyria-3-pro-preview", "gemini-2.5-flash-preview-tts" */
   model: string;
   /** Text prompt for generation */
   prompt: string;
@@ -211,10 +211,12 @@ Built-in defaults:
 
 ```ts
 const BUILTIN_MODEL_ADAPTER_MAP: Record<string, "generateContent" | "predict" | "longRunning"> = {
-  "nano-banana": "generateContent",
+  "gemini-2.5-flash-image": "generateContent",
+  "gemini-3-pro-image-preview": "generateContent",
+  "gemini-3.1-flash-image-preview": "generateContent",
   "gemini-2.5-flash-preview-tts": "generateContent",
   "gemini-2.5-pro-preview-tts": "generateContent",
-  "gemini-3.1-flash-tts": "generateContent",
+  "gemini-3.1-flash-tts-preview": "generateContent",
   "lyria-3": "generateContent",
   imagen: "predict",
   veo: "longRunning",
@@ -251,7 +253,7 @@ Schema exposed to agents:
     "properties": {
       "model": {
         "type": "string",
-        "description": "Model name (e.g. nano-banana-pro, imagen-4.0-generate-preview-06-2025, veo-3.1-generate-preview, lyria-3-pro-preview)"
+        "description": "Model name (e.g. gemini-2.5-flash-image, gemini-3-pro-image-preview, veo-3.1-generate-preview, lyria-3-pro-preview)"
       },
       "prompt": { "type": "string", "description": "Generation prompt" },
       "params": {

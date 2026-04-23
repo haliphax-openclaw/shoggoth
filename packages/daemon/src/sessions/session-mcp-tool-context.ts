@@ -104,16 +104,12 @@ export function buildMixedSessionMcpToolContext(
   globalSourceIds: ReadonlySet<string>,
   perSessionSourceIds: ReadonlySet<string>,
 ): SessionMcpToolContext {
-  const aggregated = buildAggregatedMcpCatalog([
-    ...globalSources,
-    ...sessionSources,
-  ]);
+  const aggregated = buildAggregatedMcpCatalog([...globalSources, ...sessionSources]);
   let external: ExternalMcpInvoke | undefined;
   if (globalExternal && sessionExternal) {
     external = async (input) => {
       if (globalSourceIds.has(input.sourceId)) return globalExternal(input);
-      if (perSessionSourceIds.has(input.sourceId))
-        return sessionExternal(input);
+      if (perSessionSourceIds.has(input.sourceId)) return sessionExternal(input);
       return {
         resultJson: JSON.stringify({
           error: "mcp_source_unknown",
@@ -172,10 +168,7 @@ export function messageToolFinalizer(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _sessionId: string,
 ): SessionMcpToolContext {
-  return augmentSessionMcpToolContextWithMessageTool(
-    ctx,
-    messageToolContextRef.current?.slice,
-  );
+  return augmentSessionMcpToolContextWithMessageTool(ctx, messageToolContextRef.current?.slice);
 }
 
 /**
@@ -225,8 +218,7 @@ export function filterToolsByContextLevel(
   level: ContextLevel,
   config?: ShoggothConfig,
 ): readonly AggregatedTool[] {
-  const override: ContextLevelToolOverride | undefined =
-    config?.contextLevelTools?.[level];
+  const override: ContextLevelToolOverride | undefined = config?.contextLevelTools?.[level];
 
   if (level === "none") {
     // Exclude everything by default; config `allow` can re-add specific tools
@@ -260,11 +252,7 @@ function applyContextLevelToolFilter(
   level: ContextLevel,
   config?: ShoggothConfig,
 ): SessionMcpToolContext {
-  const filtered = filterToolsByContextLevel(
-    ctx.aggregated.tools,
-    level,
-    config,
-  );
+  const filtered = filterToolsByContextLevel(ctx.aggregated.tools, level, config);
   if (filtered.length === ctx.aggregated.tools.length) return ctx;
   const aggregated: AggregateMcpCatalogResult = { tools: filtered };
   return {
@@ -311,9 +299,7 @@ export function createMcpServerRulesFinalizer(
 
     // Determine which external sourceIds are denied
     const externalSourceIds = new Set(
-      ctx.aggregated.tools
-        .filter((t) => t.sourceId !== "builtin")
-        .map((t) => t.sourceId),
+      ctx.aggregated.tools.filter((t) => t.sourceId !== "builtin").map((t) => t.sourceId),
     );
 
     // Check if any source is actually denied — skip work if all are allowed
@@ -362,6 +348,41 @@ export function createMcpServerRulesFinalizer(
 // Web-search tool (SearXNG) — conditionally injected via finalizer
 // ---------------------------------------------------------------------------
 
+const MEDIA_GENERATE_TOOL_DESCRIPTOR: AggregatedTool = {
+  namespacedName: "builtin-media-generate",
+  sourceId: "builtin",
+  originalName: "media-generate",
+  name: "media-generate",
+  description:
+    "Generate images, audio, video, or music using Google AI models. Results are written to disk and optionally surfaced inline.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      model: {
+        type: "string",
+        description:
+          "Model name (e.g. gemini-2.5-flash-image, gemini-3-pro-image-preview, gemini-3.1-flash-image-preview, veo-3.1-generate-preview, lyria-3-pro-preview, gemini-2.5-flash-preview-tts)",
+      },
+      prompt: { type: "string", description: "Generation prompt" },
+      params: {
+        type: "object",
+        description:
+          "Parameters discriminated by 'kind': image (aspectRatio, numberOfImages, input_image), video (aspectRatio, durationSeconds, input_image), speech (voice), music (durationSeconds)",
+        required: ["kind"],
+      },
+      output_path: {
+        type: "string",
+        description: "Workspace-relative output path. Auto-generated if omitted.",
+      },
+      show: {
+        type: "boolean",
+        description: "When true, surface image results to the user via builtin-show. Default true.",
+      },
+    },
+    required: ["model", "prompt", "params"],
+  },
+};
+
 const WEB_SEARCH_TOOL_DESCRIPTOR: AggregatedTool = {
   namespacedName: "builtin-web-search",
   sourceId: "builtin",
@@ -379,8 +400,7 @@ const WEB_SEARCH_TOOL_DESCRIPTOR: AggregatedTool = {
       },
       categories: {
         type: "string",
-        description:
-          "Comma-separated categories: general, news, science, it, images",
+        description: "Comma-separated categories: general, news, science, it, images",
       },
       language: {
         type: "string",
@@ -407,14 +427,32 @@ export function createWebSearchToolFinalizer(
   return (ctx, _sessionId) => {
     if (!enabled) return ctx;
     // Avoid duplicate if already present
-    if (
-      ctx.aggregated.tools.some(
-        (t) => t.namespacedName === "builtin-web-search",
-      )
-    )
-      return ctx;
+    if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-web-search")) return ctx;
     const aggregated: AggregateMcpCatalogResult = {
       tools: [...ctx.aggregated.tools, WEB_SEARCH_TOOL_DESCRIPTOR],
+    };
+    return {
+      aggregated,
+      toolsOpenAi: openAiToolsFromCatalog(aggregated),
+      toolsLoop: mcpToolsForToolLoop(aggregated),
+      external: ctx.external,
+    };
+  };
+}
+
+/**
+ * Creates a context finalizer that appends `builtin-media-generate` when a gemini provider is configured.
+ */
+export function createMediaGenerateToolFinalizer(
+  config: ShoggothConfig,
+): (ctx: SessionMcpToolContext, sessionId: string) => SessionMcpToolContext {
+  const hasGemini = (config.models?.providers ?? []).some((p) => p.kind === "gemini");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return (ctx, _sessionId) => {
+    if (!hasGemini) return ctx;
+    if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-media-generate")) return ctx;
+    const aggregated: AggregateMcpCatalogResult = {
+      tools: [...ctx.aggregated.tools, MEDIA_GENERATE_TOOL_DESCRIPTOR],
     };
     return {
       aggregated,

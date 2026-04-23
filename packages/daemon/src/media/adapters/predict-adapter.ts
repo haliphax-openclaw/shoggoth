@@ -52,7 +52,7 @@ export async function predictAdapter(req: MediaAdapterRequest): Promise<MediaAda
       };
     }
 
-    const json = await response.json();
+    const json = (await response.json()) as Record<string, any>;
     const predictions: Array<{ bytesBase64Encoded: string }> = json.predictions ?? [];
 
     if (predictions.length === 0) {

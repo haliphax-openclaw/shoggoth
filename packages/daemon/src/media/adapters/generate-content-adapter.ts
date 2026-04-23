@@ -77,7 +77,7 @@ export async function generateContentAdapter(
       };
     }
 
-    const json = await response.json();
+    const json = (await response.json()) as Record<string, any>;
     const candidate = json.candidates?.[0];
     const inlinePart = candidate?.content?.parts?.find(
       (p: { inlineData?: unknown }) => p.inlineData,

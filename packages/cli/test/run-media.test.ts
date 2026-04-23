@@ -50,7 +50,7 @@ describe("parseMediaGenerateArgs", () => {
   it("parses --model, --prompt, --provider, --output flags", () => {
     const result = parseMediaGenerateArgs([
       "--model",
-      "nano-banana",
+      "gemini-2.5-flash-image",
       "--prompt",
       "a cat",
       "--provider",
@@ -59,7 +59,7 @@ describe("parseMediaGenerateArgs", () => {
       "/tmp/out.png",
     ]);
     assert.ok(result.ok);
-    assert.strictEqual(result.payload.model, "nano-banana");
+    assert.strictEqual(result.payload.model, "gemini-2.5-flash-image");
     assert.strictEqual(result.payload.prompt, "a cat");
     assert.strictEqual(result.payload.provider_id, "gemini-1");
     assert.strictEqual(result.payload.output_path, "/tmp/out.png");
@@ -68,7 +68,7 @@ describe("parseMediaGenerateArgs", () => {
   it("parses --param key=value pairs into params object", () => {
     const result = parseMediaGenerateArgs([
       "--model",
-      "nano-banana",
+      "gemini-2.5-flash-image",
       "--prompt",
       "a dog",
       "--provider",
@@ -169,7 +169,7 @@ describe("runMediaCli generate", () => {
     await runMediaCli([
       "generate",
       "--model",
-      "nano-banana",
+      "gemini-2.5-flash-image",
       "--prompt",
       "a cat on a roof",
       "--provider",
@@ -183,7 +183,7 @@ describe("runMediaCli generate", () => {
     assert.strictEqual(mockInvoke.mock.calls.length, 1);
     const call = mockInvoke.mock.calls[0][0];
     assert.strictEqual(call.op, "media_generate");
-    assert.strictEqual(call.payload.model, "nano-banana");
+    assert.strictEqual(call.payload.model, "gemini-2.5-flash-image");
     assert.strictEqual(call.payload.prompt, "a cat on a roof");
     assert.strictEqual(call.payload.provider_id, "gemini-1");
     assert.strictEqual(call.payload.output_path, "/tmp/out.png");
@@ -199,7 +199,7 @@ describe("runMediaCli generate", () => {
     await runMediaCli([
       "generate",
       "--model",
-      "nano-banana",
+      "gemini-2.5-flash-image",
       "--prompt",
       "test",
       "--provider",
@@ -219,7 +219,7 @@ describe("runMediaCli generate", () => {
     await runMediaCli([
       "generate",
       "--model",
-      "nano-banana",
+      "gemini-2.5-flash-image",
       "--prompt",
       "test",
       "--provider",
@@ -319,7 +319,10 @@ describe("runMediaCli models", () => {
 
     const output = logged.join("\n");
     // Should list known built-in models
-    assert.ok(output.includes("nano-banana"), `Expected nano-banana in output: ${output}`);
+    assert.ok(
+      output.includes("gemini-2.5-flash-image"),
+      `Expected gemini-2.5-flash-image in output: `,
+    );
     assert.ok(output.includes("imagen"), `Expected imagen in output: ${output}`);
     assert.ok(output.includes("veo"), `Expected veo in output: ${output}`);
     assert.ok(output.includes("lyria-3"), `Expected lyria-3 in output: ${output}`);
@@ -327,7 +330,7 @@ describe("runMediaCli models", () => {
 
   it("exports BUILTIN_MEDIA_MODELS containing known models", () => {
     assert.ok(typeof BUILTIN_MEDIA_MODELS === "object");
-    assert.ok("nano-banana" in BUILTIN_MEDIA_MODELS);
+    assert.ok("gemini-2.5-flash-image" in BUILTIN_MEDIA_MODELS);
     assert.ok("imagen" in BUILTIN_MEDIA_MODELS);
     assert.ok("veo" in BUILTIN_MEDIA_MODELS);
   });

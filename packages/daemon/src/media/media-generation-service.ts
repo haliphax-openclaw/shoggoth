@@ -16,12 +16,19 @@ export interface PollRequest {
 }
 
 const BUILTIN_MODEL_ADAPTER_MAP: Record<string, "generateContent" | "predict" | "longRunning"> = {
-  "nano-banana": "generateContent",
+  // Nano Banana image generation models (generateContent with responseModalities: ["IMAGE"])
+  "gemini-2.5-flash-image": "generateContent",
+  "gemini-3-pro-image-preview": "generateContent",
+  "gemini-3.1-flash-image-preview": "generateContent",
+  // TTS models (generateContent with responseModalities: ["AUDIO"])
   "gemini-2.5-flash-preview-tts": "generateContent",
   "gemini-2.5-pro-preview-tts": "generateContent",
-  "gemini-3.1-flash-tts": "generateContent",
+  "gemini-3.1-flash-tts-preview": "generateContent",
+  // Lyria music models (prefix matches lyria-3-pro-preview, lyria-3-clip-preview)
   "lyria-3": "generateContent",
+  // Imagen (prefix matches imagen-*)
   imagen: "predict",
+  // Veo video models (prefix matches veo-3.1-generate-preview, veo-2.0-generate-001, etc.)
   veo: "longRunning",
 };
 

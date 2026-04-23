@@ -93,7 +93,7 @@ function makeReq(payload: Record<string, unknown>): WireRequest {
 
 function validPayload(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
-    model: "nano-banana",
+    model: "gemini-2.5-flash-image",
     prompt: "a cute cat",
     provider_id: "gemini-default",
     params: { kind: "image" },
@@ -246,7 +246,7 @@ describe("media_generate control op", () => {
 
       assert.equal(mockGenerate.mock.calls.length, 1);
       const callArg = mockGenerate.mock.calls[0][0];
-      assert.equal(callArg.model, "nano-banana");
+      assert.equal(callArg.model, "gemini-2.5-flash-image");
       assert.equal(callArg.prompt, "a cute cat");
       assert.equal(callArg.provider_id, "gemini-default");
       assert.deepStrictEqual(callArg.params, { kind: "image" });

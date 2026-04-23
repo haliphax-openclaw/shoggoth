@@ -2,10 +2,12 @@ import { invokeControlRequest } from "@shoggoth/daemon/lib";
 import { loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
 
 export const BUILTIN_MEDIA_MODELS: Record<string, "generateContent" | "predict" | "longRunning"> = {
-  "nano-banana": "generateContent",
+  "gemini-2.5-flash-image": "generateContent",
+  "gemini-3-pro-image-preview": "generateContent",
+  "gemini-3.1-flash-image-preview": "generateContent",
   "gemini-2.5-flash-preview-tts": "generateContent",
   "gemini-2.5-pro-preview-tts": "generateContent",
-  "gemini-3.1-flash-tts": "generateContent",
+  "gemini-3.1-flash-tts-preview": "generateContent",
   "lyria-3": "generateContent",
   imagen: "predict",
   veo: "longRunning",

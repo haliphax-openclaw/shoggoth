@@ -1075,6 +1075,7 @@ export const DEFAULT_HITL_CONFIG: ShoggothHitlConfig = {
     "builtin-subagent": "caution",
     "builtin-message": "caution",
     "builtin-config-request": "never",
+    "builtin-media-generate": "caution",
   },
   /**
    * Default bypass tier for all agents. Per-agent overrides in agents.list.<id>.hitl.bypassUpTo.

@@ -38,7 +38,7 @@ function makeProviders(overrides?: { kind?: string; id?: string }[]) {
       kind: "gemini" as const,
       apiKey: "test-key",
       baseUrl: "https://generativelanguage.googleapis.com",
-      models: [{ name: "nano-banana" }],
+      models: [{ name: "gemini-2.5-flash-image" }],
     },
   ];
   if (overrides) {
@@ -47,7 +47,7 @@ function makeProviders(overrides?: { kind?: string; id?: string }[]) {
       kind: o.kind ?? "gemini",
       apiKey: "test-key",
       baseUrl: "https://generativelanguage.googleapis.com",
-      models: [{ name: "nano-banana" }],
+      models: [{ name: "gemini-2.5-flash-image" }],
     }));
   }
   return defaults;
@@ -78,11 +78,11 @@ describe("MediaGenerationService", () => {
   });
 
   describe("model routing", () => {
-    it("routes to generateContent adapter for nano-banana models", async () => {
+    it("routes to generateContent adapter for image generation models", async () => {
       const service = createService();
 
       await service.generate({
-        model: "nano-banana",
+        model: "gemini-2.5-flash-image",
         prompt: "a cat",
         provider_id: "gemini-default",
         params: { kind: "image" },
@@ -195,7 +195,7 @@ describe("MediaGenerationService", () => {
       });
 
       await service.generate({
-        model: "nano-banana",
+        model: "gemini-2.5-flash-image",
         prompt: "a dog",
         provider_id: "my-gemini",
         params: { kind: "image" },
@@ -222,7 +222,7 @@ describe("MediaGenerationService", () => {
       });
 
       const result = await service.generate({
-        model: "nano-banana",
+        model: "gemini-2.5-flash-image",
         prompt: "a cat",
         provider_id: "openai-provider",
         params: { kind: "image" },
