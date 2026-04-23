@@ -272,6 +272,10 @@ Schema exposed to agents:
       "output_path": {
         "type": "string",
         "description": "Workspace-relative output path. Auto-generated if omitted."
+      },
+      "show": {
+        "type": "boolean",
+        "description": "When true, surface the result to the user via builtin-show. Default true."
       }
     },
     "required": ["model", "prompt", "params"]
@@ -283,8 +287,8 @@ The handler:
 
 1. Resolves `provider_id` from config (first `gemini` provider, or a new `mediaGeneration.defaultProviderId` config field)
 2. Invokes the `media_generate` control op
-3. On success, calls `builtin-show` internally to surface the result to the user
-4. Returns the file path and metadata
+3. If `show` is true (default), calls `builtin-show` internally to surface the result to the user
+4. Returns the file path and metadata regardless of `show` — the agent can use the file for further processing
 
 ### CLI
 
