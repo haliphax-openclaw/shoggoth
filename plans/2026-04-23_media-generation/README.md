@@ -212,10 +212,12 @@ The adapter polls internally up to `timeout_ms`, then returns either the complet
 
 ### Model Routing
 
-A simple lookup table maps model name prefixes to adapters:
+A built-in lookup table maps model name prefixes to adapters. This is merged at runtime with an operator-configured `modelAdapterMap` from the `mediaGeneration` config section, so new models can be added without a code change.
+
+Built-in defaults:
 
 ```ts
-const MODEL_ADAPTER_MAP: Record<
+const BUILTIN_MODEL_ADAPTER_MAP: Record<
   string,
   "generateContent" | "predict" | "longRunning"
 > = {
@@ -228,6 +230,21 @@ const MODEL_ADAPTER_MAP: Record<
   veo: "longRunning",
 };
 ```
+
+Operator overrides in config (merged on top of built-ins — operator entries win on conflict):
+
+```json
+{
+  "mediaGeneration": {
+    "modelAdapterMap": {
+      "my-custom-image-model": "generateContent",
+      "some-new-video-model": "longRunning"
+    }
+  }
+}
+```
+
+Resolution: prefix-match against the merged map, longest prefix wins. If no prefix matches, the op returns an error.
 
 ### Builtin Tool
 
@@ -300,6 +317,10 @@ const shoggothMediaGenerationConfigSchema = z
     outputDirectory: z.string().min(1).optional(),
     /** Max poll time for async models (Veo). Default 300000 (5 min). */
     defaultTimeoutMs: z.number().int().positive().optional(),
+    /** Operator-defined model-to-adapter mappings, merged on top of built-in defaults. Values must be one of "generateContent", "predict", or "longRunning". */
+    modelAdapterMap: z
+      .record(z.string(), z.enum(["generateContent", "predict", "longRunning"]))
+      .optional(),
   })
   .strict();
 ```
