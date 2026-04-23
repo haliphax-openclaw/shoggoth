@@ -95,18 +95,28 @@ interface MusicGenerateParams {
 Response:
 
 ```ts
-interface MediaGenerateResult {
-  ok: boolean;
+type MediaGenerateResult =
+  | MediaGenerateComplete
+  | MediaGenerateInProgress
+  | MediaGenerateError;
+
+interface MediaGenerateComplete {
+  status: "complete";
   /** Absolute path to the generated file */
-  path?: string;
+  path: string;
   /** MIME type of the output */
-  mime_type?: string;
-  /** For async models: operation status */
-  status?: "complete" | "in_progress" | "failed";
-  /** For async models: operation ID for polling */
-  operation_id?: string;
-  /** Error message on failure */
-  error?: string;
+  mime_type: string;
+}
+
+interface MediaGenerateInProgress {
+  status: "in_progress";
+  /** Operation ID for polling via media_generate_poll */
+  operation_id: string;
+}
+
+interface MediaGenerateError {
+  status: "error";
+  error: string;
 }
 ```
 
