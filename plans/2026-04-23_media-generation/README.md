@@ -54,24 +54,41 @@ interface MediaGeneratePayload {
   prompt: string;
   /** Provider ID from models.providers config (must be kind: "gemini") */
   provider_id: string;
-  /** Model-specific parameters */
-  params?: {
-    /** Image: aspect ratio, number of images */
-    aspectRatio?: string;
-    numberOfImages?: number;
-    /** TTS: voice name, speech config */
-    voice?: string;
-    /** Video: duration, aspect ratio */
-    duration?: string;
-    /** Lyria: duration hint */
-    durationSeconds?: number;
-    /** Generic passthrough for model-specific fields */
-    [key: string]: unknown;
-  };
+  /** Model-specific parameters, discriminated by `kind` */
+  params:
+    | ImageGenerateParams
+    | VideoGenerateParams
+    | SpeechGenerateParams
+    | MusicGenerateParams;
   /** Where to write the output file. Workspace-relative path. Auto-generated if omitted. */
   output_path?: string;
   /** For async models (Veo): max poll time in ms before returning in-progress status. Default 300000 (5 min). */
   timeout_ms?: number;
+}
+
+interface ImageGenerateParams {
+  kind: "image";
+  aspectRatio?: string;
+  numberOfImages?: number;
+}
+
+interface VideoGenerateParams {
+  kind: "video";
+  aspectRatio?: string;
+  /** Duration in seconds */
+  durationSeconds?: number;
+}
+
+interface SpeechGenerateParams {
+  kind: "speech";
+  /** Voice name for TTS (e.g. "Kore", "Puck") */
+  voice?: string;
+}
+
+interface MusicGenerateParams {
+  kind: "music";
+  /** Duration hint in seconds */
+  durationSeconds?: number;
 }
 ```
 
@@ -214,14 +231,15 @@ Schema exposed to agents:
       "prompt": { "type": "string", "description": "Generation prompt" },
       "params": {
         "type": "object",
-        "description": "Model-specific parameters (aspectRatio, voice, duration, etc.)"
+        "description": "Parameters discriminated by 'kind': image (aspectRatio, numberOfImages), video (aspectRatio, durationSeconds), speech (voice), music (durationSeconds)",
+        "required": ["kind"]
       },
       "output_path": {
         "type": "string",
         "description": "Workspace-relative output path. Auto-generated if omitted."
       }
     },
-    "required": ["model", "prompt"]
+    "required": ["model", "prompt", "params"]
   }
 }
 ```
