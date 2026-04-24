@@ -1,6 +1,7 @@
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { MediaAdapterRequest, MediaAdapterResult } from "./types";
+import { isRawPcmMime, parsePcmMimeParams, wrapPcmAsWav } from "../pcm-to-wav";
 
 function getResponseModalities(params: MediaAdapterRequest["params"]): string[] {
   switch (params.kind) {
@@ -91,7 +92,15 @@ export async function generateContentAdapter(
     }
 
     const { mimeType, data } = inlinePart.inlineData;
-    const decoded = Buffer.from(data, "base64");
+    let decoded = Buffer.from(data, "base64");
+    let effectiveMime: string = mimeType;
+
+    // Raw PCM audio (e.g. audio/L16;codec=pcm;rate=24000) needs WAV headers
+    if (isRawPcmMime(mimeType)) {
+      const pcmParams = parsePcmMimeParams(mimeType);
+      decoded = wrapPcmAsWav(decoded, pcmParams);
+      effectiveMime = "audio/wav";
+    }
 
     await mkdir(dirname(req.outputPath), { recursive: true });
     await writeFile(req.outputPath, decoded);
@@ -99,7 +108,7 @@ export async function generateContentAdapter(
     return {
       status: "complete",
       path: req.outputPath,
-      mime_type: mimeType,
+      mime_type: effectiveMime,
     };
   } catch (err) {
     return {
