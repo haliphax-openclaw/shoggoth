@@ -4,14 +4,15 @@
 
 1. Copy the template folder `plans/1970-01-01_plan-template/` into a new folder named `YYYY-MM-DD_slug/` where the date is today and the slug is a short kebab-case description.
 2. Update the frontmatter in `README.md`: set `date` to today and `completed` to `never`.
-3. Fill in each section of the template. Remove the instructional text as you go.
-4. Add supporting assets (schemas, diagrams, specs) alongside the README and reference them with relative paths.
+3. Fill in each section of the templates (`README.md`, `spec.md`, `implementation.md`). Remove the instructional text as you go.
+4. Add supporting assets (diagrams, etc.) alongside the template documents and reference them with relative paths.
 
 ```
 plans/
   2026-04-15_my-feature/
-    README.md              # Primary plan document
-    spec.md                # Specification document
+    README.md              # Primary plan document (architecture, overview)
+    spec.md                # Specification document (schema, code examples, etc.)
+    implementation.md      # Implementation plan (phased implementation steps)
     architecture.svg       # Supporting asset
     glossary.md            # Complementary document
 ```
@@ -31,11 +32,12 @@ completed: never # Date completed (YYYY-MM-DD), or "never"
 
 ## Writing Guidelines
 
-- Break plans into chunked phases so they are easier to delegate to subagents.
-- Each phase should be independently shippable and testable.
+- Keep the primary plan document (`README.md`) focused on architecture and a high level overview. Include the feature/change motivation, design, testing strategy, considerations, migration steps (if any), and references to other plan documents/assets.
+- Break implementations (`implementation.md`) into chunked phases so they are easier to delegate to subagents.
+- Each implementation phase should be independently shippable and testable.
 - List the files each phase will touch.
-- Include type signatures and interfaces in a separate `spec.md` document.
-- Binary assets (images, etc.) should be kept small to avoid bloating the git repo.
+- Include type signatures and interfaces, code examples, etc. in a separate `spec.md` document.
+- Binary assets (images, etc.) should be kept small to avoid bloating the git repo. Skip including any if they do not provide useful context.
 
 ## Updating a Plan
 
