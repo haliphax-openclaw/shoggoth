@@ -30,10 +30,7 @@ type ResolvedBlock =
   | { readonly kind: "contentPart"; readonly parts: ChatContentPart[] }
   | { readonly kind: "attachment"; readonly attachments: OutboundAttachment[] };
 
-type BlockResolver = (
-  params: ShowToolParams,
-  ctx: BlockResolverContext,
-) => Promise<ResolvedBlock>;
+type BlockResolver = (params: ShowToolParams, ctx: BlockResolverContext) => Promise<ResolvedBlock>;
 
 interface BlockResolverContext {
   readonly workspacePath: string;
@@ -107,8 +104,7 @@ async function resolveImage(
 
   // Detect actual media type from magic bytes; prefer detected over declared
   const detected = detectMediaTypeFromBytes(buf);
-  const finalMediaType =
-    detected ?? declaredMediaType ?? "application/octet-stream";
+  const finalMediaType = detected ?? declaredMediaType ?? "application/octet-stream";
 
   if (detected && declaredMediaType && detected !== declaredMediaType) {
     log.debug("show_image.mediatype_corrected", {
@@ -118,9 +114,7 @@ async function resolveImage(
   }
 
   if (!finalMediaType.startsWith("image/")) {
-    throw new Error(
-      `unsupported_format: detected type ${finalMediaType} is not an image`,
-    );
+    throw new Error(`unsupported_format: detected type ${finalMediaType} is not an image`);
   }
 
   const base64 = buf.toString("base64");
@@ -169,9 +163,10 @@ function ensureExtension(filename: string, mediaType: string): string {
  * with `metadata.tool === "show"` and content that is a JSON-serialized
  * `ChatContentPart[]` containing image blocks.
  */
-export function extractShowBlocks(
+export async function extractShowBlocks(
   turnToolResults: readonly TranscriptMessageRow[],
-): OutboundAttachment[] {
+  ctx?: { workspacePath: string; creds: AgentCredentials },
+): Promise<OutboundAttachment[]> {
   const attachments: OutboundAttachment[] = [];
   let imageIndex = 0;
 
@@ -194,8 +189,43 @@ export function extractShowBlocks(
       continue;
     }
 
-    // Extract image blocks and convert to OutboundAttachment
-    for (const part of parts) {
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]!;
+
+      // --- Path reference: [show-file: <path>] ---
+      if (part.type === "text") {
+        const textPart = part as { type: "text"; text: string };
+        const pathMatch = textPart.text.match(/^\[show-file:\s*(.+)\]$/);
+        if (pathMatch && ctx) {
+          const filePath = pathMatch[1]!;
+          try {
+            const buf = await toolReadBinary(ctx.workspacePath, filePath, ctx.creds);
+            const detected = detectMediaTypeFromBytes(buf);
+            const mediaType = detected ?? "application/octet-stream";
+
+            // Derive filename from the next [show: ...] part if present
+            let filename: string | undefined;
+            const next = parts[i + 1];
+            if (next?.type === "text") {
+              const m = (next as { text: string }).text.match(/^\[show:\s*(.+)\]$/);
+              if (m) filename = m[1];
+            }
+            filename ??= filePath.split("/").pop() ?? `image_${imageIndex}`;
+            filename = ensureExtension(filename, mediaType);
+            imageIndex++;
+
+            attachments.push({ filename, contentType: mediaType, data: buf });
+          } catch (err) {
+            log.warn("extractShowBlocks.path_read_failed", {
+              path: filePath,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          continue;
+        }
+      }
+
+      // --- Legacy inline base64 image blocks ---
       if (part.type !== "image") continue;
       const imgPart = part as ChatContentPart & {
         type: "image";
@@ -209,12 +239,9 @@ export function extractShowBlocks(
 
       // Try to derive filename from adjacent text parts like "[show: filename]"
       let filename: string | undefined;
-      const idx = parts.indexOf(part);
-      const next = parts[idx + 1];
+      const next = parts[i + 1];
       if (next?.type === "text") {
-        const match = (next as { text: string }).text.match(
-          /^\[show:\s*(.+)\]$/,
-        );
+        const match = (next as { text: string }).text.match(/^\[show:\s*(.+)\]$/);
         if (match) filename = match[1];
       }
 

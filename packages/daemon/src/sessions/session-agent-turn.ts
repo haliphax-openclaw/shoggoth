@@ -1,11 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
-import type {
-  ChatMessage,
-  ImageBlockCodec,
-  OpenAIToolFunctionDefinition,
-} from "@shoggoth/models";
+import type { ChatMessage, ImageBlockCodec, OpenAIToolFunctionDefinition } from "@shoggoth/models";
 import {
   createFailoverToolCallingClientFromModelsConfig,
   getImageBlockCodec,
@@ -24,25 +20,15 @@ import {
   wrapWithSystemContext,
   type SystemContext,
 } from "@shoggoth/shared";
-import {
-  mergeOrchestratorEnv,
-  resolveToolCallTimeoutMs,
-} from "../config/effective-runtime";
+import { mergeOrchestratorEnv, resolveToolCallTimeoutMs } from "../config/effective-runtime";
 import { getAgentIntegrationInvoker } from "../control/agent-integration-invoke-ref";
 import { getProcessManager } from "../process-manager-singleton";
-import {
-  BuiltinToolRegistry,
-  type BuiltinToolContext,
-} from "./builtin-tool-registry";
+import { BuiltinToolRegistry, type BuiltinToolContext } from "./builtin-tool-registry";
 import { registerAllBuiltinHandlers } from "./builtin-handlers/index";
 import { createMcpRoutingToolExecutor } from "../mcp/tool-loop-mcp";
 import { createToolLoopPolicyAndAudit } from "../policy/tool-loop-bridge";
 import { createDefaultSubResourceRegistry } from "../policy/sub-resource";
-import {
-  runToolLoop,
-  type RunToolLoopHitl,
-  type RunToolLoopOptions,
-} from "./tool-loop";
+import { runToolLoop, type RunToolLoopHitl, type RunToolLoopOptions } from "./tool-loop";
 import type { TranscriptStore } from "./transcript-store";
 import type { ToolRunStore } from "./tool-run-store";
 import type { SessionRow } from "./session-store";
@@ -58,10 +44,7 @@ import {
 } from "./session-tool-loop-model-client";
 import type { SessionMcpToolContext } from "./session-mcp-tool-context";
 import type { PolicyEngine } from "../policy/engine";
-import {
-  beginSessionTurnAbortScope,
-  TurnAbortedError,
-} from "./session-turn-abort";
+import { beginSessionTurnAbortScope, TurnAbortedError } from "./session-turn-abort";
 import { messageToolContextRef } from "../messaging/message-tool-context-ref";
 import {
   incrementTokenUsage,
@@ -102,9 +85,7 @@ export interface ExecuteSessionAgentTurnInput {
     models: ShoggothConfig["models"],
     options?: CreateFailoverFromConfigOptions,
   ) => FailoverToolCallingClient;
-  readonly resolveMcpContext: (
-    sessionId: string,
-  ) => Promise<SessionMcpToolContext>;
+  readonly resolveMcpContext: (sessionId: string) => Promise<SessionMcpToolContext>;
   readonly stream?: {
     readonly streamModel: boolean;
     readonly onModelTextDelta?: (displayText: string) => void | Promise<void>;
@@ -132,11 +113,7 @@ function sessionCreds(uid?: number, gid?: number): AgentCredentials {
   return { uid: u, gid: g };
 }
 
-const IMAGE_CODEC_PROVIDER_KINDS = new Set([
-  "openai-compatible",
-  "anthropic-messages",
-  "gemini",
-]);
+const IMAGE_CODEC_PROVIDER_KINDS = new Set(["openai-compatible", "anthropic-messages", "gemini"]);
 
 /**
  * Resolve the image block codec for the first provider in the models config.
@@ -149,9 +126,7 @@ function resolveImageBlockCodec(
   if (!modelsConfig?.providers?.length) return undefined;
   // When a primary provider id is given (from session model ref), try it first.
   if (primaryProviderId) {
-    const provider = modelsConfig.providers.find(
-      (p) => p.id === primaryProviderId,
-    );
+    const provider = modelsConfig.providers.find((p) => p.id === primaryProviderId);
     if (provider && IMAGE_CODEC_PROVIDER_KINDS.has(provider.kind)) {
       return getImageBlockCodec(
         provider.kind as "openai-compatible" | "anthropic-messages" | "gemini",
@@ -165,9 +140,7 @@ function resolveImageBlockCodec(
       typeof entry === "string"
         ? entry.split("/")[0]
         : (entry as { providerId: string }).providerId;
-    const provider = modelsConfig.providers.find(
-      (p) => p.id === firstProviderId,
-    );
+    const provider = modelsConfig.providers.find((p) => p.id === firstProviderId);
     if (provider && IMAGE_CODEC_PROVIDER_KINDS.has(provider.kind)) {
       return getImageBlockCodec(
         provider.kind as "openai-compatible" | "anthropic-messages" | "gemini",
@@ -178,9 +151,7 @@ function resolveImageBlockCodec(
   // No failover chain — use the first provider's kind directly.
   const first = modelsConfig.providers[0];
   if (first && IMAGE_CODEC_PROVIDER_KINDS.has(first.kind)) {
-    return getImageBlockCodec(
-      first.kind as "openai-compatible" | "anthropic-messages" | "gemini",
-    );
+    return getImageBlockCodec(first.kind as "openai-compatible" | "anthropic-messages" | "gemini");
   }
   return undefined;
 }
@@ -194,12 +165,13 @@ registerAllBuiltinHandlers(builtinRegistry);
  * Query transcript rows added during this turn (seq > seqBefore) and extract
  * outbound attachments from `show` tool results.
  */
-function extractTurnShowAttachments(
+async function extractTurnShowAttachments(
   db: Database.Database,
   sessionId: string,
   contextSegmentId: string,
   seqBefore: number,
-): OutboundAttachment[] {
+  ctx: { workspacePath: string; creds: AgentCredentials },
+): Promise<OutboundAttachment[]> {
   const tr = createTranscriptStore(db);
   const page = tr.listPage({
     sessionId,
@@ -207,7 +179,7 @@ function extractTurnShowAttachments(
     afterSeq: seqBefore,
     limit: 500,
   });
-  return extractShowBlocks(page.messages);
+  return extractShowBlocks(page.messages, ctx);
 }
 
 /**
@@ -239,24 +211,17 @@ export async function executeSessionAgentTurn(
   const systemTimestamp = `Current date and time: ${weekday}, ${datePart} - ${timePart}+00:00 (UTC)`;
 
   const baseSystemPrompt =
-    buffered.length > 0
-      ? input.systemPrompt + "\n\n" + buffered.join("\n")
-      : input.systemPrompt;
+    buffered.length > 0 ? input.systemPrompt + "\n\n" + buffered.join("\n") : input.systemPrompt;
   const effectiveSystemPrompt = `${systemTimestamp}\n\n${baseSystemPrompt}`;
 
   const loopImpl = input.loopImpl ?? runToolLoop;
   const ctxSeg = input.session.contextSegmentId.trim();
   if (!ctxSeg) {
-    throw new Error(
-      "executeSessionAgentTurn: session.contextSegmentId must be non-empty",
-    );
+    throw new Error("executeSessionAgentTurn: session.contextSegmentId must be non-empty");
   }
 
   const sessionToken = input.session.systemContextToken;
-  const sanitizedUserContent = stripFalsifiedSystemContext(
-    input.userContent,
-    sessionToken,
-  );
+  const sanitizedUserContent = stripFalsifiedSystemContext(input.userContent, sessionToken);
 
   const effectiveContent = input.systemContext
     ? wrapWithSystemContext(
@@ -264,18 +229,13 @@ export async function executeSessionAgentTurn(
         input.systemContext,
         sessionToken ??
           (() => {
-            throw new Error(
-              "systemContextToken is required when systemContext is provided",
-            );
+            throw new Error("systemContextToken is required when systemContext is provided");
           })(),
       )
     : sanitizedUserContent;
 
   // --- Tool discovery: evaluate trigger phrases before MCP context resolution ---
-  const discoveryConfig = resolveToolDiscoveryConfig(
-    input.config,
-    input.sessionId,
-  );
+  const discoveryConfig = resolveToolDiscoveryConfig(input.config, input.sessionId);
   if (discoveryConfig.enabled) {
     evaluateTriggers(input.config, input.sessionId, effectiveContent, input.db);
   }
@@ -294,17 +254,11 @@ export async function executeSessionAgentTurn(
   // Record current max seq so we can extract show blocks from this turn only.
   const seqBefore = (
     input.db
-      .prepare(
-        `SELECT COALESCE(MAX(seq), 0) AS n FROM transcript_messages WHERE session_id = ?`,
-      )
+      .prepare(`SELECT COALESCE(MAX(seq), 0) AS n FROM transcript_messages WHERE session_id = ?`)
       .get(input.sessionId) as { n: number }
   ).n;
 
-  const history = loadSessionTranscriptAsModelChat(
-    input.db,
-    input.sessionId,
-    ctxSeg,
-  );
+  const history = loadSessionTranscriptAsModelChat(input.db, input.sessionId, ctxSeg);
   let effectiveHistory: ChatMessage[];
   if (input.minimalContext) {
     const tail =
@@ -332,18 +286,14 @@ export async function executeSessionAgentTurn(
   });
 
   const createToolClient =
-    input.createToolCallingClient ??
-    createFailoverToolCallingClientFromModelsConfig;
+    input.createToolCallingClient ?? createFailoverToolCallingClientFromModelsConfig;
   let modelsForSession =
-    resolveEffectiveModelsConfig(input.config, input.sessionId) ??
-    input.config.models;
+    resolveEffectiveModelsConfig(input.config, input.sessionId) ?? input.config.models;
 
   // If the session's modelSelection specifies a valid "providerId/model" ref, prepend it
   // to the failover chain so it becomes the primary while keeping failover intact.
   // This is how subagentModel config and session_model op take effect.
-  const sessionModelRef = getSessionPrimaryModelRef(
-    input.session.modelSelection,
-  );
+  const sessionModelRef = getSessionPrimaryModelRef(input.session.modelSelection);
   if (sessionModelRef && modelsForSession) {
     const existingChain = modelsForSession.failoverChain ?? [];
     const filtered = existingChain.filter((e) => e !== sessionModelRef);
@@ -363,10 +313,7 @@ export async function executeSessionAgentTurn(
   const sessionPrimaryProviderId = sessionModelRef
     ? sessionModelRef.slice(0, sessionModelRef.indexOf("/"))
     : undefined;
-  const imageBlockCodec = resolveImageBlockCodec(
-    modelsForSession,
-    sessionPrimaryProviderId,
-  );
+  const imageBlockCodec = resolveImageBlockCodec(modelsForSession, sessionPrimaryProviderId);
 
   // Strip image blocks from transcript when the provider doesn't support image input.
   const initialMessages: ChatMessage[] = sanitizeTranscriptForProvider(
@@ -375,8 +322,7 @@ export async function executeSessionAgentTurn(
   );
 
   // --- Mutable tools ref for mid-loop refresh (tool discovery) ---
-  let currentToolsOpenAi: readonly OpenAIToolFunctionDefinition[] =
-    mcpCtx.toolsOpenAi;
+  let currentToolsOpenAi: readonly OpenAIToolFunctionDefinition[] = mcpCtx.toolsOpenAi;
 
   let ctxWindowTokens: number | undefined;
   if (!input.minimalContext) {
@@ -384,10 +330,7 @@ export async function executeSessionAgentTurn(
       const slashIdx = sessionModelRef.indexOf("/");
       const primaryProviderId = sessionModelRef.slice(0, slashIdx);
       const primaryModelName = sessionModelRef.slice(slashIdx + 1);
-      ctxWindowTokens = getModelContextWindowTokens(
-        primaryProviderId,
-        primaryModelName,
-      );
+      ctxWindowTokens = getModelContextWindowTokens(primaryProviderId, primaryModelName);
     } else {
       ctxWindowTokens = resolveModel(input.db, input.config, {
         sessionId: input.sessionId,
@@ -395,8 +338,9 @@ export async function executeSessionAgentTurn(
     }
   }
 
-  const { signal: turnAbortSignal, end: endTurnAbortScope } =
-    beginSessionTurnAbortScope(input.sessionId);
+  const { signal: turnAbortSignal, end: endTurnAbortScope } = beginSessionTurnAbortScope(
+    input.sessionId,
+  );
 
   const model: SessionToolLoopModelClient = createSessionToolLoopModelClient({
     toolClient,
@@ -414,8 +358,7 @@ export async function executeSessionAgentTurn(
           sessionId: input.sessionId,
           contextSegmentId: ctxSeg,
           ctxWindowTokens,
-          reserveTokens:
-            modelsForSession?.compaction?.contextWindowReserveTokens ?? 20_000,
+          reserveTokens: modelsForSession?.compaction?.contextWindowReserveTokens ?? 20_000,
           modelsConfig: modelsForSession,
           compactionModel: modelsForSession?.compaction?.model,
           env: input.env,
@@ -442,10 +385,7 @@ export async function executeSessionAgentTurn(
     correlationId: runId,
   });
 
-  const creds = sessionCreds(
-    input.session.runtimeUid,
-    input.session.runtimeGid,
-  );
+  const creds = sessionCreds(input.session.runtimeUid, input.session.runtimeGid);
   const orchestratorEnv = mergeOrchestratorEnv(input.config, input.env);
 
   const executor = createMcpRoutingToolExecutor({
@@ -466,10 +406,7 @@ export async function executeSessionAgentTurn(
           getAgentIntegrationInvoker,
           getProcessManager,
           messageToolCtx: messageToolContextRef.current ?? undefined,
-          memoryConfig: resolveEffectiveMemoryForSession(
-            input.config,
-            input.sessionId,
-          ),
+          memoryConfig: resolveEffectiveMemoryForSession(input.config, input.sessionId),
           runtimeOpenaiBaseUrl: input.config.runtime?.openaiBaseUrl,
           isSubagentSession: isSubagentSessionUrn(input.sessionId),
           imageBlockCodec,
@@ -497,17 +434,13 @@ export async function executeSessionAgentTurn(
   });
 
   const effectiveModel =
-    sessionModelRef ??
-    resolveModel(input.db, input.config, { sessionId: input.sessionId })?.ref;
+    sessionModelRef ?? resolveModel(input.db, input.config, { sessionId: input.sessionId })?.ref;
   log.debug("model call started", {
     sessionId: input.sessionId,
     messageCount: initialMessages.length,
     toolCount: mcpCtx.toolsLoop.length,
     systemPromptLen: input.systemPrompt.length,
-    totalContentLen: initialMessages.reduce(
-      (n, m) => n + (m.content?.length ?? 0),
-      0,
-    ),
+    totalContentLen: initialMessages.reduce((n, m) => n + (m.content?.length ?? 0), 0),
     model: effectiveModel ? `default (${effectiveModel})` : "default",
     isSubagent: isSubagentSessionUrn(input.sessionId),
   });
@@ -536,10 +469,7 @@ export async function executeSessionAgentTurn(
         ...input.hitl,
         config: input.getHitlConfig(),
       },
-      toolCallTimeoutMs: resolveToolCallTimeoutMs(
-        input.config,
-        input.sessionId,
-      ),
+      toolCallTimeoutMs: resolveToolCallTimeoutMs(input.config, input.sessionId),
       onStatsUpdate: (update) => {
         if (update.estimatedInputTokens) {
           incrementTokenUsage(input.db, input.sessionId, {
@@ -548,11 +478,7 @@ export async function executeSessionAgentTurn(
           });
         }
         if (update.transcriptMessageCount != null) {
-          updateTranscriptMessageCount(
-            input.db,
-            input.sessionId,
-            update.transcriptMessageCount,
-          );
+          updateTranscriptMessageCount(input.db, input.sessionId, update.transcriptMessageCount);
         }
       },
       // --- Mid-loop tool refresh for tool discovery ---
@@ -570,10 +496,7 @@ export async function executeSessionAgentTurn(
             const baseMcpCtx = mcpCtx.fullAggregated
               ? { ...mcpCtx, aggregated: mcpCtx.fullAggregated }
               : mcpCtx;
-            const finalizer = createToolDiscoveryFinalizer(
-              input.config,
-              input.db,
-            );
+            const finalizer = createToolDiscoveryFinalizer(input.config, input.db);
             const refreshed = finalizer(baseMcpCtx, input.sessionId);
             currentToolsOpenAi = refreshed.toolsOpenAi;
             mcpCtx = refreshed;
@@ -583,19 +506,12 @@ export async function executeSessionAgentTurn(
     });
   } catch (e) {
     if (e instanceof TurnAbortedError) {
-      pushSystemContext(
-        input.sessionId,
-        "Previous turn was aborted. Results may be partial.",
-      );
+      pushSystemContext(input.sessionId, "Previous turn was aborted. Results may be partial.");
       // Workflow tasks opt into throwOnError so the orchestrator can mark the task as failed.
       if (input.throwOnError) throw e;
       const failoverMeta = model.getSessionToolLoopFailoverState();
       const latestAssistantText =
-        extractLatestTranscriptAssistantText(
-          input.db,
-          input.sessionId,
-          ctxSeg,
-        ) ?? "_Aborted._";
+        extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ?? "_Aborted._";
       return { failoverMeta, latestAssistantText };
     }
     // Catch-all: log the error and return whatever partial response exists
@@ -611,10 +527,7 @@ export async function executeSessionAgentTurn(
     // Workflow tasks opt into throwOnError so the orchestrator can mark the task as failed.
     if (input.throwOnError) throw e;
 
-    pushSystemContext(
-      input.sessionId,
-      `Previous turn encountered an error: ${errMsg}`,
-    );
+    pushSystemContext(input.sessionId, `Previous turn encountered an error: ${errMsg}`);
     const failoverMeta2 = model.getSessionToolLoopFailoverState();
     const latestAssistantText2 =
       extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ??
@@ -629,14 +542,11 @@ export async function executeSessionAgentTurn(
 
   const failoverMeta = model.getSessionToolLoopFailoverState();
   const latestAssistantText =
-    extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ??
-    "_No reply text._";
+    extractLatestTranscriptAssistantText(input.db, input.sessionId, ctxSeg) ?? "_No reply text._";
 
   log.debug("model response received", {
     sessionId: input.sessionId,
-    model: failoverMeta
-      ? `${failoverMeta.usedProviderId}/${failoverMeta.usedModel}`
-      : null,
+    model: failoverMeta ? `${failoverMeta.usedProviderId}/${failoverMeta.usedModel}` : null,
     contentLength: latestAssistantText.length,
     degraded: failoverMeta?.degraded,
   });
@@ -680,11 +590,12 @@ export async function executeSessionAgentTurn(
   }
 
   // --- Extract show tool attachments from this turn ---
-  const showAttachments = extractTurnShowAttachments(
+  const showAttachments = await extractTurnShowAttachments(
     input.db,
     input.sessionId,
     ctxSeg,
     seqBefore,
+    { workspacePath: input.session.workspacePath, creds },
   );
 
   return {

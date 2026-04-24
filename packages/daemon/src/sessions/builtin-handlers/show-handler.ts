@@ -8,10 +8,7 @@ import type {
   BuiltinToolContext,
   BuiltinToolResult,
 } from "../builtin-tool-registry.js";
-import {
-  getBlockResolver,
-  type ShowToolParams,
-} from "../../presentation/show-blocks.js";
+import { getBlockResolver, type ShowToolParams } from "../../presentation/show-blocks.js";
 import { getLogger } from "../../logging.js";
 
 const log = getLogger("show-handler");
@@ -52,20 +49,46 @@ async function showHandler(
 
   for (const input of inputs) {
     try {
-      const resolved = await resolver(input, {
-        workspacePath: ctx.workspacePath,
-        creds: ctx.creds,
-      });
-
-      if (resolved.kind === "contentPart") {
-        allParts.push(...resolved.parts);
-        // Count bytes from base64 image parts
-        for (const part of resolved.parts) {
-          if (part.type === "image" && part.base64) {
-            totalBytes += Math.floor(part.base64.length * 0.75);
+      // For path-based inputs, store a lightweight reference instead of
+      // the full base64 payload so the transcript stays small.  The
+      // extraction step (extractShowBlocks) will read the file at
+      // delivery time.
+      if (input.path) {
+        // Still resolve to validate the file exists and is a supported image
+        const resolved = await resolver(input, {
+          workspacePath: ctx.workspacePath,
+          creds: ctx.creds,
+        });
+        if (resolved.kind === "contentPart") {
+          for (const part of resolved.parts) {
+            if (part.type === "image" && part.base64) {
+              totalBytes += Math.floor(part.base64.length * 0.75);
+            }
           }
+          // Store path reference + display label instead of base64
+          allParts.push(
+            { type: "text", text: `[show-file: ${input.path}]` },
+            {
+              type: "text",
+              text: `[show: ${input.filename ?? input.path.split("/").pop() ?? "image"}]`,
+            },
+          );
+          count++;
         }
-        count++;
+      } else {
+        const resolved = await resolver(input, {
+          workspacePath: ctx.workspacePath,
+          creds: ctx.creds,
+        });
+        if (resolved.kind === "contentPart") {
+          allParts.push(...resolved.parts);
+          for (const part of resolved.parts) {
+            if (part.type === "image" && part.base64) {
+              totalBytes += Math.floor(part.base64.length * 0.75);
+            }
+          }
+          count++;
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

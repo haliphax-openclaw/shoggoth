@@ -5,13 +5,14 @@ import {
   type AggregateMcpCatalogResult,
   type McpSourceCatalog,
 } from "@shoggoth/mcp-integration";
+import type { ChatContentPart } from "@shoggoth/models";
 import type { ToolExecutor } from "../sessions/tool-loop";
 
 export type BuiltinToolDelegate = (input: {
   readonly originalName: string;
   readonly argsJson: string;
   readonly toolCallId: string;
-}) => Promise<{ resultJson: string }>;
+}) => Promise<{ resultJson: string; contentParts?: ChatContentPart[] }>;
 
 export type ExternalMcpInvoke = (input: {
   readonly sourceId: string;
@@ -27,10 +28,7 @@ export type ExternalMcpInvoke = (input: {
 export function buildAggregatedMcpCatalog(
   externalSources: readonly McpSourceCatalog[] = [],
 ): AggregateMcpCatalogResult {
-  return aggregateMcpCatalogs([
-    builtinShoggothToolsCatalog(),
-    ...externalSources,
-  ]);
+  return aggregateMcpCatalogs([builtinShoggothToolsCatalog(), ...externalSources]);
 }
 
 /** `RunToolLoopOptions.tools` entries using MCP-style `source.tool` names. */
@@ -80,8 +78,7 @@ export function createMcpRoutingToolExecutor(options: {
           error: "mcp_external_transport_unavailable",
           sourceId: tool.sourceId,
           tool: tool.originalName,
-          detail:
-            "No MCP client configured for this source; invocation is stubbed.",
+          detail: "No MCP client configured for this source; invocation is stubbed.",
         }),
       };
     },
