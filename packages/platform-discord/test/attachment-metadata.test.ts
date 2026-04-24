@@ -1,9 +1,6 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import {
-  formatAttachmentMetadata,
-  formatBytes,
-} from "../src/attachment-metadata";
+import { formatAttachmentMetadata, formatBytes } from "../src/attachment-metadata";
 
 describe("formatAttachmentMetadata", () => {
   it("formats a single attachment with all fields", () => {
@@ -16,10 +13,7 @@ describe("formatAttachmentMetadata", () => {
         sizeBytes: 1234,
       },
     ]);
-    assert.strictEqual(
-      result,
-      "[message has 1 attachment(s)]\n- photo.png (image/png, 1.2 KB)",
-    );
+    assert.strictEqual(result, "[message has 1 attachment(s)]\n- photo.png (image/png, 1.2 KB)");
   });
 
   it("formats multiple attachments", () => {
@@ -54,10 +48,7 @@ describe("formatAttachmentMetadata", () => {
         sizeBytes: 512,
       },
     ]);
-    assert.strictEqual(
-      result,
-      "[message has 1 attachment(s)]\n- data.bin (512 bytes)",
-    );
+    assert.strictEqual(result, "[message has 1 attachment(s)]\n- data.bin (512 bytes)");
   });
 
   it("omits size when sizeBytes is missing", () => {
@@ -69,10 +60,7 @@ describe("formatAttachmentMetadata", () => {
         contentType: "text/plain",
       },
     ]);
-    assert.strictEqual(
-      result,
-      "[message has 1 attachment(s)]\n- notes.txt (text/plain)",
-    );
+    assert.strictEqual(result, "[message has 1 attachment(s)]\n- notes.txt (text/plain)");
   });
 
   it("omits parenthetical when both contentType and sizeBytes are missing", () => {
@@ -80,6 +68,116 @@ describe("formatAttachmentMetadata", () => {
       { id: "1", url: "https://cdn.discord/a.dat", filename: "mystery.dat" },
     ]);
     assert.strictEqual(result, "[message has 1 attachment(s)]\n- mystery.dat");
+  });
+});
+
+describe("formatAttachmentMetadata — localPath", () => {
+  it("includes localPath after arrow when present on an attachment", () => {
+    const result = formatAttachmentMetadata([
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 1234,
+        localPath: "media/inbound/1234567890_photo.png",
+      },
+    ]);
+    assert.strictEqual(
+      result,
+      "[message has 1 attachment(s)]\n- photo.png (image/png, 1.2 KB) → media/inbound/1234567890_photo.png",
+    );
+  });
+
+  it("includes localPath for multiple attachments that all have it", () => {
+    const result = formatAttachmentMetadata([
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 1234,
+        localPath: "media/inbound/1234567890_photo.png",
+      },
+      {
+        id: "2",
+        url: "https://cdn.discord/b.csv",
+        filename: "report.csv",
+        contentType: "text/csv",
+        sizeBytes: 46285,
+        localPath: "media/inbound/1234567890_report.csv",
+      },
+    ]);
+    assert.strictEqual(
+      result,
+      "[message has 2 attachment(s)]\n" +
+        "- photo.png (image/png, 1.2 KB) → media/inbound/1234567890_photo.png\n" +
+        "- report.csv (text/csv, 45.2 KB) → media/inbound/1234567890_report.csv",
+    );
+  });
+
+  it("mixes attachments with and without localPath", () => {
+    const result = formatAttachmentMetadata([
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 1234,
+        localPath: "media/inbound/99_photo.png",
+      },
+      {
+        id: "2",
+        url: "https://cdn.discord/b.pdf",
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 3565158,
+      },
+    ]);
+    assert.strictEqual(
+      result,
+      "[message has 2 attachment(s)]\n" +
+        "- photo.png (image/png, 1.2 KB) → media/inbound/99_photo.png\n" +
+        "- doc.pdf (application/pdf, 3.4 MB)",
+    );
+  });
+
+  it("omits arrow when no attachments have localPath (unchanged output)", () => {
+    const result = formatAttachmentMetadata([
+      {
+        id: "1",
+        url: "https://cdn.discord/a.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        sizeBytes: 2048,
+      },
+      {
+        id: "2",
+        url: "https://cdn.discord/b.pdf",
+        filename: "doc.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 3565158,
+      },
+    ]);
+    assert.strictEqual(
+      result,
+      "[message has 2 attachment(s)]\n- photo.png (image/png, 2.0 KB)\n- doc.pdf (application/pdf, 3.4 MB)",
+    );
+  });
+
+  it("includes localPath even when contentType and sizeBytes are missing", () => {
+    const result = formatAttachmentMetadata([
+      {
+        id: "1",
+        url: "https://cdn.discord/a.dat",
+        filename: "mystery.dat",
+        localPath: "media/inbound/42_mystery.dat",
+      },
+    ]);
+    assert.strictEqual(
+      result,
+      "[message has 1 attachment(s)]\n- mystery.dat → media/inbound/42_mystery.dat",
+    );
   });
 });
 

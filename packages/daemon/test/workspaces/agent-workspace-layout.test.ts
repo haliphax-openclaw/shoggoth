@@ -1,12 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ensureAgentWorkspaceLayout } from "../../src/workspaces/agent-workspace-layout";
@@ -35,6 +29,18 @@ describe("ensureAgentWorkspaceLayout", () => {
     assert.ok(existsSync(join(dir, "skills")));
     assert.ok(existsSync(join(dir, "memory")));
     assert.equal(readFileSync(join(dir, "AGENTS.md"), "utf8"), "from-tpl");
+  });
+
+  it("creates media/inbound directory for attachment downloads", async () => {
+    const creds = {
+      uid: process.getuid?.() ?? 0,
+      gid: process.getgid?.() ?? 0,
+    };
+    await ensureAgentWorkspaceLayout(dir, creds, { templateDir: tmpl });
+    assert.ok(
+      existsSync(join(dir, "media", "inbound")),
+      "media/inbound directory should be created by ensureAgentWorkspaceLayout",
+    );
   });
 
   it("does not overwrite existing workspace markdown", async () => {

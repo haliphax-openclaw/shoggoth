@@ -203,7 +203,7 @@ export default function createDiscordPlugin(): MessagingPlatformPlugin {
                     autoApprove: hitlAutoApproveGate as any,
                     ownerUserId: resolveDiscordOwnerUserId(configRef.current),
                     botUserIdRef: state.reactionBotUserIdRef,
-                    logger: (logger.child as any)?.("reactions") ?? logger,
+                    logger: (logger.child as any)?.({ component: "reactions" }) ?? logger,
                   });
                   if (!consumed) state.reactionPassthroughRef.current?.(ev);
                 }

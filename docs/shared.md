@@ -63,6 +63,8 @@ Defines the entire Shoggoth configuration surface as Zod schemas. Every config k
 | `McpServerRules`                   | `{ allow: string[], deny: string[] }` — deny wins.                                                                                                                                                                                                                                                              |
 | `ShoggothSkillsConfig`             | `scanRoots` (dirs scanned for `*.md` skill files) and `disabledIds`. See [Skills & Plugins](skills-plugins.md).                                                                                                                                                                                                 |
 | `ShoggothRetentionConfig`          | Data lifecycle: `inboundMediaMaxAgeDays`, `inboundMediaMaxTotalBytes`, `transcriptMessageMaxAgeDays`, `transcriptMaxMessagesPerSession`, `kvMaxEntries`. See [Daemon — Retention](daemon.md#retention).                                                                                                         |
+| `AttachmentHandlingMode`           | `"download"` \| `"inline"` \| `"hybrid"` — how inbound platform attachments are processed. Default: `"download"`.                                                                                                                                                                                               |
+| `AttachmentHandlingConfig`         | `{ mode?: AttachmentHandlingMode }` — optional block under `platforms.attachmentHandling` (global) and `agents.list.<id>.platforms.attachmentHandling` (per-agent). Per-agent takes precedence over global; default `"download"`.                                                                               |
 | `ShoggothRuntimeConfig`            | Daemon timers, feature flags, resilience settings. Includes `agentId`, `toolCallTimeoutMs`, `modelResilience`, `turnQueue`, `minimalContext`, etc.                                                                                                                                                              |
 | `ShoggothAgentsConfig`             | Global agent defaults: `contextLevel`, `subagentContextLevel`, `internalStreaming`, `subagentModel`, `subagentMcp`. Contains `list` map of per-agent entries.                                                                                                                                                   |
 | `ShoggothAgentEntry`               | Per-agent overrides: `displayName`, `emoji`, `models`, `platforms`, `memory`, `agentToAgent`, `subagentSpawnAllow`, `spawnSubagents`, `sessionQuery`, `policy`, `hitl`, `contextLevel`, `subagentContextLevel`, `toolDiscovery`, `thinkingDisplay`, `subagentModel`, `mcp`, `subagentMcp`, `toolCallTimeoutMs`. |
@@ -310,6 +312,73 @@ Controls which logical agent ids a sender may spawn subagents for.
 | `hasExplicitSubagentSpawnAllowConfig(cfg, senderAgentId)`     | True if either global or per-sender config exists.                                             |
 | `effectiveSubagentSpawnAllowedAgentIds(cfg, senderAgentId)`   | Effective allowlist. Falls back to `[senderAgentId]` when no config exists.                    |
 | `agentMayInvokeSubagentSpawnByAllowlist(cfg, logicalAgentId)` | Whether the agent passes the allowlist check (separate from `effectiveSpawnSubagentsEnabled`). |
+
+---
+
+## Attachment Handling
+
+**Schema:** `attachmentHandlingSchema` in `schema.ts`
+
+Controls how inbound platform attachments (images, files) are processed before being passed to the model. Configurable globally under `platforms.attachmentHandling` and per-agent under `agents.list.<id>.platforms.attachmentHandling`. Per-agent config takes precedence over global. Default mode: `"download"`.
+
+### Modes
+
+| Mode       | Behavior                                                                                                                                     |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `download` | Fetch attachment to `media/inbound/`, pass file path metadata to the agent. No image block injection. **Default.**                           |
+| `inline`   | Fetch and base64-encode images into `ChatContentPart[]` image blocks. Non-images get text metadata only. No file written to disk.            |
+| `hybrid`   | Download to `media/inbound/` AND inject image blocks for image attachments. Agent gets both the file path and the visual content in context. |
+
+### Config Examples
+
+```jsonc
+// Default: download only (no inlining)
+{
+  "platforms": {
+    "attachmentHandling": {
+      "mode": "download"
+    }
+  }
+}
+
+// Restore previous behavior (base64 inline, no file on disk)
+{
+  "platforms": {
+    "attachmentHandling": {
+      "mode": "inline"
+    }
+  }
+}
+
+// Per-agent: vision-heavy agent gets hybrid, others get download
+{
+  "platforms": {
+    "attachmentHandling": {
+      "mode": "download"
+    }
+  },
+  "agents": {
+    "list": {
+      "vision-agent": {
+        "platforms": {
+          "attachmentHandling": {
+            "mode": "hybrid"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Resolution
+
+`resolveAttachmentHandlingMode(config, sessionId)` in `packages/daemon/src/presentation/attachment-mode.ts`:
+
+1. Extract agent id from the session URN.
+2. Check `agents.list.<agentId>.platforms.attachmentHandling.mode` — if set, use it.
+3. Fall back to `platforms.attachmentHandling.mode`.
+4. Default: `"download"`.
 
 ---
 

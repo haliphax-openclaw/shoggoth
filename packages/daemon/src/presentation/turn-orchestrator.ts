@@ -2,22 +2,17 @@ import type { ShoggothConfig } from "@shoggoth/shared";
 import type { MessageAttachment } from "@shoggoth/messaging";
 import type { ImageBlockCodec, ChatContentPart } from "@shoggoth/models";
 import type { SessionToolLoopFailoverState } from "../sessions/session-tool-loop-model-client.js";
-import type {
-  PlatformAdapter,
-  StreamHandle,
-  OutboundAttachment,
-} from "./platform-adapter.js";
+import type { PlatformAdapter, StreamHandle, OutboundAttachment } from "./platform-adapter.js";
 import type { InboundSessionTurnInput } from "../messaging/inbound-session-turn.js";
 import {
   runInboundSessionTurn,
   type RunInboundSessionTurnOptions,
 } from "../messaging/inbound-session-turn.js";
-import {
-  formatAssistantReply,
-  formatErrorUserText,
-} from "./reply-formatter.js";
+import { formatAssistantReply, formatErrorUserText } from "./reply-formatter.js";
 import { getSessionMcpRuntimeRef } from "../sessions/session-mcp-runtime.js";
 import { ingestAttachmentImage } from "./image-ingest.js";
+import { resolveAttachmentHandlingMode } from "./attachment-mode.js";
+import { downloadInboundAttachments } from "./attachment-download.js";
 import { resolveEffectiveThinkingDisplay } from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
 
@@ -58,14 +53,24 @@ export interface OrchestrateTurnInput {
    * non-image attachments are silently ignored by the orchestrator
    * (caller is expected to have already handled them in userContent).
    */
-  readonly formatAttachmentMetadata?: (
-    attachments: readonly MessageAttachment[],
-  ) => string;
+  readonly formatAttachmentMetadata?: (attachments: readonly MessageAttachment[]) => string;
   /**
    * When true and the codec supports URL sources, pass image URLs directly
    * to the provider instead of fetching and base64-encoding. Default false.
    */
   readonly imageUrlPassthrough?: boolean;
+  /**
+   * Attachment handling mode override. When not set, resolved from config
+   * via `resolveAttachmentHandlingMode`. Defaults to `'inline'` for backward
+   * compatibility when the resolver is not wired up.
+   */
+  readonly attachmentHandlingMode?: "download" | "inline" | "hybrid";
+  /** Absolute path to the agent's workspace root. Required for download/hybrid modes. */
+  readonly workspacePath?: string;
+  /** Agent sandbox credentials for file writes. Required for download/hybrid modes. */
+  readonly creds?: { readonly uid: number; readonly gid: number };
+  /** Platform message ID (used for download filename prefix). */
+  readonly messageId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,13 +113,7 @@ export class PresentationTurnOrchestrator {
   }
 
   async orchestrateInboundTurn(input: OrchestrateTurnInput): Promise<void> {
-    const {
-      sessionId,
-      replyToMessageId,
-      buildTurn,
-      logContext,
-      onTurnExecutionFailed,
-    } = input;
+    const { sessionId, replyToMessageId, buildTurn, logContext, onTurnExecutionFailed } = input;
     // Auto-wire mcpLifecycle from the singleton runtime when the caller doesn't provide it.
     const mcpLifecycle: RunInboundSessionTurnOptions["mcpLifecycle"] =
       input.mcpLifecycle ??
@@ -145,8 +144,7 @@ export class PresentationTurnOrchestrator {
     } else if (adapter.startStream && this.streamingIntervalMs > 0) {
       streaming = {
         minIntervalMs: this.streamingIntervalMs,
-        start: () =>
-          adapter.startStream!(sessionId, { replyTo: replyToMessageId }),
+        start: () => adapter.startStream!(sessionId, { replyTo: replyToMessageId }),
         onStartFailed: input.onStreamStartFailed,
       };
     }
@@ -160,20 +158,59 @@ export class PresentationTurnOrchestrator {
         return turn;
       }
 
+      // Resolve the attachment handling mode.
+      const mode = resolveAttachmentHandlingMode(config, sessionId);
+
       // When no codec is available, fall back to text metadata for all attachments.
       if (!input.imageBlockCodec) {
         if (input.formatAttachmentMetadata) {
           return {
             ...turn,
-            userContent:
-              turn.userContent +
-              "\n\n" +
-              input.formatAttachmentMetadata(attachments),
+            userContent: turn.userContent + "\n\n" + input.formatAttachmentMetadata(attachments),
           };
         }
         return turn;
       }
 
+      // --- download mode ---
+      if (mode === "download") {
+        const enrichedAttachments = await downloadInboundAttachments({
+          attachments,
+          messageId: input.messageId ?? "",
+          workspacePath: input.workspacePath ?? "",
+          creds: input.creds ?? { uid: 0, gid: 0 },
+        });
+
+        // Append metadata with file paths, no image blocks.
+        if (input.formatAttachmentMetadata) {
+          return {
+            ...turn,
+            userContent:
+              turn.userContent + "\n\n" + input.formatAttachmentMetadata(enrichedAttachments),
+          };
+        }
+        return turn;
+      }
+
+      // --- hybrid mode ---
+      if (mode === "hybrid") {
+        const enrichedAttachments = await downloadInboundAttachments({
+          attachments,
+          messageId: input.messageId ?? "",
+          workspacePath: input.workspacePath ?? "",
+          creds: input.creds ?? { uid: 0, gid: 0 },
+        });
+
+        return enrichTurnWithImageAttachments(
+          turn,
+          enrichedAttachments,
+          input.imageBlockCodec,
+          input.formatAttachmentMetadata,
+          input.imageUrlPassthrough,
+        );
+      }
+
+      // --- inline mode (default / current behavior) ---
       return enrichTurnWithImageAttachments(
         turn,
         attachments,
@@ -190,14 +227,9 @@ export class PresentationTurnOrchestrator {
       formatAssistantReply: (
         latestText: string,
         failoverMeta: SessionToolLoopFailoverState | undefined,
-      ) =>
-        formatAssistantReply(config, sessionId, env, latestText, failoverMeta),
-      formatErrorReply: (err: unknown) =>
-        `${errorPrefix}${formatErrorUserText(err)}`,
-      sendAssistantBody: (
-        body: string,
-        opts?: { attachments?: readonly OutboundAttachment[] },
-      ) =>
+      ) => formatAssistantReply(config, sessionId, env, latestText, failoverMeta),
+      formatErrorReply: (err: unknown) => `${errorPrefix}${formatErrorUserText(err)}`,
+      sendAssistantBody: (body: string, opts?: { attachments?: readonly OutboundAttachment[] }) =>
         adapter.sendBody(sessionId, body, {
           replyTo: replyToMessageId,
           attachments: opts?.attachments as OutboundAttachment[] | undefined,
@@ -241,8 +273,11 @@ async function enrichTurnWithImageAttachments(
   const nonImageAttachments: MessageAttachment[] = [];
 
   const results = await Promise.all(
-    attachments.map((att) =>
-      ingestAttachmentImage(att, { codec, imageUrlPassthrough }).then(
+    attachments.map((att) => {
+      // When the attachment has a localPath (hybrid mode), pass it as localFilePath
+      // so ingestAttachmentImage reads from disk instead of re-fetching.
+      const localFilePath = att.localPath ? att.localPath : undefined;
+      return ingestAttachmentImage(att, { codec, imageUrlPassthrough, localFilePath }).then(
         (block) => ({ attachment: att, block }),
         (err) => {
           log.warn("turn_orchestrator.image_ingest_error", {
@@ -251,8 +286,8 @@ async function enrichTurnWithImageAttachments(
           });
           return { attachment: att, block: null };
         },
-      ),
-    ),
+      );
+    }),
   );
 
   for (const { attachment, block } of results) {
@@ -274,10 +309,7 @@ async function enrichTurnWithImageAttachments(
     textBody = `${textBody}\n\n${formatFallback(nonImageAttachments)}`;
   }
 
-  const parts: ChatContentPart[] = [
-    ...imageBlocks,
-    { type: "text", text: textBody },
-  ];
+  const parts: ChatContentPart[] = [...imageBlocks, { type: "text", text: textBody }];
 
   // Serialize structured content as JSON for transcript storage.
   // Downstream phases (transcript-to-chat, provider message mapping) detect

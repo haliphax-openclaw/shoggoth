@@ -92,6 +92,10 @@ export {
   type ThinkingDisplay,
   processDeclarationSchema,
   type ProcessDeclaration,
+  attachmentHandlingSchema,
+  attachmentHandlingModes,
+  type AttachmentHandlingMode,
+  type AttachmentHandlingConfig,
 } from "./schema";
 export {
   resolvePlatformConfig,

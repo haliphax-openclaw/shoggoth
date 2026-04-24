@@ -1,6 +1,6 @@
 ---
 date: 2026-04-24
-completed: never
+completed: 2026-04-24
 ---
 
 # Inbound Attachment Download

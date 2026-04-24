@@ -542,6 +542,23 @@ export const platformCommonConfigSchema = z
   })
   .passthrough();
 
+// ---------------------------------------------------------------------------
+// Attachment Handling
+// ---------------------------------------------------------------------------
+
+export const attachmentHandlingModes = ["download", "inline", "hybrid"] as const;
+
+export const attachmentHandlingSchema = z
+  .object({
+    mode: z.enum(attachmentHandlingModes).default("download"),
+  })
+  .strict()
+  .optional();
+
+export type AttachmentHandlingMode = (typeof attachmentHandlingModes)[number];
+
+export type AttachmentHandlingConfig = z.infer<typeof attachmentHandlingSchema>;
+
 /** Daemon timers, probes, and feature flags also available via `SHOGGOTH_*` env (env wins when set). */
 export const shoggothRuntimeConfigSchema = z
   .object({
@@ -743,8 +760,8 @@ export const shoggothAgentEntrySchema = z
     models: shoggothAgentModelsOverrideSchema.optional(),
     /** Per-agent platform overrides — each key is a platform id. */
     platforms: z
-      .record(
-        z.string(),
+      .object({ attachmentHandling: attachmentHandlingSchema })
+      .catchall(
         z
           .object({
             routes: z.unknown().optional(),
@@ -973,7 +990,10 @@ export const shoggothConfigFragmentSchema = z
     mcp: shoggothMcpConfigSchema.optional(),
     acpx: shoggothAcpxConfigSchema.partial().optional(),
     /** Generic platforms bag — each key is a platform id with common fields validated by core. */
-    platforms: z.record(z.string(), platformCommonConfigSchema).optional(),
+    platforms: z
+      .object({ attachmentHandling: attachmentHandlingSchema })
+      .catchall(platformCommonConfigSchema)
+      .optional(),
     runtime: shoggothRuntimeConfigSchema.optional(),
     agents: shoggothAgentsConfigSchema.optional(),
     agentToAgent: shoggothAgentToAgentConfigSchema.optional(),
@@ -1034,7 +1054,10 @@ export const shoggothConfigSchema = z
     mcp: shoggothMcpConfigSchema,
     acpx: shoggothAcpxConfigSchema.optional(),
     /** Generic platforms bag — each key is a platform id with common fields validated by core. */
-    platforms: z.record(z.string(), platformCommonConfigSchema).optional(),
+    platforms: z
+      .object({ attachmentHandling: attachmentHandlingSchema })
+      .catchall(platformCommonConfigSchema)
+      .optional(),
     runtime: shoggothRuntimeConfigSchema.optional(),
     agents: shoggothAgentsConfigSchema.optional(),
     agentToAgent: shoggothAgentToAgentConfigSchema.optional(),

@@ -1,10 +1,7 @@
+import { readFile } from "node:fs/promises";
 import type { MessageAttachment } from "@shoggoth/messaging";
 import type { ImageBlock, ImageBlockCodec } from "@shoggoth/models";
-import {
-  IMAGE_MIME_TYPES,
-  IMAGE_EXTENSION_TO_MIME,
-  MAX_IMAGE_BLOCK_BYTES,
-} from "@shoggoth/shared";
+import { IMAGE_MIME_TYPES, IMAGE_EXTENSION_TO_MIME, MAX_IMAGE_BLOCK_BYTES } from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
 
 const log = getLogger("image-ingest");
@@ -20,6 +17,11 @@ export interface ImageIngestOptions {
    * Default false.
    */
   readonly imageUrlPassthrough?: boolean;
+  /**
+   * When set, read image bytes from this local path instead of fetching the URL.
+   * Used in hybrid mode to avoid re-fetching already-downloaded files.
+   */
+  readonly localFilePath?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export interface ImageIngestOptions {
  *
  * - Determines MIME type from `attachment.contentType` or infers from filename extension.
  * - Returns `null` for non-image attachments.
+ * - When `localFilePath` is set, reads from disk instead of fetching the URL.
  * - When `imageUrlPassthrough` is true and the codec supports URLs, returns a URL-only ImageBlock.
  * - Otherwise fetches the URL, base64-encodes, and returns a base64 ImageBlock.
  * - Returns `null` on fetch failure or oversized images.
@@ -37,6 +40,11 @@ export async function ingestAttachmentImage(
 ): Promise<ImageBlock | null> {
   const mediaType = resolveMediaType(attachment);
   if (!mediaType) return null;
+
+  // Local file path: read from disk instead of fetching.
+  if (options.localFilePath) {
+    return readFromDisk(attachment, options, mediaType);
+  }
 
   // URL passthrough: only when explicitly enabled AND the codec supports it.
   if (options.imageUrlPassthrough && options.codec.supportsUrl) {
@@ -101,17 +109,58 @@ export async function ingestAttachmentImage(
 }
 
 /**
+ * Read image bytes from a local file path, apply size check and media type
+ * detection, and return a base64-encoded ImageBlock.
+ */
+async function readFromDisk(
+  attachment: MessageAttachment,
+  options: ImageIngestOptions,
+  mediaType: string,
+): Promise<ImageBlock | null> {
+  const maxBytes = options.maxBytes ?? MAX_IMAGE_BLOCK_BYTES;
+
+  try {
+    const buf = await readFile(options.localFilePath!);
+    const buffer = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+
+    if (buffer.byteLength > maxBytes) {
+      log.warn("image_ingest.local_oversized", {
+        filename: attachment.filename,
+        actualBytes: buffer.byteLength,
+        maxBytes,
+        localFilePath: options.localFilePath,
+      });
+      return null;
+    }
+
+    const detectedType = detectMediaTypeFromBytes(buffer);
+    const finalMediaType = detectedType ?? mediaType;
+
+    return {
+      type: "image",
+      mediaType: finalMediaType,
+      base64: buffer.toString("base64"),
+    };
+  } catch (err) {
+    log.warn("image_ingest.local_read_error", {
+      filename: attachment.filename,
+      localFilePath: options.localFilePath,
+      err: String(err),
+    });
+    return null;
+  }
+}
+
+/**
  * Sniff the actual image format from the first bytes of the buffer.
  * Returns the correct MIME type, or undefined if unrecognised.
  */
 export function detectMediaTypeFromBytes(buf: Buffer): string | undefined {
   if (buf.length < 12) return undefined;
   // PNG: 0x89 P N G
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47)
-    return "image/png";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "image/png";
   // JPEG: 0xFF 0xD8 0xFF
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
-    return "image/jpeg";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
   // WebP: RIFF....WEBP
   if (
     buf[0] === 0x52 &&

@@ -9,6 +9,9 @@ import {
   shoggothModelsConfigSchema,
   shoggothAgentEntrySchema,
   shoggothAgentsConfigSchema,
+  shoggothConfigFragmentSchema,
+  shoggothConfigSchema,
+  defaultConfig,
 } from "../src/schema";
 
 // ---------------------------------------------------------------------------
@@ -81,29 +84,17 @@ describe("providerModelSchema", () => {
   });
 
   it("rejects non-positive contextWindowTokens", () => {
-    assert.ok(
-      !providerModelSchema.safeParse({ name: "m", contextWindowTokens: 0 })
-        .success,
-    );
-    assert.ok(
-      !providerModelSchema.safeParse({ name: "m", contextWindowTokens: -1 })
-        .success,
-    );
+    assert.ok(!providerModelSchema.safeParse({ name: "m", contextWindowTokens: 0 }).success);
+    assert.ok(!providerModelSchema.safeParse({ name: "m", contextWindowTokens: -1 }).success);
   });
 
   it("rejects invalid thinkingFormat", () => {
-    assert.ok(
-      !providerModelSchema.safeParse({ name: "m", thinkingFormat: "bad" })
-        .success,
-    );
+    assert.ok(!providerModelSchema.safeParse({ name: "m", thinkingFormat: "bad" }).success);
   });
 
   it("accepts all valid thinkingFormat values", () => {
     for (const fmt of ["native", "xml-tags", "none"] as const) {
-      assert.ok(
-        providerModelSchema.safeParse({ name: "m", thinkingFormat: fmt })
-          .success,
-      );
+      assert.ok(providerModelSchema.safeParse({ name: "m", thinkingFormat: fmt }).success);
     }
   });
 });
@@ -216,9 +207,7 @@ describe("provider schema with models and retry fields", () => {
 // ---------------------------------------------------------------------------
 describe("failoverChainEntrySchema", () => {
   it("accepts a plain string ref", () => {
-    const r = failoverChainEntrySchema.safeParse(
-      "anthropic/claude-sonnet-4-20250514",
-    );
+    const r = failoverChainEntrySchema.safeParse("anthropic/claude-sonnet-4-20250514");
     assert.ok(r.success);
     assert.equal(r.data, "anthropic/claude-sonnet-4-20250514");
   });
@@ -276,18 +265,12 @@ describe("modelsRetrySchema", () => {
   });
 
   it("rejects non-positive retryBackoffMultiplier", () => {
-    assert.ok(
-      !modelsRetrySchema.safeParse({ retryBackoffMultiplier: 0 }).success,
-    );
-    assert.ok(
-      !modelsRetrySchema.safeParse({ retryBackoffMultiplier: -1 }).success,
-    );
+    assert.ok(!modelsRetrySchema.safeParse({ retryBackoffMultiplier: 0 }).success);
+    assert.ok(!modelsRetrySchema.safeParse({ retryBackoffMultiplier: -1 }).success);
   });
 
   it("rejects non-positive markFailedDurationMs", () => {
-    assert.ok(
-      !modelsRetrySchema.safeParse({ markFailedDurationMs: 0 }).success,
-    );
+    assert.ok(!modelsRetrySchema.safeParse({ markFailedDurationMs: 0 }).success);
   });
 
   it("is available on modelsConfig as retry field", () => {
@@ -357,9 +340,164 @@ describe("subagentModel schema field", () => {
     });
     assert.ok(r.success);
     assert.equal(r.data!.subagentModel, "openai/gpt-4o");
-    assert.equal(
-      r.data!.list!.main!.subagentModel,
-      "anthropic/claude-3-5-haiku-20241022",
+    assert.equal(r.data!.list!.main!.subagentModel, "anthropic/claude-3-5-haiku-20241022");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// platforms.attachmentHandling — config fragment schema
+// ---------------------------------------------------------------------------
+describe("platforms.attachmentHandling in config fragment schema", () => {
+  it("accepts platforms.attachmentHandling with mode 'download'", () => {
+    const r = shoggothConfigFragmentSchema.safeParse({
+      platforms: {
+        attachmentHandling: { mode: "download" },
+      },
+    });
+    assert.ok(r.success);
+  });
+
+  it("accepts platforms.attachmentHandling with mode 'inline'", () => {
+    const r = shoggothConfigFragmentSchema.safeParse({
+      platforms: {
+        attachmentHandling: { mode: "inline" },
+      },
+    });
+    assert.ok(r.success);
+  });
+
+  it("accepts platforms.attachmentHandling with mode 'hybrid'", () => {
+    const r = shoggothConfigFragmentSchema.safeParse({
+      platforms: {
+        attachmentHandling: { mode: "hybrid" },
+      },
+    });
+    assert.ok(r.success);
+  });
+
+  it("rejects platforms.attachmentHandling with invalid mode 'bogus'", () => {
+    const r = shoggothConfigFragmentSchema.safeParse({
+      platforms: {
+        attachmentHandling: { mode: "bogus" },
+      },
+    });
+    assert.ok(!r.success);
+  });
+
+  it("accepts platforms with attachmentHandling alongside platform entries", () => {
+    const r = shoggothConfigFragmentSchema.safeParse({
+      platforms: {
+        discord: { enabled: true },
+        attachmentHandling: { mode: "hybrid" },
+      },
+    });
+    assert.ok(r.success);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// per-agent platforms.attachmentHandling — agent entry schema
+// ---------------------------------------------------------------------------
+describe("per-agent platforms.attachmentHandling", () => {
+  it("accepts attachmentHandling on per-agent platforms", () => {
+    const r = shoggothAgentEntrySchema.safeParse({
+      platforms: {
+        attachmentHandling: { mode: "hybrid" },
+      },
+    });
+    assert.ok(r.success);
+  });
+
+  it("accepts per-agent platforms with attachmentHandling alongside platform overrides", () => {
+    const r = shoggothAgentEntrySchema.safeParse({
+      platforms: {
+        discord: { routes: {} },
+        attachmentHandling: { mode: "inline" },
+      },
+    });
+    assert.ok(r.success);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end: platforms.attachmentHandling through full shoggothConfigSchema
+// ---------------------------------------------------------------------------
+describe("attachmentHandling — full shoggothConfigSchema end-to-end", () => {
+  function fullConfigWith(overrides: Record<string, unknown>) {
+    return { ...defaultConfig("/etc/shoggoth/config.d"), ...overrides };
+  }
+
+  it("parses with mode 'download' on global platforms", () => {
+    const r = shoggothConfigSchema.safeParse(
+      fullConfigWith({
+        platforms: {
+          discord: { enabled: true },
+          attachmentHandling: { mode: "download" },
+        },
+      }),
     );
+    assert.ok(r.success, JSON.stringify((r as any).error?.issues));
+  });
+
+  it("parses with mode 'inline' on global platforms", () => {
+    const r = shoggothConfigSchema.safeParse(
+      fullConfigWith({
+        platforms: {
+          discord: { enabled: true },
+          attachmentHandling: { mode: "inline" },
+        },
+      }),
+    );
+    assert.ok(r.success, JSON.stringify((r as any).error?.issues));
+  });
+
+  it("parses with mode 'hybrid' on global platforms", () => {
+    const r = shoggothConfigSchema.safeParse(
+      fullConfigWith({
+        platforms: {
+          discord: { enabled: true },
+          attachmentHandling: { mode: "hybrid" },
+        },
+      }),
+    );
+    assert.ok(r.success, JSON.stringify((r as any).error?.issues));
+  });
+
+  it("parses with per-agent attachmentHandling override", () => {
+    const r = shoggothConfigSchema.safeParse(
+      fullConfigWith({
+        platforms: {
+          discord: { enabled: true },
+          attachmentHandling: { mode: "download" },
+        },
+        agents: {
+          list: {
+            "vision-agent": {
+              platforms: {
+                attachmentHandling: { mode: "hybrid" },
+              },
+            },
+          },
+        },
+      }),
+    );
+    assert.ok(r.success, JSON.stringify((r as any).error?.issues));
+  });
+
+  it("rejects invalid mode through full config schema", () => {
+    const r = shoggothConfigSchema.safeParse(
+      fullConfigWith({
+        platforms: {
+          discord: { enabled: true },
+          attachmentHandling: { mode: "bogus" },
+        },
+      }),
+    );
+    assert.ok(!r.success);
+  });
+
+  it("parses default config without attachmentHandling (optional)", () => {
+    const r = shoggothConfigSchema.safeParse(defaultConfig("/etc/shoggoth/config.d"));
+    assert.ok(r.success, JSON.stringify((r as any).error?.issues));
   });
 });

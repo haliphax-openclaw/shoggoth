@@ -1,9 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { MessageAttachment } from "@shoggoth/messaging";
 import type { ImageBlockCodec } from "@shoggoth/models";
-import {
-  ingestAttachmentImage,
-} from "../../src/presentation/image-ingest.js";
+import { ingestAttachmentImage } from "../../src/presentation/image-ingest.js";
 
 // Suppress logger output in tests
 vi.mock("../../src/logging.js", () => ({
@@ -15,9 +13,12 @@ vi.mock("../../src/logging.js", () => ({
   }),
 }));
 
-function makeAttachment(
-  overrides: Partial<MessageAttachment> = {},
-): MessageAttachment {
+// Mock node:fs/promises for localFilePath tests
+vi.mock("node:fs/promises", () => ({
+  readFile: vi.fn(),
+}));
+
+function makeAttachment(overrides: Partial<MessageAttachment> = {}): MessageAttachment {
   return {
     id: "att-1",
     url: "https://cdn.example.com/photo.png",
@@ -46,10 +47,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(),
         arrayBuffer: () =>
           Promise.resolve(
-            imgBytes.buffer.slice(
-              imgBytes.byteOffset,
-              imgBytes.byteOffset + imgBytes.byteLength,
-            ),
+            imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength),
           ),
       });
       const attachment = makeAttachment();
@@ -76,10 +74,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(),
         arrayBuffer: () =>
           Promise.resolve(
-            imgBytes.buffer.slice(
-              imgBytes.byteOffset,
-              imgBytes.byteOffset + imgBytes.byteLength,
-            ),
+            imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength),
           ),
       });
       const attachment = makeAttachment({
@@ -108,10 +103,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(),
         arrayBuffer: () =>
           Promise.resolve(
-            imgBytes.buffer.slice(
-              imgBytes.byteOffset,
-              imgBytes.byteOffset + imgBytes.byteLength,
-            ),
+            imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength),
           ),
       });
       const attachment = makeAttachment({
@@ -162,10 +154,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(),
         arrayBuffer: () =>
           Promise.resolve(
-            imgBytes.buffer.slice(
-              imgBytes.byteOffset,
-              imgBytes.byteOffset + imgBytes.byteLength,
-            ),
+            imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength),
           ),
       });
       const attachment = makeAttachment();
@@ -193,10 +182,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(),
         arrayBuffer: () =>
           Promise.resolve(
-            imgBytes.buffer.slice(
-              imgBytes.byteOffset,
-              imgBytes.byteOffset + imgBytes.byteLength,
-            ),
+            imgBytes.buffer.slice(imgBytes.byteOffset, imgBytes.byteOffset + imgBytes.byteLength),
           ),
       });
       const attachment = makeAttachment();
@@ -248,9 +234,7 @@ describe("ingestAttachmentImage", () => {
         base64: imageBytes.toString("base64"),
       });
       expect(result!.url).toBeUndefined();
-      expect(fetchImpl).toHaveBeenCalledWith(
-        "https://cdn.example.com/photo.png",
-      );
+      expect(fetchImpl).toHaveBeenCalledWith("https://cdn.example.com/photo.png");
     });
   });
 
@@ -354,10 +338,7 @@ describe("ingestAttachmentImage", () => {
         headers: new Headers(), // no content-length
         arrayBuffer: () =>
           Promise.resolve(
-            bigBuf.buffer.slice(
-              bigBuf.byteOffset,
-              bigBuf.byteOffset + bigBuf.byteLength,
-            ),
+            bigBuf.buffer.slice(bigBuf.byteOffset, bigBuf.byteOffset + bigBuf.byteLength),
           ),
       });
 
@@ -370,6 +351,163 @@ describe("ingestAttachmentImage", () => {
       });
 
       expect(result).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // NEW: localFilePath option — reads from disk instead of fetching URL
+  // -------------------------------------------------------------------------
+
+  describe("localFilePath option", () => {
+    it("reads from disk instead of fetching the URL when localFilePath is provided", async () => {
+      const { readFile } = await import("node:fs/promises");
+      // PNG magic bytes so detectMediaTypeFromBytes returns image/png
+      const pngBytes = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+      ]);
+      vi.mocked(readFile).mockResolvedValue(pngBytes);
+
+      const codec = makeCodec(false);
+      const fetchImpl = vi.fn();
+      const attachment = makeAttachment();
+
+      // localFilePath is a new option that doesn't exist yet → this will FAIL
+      // because ImageIngestOptions doesn't have localFilePath.
+      const result = await ingestAttachmentImage(attachment, {
+        codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetchImpl: fetchImpl as any,
+        localFilePath: "/workspace/media/inbound/msg123_photo.png",
+      } as any);
+
+      // Should NOT have fetched the URL
+      expect(fetchImpl).not.toHaveBeenCalled();
+
+      // Should have read from disk
+      expect(readFile).toHaveBeenCalledWith("/workspace/media/inbound/msg123_photo.png");
+
+      // Should return a valid base64 ImageBlock
+      expect(result).toEqual({
+        type: "image",
+        mediaType: "image/png",
+        base64: pngBytes.toString("base64"),
+      });
+    });
+
+    it("does NOT call fetch when localFilePath is set", async () => {
+      const { readFile } = await import("node:fs/promises");
+      const jpegBytes = Buffer.from([
+        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      ]);
+      vi.mocked(readFile).mockResolvedValue(jpegBytes);
+
+      const codec = makeCodec(false);
+      const fetchImpl = vi.fn();
+      const attachment = makeAttachment({ contentType: "image/jpeg", filename: "pic.jpg" });
+
+      const result = await ingestAttachmentImage(attachment, {
+        codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetchImpl: fetchImpl as any,
+        localFilePath: "/workspace/media/inbound/msg456_pic.jpg",
+      } as any);
+
+      // fetch must NOT be called
+      expect(fetchImpl).not.toHaveBeenCalled();
+
+      // Should return a valid ImageBlock
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe("image");
+      expect(result!.base64).toBe(jpegBytes.toString("base64"));
+    });
+
+    it("returns correct base64 from the local file", async () => {
+      const { readFile } = await import("node:fs/promises");
+      // WebP magic: RIFF....WEBP
+      const webpBytes = Buffer.from([
+        0x52,
+        0x49,
+        0x46,
+        0x46, // RIFF
+        0x00,
+        0x00,
+        0x00,
+        0x00, // size placeholder
+        0x57,
+        0x45,
+        0x42,
+        0x50, // WEBP
+        0x56,
+        0x50,
+        0x38,
+        0x20, // VP8 chunk
+      ]);
+      vi.mocked(readFile).mockResolvedValue(webpBytes);
+
+      const codec = makeCodec(false);
+      const fetchImpl = vi.fn();
+      const attachment = makeAttachment({ contentType: "image/webp", filename: "anim.webp" });
+
+      const result = await ingestAttachmentImage(attachment, {
+        codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetchImpl: fetchImpl as any,
+        localFilePath: "/workspace/media/inbound/msg789_anim.webp",
+      } as any);
+
+      expect(result).toEqual({
+        type: "image",
+        mediaType: "image/webp",
+        base64: webpBytes.toString("base64"),
+      });
+    });
+
+    it("rejects oversized local files", async () => {
+      const { readFile } = await import("node:fs/promises");
+      const oversizedBuf = Buffer.alloc(5000);
+      // Write PNG header so it's recognized as an image
+      oversizedBuf[0] = 0x89;
+      oversizedBuf[1] = 0x50;
+      oversizedBuf[2] = 0x4e;
+      oversizedBuf[3] = 0x47;
+      vi.mocked(readFile).mockResolvedValue(oversizedBuf);
+
+      const codec = makeCodec(false);
+      const fetchImpl = vi.fn();
+      const attachment = makeAttachment();
+
+      const result = await ingestAttachmentImage(attachment, {
+        codec,
+        maxBytes: 1000,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetchImpl: fetchImpl as any,
+        localFilePath: "/workspace/media/inbound/msg999_huge.png",
+      } as any);
+
+      // Should be rejected due to size
+      expect(result).toBeNull();
+      // Should NOT have fetched
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("returns null when local file read fails", async () => {
+      const { readFile } = await import("node:fs/promises");
+      vi.mocked(readFile).mockRejectedValue(new Error("ENOENT: no such file"));
+
+      const codec = makeCodec(false);
+      const fetchImpl = vi.fn();
+      const attachment = makeAttachment();
+
+      const result = await ingestAttachmentImage(attachment, {
+        codec,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetchImpl: fetchImpl as any,
+        localFilePath: "/workspace/media/inbound/missing.png",
+      } as any);
+
+      // Should gracefully return null, not throw
+      expect(result).toBeNull();
+      expect(fetchImpl).not.toHaveBeenCalled();
     });
   });
 });
