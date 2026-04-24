@@ -24,7 +24,11 @@ function inferImageMimeType(filePath: string): string {
   }
 }
 
-function buildRequestBody(req: MediaAdapterRequest, inputImageBase64?: string) {
+function buildRequestBody(
+  req: MediaAdapterRequest,
+  inputImageBase64?: string,
+  lastFrameBase64?: string,
+) {
   const instance: Record<string, unknown> = { prompt: req.prompt };
 
   if (inputImageBase64) {
@@ -33,6 +37,14 @@ function buildRequestBody(req: MediaAdapterRequest, inputImageBase64?: string) {
         ? inferImageMimeType(req.params.input_image)
         : "image/png";
     instance.image = { bytesBase64Encoded: inputImageBase64, mimeType };
+  }
+
+  if (lastFrameBase64) {
+    const mimeType =
+      req.params.kind === "video" && req.params.last_frame
+        ? inferImageMimeType(req.params.last_frame)
+        : "image/png";
+    instance.lastFrame = { bytesBase64Encoded: lastFrameBase64, mimeType };
   }
 
   const parameters: Record<string, unknown> = {};
@@ -85,16 +97,23 @@ async function parseCompletedResponse(
 
 export async function longRunningAdapter(req: LongRunningRequest): Promise<MediaAdapterResult> {
   try {
-    // Read input image if provided
+    // Read input image (first frame) if provided
     let inputImageBase64: string | undefined;
     if (req.params.kind === "video" && req.params.input_image) {
       const imageBytes = await readFile(req.params.input_image);
       inputImageBase64 = imageBytes.toString("base64");
     }
 
+    // Read last frame if provided
+    let lastFrameBase64: string | undefined;
+    if (req.params.kind === "video" && req.params.last_frame) {
+      const lastFrameBytes = await readFile(req.params.last_frame);
+      lastFrameBase64 = lastFrameBytes.toString("base64");
+    }
+
     const apiVersion = "v1beta";
     const initiateUrl = `${req.baseUrl}/${apiVersion}/models/${req.model}:predictLongRunning?key=${req.apiKey}`;
-    const body = buildRequestBody(req, inputImageBase64);
+    const body = buildRequestBody(req, inputImageBase64, lastFrameBase64);
 
     const response = await fetch(initiateUrl, {
       method: "POST",

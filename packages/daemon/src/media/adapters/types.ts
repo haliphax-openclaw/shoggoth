@@ -10,6 +10,7 @@ export interface VideoGenerateParams {
   aspectRatio?: string;
   durationSeconds?: number;
   input_image?: string;
+  last_frame?: string;
 }
 
 export interface SpeechGenerateParams {

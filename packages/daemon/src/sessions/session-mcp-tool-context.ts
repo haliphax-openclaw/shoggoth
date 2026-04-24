@@ -367,7 +367,7 @@ const MEDIA_GENERATE_TOOL_DESCRIPTOR: AggregatedTool = {
       params: {
         type: "object",
         description:
-          "Parameters discriminated by 'kind': image (aspectRatio, numberOfImages, input_image), video (aspectRatio, durationSeconds, input_image), speech (voice), music (durationSeconds)",
+          "Parameters discriminated by 'kind': image (aspectRatio, numberOfImages, input_image), video (aspectRatio, durationSeconds, input_image, last_frame), speech (voice), music (durationSeconds)",
         required: ["kind"],
       },
       output_path: {

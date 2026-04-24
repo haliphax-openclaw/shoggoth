@@ -249,6 +249,54 @@ describe("longRunningAdapter", () => {
     );
   });
 
+  it("includes last_frame as lastFrame when provided", async () => {
+    mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-lastframe", true));
+
+    await longRunningAdapter(
+      makeRequest({
+        params: {
+          kind: "video",
+          input_image: "/workspace/first.png",
+          last_frame: "/workspace/last.jpg",
+        },
+      }),
+    );
+
+    // readFile should have been called twice: first frame + last frame
+    assert.strictEqual(vi.mocked(readFile).mock.calls.length, 2);
+    assert.strictEqual(vi.mocked(readFile).mock.calls[0][0], "/workspace/first.png");
+    assert.strictEqual(vi.mocked(readFile).mock.calls[1][0], "/workspace/last.jpg");
+
+    const [, opts] = mockFetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    const instance = body.instances[0];
+
+    // First frame
+    assert.ok(instance.image?.bytesBase64Encoded, "should have image for first frame");
+    assert.strictEqual(instance.image.mimeType, "image/png");
+
+    // Last frame
+    assert.ok(instance.lastFrame?.bytesBase64Encoded, "should have lastFrame for last frame");
+    assert.strictEqual(instance.lastFrame.mimeType, "image/jpeg", "should infer jpeg from .jpg");
+  });
+
+  it("omits lastFrame when last_frame is not provided", async () => {
+    mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-nolast", true));
+
+    await longRunningAdapter(
+      makeRequest({
+        params: { kind: "video", input_image: "/workspace/first.png" },
+      }),
+    );
+
+    const [, opts] = mockFetch.mock.calls[0];
+    const body = JSON.parse(opts.body);
+    const instance = body.instances[0];
+
+    assert.ok(instance.image?.bytesBase64Encoded, "should have image");
+    assert.strictEqual(instance.lastFrame, undefined, "should NOT have lastFrame");
+  });
+
   it("handles API error on initial predictLongRunning request", async () => {
     mockFetch.mockResolvedValueOnce(
       makeErrorResponse(429, "Too Many Requests", "Rate limit exceeded"),
