@@ -1,6 +1,9 @@
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { MediaAdapterRequest, MediaAdapterResult } from "./types";
+import { getLogger } from "../../logging.js";
+
+const log = getLogger("long-running-adapter");
 
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -60,39 +63,81 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function downloadFromUri(uri: string, outputPath: string, apiKey?: string): Promise<Buffer> {
+  const downloadUrl = apiKey ? `${uri}&key=${apiKey}` : uri;
+  const res = await fetch(downloadUrl, { redirect: "follow" });
+  if (!res.ok) {
+    throw new Error(`Video download failed: HTTP ${res.status}`);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  await mkdir(dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, buf);
+  return buf;
+}
+
 async function parseCompletedResponse(
   responseBody: Record<string, unknown>,
   outputPath: string,
+  apiKey?: string,
 ): Promise<MediaAdapterResult> {
   const resp = responseBody.response as Record<string, unknown> | undefined;
   const videoResp = resp?.generateVideoResponse as Record<string, unknown> | undefined;
   const samples = videoResp?.generatedSamples as Array<Record<string, unknown>> | undefined;
 
   if (!samples || samples.length === 0) {
+    log.warn("long_running.parse_failed", {
+      error: "No generated samples in response",
+      responseKeys: resp ? Object.keys(resp) : [],
+      videoRespKeys: videoResp ? Object.keys(videoResp) : [],
+      rawResponseKeys: Object.keys(responseBody),
+    });
     return { status: "error", error: "No generated samples in response" };
   }
 
   const video = samples[0].video as Record<string, unknown> | undefined;
   if (!video) {
+    log.warn("long_running.parse_failed", {
+      error: "No video data in generated sample",
+      sampleKeys: Object.keys(samples[0]),
+    });
     return { status: "error", error: "No video data in generated sample" };
   }
 
+  // Prefer URI download (standard Veo 3.1 response), fall back to inline base64
+  const videoUri = video.uri as string | undefined;
   const base64Data = video.bytesBase64Encoded as string | undefined;
-  if (!base64Data) {
-    return { status: "error", error: "No bytesBase64Encoded in video response" };
-  }
-
-  const decoded = Buffer.from(base64Data, "base64");
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, decoded);
-
   const encoding = (video.encoding as string) || "video/mp4";
 
-  return {
-    status: "complete",
-    path: outputPath,
-    mime_type: encoding,
-  };
+  if (videoUri) {
+    try {
+      await downloadFromUri(videoUri, outputPath, apiKey);
+      return { status: "complete", path: outputPath, mime_type: encoding };
+    } catch (err) {
+      log.warn("long_running.uri_download_failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Fall through to base64 if available
+      if (!base64Data) {
+        return {
+          status: "error",
+          error: `Video URI download failed: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    }
+  }
+
+  if (base64Data) {
+    const decoded = Buffer.from(base64Data, "base64");
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, decoded);
+    return { status: "complete", path: outputPath, mime_type: encoding };
+  }
+
+  log.warn("long_running.parse_failed", {
+    error: "No video URI or bytesBase64Encoded in response",
+    videoKeys: Object.keys(video),
+  });
+  return { status: "error", error: "No video URI or bytesBase64Encoded in video response" };
 }
 
 export async function longRunningAdapter(req: LongRunningRequest): Promise<MediaAdapterResult> {
@@ -134,7 +179,7 @@ export async function longRunningAdapter(req: LongRunningRequest): Promise<Media
 
     // If already done on first response
     if (json.done === true) {
-      return parseCompletedResponse(json, req.outputPath);
+      return parseCompletedResponse(json, req.outputPath, req.apiKey);
     }
 
     // Poll loop
@@ -158,7 +203,7 @@ export async function longRunningAdapter(req: LongRunningRequest): Promise<Media
       const pollJson = (await pollResponse.json()) as Record<string, unknown>;
 
       if (pollJson.done === true) {
-        return parseCompletedResponse(pollJson, req.outputPath);
+        return parseCompletedResponse(pollJson, req.outputPath, req.apiKey);
       }
     }
 

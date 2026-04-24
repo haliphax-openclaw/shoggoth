@@ -88,6 +88,15 @@ function makePollResponse(done: boolean, operationName = "operations/veo-abc123"
   };
 }
 
+/** Mock response for video URI download (follows the URI fetch in parseCompletedResponse). */
+function makeVideoDownloadResponse(content = "downloaded-video-bytes") {
+  return {
+    ok: true,
+    status: 200,
+    arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array(Buffer.from(content)).buffer),
+  };
+}
+
 function makeErrorResponse(status: number, statusText: string, errorMessage: string) {
   return {
     ok: false,
@@ -113,6 +122,7 @@ describe("longRunningAdapter", () => {
 
   it("sends correct POST to {baseUrl}/v1beta/models/{model}:predictLongRunning with API key", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-abc123", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(makeRequest());
 
@@ -129,6 +139,7 @@ describe("longRunningAdapter", () => {
 
   it("request body has instances: [{ prompt }] and parameters: { aspectRatio, durationSeconds }", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-abc123", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(
       makeRequest({
@@ -146,6 +157,7 @@ describe("longRunningAdapter", () => {
 
   it("when operation completes immediately: parses video from generateVideoResponse, writes file, returns complete", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-done", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse("fake-video-bytes"));
 
     const result = await longRunningAdapter(makeRequest({ outputPath: "/tmp/media/video.mp4" }));
 
@@ -190,6 +202,8 @@ describe("longRunningAdapter", () => {
     mockFetch.mockResolvedValueOnce(makePollResponse(false, "operations/veo-poll123"));
     // Third poll: done
     mockFetch.mockResolvedValueOnce(makePollResponse(true, "operations/veo-poll123"));
+    // URI download after done
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     const promise = longRunningAdapter(makeRequest({ timeout_ms: 60_000 }));
 
@@ -200,8 +214,10 @@ describe("longRunningAdapter", () => {
 
     assert.strictEqual(result.status, "complete");
 
-    // Verify poll requests used GET with the operation name
-    const pollCalls = mockFetch.mock.calls.slice(1); // skip the initial POST
+    // Verify poll requests used GET with the operation name (skip initial POST and final URI download)
+    const pollCalls = mockFetch.mock.calls
+      .slice(1) // skip the initial POST
+      .filter(([url]: [string]) => url.includes("operations/"));
     assert.ok(pollCalls.length >= 1, "Should have made at least one poll request");
     for (const [pollUrl] of pollCalls) {
       assert.ok(
@@ -217,6 +233,7 @@ describe("longRunningAdapter", () => {
 
   it("includes input_image as reference frame when provided", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-img2vid", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(
       makeRequest({
@@ -251,6 +268,7 @@ describe("longRunningAdapter", () => {
 
   it("includes last_frame as lastFrame when provided", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-lastframe", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(
       makeRequest({
@@ -282,6 +300,7 @@ describe("longRunningAdapter", () => {
 
   it("omits lastFrame when last_frame is not provided", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-nolast", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(
       makeRequest({
@@ -331,6 +350,7 @@ describe("longRunningAdapter", () => {
 
   it("uses default parameters when optional video params are omitted", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-defaults", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(makeRequest({ params: { kind: "video" } }));
 
@@ -343,6 +363,7 @@ describe("longRunningAdapter", () => {
 
   it("uses custom baseUrl from request", async () => {
     mockFetch.mockResolvedValueOnce(makeInitiateResponse("operations/veo-custom", true));
+    mockFetch.mockResolvedValueOnce(makeVideoDownloadResponse());
 
     await longRunningAdapter(
       makeRequest({

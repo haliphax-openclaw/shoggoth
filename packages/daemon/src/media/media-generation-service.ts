@@ -1,5 +1,8 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { getLogger } from "../logging.js";
+
+const log = getLogger("media-generation-service");
 import { generateContentAdapter } from "./adapters/generate-content-adapter";
 import { predictAdapter } from "./adapters/predict-adapter";
 import { longRunningAdapter } from "./adapters/long-running-adapter";
@@ -178,27 +181,54 @@ export class MediaGenerationService {
 
       const video = samples[0].video as Record<string, unknown> | undefined;
       if (!video) {
+        log.warn("media_generation_service.poll_parse_failed", {
+          error: "No video data in generated sample",
+          sampleKeys: Object.keys(samples[0]),
+        });
         return { status: "error", error: "No video data in generated sample" };
       }
 
+      const videoUri = video.uri as string | undefined;
       const base64Data = video.bytesBase64Encoded as string | undefined;
-      if (!base64Data) {
-        return { status: "error", error: "No bytesBase64Encoded in video response" };
-      }
-
+      const encoding = (video.encoding as string) || "video/mp4";
       const outputPath =
         req.output_path || `/tmp/media/${req.operation_id.replace(/\//g, "_")}.mp4`;
-      const decoded = Buffer.from(base64Data, "base64");
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, decoded);
 
-      const encoding = (video.encoding as string) || "video/mp4";
+      // Prefer URI download (standard Veo 3.1 response), fall back to inline base64
+      if (videoUri) {
+        try {
+          const downloadUrl = apiKey ? `${videoUri}&key=${apiKey}` : videoUri;
+          const dlRes = await fetch(downloadUrl, { redirect: "follow" });
+          if (!dlRes.ok) throw new Error(`HTTP ${dlRes.status}`);
+          const buf = Buffer.from(await dlRes.arrayBuffer());
+          await mkdir(dirname(outputPath), { recursive: true });
+          await writeFile(outputPath, buf);
+          return { status: "complete", path: outputPath, mime_type: encoding };
+        } catch (err) {
+          log.warn("media_generation_service.poll_uri_download_failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          if (!base64Data) {
+            return {
+              status: "error",
+              error: `Video URI download failed: ${err instanceof Error ? err.message : String(err)}`,
+            };
+          }
+        }
+      }
 
-      return {
-        status: "complete",
-        path: outputPath,
-        mime_type: encoding,
-      };
+      if (base64Data) {
+        const decoded = Buffer.from(base64Data, "base64");
+        await mkdir(dirname(outputPath), { recursive: true });
+        await writeFile(outputPath, decoded);
+        return { status: "complete", path: outputPath, mime_type: encoding };
+      }
+
+      log.warn("media_generation_service.poll_parse_failed", {
+        error: "No video URI or bytesBase64Encoded in response",
+        videoKeys: Object.keys(video),
+      });
+      return { status: "error", error: "No video URI or bytesBase64Encoded in video response" };
     } catch (err) {
       return {
         status: "error",
