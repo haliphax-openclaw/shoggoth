@@ -34,18 +34,7 @@ Three modes, configurable globally and per-agent:
 
 New optional section `attachmentHandling` at the top level and per-agent:
 
-```yaml
-# Global default
-attachmentHandling:
-  mode: download # "download" | "inline" | "hybrid"
-
-# Per-agent override
-agents:
-  list:
-    my-agent:
-      attachmentHandling:
-        mode: hybrid
-```
+`jsonc\n{\n  // Global default\n  "attachmentHandling": {\n    "mode": "download" // "download" | "inline" | "hybrid"\n  },\n  // Per-agent override\n  "agents": {\n    "list": {\n      "my-agent": {\n        "attachmentHandling": {\n          "mode": "hybrid"\n        }\n      }\n    }\n  }\n}\n`
 
 Per-agent config takes precedence over global. When neither is set, the default is `download`.
 

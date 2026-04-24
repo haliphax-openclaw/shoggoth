@@ -153,27 +153,7 @@ workspace/
 
 ### Config examples
 
-```yaml
-# Default: download only (no inlining)
-attachmentHandling:
-  mode: download
-
-# Restore previous behavior (base64 inline, no file on disk)
-attachmentHandling:
-  mode: inline
-
-# Per-agent: vision-heavy agent gets hybrid, others get download
-attachmentHandling:
-  mode: download
-agents:
-  list:
-    vision-agent:
-      attachmentHandling:
-        mode: hybrid
-    file-processor:
-      attachmentHandling:
-        mode: download
-```
+`jsonc\n// Default: download only (no inlining)\n{\n  "attachmentHandling": {\n    "mode": "download"\n  }\n}\n\n// Restore previous behavior (base64 inline, no file on disk)\n{\n  "attachmentHandling": {\n    "mode": "inline"\n  }\n}\n\n// Per-agent: vision-heavy agent gets hybrid, others get download\n{\n  "attachmentHandling": {\n    "mode": "download"\n  },\n  "agents": {\n    "list": {\n      "vision-agent": {\n        "attachmentHandling": {\n          "mode": "hybrid"\n        }\n      },\n      "file-processor": {\n        "attachmentHandling": {\n          "mode": "download"\n        }\n      }\n    }\n  }\n}\n`
 
 ### Turn orchestrator integration sketch
 
