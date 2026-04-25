@@ -22,6 +22,9 @@ import {
   createWebSearchToolFinalizer,
   type SessionMcpToolContext,
 } from "./session-mcp-tool-context";
+import { listSkillsForConfig } from "@shoggoth/skills";
+import { parseAgentSessionUrn, LAYOUT } from "@shoggoth/shared";
+import { resolve } from "node:path";
 import { createToolDiscoveryFinalizer } from "./session-tool-discovery";
 import { createElevationToolFinalizer } from "./elevation-tool-finalizer";
 
@@ -93,6 +96,42 @@ export async function createSessionMcpRuntime(
   registerContextFinalizer(createMediaGenerateToolFinalizer(opts.config));
   // Register elevation tool finalizer (conditionally injects builtin-elevate when grant is active).
   registerContextFinalizer(createElevationToolFinalizer(opts.db));
+  // Register skills enum finalizer (enriches builtin-skills id field with available skill IDs).
+  registerContextFinalizer((ctx, sessionId) => {
+    const skillsTool = ctx.aggregated.tools.find((t) => t.namespacedName === "builtin-skills");
+    if (!skillsTool) return ctx;
+
+    const parsed = parseAgentSessionUrn(sessionId);
+    const workspacesRoot = opts.config.workspacesRoot ?? LAYOUT.workspacesRoot;
+    const workspacePath = parsed ? resolve(workspacesRoot, parsed.agentId) : undefined;
+    const skills = listSkillsForConfig(opts.config, workspacePath);
+    const ids = skills.filter((s) => s.enabled).map((s) => s.id);
+    if (ids.length === 0) return ctx;
+
+    const inputSchema = JSON.parse(JSON.stringify(skillsTool.inputSchema));
+    if (inputSchema.properties?.id) {
+      inputSchema.properties.id.enum = ids;
+    }
+
+    const updatedTools = ctx.aggregated.tools.map((t) =>
+      t.namespacedName === "builtin-skills" ? { ...t, inputSchema } : t,
+    );
+
+    const aggregated = { ...ctx.aggregated, tools: updatedTools };
+    return {
+      ...ctx,
+      aggregated,
+      toolsOpenAi: ctx.toolsOpenAi.map((t) =>
+        t.function.name === "builtin-skills"
+          ? { ...t, function: { ...t.function, parameters: inputSchema } }
+          : t,
+      ),
+      toolsLoop: ctx.toolsLoop.map((t) =>
+        t.name === "builtin-skills" ? { ...t, inputSchema } : t,
+      ),
+    };
+  });
+
   // Register tool discovery finalizer (must be last — sees the full catalog including web-search).
   registerContextFinalizer(createToolDiscoveryFinalizer(opts.config, opts.db));
 

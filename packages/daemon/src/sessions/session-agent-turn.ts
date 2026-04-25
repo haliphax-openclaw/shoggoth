@@ -279,7 +279,20 @@ export async function executeSessionAgentTurn(
     };
   }
 
-  const toolClient = createToolClient(modelsForSession, { env: input.env });
+  const toolClient = createToolClient(modelsForSession, {
+    env: input.env,
+    hooks: {
+      onProviderExhausted(providerId, error, nextRef) {
+        log.warn("model provider failover", {
+          sessionId: input.sessionId,
+          failedProviderId: providerId,
+          error,
+          nextRef,
+          isSubagent: isSubagentSessionUrn(input.sessionId),
+        });
+      },
+    },
+  });
 
   const modelInvocation = mergeModelInvocationParams(
     modelsForSession,

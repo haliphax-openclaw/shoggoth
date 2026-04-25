@@ -40,8 +40,8 @@ export interface FailoverCompleteOutput extends ModelCompleteOutput {
 export interface FailoverHooks {
   /** Return true if the provider should be skipped (marked failed and not stale). */
   isProviderFailed?(providerId: string): boolean;
-  /** Called after retry exhaustion for a provider. */
-  onProviderExhausted?(providerId: string, error?: string): void;
+  /** Called after retry exhaustion for a provider. `nextRef` is the next hop if available. */
+  onProviderExhausted?(providerId: string, error?: string, nextRef?: string): void;
   /** Called on successful completion (clears any prior failure record). */
   onProviderSuccess?(providerId: string): void;
 }
@@ -101,9 +101,11 @@ export function createFailoverModelClient(
           lastErr = e;
           const more = i < chain.length - 1;
           if (more && isFailoverEligibleError(e)) {
+            const next = chain[i + 1]!;
             hooks?.onProviderExhausted?.(
               entry.provider.id,
               e instanceof Error ? e.message : String(e),
+              `${next.provider.id}/${next.model}`,
             );
             continue;
           }

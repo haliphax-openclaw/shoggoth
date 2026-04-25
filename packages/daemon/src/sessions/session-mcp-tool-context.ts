@@ -368,6 +368,37 @@ const MEDIA_GENERATE_TOOL_DESCRIPTOR: AggregatedTool = {
         type: "object",
         description:
           "Parameters discriminated by 'kind': image (aspectRatio, numberOfImages, input_image), video (aspectRatio, durationSeconds, input_image, last_frame), speech (voice), music (durationSeconds)",
+        properties: {
+          kind: {
+            type: "string",
+            enum: ["image", "video", "speech", "music"],
+            description: "Media type to generate",
+          },
+          aspectRatio: {
+            type: "string",
+            description: "Aspect ratio (image/video, e.g. '16:9', '1:1')",
+          },
+          numberOfImages: {
+            type: "number",
+            description: "Number of images to generate (image only)",
+          },
+          input_image: {
+            type: "string",
+            description: "Base64-encoded input image for editing (image/video)",
+          },
+          last_frame: {
+            type: "string",
+            description: "Base64-encoded last frame (video only)",
+          },
+          durationSeconds: {
+            type: "number",
+            description: "Duration in seconds (video/music)",
+          },
+          voice: {
+            type: "string",
+            description: "Voice name for TTS (speech only)",
+          },
+        },
         required: ["kind"],
       },
       output_path: {

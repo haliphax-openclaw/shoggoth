@@ -14,7 +14,7 @@ Set, cancel, or list deferred timers. When a timer fires, its message is deliver
 
 ## Constraints
 
-- Duration: 5 seconds – 30 days.
+- Duration: 2 minutes – 30 days.
 - Max 50 active timers per session.
 - Timers are session-scoped; you cannot cancel another session's timer.
 

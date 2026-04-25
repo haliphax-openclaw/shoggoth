@@ -22,25 +22,28 @@ beforeEach(() => {
 
 describe("formatDegradedPrefix", () => {
   it("returns empty string when meta is undefined", () => {
-    expect(formatDegradedPrefix(undefined)).toBe("");
+    const cfg = { agents: {} } as any;
+    expect(formatDegradedPrefix(cfg, "sess1", undefined)).toBe("");
   });
 
   it("returns empty string when not degraded", () => {
+    const cfg = { agents: {} } as any;
     const meta: FailoverMeta = {
       degraded: false,
       usedModel: "m",
       usedProviderId: "p",
     };
-    expect(formatDegradedPrefix(meta)).toBe("");
+    expect(formatDegradedPrefix(cfg, "sess1", meta)).toBe("");
   });
 
   it("returns degraded banner when degraded", () => {
+    const cfg = { agents: {} } as any;
     const meta: FailoverMeta = {
       degraded: true,
       usedModel: "gpt-4",
       usedProviderId: "openai",
     };
-    const result = formatDegradedPrefix(meta);
+    const result = formatDegradedPrefix(cfg, "sess1", meta);
     expect(result).toContain("degraded-banner");
     expect(result).toContain("gpt-4");
     expect(result).toContain("openai");

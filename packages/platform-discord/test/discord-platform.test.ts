@@ -4,10 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
-import {
-  createAgentToAgentBus,
-  createInboundMessage,
-} from "@shoggoth/messaging";
+import { createAgentToAgentBus, createInboundMessage } from "@shoggoth/messaging";
 import { discordCapabilityDescriptor } from "../src/capabilities";
 import { ModelHttpError } from "@shoggoth/models";
 import { defaultConfig } from "@shoggoth/shared";
@@ -47,46 +44,43 @@ setNoticeResolver(daemonNotice);
 setPresentationNoticeResolver(daemonNotice);
 
 /** Stub type for connectShoggothMcpServers (daemon internal) */
-type ConnectShoggothMcpServersFn = (
-  servers: ShoggothMcpServerEntry[],
-) => Promise<{
+type ConnectShoggothMcpServersFn = (servers: ShoggothMcpServerEntry[]) => Promise<{
   pool: { externalSources: unknown[]; close: () => Promise<void> };
   external: () => Promise<{ resultJson: string }>;
 }>;
 
-const stubDiscordRestTransport: DiscordMessagingRuntime["discordRestTransport"] =
-  {
-    async openDmChannel() {
-      return "dm-channel-stub";
-    },
-    async createMessage() {
-      return { id: "noop" };
-    },
-    async createMessageWithFiles() {
-      return { id: "noop" };
-    },
-    async editMessage() {},
-    async deleteMessage() {},
-    async getMessage() {
-      return {
-        id: "stub",
-        channel_id: "c",
-        content: "",
-        timestamp: "",
-        author: {},
-        attachments: [],
-      };
-    },
-    async getChannelMessages() {
-      return [];
-    },
-    async createThreadFromMessage() {
-      return { id: "thread-stub" };
-    },
-    async deleteChannel() {},
-    async createMessageReaction() {},
-    async triggerTypingIndicator() {},
-  };
+const stubDiscordRestTransport: DiscordMessagingRuntime["discordRestTransport"] = {
+  async openDmChannel() {
+    return "dm-channel-stub";
+  },
+  async createMessage() {
+    return { id: "noop" };
+  },
+  async createMessageWithFiles() {
+    return { id: "noop" };
+  },
+  async editMessage() {},
+  async deleteMessage() {},
+  async getMessage() {
+    return {
+      id: "stub",
+      channel_id: "c",
+      content: "",
+      timestamp: "",
+      author: {},
+      attachments: [],
+    };
+  },
+  async getChannelMessages() {
+    return [];
+  },
+  async createThreadFromMessage() {
+    return { id: "thread-stub" };
+  },
+  async deleteChannel() {},
+  async createMessageReaction() {},
+  async triggerTypingIndicator() {},
+};
 
 const stubNotifyAgentTyping: DiscordMessagingRuntime["notifyAgentTypingForSession"] =
   async () => {};
@@ -98,9 +92,10 @@ const stubDiscordGatewaySession: DiscordMessagingRuntime["gateway"] = {
 
 describe("discord platform helpers", () => {
   it("formatDiscordPlatformDegradedPrefix is empty when not degraded", () => {
-    assert.equal(formatDiscordPlatformDegradedPrefix(undefined), "");
+    const cfg = defaultConfig(tmpdir());
+    assert.equal(formatDiscordPlatformDegradedPrefix(cfg, "sess1", undefined), "");
     assert.equal(
-      formatDiscordPlatformDegradedPrefix({
+      formatDiscordPlatformDegradedPrefix(cfg, "sess1", {
         degraded: false,
         usedModel: "m1",
         usedProviderId: "p1",
@@ -110,7 +105,8 @@ describe("discord platform helpers", () => {
   });
 
   it("formatDiscordPlatformDegradedPrefix includes model when degraded", () => {
-    const s = formatDiscordPlatformDegradedPrefix({
+    const cfg = defaultConfig(tmpdir());
+    const s = formatDiscordPlatformDegradedPrefix(cfg, "sess1", {
       degraded: true,
       usedModel: "backup-m",
       usedProviderId: "env-default",
@@ -121,10 +117,7 @@ describe("discord platform helpers", () => {
 
   it("formatDiscordPlatformModelTagFooter is empty unless env flag and meta", () => {
     assert.equal(
-      formatDiscordPlatformModelTagFooter(
-        { SHOGGOTH_DISCORD_MODEL_TAG: "1" },
-        undefined,
-      ),
+      formatDiscordPlatformModelTagFooter({ SHOGGOTH_DISCORD_MODEL_TAG: "1" }, undefined),
       "",
     );
     assert.equal(
@@ -157,50 +150,34 @@ describe("discord platform helpers", () => {
     assert.equal(chat.length, 3);
     assert.equal(chat[1]!.role, "assistant");
     assert.ok(
-      "toolCalls" in chat[1]! &&
-        (chat[1] as { toolCalls: unknown[] }).toolCalls.length === 1,
+      "toolCalls" in chat[1]! && (chat[1] as { toolCalls: unknown[] }).toolCalls.length === 1,
     );
   });
 });
 
 describe("formatErrorUserText", () => {
   it("maps ModelHttpError statuses to friendly copy", () => {
-    assert.match(
-      formatErrorUserText(new ModelHttpError(429, "x")),
-      /rate-limited/i,
-    );
-    assert.match(
-      formatErrorUserText(new ModelHttpError(503, "x")),
-      /unavailable/i,
-    );
+    assert.match(formatErrorUserText(new ModelHttpError(429, "x")), /rate-limited/i);
+    assert.match(formatErrorUserText(new ModelHttpError(503, "x")), /unavailable/i);
     assert.match(formatErrorUserText(new ModelHttpError(500, "x")), /500/i);
     assert.match(formatErrorUserText(new ModelHttpError(401, "x")), /401/i);
     assert.match(formatErrorUserText(new ModelHttpError(418, "x")), /418/);
     assert.match(
-      formatErrorUserText(
-        new ModelHttpError(400, "Bad Request", "invalid_request: tool schema"),
-      ),
+      formatErrorUserText(new ModelHttpError(400, "Bad Request", "invalid_request: tool schema")),
       /400/i,
     );
     assert.match(
-      formatErrorUserText(
-        new ModelHttpError(400, "Bad Request", "invalid_request: tool schema"),
-      ),
+      formatErrorUserText(new ModelHttpError(400, "Bad Request", "invalid_request: tool schema")),
       /tool schema/i,
     );
   });
 
   it("maps fetch-like TypeError to a network hint", () => {
-    assert.match(
-      formatErrorUserText(new TypeError("fetch failed")),
-      /Network error/i,
-    );
+    assert.match(formatErrorUserText(new TypeError("fetch failed")), /Network error/i);
   });
 
   it("maps hitl_pending to approval copy with id, not stack", () => {
-    const t = formatErrorUserText(
-      new Error("hitl_pending:pend-uuid-1\n    at foo (bar.js:1:1)"),
-    );
+    const t = formatErrorUserText(new Error("hitl_pending:pend-uuid-1\n    at foo (bar.js:1:1)"));
     assert.match(t, /pend-uuid-1/);
     assert.match(t, /approval/i);
     assert.equal(t.includes("at foo"), false);
@@ -216,8 +193,7 @@ describe("discord-hitl-notifier", () => {
   function row(overrides: Partial<PendingActionRow>): PendingActionRow {
     return {
       id: "pend-1",
-      sessionId:
-        "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+      sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       correlationId: undefined,
       toolName: "builtin-write",
       resourceSummary: undefined,
@@ -330,8 +306,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const sent: { body: string }[] = [];
     const typingSessions: string[] = [];
     const bus = createAgentToAgentBus();
-    const sessionUrn =
-      "agent:test:discord:channel:10000000-0000-4000-8000-000000000001";
+    const sessionUrn = "agent:test:discord:channel:10000000-0000-4000-8000-000000000001";
     const discord: DiscordMessagingRuntime = {
       stop: async () => {},
       gateway: stubDiscordGatewaySession,
@@ -421,8 +396,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -448,8 +422,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "ping",
       }),
@@ -486,8 +459,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -517,8 +489,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "ping",
       }),
@@ -563,8 +534,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -629,13 +599,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
         {
           channelId: "c2",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         },
       ],
     };
@@ -667,8 +635,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -680,8 +647,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -693,8 +659,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -735,8 +700,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -767,8 +731,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -782,8 +745,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -824,8 +786,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -856,8 +817,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -871,8 +831,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -918,13 +877,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
         {
           channelId: "c2",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         },
       ],
     };
@@ -972,8 +929,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -986,8 +942,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -999,8 +954,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -1049,13 +1003,11 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
         {
           channelId: "c2",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         },
       ],
     };
@@ -1101,8 +1053,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "a",
       }),
@@ -1118,8 +1069,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d2",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "b",
       }),
@@ -1131,8 +1081,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
       createInboundMessage({
         id: "d3",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000002",
         createdAt: new Date().toISOString(),
         body: "c",
       }),
@@ -1179,8 +1128,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1224,8 +1172,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d1",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "hi",
       }),
@@ -1268,8 +1215,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1296,8 +1242,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-ch",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl",
       }),
@@ -1307,9 +1252,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     await new Promise((r) => setTimeout(r, 50));
     await platform.stop();
 
-    const opMsgs = createMessageCalls.filter(
-      (c) => c.channelId === notifyChannelId,
-    );
+    const opMsgs = createMessageCalls.filter((c) => c.channelId === notifyChannelId);
     assert.equal(opMsgs.length, 1);
     assert.match(opMsgs[0]!.content, /HITL/);
     assert.match(opMsgs[0]!.content, /builtin-write/);
@@ -1355,8 +1298,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1384,8 +1326,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-dm",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl dm",
       }),
@@ -1396,9 +1337,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     await platform.stop();
 
     assert.deepEqual(dmOpens, [targetDmUser]);
-    const dmMsgs = createMessageCalls.filter(
-      (c) => c.channelId === "dm-ch-from-api",
-    );
+    const dmMsgs = createMessageCalls.filter((c) => c.channelId === "dm-ch-from-api");
     assert.equal(dmMsgs.length, 1);
     assert.match(dmMsgs[0]!.content, /HITL/);
     assert.match(dmMsgs[0]!.content, /builtin-write/);
@@ -1433,8 +1372,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         routes: [
           {
             channelId: "c1",
-            sessionId:
-              "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+            sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           },
         ],
       };
@@ -1460,8 +1398,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-wh",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "trigger hitl webhook",
         }),
@@ -1491,12 +1428,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       );
       assert.equal(parsed.tool, "builtin-write");
       assert.equal(parsed.riskTier, "caution");
+      assert.ok(typeof parsed.pendingId === "string" && parsed.pendingId.length > 0);
       assert.ok(
-        typeof parsed.pendingId === "string" && parsed.pendingId.length > 0,
-      );
-      assert.ok(
-        typeof parsed.payloadPreview === "string" &&
-          parsed.payloadPreview.includes("hitl-notify"),
+        typeof parsed.payloadPreview === "string" && parsed.payloadPreview.includes("hitl-notify"),
       );
     } finally {
       globalThis.fetch = prevFetch;
@@ -1544,8 +1478,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         routes: [
           {
             channelId: "c1",
-            sessionId:
-              "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+            sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           },
         ],
       };
@@ -1576,8 +1509,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-both",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "trigger both",
         }),
@@ -1588,11 +1520,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       await platform.stop();
 
       assert.ok(fetchCalls.some((c) => c.url === webhookUrl));
-      assert.equal(
-        createMessageCalls.filter((c) => c.channelId === notifyChannelId)
-          .length,
-        1,
-      );
+      assert.equal(createMessageCalls.filter((c) => c.channelId === notifyChannelId).length, 1);
     } finally {
       globalThis.fetch = prevFetch;
     }
@@ -1642,8 +1570,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         routes: [
           {
             channelId: "c1",
-            sessionId:
-              "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+            sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           },
         ],
       };
@@ -1670,8 +1597,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
         "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createInboundMessage({
           id: "d-hitl-none",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
           createdAt: new Date().toISOString(),
           body: "hitl no notify",
         }),
@@ -1711,8 +1637,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1745,8 +1670,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-in-thread",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl in thread",
       }),
@@ -1759,15 +1683,9 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const hitlBodies = outboundBodies.filter(
       (b) => b.includes("HITL") && b.includes("shoggoth hitl approve"),
     );
-    assert.ok(
-      hitlBodies.length >= 1,
-      "expected at least one outbound HITL notice",
-    );
+    assert.ok(hitlBodies.length >= 1, "expected at least one outbound HITL notice");
     assert.match(hitlBodies[0]!, /builtin-write/);
-    assert.match(
-      hitlBodies[0]!,
-      /agent:test:discord:channel:10000000-0000-4000-8000-000000000001/,
-    );
+    assert.match(hitlBodies[0]!, /agent:test:discord:channel:10000000-0000-4000-8000-000000000001/);
     assert.match(hitlBodies[0]!, /hitl-notify\.txt/);
   });
 
@@ -1794,8 +1712,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1828,8 +1745,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-no-in-thread",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl no in-thread",
       }),
@@ -1842,11 +1758,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const hitlBodies = outboundBodies.filter(
       (b) => b.includes("HITL") && b.includes("shoggoth hitl approve"),
     );
-    assert.equal(
-      hitlBodies.length,
-      0,
-      "in-thread HITL reply should be suppressed",
-    );
+    assert.equal(hitlBodies.length, 0, "in-thread HITL reply should be suppressed");
   });
 
   it("disables in-session HITL when discord.hitlReplyInSession is false (merged env)", async () => {
@@ -1872,8 +1784,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1912,8 +1823,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-hitl-config-off",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "trigger hitl config off",
       }),
@@ -1951,8 +1861,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -1986,8 +1895,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-nonowner",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "hi",
         extensions: {
@@ -2031,8 +1939,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [
         {
           channelId: "c1",
-          sessionId:
-            "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+          sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         },
       ],
     };
@@ -2066,8 +1973,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
       createInboundMessage({
         id: "d-owner",
-        sessionId:
-          "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
+        sessionId: "agent:test:discord:channel:10000000-0000-4000-8000-000000000001",
         createdAt: new Date().toISOString(),
         body: "hi",
         extensions: {
@@ -2091,8 +1997,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
   });
 
   it("subagent runSessionModelTurn with messaging_surface delivery fires afterHitlQueued and hitlNotifier", async () => {
-    const parentSessionId =
-      "agent:test:discord:channel:10000000-0000-4000-8000-000000000001";
+    const parentSessionId = "agent:test:discord:channel:10000000-0000-4000-8000-000000000001";
     const subagentSessionId =
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000001:bbbbbbbb-bbbb-4ccc-dddd-eeeeeeeeeeee";
     createSessionStore(db).create({
@@ -2131,10 +2036,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       routes: [{ channelId: "c1", sessionId: parentSessionId }],
     };
 
-    const approveP = approveFirstPendingWhenQueued(
-      hitlStack,
-      subagentSessionId,
-    );
+    const approveP = approveFirstPendingWhenQueued(hitlStack, subagentSessionId);
 
     const platform = await startDiscordPlatform({
       db,
@@ -2187,10 +2089,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const hitlBodies = outboundBodies.filter(
       (b) => b.includes("HITL") && b.includes("shoggoth hitl approve"),
     );
-    assert.ok(
-      hitlBodies.length >= 1,
-      "expected at least one in-session HITL notice for subagent",
-    );
+    assert.ok(hitlBodies.length >= 1, "expected at least one in-session HITL notice for subagent");
     assert.match(hitlBodies[0]!, /builtin-write/);
     assert.match(
       hitlBodies[0]!,
@@ -2202,8 +2101,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
   });
 
   it("subagent runSessionModelTurn with internal delivery fires afterHitlQueued using parent session channel", async () => {
-    const parentSessionId =
-      "agent:test:discord:channel:10000000-0000-4000-8000-000000000099";
+    const parentSessionId = "agent:test:discord:channel:10000000-0000-4000-8000-000000000099";
     const subagentSessionId =
       "agent:test:discord:channel:10000000-0000-4000-8000-000000000099:cccccccc-cccc-4ccc-dddd-eeeeeeeeeeee";
     createSessionStore(db).create({ id: parentSessionId, workspacePath: tmp });
@@ -2243,14 +2141,10 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
       registerPlatformThreadBinding: () => () => {},
       notifyAgentTypingForSession: stubNotifyAgentTyping,
       routes: [{ channelId: "c1", sessionId: parentSessionId }],
-      resolveOutboundChannelIdForSession: (sid) =>
-        sid === parentSessionId ? "c1" : undefined,
+      resolveOutboundChannelIdForSession: (sid) => (sid === parentSessionId ? "c1" : undefined),
     };
 
-    const approveP = approveFirstPendingWhenQueued(
-      hitlStack,
-      subagentSessionId,
-    );
+    const approveP = approveFirstPendingWhenQueued(hitlStack, subagentSessionId);
 
     const platform = await startDiscordPlatform({
       db,
@@ -2305,8 +2199,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     // The outbound message uses the parent session ID, not the subagent's
     const hitlSessionIds = outboundSessionIds.filter(
       (_, i) =>
-        outboundBodies[i]!.includes("HITL") ||
-        outboundBodies[i]!.includes("shoggoth hitl approve"),
+        outboundBodies[i]!.includes("HITL") || outboundBodies[i]!.includes("shoggoth hitl approve"),
     );
     assert.ok(
       hitlSessionIds.every((id) => id === parentSessionId),

@@ -37,8 +37,7 @@ const execArgs = {
     },
     timeout: {
       type: "integer",
-      description:
-        "Maximum milliseconds before the process is killed. Omit for no timeout.",
+      description: "Maximum milliseconds before the process is killed. Omit for no timeout.",
       minimum: 0,
     },
     stdin: {
@@ -47,14 +46,12 @@ const execArgs = {
     },
     workdir: {
       type: "string",
-      description:
-        "Working directory for the command. Defaults to workspace root.",
+      description: "Working directory for the command. Defaults to workspace root.",
     },
     env: {
       type: "object",
       additionalProperties: true,
-      description:
-        "Environment variable overrides (string values, merged with existing env).",
+      description: "Environment variable overrides (string values, merged with existing env).",
     },
     splitStreams: {
       type: "boolean",
@@ -70,8 +67,7 @@ const execArgs = {
     truncation: {
       type: "string",
       enum: ["head", "tail", "both"],
-      description:
-        "Truncation strategy when output exceeds maxOutput. Default: tail.",
+      description: "Truncation strategy when output exceeds maxOutput. Default: tail.",
     },
     background: {
       type: "boolean",
@@ -131,8 +127,7 @@ const subagentToolArgs = {
     },
     prompt: {
       type: "string",
-      description:
-        "spawn_one_shot, spawn_persistent, steer: task or steer text",
+      description: "spawn_one_shot, spawn_persistent, steer: task or steer text",
     },
     thread_id: {
       type: "string",
@@ -141,8 +136,7 @@ const subagentToolArgs = {
     },
     model_options: {
       type: "object",
-      description:
-        "spawn_*: optional overlay merged into inherited model_selection",
+      description: "spawn_*: optional overlay merged into inherited model_selection",
     },
     platform_user_id: {
       type: "string",
@@ -266,13 +260,11 @@ const sessionSendArgs = {
     },
     agent_id: {
       type: "string",
-      description:
-        "Logical agent id; targets that agent's bootstrap main session",
+      description: "Logical agent id; targets that agent's bootstrap main session",
     },
     platform_user_id: {
       type: "string",
-      description:
-        "When not silent, optional outbound user id for messaging_surface",
+      description: "When not silent, optional outbound user id for messaging_surface",
     },
     reply_to_message_id: {
       type: "string",
@@ -342,8 +334,7 @@ const configRequestArgs = {
 
 const skillsToolArgs = {
   type: "object",
-  description:
-    "Query available skills: list all, resolve absolute path, or read content by id.",
+  description: "Query available skills: list all, resolve absolute path, or read content by id.",
   properties: {
     action: {
       type: "string",
@@ -382,8 +373,7 @@ const sessionQueryArgs = {
     },
     offset: {
       type: "integer",
-      description:
-        "Pagination offset (seq cursor; messages with seq > offset are returned)",
+      description: "Pagination offset (seq cursor; messages with seq > offset are returned)",
       minimum: 0,
     },
     role: {
@@ -407,8 +397,7 @@ const sessionQueryArgs = {
     },
     queryRegex: {
       type: "string",
-      description:
-        "Regex pattern to match against message content. Mutually exclusive with query.",
+      description: "Regex pattern to match against message content. Mutually exclusive with query.",
     },
     includeMetadata: {
       type: "boolean",
@@ -453,8 +442,7 @@ const showToolArgs = {
     },
     mediaType: {
       type: "string",
-      description:
-        "MIME type (e.g. image/png). Required with base64; inferred for path/url.",
+      description: "MIME type (e.g. image/png). Required with base64; inferred for path/url.",
     },
     filename: {
       type: "string",
@@ -476,13 +464,11 @@ const fsArgs = {
     },
     path: {
       type: "string",
-      description:
-        "Source path (workspace-relative). Required for all actions.",
+      description: "Source path (workspace-relative). Required for all actions.",
     },
     dest: {
       type: "string",
-      description:
-        "Destination path (workspace-relative). Required for move, copy.",
+      description: "Destination path (workspace-relative). Required for move, copy.",
     },
     mode: {
       type: "string",
@@ -613,7 +599,7 @@ const kvArgs = {
 const timerArgs = {
   type: "object",
   description:
-    "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 5s, max 30d. Per-session cap: 50 active timers.",
+    "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 2 minutes, max 30 days. Per-session cap: 50 active timers.",
   properties: {
     action: {
       type: "string",
@@ -631,8 +617,7 @@ const timerArgs = {
     },
     message: {
       type: "string",
-      description:
-        "Message content delivered when the timer fires. Default: the label.",
+      description: "Message content delivered when the timer fires. Default: the label.",
     },
     id: {
       type: "string",
@@ -644,9 +629,7 @@ const timerArgs = {
 /** Canonical builtin source id. */
 export const BUILTIN_SOURCE_ID = "builtin";
 
-export function builtinShoggothToolsCatalog(
-  sourceId = BUILTIN_SOURCE_ID,
-): McpSourceCatalog {
+export function builtinShoggothToolsCatalog(sourceId = BUILTIN_SOURCE_ID): McpSourceCatalog {
   return {
     sourceId,
     tools: [
@@ -721,8 +704,7 @@ export function builtinShoggothToolsCatalog(
       },
       {
         name: "config-show",
-        description:
-          "Show the current daemon configuration (sensitive fields are redacted).",
+        description: "Show the current daemon configuration (sensitive fields are redacted).",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -767,7 +749,7 @@ export function builtinShoggothToolsCatalog(
       {
         name: "timer",
         description:
-          "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 5s, max 30d. Per-session cap: 50 active timers.",
+          "Schedule, cancel, or list deferred timer actions. Timers fire as user-turn messages at the specified time. Relative durations: Xs, Xm, Xh, Xd. Min 2 minutes, max 30 days. Per-session cap: 50 active timers.",
         inputSchema: timerArgs,
       },
       {
@@ -789,8 +771,7 @@ export function builtinShoggothToolsCatalog(
             },
             list: {
               type: "boolean",
-              description:
-                "When true, list all available tools with their current state.",
+              description: "When true, list all available tools with their current state.",
             },
           },
         },
@@ -814,8 +795,7 @@ export function builtinShoggothToolsCatalog(
             },
             path: {
               type: "string",
-              description:
-                'search: file or directory to search (workspace-relative). Default: "."',
+              description: 'search: file or directory to search (workspace-relative). Default: "."',
             },
             fileType: {
               type: "string",
@@ -823,8 +803,7 @@ export function builtinShoggothToolsCatalog(
             },
             glob: {
               type: "string",
-              description:
-                'search: glob pattern for file filtering (e.g. "*.ts", "!*.test.ts").',
+              description: 'search: glob pattern for file filtering (e.g. "*.ts", "!*.test.ts").',
             },
             caseSensitive: {
               type: "boolean",
@@ -866,13 +845,11 @@ export function builtinShoggothToolsCatalog(
             },
             replacement: {
               type: "string",
-              description:
-                "replace: replacement string (supports $1, $2 capture groups).",
+              description: "replace: replacement string (supports $1, $2 capture groups).",
             },
             count: {
               type: "integer",
-              description:
-                "replace: max occurrences to replace. Omit to replace all.",
+              description: "replace: max occurrences to replace. Omit to replace all.",
             },
           },
           required: ["action"],

@@ -1,15 +1,27 @@
-import type { TieredTurnQueue } from "./session-turn-queue";
+import { randomUUID } from "node:crypto";
+import { log } from "../logging";
+import type { Database } from "better-sqlite3";
+import { TieredTurnQueue } from "./session-turn-queue";
 
-let instance: TieredTurnQueue | undefined;
+/** @type {TieredTurnQueue | undefined} */
+let turnQueueRef: TieredTurnQueue | undefined;
 
+/**
+ * Gets the singleton instance of the TieredTurnQueue.
+ * @returns {TieredTurnQueue} The turn queue singleton instance.
+ * @throws {Error} If the turn queue has not been initialized.
+ */
 export function getTurnQueue(): TieredTurnQueue {
-  if (!instance)
-    throw new Error(
-      "TieredTurnQueue not initialized — call setTurnQueue() first",
-    );
-  return instance;
+  if (!turnQueueRef) {
+    throw new Error("TurnQueue has not been initialized. Call setTurnQueue() first.");
+  }
+  return turnQueueRef;
 }
 
-export function setTurnQueue(q: TieredTurnQueue): void {
-  instance = q;
+/**
+ * Sets the singleton instance of the TieredTurnQueue. Must be called early in daemon bootstrap.
+ * @param queue The turn queue instance.
+ */
+export function setTurnQueue(queue: TieredTurnQueue): void {
+  turnQueueRef = queue;
 }

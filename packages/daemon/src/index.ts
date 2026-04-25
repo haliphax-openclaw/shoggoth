@@ -3,6 +3,7 @@ import {
   loadLayeredConfig,
   LAYOUT,
   VERSION,
+  SystemContext,
 } from "@shoggoth/shared";
 import { routeMcpToolInvocation } from "@shoggoth/mcp-integration";
 import { fileURLToPath } from "node:url";
@@ -21,14 +22,8 @@ import { migrate, defaultMigrationsDir } from "./db/migrate";
 import { openStateDb } from "./db/open";
 import { runCronTick } from "./events/cron-scheduler";
 import { runBootReconciliation } from "./events/boot-reconciliation";
-import {
-  runRetentionJobs,
-  retentionScheduleIntervalMs,
-} from "./retention/retention-jobs";
-import {
-  createDefaultHeartbeatHandlers,
-  runHeartbeatBatch,
-} from "./events/heartbeat-consumer";
+import { runRetentionJobs, retentionScheduleIntervalMs } from "./retention/retention-jobs";
+import { createDefaultHeartbeatHandlers, runHeartbeatBatch } from "./events/heartbeat-consumer";
 import {
   createSqliteProbe,
   createModelEndpointProbe,
@@ -55,20 +50,14 @@ import {
   resolveEmbeddingsHealthProbeApiKey,
 } from "./config/effective-runtime";
 import { startControlPlane } from "./control/control-plane";
-import {
-  handleIntegrationControlOp,
-  type IntegrationOpsContext,
-} from "./control/integration-ops";
+import { handleIntegrationControlOp, type IntegrationOpsContext } from "./control/integration-ops";
 import { WIRE_VERSION } from "@shoggoth/authn";
 import { requestSessionTurnAbort } from "./sessions/session-turn-abort";
 import { createSessionStore } from "./sessions/session-store";
 import { initLogger, getLogger } from "./logging";
 
 const log = getLogger("shoggoth-daemon");
-import {
-  createDelegatingPolicyEngine,
-  createPolicyEngine,
-} from "./policy/engine";
+import { createDelegatingPolicyEngine, createPolicyEngine } from "./policy/engine";
 import { pluginAuditToRow } from "./plugins/bootstrap";
 import { bootstrapMainSession } from "./bootstrap-main-session";
 import { createDaemonRuntime } from "./runtime";
@@ -78,14 +67,9 @@ import type { ProcessDeclaration } from "@shoggoth/shared";
 import type { ProcessSpec } from "@shoggoth/procman";
 import { createToolRunStore } from "./sessions/tool-run-store";
 import { registerPlatform as registerMessagingPlatform } from "@shoggoth/messaging";
-import {
-  registerPlatform,
-  stopAllPlatforms,
-} from "./platforms/platform-registry";
+import { registerPlatform, stopAllPlatforms } from "./platforms/platform-registry";
 import { reconcilePersistentSubagents } from "./subagent/reconcile-persistent-subagents";
-import {
-  messageToolContextRef,
-} from "./messaging/message-tool-context-ref";
+import { messageToolContextRef } from "./messaging/message-tool-context-ref";
 import {
   setSubagentRuntimeExtension,
   subagentRuntimeExtensionRef,
@@ -93,17 +77,11 @@ import {
 import { defaultPlatformAssistantDeps } from "./sessions/assistant-runtime";
 import { createPersistingHitlAutoApproveGate } from "./hitl/hitl-auto-approve-persisting";
 import { type HitlAutoApproveGate } from "./hitl/hitl-auto-approve";
-import {
-  createHitlPendingResolutionStack,
-  type HitlPendingStack,
-} from "./hitl/hitl-pending-stack";
+import { createHitlPendingResolutionStack, type HitlPendingStack } from "./hitl/hitl-pending-stack";
 import { daemonNotice, loadDaemonNotices } from "./notices/load-notices";
 import { setNoticeResolver as setPresentationNoticeResolver } from "./presentation/notices";
 import { loadDaemonPrompts } from "./prompts/load-prompts";
-import {
-  registerContextFinalizer,
-  getSessionMcpRuntimeRef,
-} from "./sessions/session-mcp-runtime";
+import { registerContextFinalizer, getSessionMcpRuntimeRef } from "./sessions/session-mcp-runtime";
 import { getBuiltinToolRegistry } from "./sessions/session-agent-turn";
 import type { PlatformAdapter } from "./presentation/platform-adapter";
 
@@ -116,7 +94,7 @@ import {
 } from "./sessions/session-mcp-tool-context";
 import { initWorkflow } from "./workflow-singleton";
 import { TieredTurnQueue } from "./sessions/session-turn-queue";
-import { setTurnQueue } from "./sessions/session-turn-queue-singleton";
+import { setTurnQueue, getTurnQueue } from "./sessions/session-turn-queue-singleton";
 import { ModelResilienceGate, setResilienceGate } from "@shoggoth/models";
 import {
   createDaemonSpawnAdapter,
@@ -152,10 +130,7 @@ initLogger({ minLevel: config.logLevel });
 if (config.dynamicConfigDirectory) {
   const resolvedConfig = resolve(config.configDirectory);
   const resolvedDynamic = resolve(config.dynamicConfigDirectory);
-  if (
-    !resolvedDynamic.startsWith(resolvedConfig + "/") &&
-    resolvedDynamic !== resolvedConfig
-  ) {
+  if (!resolvedDynamic.startsWith(resolvedConfig + "/") && resolvedDynamic !== resolvedConfig) {
     log.error("dynamicConfigDirectory must be below configDirectory", {
       resolvedDynamic,
       resolvedConfig,
@@ -166,19 +141,13 @@ if (config.dynamicConfigDirectory) {
 
 // Initialize model metadata store from config and register known defaults.
 if (config.models?.failoverChain) {
-  initModelMetadataFromConfig(
-    config.models.failoverChain,
-    config.models.providers,
-  );
+  initModelMetadataFromConfig(config.models.failoverChain, config.models.providers);
 }
 if (config.models?.providers) {
   registerAnthropicDefaultsForProviders(config.models.providers);
 }
 if (config.models?.providers && config.models?.failoverChain) {
-  registerOpenAIDefaultsForProviders(
-    config.models.providers,
-    config.models.failoverChain,
-  );
+  registerOpenAIDefaultsForProviders(config.models.providers, config.models.failoverChain);
 }
 
 const policyRef = { engine: createPolicyEngine(config.policy, config.agents) };
@@ -300,9 +269,7 @@ void (async () => {
   });
 
   if (!stateDb) {
-    getLogger("daemon").warn(
-      "plugins and event loops skipped (no state database)",
-    );
+    getLogger("daemon").warn("plugins and event loops skipped (no state database)");
     return;
   }
 
@@ -323,8 +290,7 @@ void (async () => {
   setProcessManager(procman);
 
   // --- Turn Queue: init singleton early (needed during hook-triggered turns) ---
-  const starvationThreshold =
-    config.runtime?.turnQueue?.starvationThreshold ?? 2;
+  const starvationThreshold = config.runtime?.turnQueue?.starvationThreshold ?? 2;
   const maxQueueDepth = config.runtime?.turnQueue?.maxDepth ?? 6;
   setTurnQueue(new TieredTurnQueue(starvationThreshold, maxQueueDepth));
 
@@ -423,10 +389,7 @@ void (async () => {
     stopAllPlatforms,
     reconcilePersistentSubagents:
       reconcilePersistentSubagents as PlatformDeps["reconcilePersistentSubagents"],
-    noticeResolver: daemonNotice as (
-      key: string,
-      params?: Record<string, unknown>,
-    ) => string,
+    noticeResolver: daemonNotice as (key: string, params?: Record<string, unknown>) => string,
   };
 
   // Fire daemon hooks — plugins handle platform.start, health.register, etc.
@@ -439,8 +402,7 @@ void (async () => {
     deliveryRegistry,
     registerDrain: (name, fn) => rt.shutdown.registerDrain(name, fn),
     registerPlatform: (reg) => registerMessagingPlatform(reg),
-    setPlatformRuntime: (platformId, runtime) =>
-      platformsMap.set(platformId, runtime),
+    setPlatformRuntime: (platformId, runtime) => platformsMap.set(platformId, runtime),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     registerProbe: (probe) => rt.health.register(probe as any),
     deps: platformDeps,
@@ -458,14 +420,8 @@ void (async () => {
   });
 
   // Register plugin shutdown drains
-  rt.shutdown.registerDrain(
-    "plugin-platform-stop",
-    hookResult.drains.platformStop,
-  );
-  rt.shutdown.registerDrain(
-    "plugin-daemon-shutdown",
-    hookResult.drains.daemonShutdown,
-  );
+  rt.shutdown.registerDrain("plugin-platform-stop", hookResult.drains.platformStop);
+  rt.shutdown.registerDrain("plugin-daemon-shutdown", hookResult.drains.daemonShutdown);
   stateShutdown.db = db;
   stateShutdown.toolRuns = createToolRunStore(db);
 
@@ -473,10 +429,9 @@ void (async () => {
   const timerScheduler = new TimerScheduler(async (sessionId, message) => {
     const ext = subagentRuntimeExtensionRef.current;
     if (!ext) {
-      getLogger("timer-scheduler").warn(
-        "timer delivery skipped: subagent runtime not available",
-        { sessionId },
-      );
+      getLogger("timer-scheduler").warn("timer delivery skipped: subagent runtime not available", {
+        sessionId,
+      });
       return;
     }
     await ext.runSessionModelTurn({
@@ -484,9 +439,18 @@ void (async () => {
       userContent: message,
       userMetadata: { timer_fire: true },
       delivery: { kind: "internal" },
+      systemContext: {
+        kind: "timer.fire",
+        summary: "This turn was triggered by a deferred timer.",
+        guidance:
+          "Replies to this turn will be dropped. Respond with NO_REPLY. If you need to surface information to the user, use alternate means such as the builtin-message tool.",
+      },
     });
   });
   setTimerScheduler(timerScheduler);
+  getTurnQueue().setOnTurnEnd((sessionId) => {
+    timerScheduler.flushSession(sessionId);
+  });
   try {
     await timerScheduler.restore(db);
   } catch (e) {
@@ -534,9 +498,7 @@ void (async () => {
     };
   }
 
-  const bootProcesses = (config.processes ?? []).filter(
-    (d) => d.startPolicy === "boot",
-  );
+  const bootProcesses = (config.processes ?? []).filter((d) => d.startPolicy === "boot");
   for (const decl of bootProcesses) {
     try {
       await procman.start(processDeclarationToSpec(decl));
@@ -574,10 +536,7 @@ void (async () => {
       requestTurnAbort: (id) => requestSessionTurnAbort(id),
       runSessionModelTurn: (input) => {
         const ext = subagentRuntimeExtensionRef.current;
-        if (!ext)
-          throw new Error(
-            "subagent runtime not available (platform not started)",
-          );
+        if (!ext) throw new Error("subagent runtime not available (platform not started)");
         return ext.runSessionModelTurn({
           ...input,
           delivery: { kind: "internal" },
@@ -609,29 +568,20 @@ void (async () => {
           try {
             const sessionId = context?.replyTo;
             if (!sessionId) {
-              getLogger("daemon").warn(
-                "workflow notify: no replyTo in context",
-              );
+              getLogger("daemon").warn("workflow notify: no replyTo in context");
               return;
             }
 
             const ext = subagentRuntimeExtensionRef.current;
             if (!ext) {
-              getLogger("daemon").warn(
-                "workflow notify: subagent runtime not available",
-              );
+              getLogger("daemon").warn("workflow notify: subagent runtime not available");
               return;
             }
 
-            const status = success
-              ? "✅ completed successfully"
-              : "❌ completed with failures";
+            const status = success ? "✅ completed successfully" : "❌ completed with failures";
             const message = `**Workflow ${status}:** \`${workflowId}\``;
 
-            getLogger("daemon").debug(
-              "workflow notify: delivering to session",
-              { sessionId },
-            );
+            getLogger("daemon").debug("workflow notify: delivering to session", { sessionId });
             const delivery = deliveryRegistry.resolveOperatorDelivery(
               sessionId,
               configRef.current,
@@ -659,10 +609,10 @@ void (async () => {
             });
             getLogger("daemon").debug("workflow notify: delivered");
           } catch (e) {
-            getLogger("daemon").warn(
-              "workflow completion notification failed",
-              { workflowId, err: String(e) },
-            );
+            getLogger("daemon").warn("workflow completion notification failed", {
+              workflowId,
+              err: String(e),
+            });
           }
         },
       },
@@ -701,8 +651,7 @@ void (async () => {
               db,
               config: configRef.current,
               env: process.env,
-              workspacePath:
-                configRef.current.workspacesRoot ?? LAYOUT.workspacesRoot,
+              workspacePath: configRef.current.workspacesRoot ?? LAYOUT.workspacesRoot,
               creds: {
                 uid: process.getuid?.() ?? 0,
                 gid: process.getgid?.() ?? 0,
@@ -722,10 +671,7 @@ void (async () => {
             );
             return { resultJson: result.resultJson };
           }
-          if (!ctx.external)
-            throw new Error(
-              "no external MCP transport for session " + sessionId,
-            );
+          if (!ctx.external) throw new Error("no external MCP transport for session " + sessionId);
           return ctx.external({
             sourceId: routed.tool.sourceId,
             originalName: routed.tool.originalName,
@@ -738,15 +684,12 @@ void (async () => {
         async sendNotification(target: string, message: string): Promise<void> {
           const ext = subagentRuntimeExtensionRef.current;
           if (!ext) {
-            getLogger("daemon").warn(
-              "workflow task notification: subagent runtime not available",
-            );
+            getLogger("daemon").warn("workflow task notification: subagent runtime not available");
             return;
           }
-          const delivery = deliveryRegistry.resolveOperatorDelivery(
-            target,
-            configRef.current,
-          ) ?? { kind: "internal" as const };
+          const delivery = deliveryRegistry.resolveOperatorDelivery(target, configRef.current) ?? {
+            kind: "internal" as const,
+          };
           try {
             await ext.runSessionModelTurn({
               sessionId: target,
@@ -761,10 +704,10 @@ void (async () => {
               delivery,
             });
           } catch (e) {
-            getLogger("daemon").warn(
-              "workflow task failure notification failed",
-              { target, err: String(e) },
-            );
+            getLogger("daemon").warn("workflow task failure notification failed", {
+              target,
+              err: String(e),
+            });
           }
         },
       }),
@@ -820,10 +763,7 @@ void (async () => {
             correlationId: `retention-${Date.now()}`,
           })
             .then((summary) => {
-              if (
-                summary.inboundMediaDeletedFiles > 0 ||
-                summary.transcriptMessagesDeleted > 0
-              ) {
+              if (summary.inboundMediaDeletedFiles > 0 || summary.transcriptMessagesDeleted > 0) {
                 getLogger("events").info("retention tick", { ...summary });
               }
             })
@@ -874,11 +814,7 @@ void (async () => {
   let h = await rt.getHealth();
   for (let attempt = 1; attempt < INITIAL_HEALTH_RETRIES; attempt++) {
     const modelChecks = (h.checks ?? []).filter((c) => c.name === "model");
-    if (
-      modelChecks.length === 0 ||
-      modelChecks.some((c) => c.status === "pass")
-    )
-      break;
+    if (modelChecks.length === 0 || modelChecks.some((c) => c.status === "pass")) break;
     getLogger("daemon").debug("initial health: model probe failed, retrying", {
       attempt,
       delay: INITIAL_HEALTH_RETRY_DELAY_MS,
@@ -887,12 +823,9 @@ void (async () => {
     h = await rt.getHealth();
   }
   const checks = h.checks ?? [];
-  const sqliteFailed = checks.some(
-    (c) => c.name === "sqlite" && c.status === "fail",
-  );
+  const sqliteFailed = checks.some((c) => c.name === "sqlite" && c.status === "fail");
   const modelChecks = checks.filter((c) => c.name === "model");
-  const allModelsFailed =
-    modelChecks.length > 0 && modelChecks.every((c) => c.status === "fail");
+  const allModelsFailed = modelChecks.length > 0 && modelChecks.every((c) => c.status === "fail");
   const anyNonModelFailed = checks.some(
     (c) => c.name !== "sqlite" && c.name !== "model" && c.status === "fail",
   );

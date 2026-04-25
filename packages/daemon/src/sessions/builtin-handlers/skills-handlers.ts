@@ -4,10 +4,7 @@
 
 import { readFileSync } from "node:fs";
 import { listSkillsForConfig, skillAbsolutePathById } from "@shoggoth/skills";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("skills", skills);
@@ -23,6 +20,7 @@ async function skills(
     const rows = listSkillsForConfig(ctx.config, ws).map((s) => ({
       id: s.id,
       title: s.title,
+      description: s.description,
       path: s.absolutePath,
       enabled: s.enabled,
     }));

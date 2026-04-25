@@ -49,10 +49,20 @@ export class TieredTurnQueue {
   private readonly sessions = new Map<string, SessionQueue>();
   readonly starvationThreshold: number;
   readonly maxDepth: number;
+  // New field for the callback
+  private onTurnEnd?: (sessionId: string) => void;
 
   constructor(starvationThreshold = 2, maxDepth = 6) {
     this.starvationThreshold = starvationThreshold;
     this.maxDepth = maxDepth;
+  }
+
+  /**
+   * Sets a callback to be executed whenever a turn finishes processing.
+   * @param cb The callback function (receives sessionId).
+   */
+  setOnTurnEnd(cb: (sessionId: string) => void): void {
+    this.onTurnEnd = cb;
   }
 
   enqueue(
@@ -96,10 +106,7 @@ export class TieredTurnQueue {
     return { system: sq.high.length, user: sq.normal.length };
   }
 
-  listQueued(
-    sessionId: string,
-    priority?: TurnPriority,
-  ): ReadonlyArray<QueueEntryInfo> {
+  listQueued(sessionId: string, priority?: TurnPriority): ReadonlyArray<QueueEntryInfo> {
     const sq = this.sessions.get(sessionId);
     if (!sq) return [];
     const toInfo = (e: QueueEntry): QueueEntryInfo => ({
@@ -155,11 +162,7 @@ export class TieredTurnQueue {
     return removed;
   }
 
-  removeByCount(
-    sessionId: string,
-    priority: TurnPriority | "all",
-    count: number,
-  ): number {
+  removeByCount(sessionId: string, priority: TurnPriority | "all", count: number): number {
     return this.removeByRange(sessionId, priority, 0, count - 1);
   }
 
@@ -223,6 +226,9 @@ export class TieredTurnQueue {
           sessionId,
           `priority=${next.priority} label=${next.label} id=${next.id}`,
         );
+        // *** IMPLEMENTATION 2: Call the hook upon turn completion ***
+        this.onTurnEnd?.(sessionId);
+        // ***********************************************************
         sq.running = false;
         this.pump(sessionId);
       });
@@ -250,10 +256,7 @@ export class TieredTurnQueue {
     return sq.normal.shift()!;
   }
 
-  private removeMatching(
-    arr: QueueEntry[],
-    pred: (e: QueueEntry) => boolean,
-  ): number {
+  private removeMatching(arr: QueueEntry[], pred: (e: QueueEntry) => boolean): number {
     let removed = 0;
     for (let i = arr.length - 1; i >= 0; i--) {
       if (pred(arr[i])) {

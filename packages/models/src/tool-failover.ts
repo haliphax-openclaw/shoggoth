@@ -1,10 +1,6 @@
 import { isFailoverEligibleError } from "./classify";
 import type { FailoverChainEntry, FailoverHooks } from "./failover";
-import type {
-  ModelCapabilities,
-  ModelToolCompleteInput,
-  ModelToolCompleteOutput,
-} from "./types";
+import type { ModelCapabilities, ModelToolCompleteInput, ModelToolCompleteOutput } from "./types";
 
 export type FailoverToolCompleteOutput = ModelToolCompleteOutput & {
   readonly usedProviderId: string;
@@ -16,9 +12,7 @@ export type FailoverToolCompleteOutput = ModelToolCompleteOutput & {
 
 export interface FailoverToolCallingClient {
   readonly capabilities?: ModelCapabilities;
-  completeWithTools(
-    input: ModelToolCompleteInput,
-  ): Promise<FailoverToolCompleteOutput>;
+  completeWithTools(input: ModelToolCompleteInput): Promise<FailoverToolCompleteOutput>;
 }
 
 export function createFailoverToolCallingClient(
@@ -63,9 +57,11 @@ export function createFailoverToolCallingClient(
           lastErr = e;
           const more = i < chain.length - 1;
           if (more && isFailoverEligibleError(e)) {
+            const next = chain[i + 1]!;
             hooks?.onProviderExhausted?.(
               entry.provider.id,
               e instanceof Error ? e.message : String(e),
+              `${next.provider.id}/${next.model}`,
             );
             continue;
           }

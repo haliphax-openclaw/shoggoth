@@ -1,16 +1,13 @@
 // ---------------------------------------------------------------------------
 // builtin-timer — deferred actions (set / cancel / list)
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 import { randomUUID } from "node:crypto";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import type { TimerScheduler } from "../../timers/timer-scheduler";
 
 const MAX_ACTIVE_PER_SESSION = 50;
-const MIN_DURATION_S = 5;
+const MIN_DURATION_S = 120; // Updated: 2 minutes
 const MAX_DURATION_S = 30 * 24 * 60 * 60; // 30 days
 
 /** Module-level ref set once at startup by the daemon. */
@@ -62,8 +59,7 @@ function timerSet(
   if (atRaw === undefined || atRaw === null || String(atRaw).trim() === "") {
     return {
       resultJson: JSON.stringify({
-        error:
-          "at is required (ISO 8601 datetime or relative duration like 2h, 30m, 90s, 1d)",
+        error: "at is required (ISO 8601 datetime or relative duration like 2h, 30m, 90s, 1d)",
       }),
     };
   }
@@ -85,7 +81,7 @@ function timerSet(
   if (durationS < MIN_DURATION_S) {
     return {
       resultJson: JSON.stringify({
-        error: `minimum timer duration is ${MIN_DURATION_S} seconds`,
+        error: `minimum timer duration is 2 minutes`, // Updated error message
       }),
     };
   }
@@ -110,9 +106,7 @@ function timerSet(
   const id = randomUUID();
   const fireAtIso = fireAt.toISOString();
   const message =
-    typeof args.message === "string" && args.message.trim()
-      ? args.message.trim()
-      : label;
+    typeof args.message === "string" && args.message.trim() ? args.message.trim() : label;
 
   scheduler.schedule(ctx.db, {
     id,
@@ -122,9 +116,23 @@ function timerSet(
     message,
   });
 
+  // --- MODIFICATION START ---
+  const allTimers = scheduler.listForSession(ctx.db, ctx.sessionId);
   return {
-    resultJson: JSON.stringify({ ok: true, id, label, fireAt: fireAtIso }),
+    resultJson: JSON.stringify({
+      ok: true,
+      id,
+      label,
+      fireAt: fireAtIso,
+      activeTimers: allTimers.map((t) => ({
+        id: t.id,
+        label: t.label,
+        fireAt: t.fireAt,
+        message: t.message,
+      })),
+    }),
   };
+  // --- MODIFICATION END ---
 }
 
 function timerCancel(
@@ -138,9 +146,9 @@ function timerCancel(
   }
 
   // Verify the timer belongs to this session
-  const row = ctx.db
-    .prepare("SELECT session_id FROM timers WHERE id = ? AND fired = 0")
-    .get(id) as { session_id: string } | undefined;
+  const row = ctx.db.prepare("SELECT session_id FROM timers WHERE id = ? AND fired = 0").get(id) as
+    | { session_id: string }
+    | undefined;
   if (!row) {
     return { resultJson: JSON.stringify({ ok: true, id, cancelled: false }) };
   }
@@ -156,10 +164,7 @@ function timerCancel(
   return { resultJson: JSON.stringify({ ok: true, id, cancelled }) };
 }
 
-function timerList(
-  ctx: BuiltinToolContext,
-  scheduler: TimerScheduler,
-): { resultJson: string } {
+function timerList(ctx: BuiltinToolContext, scheduler: TimerScheduler): { resultJson: string } {
   const timers = scheduler.listForSession(ctx.db, ctx.sessionId);
   return {
     resultJson: JSON.stringify({

@@ -23,12 +23,18 @@ export class TimerScheduler {
   private timeout: ReturnType<typeof setTimeout> | undefined;
   private db: Database.Database | undefined;
   private readonly deliver: TimerDeliveryFn;
+  /** Pending timers per session — buffered until flushSession() is called after a turn ends. */
+  private readonly pendingTimers = new Map<string, TimerRecord[]>();
 
   constructor(deliver: TimerDeliveryFn) {
     this.deliver = deliver;
   }
 
-  /** Schedule a new timer. Inserts into DB and adds to the in-memory heap. */
+  /**
+   * Schedule a new timer. Inserts into DB immediately (for persistence and listing),
+   * but does NOT activate it in the heap. Call {@link flushSession} after the turn
+   * completes to move pending timers into the heap.
+   */
   schedule(db: Database.Database, timer: TimerRecord): void {
     this.db = db;
     db.prepare(
@@ -36,27 +42,59 @@ export class TimerScheduler {
        VALUES (?, ?, ?, ?, ?)`,
     ).run(timer.id, timer.sessionId, timer.label, timer.fireAt, timer.message);
 
-    const entry: TimerEntry = {
-      id: timer.id,
-      sessionId: timer.sessionId,
-      label: timer.label,
-      fireAt: timer.fireAt,
-      message: timer.message,
-    };
-    this.heap.insert(entry);
+    let buf = this.pendingTimers.get(timer.sessionId);
+    if (!buf) {
+      buf = [];
+      this.pendingTimers.set(timer.sessionId, buf);
+    }
+    buf.push(timer);
+  }
+
+  /**
+   * Activate all pending timers for a session — moves them from the buffer
+   * into the heap and reschedules. Called by the turn queue after a turn ends.
+   */
+  flushSession(sessionId: string): void {
+    const pending = this.pendingTimers.get(sessionId);
+    if (!pending || pending.length === 0) return;
+
+    log.debug("flushing pending timers", { sessionId, count: pending.length });
+
+    for (const timer of pending) {
+      this.heap.insert({
+        id: timer.id,
+        sessionId: timer.sessionId,
+        label: timer.label,
+        fireAt: timer.fireAt,
+        message: timer.message,
+      });
+    }
+
+    this.pendingTimers.delete(sessionId);
     this.reschedule();
   }
 
-  /** Cancel a timer by ID. Marks fired=1 in DB and removes from heap. */
+  /** Cancel a timer by ID. Marks fired=1 in DB and removes from heap or pending buffer. */
   cancel(db: Database.Database, id: string): boolean {
     this.db = db;
     const removed = this.heap.removeById(id);
     if (!removed) {
-      // Maybe already fired or doesn't exist
-      const row = db
-        .prepare("SELECT id FROM timers WHERE id = ? AND fired = 0")
-        .get(id) as { id: string } | undefined;
-      if (!row) return false;
+      // Check pending buffer
+      let foundPending = false;
+      for (const [, timers] of this.pendingTimers) {
+        const idx = timers.findIndex((t) => t.id === id);
+        if (idx !== -1) {
+          timers.splice(idx, 1);
+          foundPending = true;
+          break;
+        }
+      }
+      if (!foundPending) {
+        const row = db.prepare("SELECT id FROM timers WHERE id = ? AND fired = 0").get(id) as
+          | { id: string }
+          | undefined;
+        if (!row) return false;
+      }
     }
     db.prepare("UPDATE timers SET fired = 1 WHERE id = ?").run(id);
     if (removed) {
@@ -90,14 +128,12 @@ export class TimerScheduler {
   /** Count active (unfired) timers for a session. */
   countForSession(db: Database.Database, sessionId: string): number {
     const row = db
-      .prepare(
-        "SELECT COUNT(*) as cnt FROM timers WHERE session_id = ? AND fired = 0",
-      )
+      .prepare("SELECT COUNT(*) as cnt FROM timers WHERE session_id = ? AND fired = 0")
       .get(sessionId) as { cnt: number };
     return row.cnt;
   }
 
-  /** Restore state on startup: fire any past-due timers, schedule the rest. */
+  /** Restore state on startup: fire any past-due timers, schedule the rest directly into the heap. */
   async restore(db: Database.Database): Promise<void> {
     this.db = db;
     const rows = db
@@ -122,9 +158,9 @@ export class TimerScheduler {
         message: r.message,
       };
       if (r.fire_at <= now) {
-        // Past-due: fire immediately
         await this.fireTimer(db, entry);
       } else {
+        // On restore there's no active turn — go straight into the heap
         this.heap.insert(entry);
       }
     }
@@ -147,10 +183,7 @@ export class TimerScheduler {
 
   // ---- internal ----
 
-  private async fireTimer(
-    db: Database.Database,
-    entry: TimerEntry,
-  ): Promise<void> {
+  private async fireTimer(db: Database.Database, entry: TimerEntry): Promise<void> {
     try {
       db.prepare("UPDATE timers SET fired = 1 WHERE id = ?").run(entry.id);
       await this.deliver(entry.sessionId, entry.message);
@@ -180,12 +213,7 @@ export class TimerScheduler {
     this.timeout = setTimeout(() => {
       void this.tick();
     }, delayMs);
-    // Prevent the timer from keeping the process alive during shutdown
-    if (
-      this.timeout &&
-      typeof this.timeout === "object" &&
-      "unref" in this.timeout
-    ) {
+    if (this.timeout && typeof this.timeout === "object" && "unref" in this.timeout) {
       (this.timeout as NodeJS.Timeout).unref();
     }
   }
@@ -195,7 +223,6 @@ export class TimerScheduler {
     const db = this.db;
     if (!db) return;
 
-    // Fire all past-due timers
     const now = new Date().toISOString();
     while (this.heap.size > 0) {
       const head = this.heap.peek()!;

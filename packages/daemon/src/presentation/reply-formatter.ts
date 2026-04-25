@@ -1,12 +1,9 @@
 import type { ShoggothConfig } from "@shoggoth/shared";
 import type { ChatContentPart } from "@shoggoth/models";
-import { formatAgentIdentityPrefix } from "@shoggoth/shared";
+import { formatAgentIdentityPrefix, resolveEffectiveModelsConfig } from "@shoggoth/shared";
 import { ModelHttpError } from "@shoggoth/models";
 import { daemonNotice } from "./notices.js";
-import {
-  extractOutboundImages,
-  type OutboundImageAttachment,
-} from "./image-outbound.js";
+import { extractOutboundImages, type OutboundImageAttachment } from "./image-outbound.js";
 import type { OutboundAttachment } from "./platform-adapter.js";
 
 // ---------------------------------------------------------------------------
@@ -64,9 +61,7 @@ function modelHttpErrorToUserMessage(err: ModelHttpError): string {
   }
 }
 
-function imageAttachmentToOutbound(
-  img: OutboundImageAttachment,
-): OutboundAttachment {
+function imageAttachmentToOutbound(img: OutboundImageAttachment): OutboundAttachment {
   return {
     filename: img.filename,
     contentType: img.mediaType,
@@ -79,9 +74,19 @@ function imageAttachmentToOutbound(
 // ---------------------------------------------------------------------------
 
 /** Degraded-model banner when failover was used. */
-export function formatDegradedPrefix(meta: FailoverMeta | undefined): string {
+export function formatDegradedPrefix(
+  config: ShoggothConfig,
+  sessionId: string,
+  meta: FailoverMeta | undefined,
+): string {
   if (!meta?.degraded) return "";
-  return `${daemonNotice("degraded-banner", { usedModel: meta.usedModel, usedProviderId: meta.usedProviderId })}\n\n`;
+  const primaryModel =
+    resolveEffectiveModelsConfig(config, sessionId)?.failoverChain?.[0] ?? "primary";
+  return `${daemonNotice("degraded-banner", {
+    primaryModel,
+    usedModel: meta.usedModel,
+    usedProviderId: meta.usedProviderId,
+  })}\n\n`;
 }
 
 /**
@@ -94,8 +99,7 @@ export function formatModelTagFooter(
   meta: FailoverMeta | undefined,
 ): string {
   const e = processEnv ?? process.env;
-  if (e.SHOGGOTH_MODEL_TAG !== "1" && e.SHOGGOTH_DISCORD_MODEL_TAG !== "1")
-    return "";
+  if (e.SHOGGOTH_MODEL_TAG !== "1" && e.SHOGGOTH_DISCORD_MODEL_TAG !== "1") return "";
   if (!meta) return "";
   return `\n\n${daemonNotice("model-tag-footer", { usedModel: meta.usedModel, usedProviderId: meta.usedProviderId })}`;
 }
@@ -134,7 +138,7 @@ export function formatAssistantReply(
   latestText: string,
   failoverMeta: FailoverMeta | undefined,
 ): string {
-  const degraded = formatDegradedPrefix(failoverMeta);
+  const degraded = formatDegradedPrefix(config, sessionId, failoverMeta);
   const identity = formatAgentIdentityPrefix(config, sessionId);
   const footer = formatModelTagFooter(env, failoverMeta);
   return `${degraded}${identity}${latestText}${footer}`;
@@ -162,13 +166,7 @@ export function formatAssistantReplyWithImages(
   failoverMeta: FailoverMeta | undefined,
 ): FormattedReplyWithImages {
   const { textContent, imageAttachments } = extractOutboundImages(content);
-  const body = formatAssistantReply(
-    config,
-    sessionId,
-    env,
-    textContent,
-    failoverMeta,
-  );
+  const body = formatAssistantReply(config, sessionId, env, textContent, failoverMeta);
   return {
     body,
     attachments: imageAttachments.map(imageAttachmentToOutbound),
