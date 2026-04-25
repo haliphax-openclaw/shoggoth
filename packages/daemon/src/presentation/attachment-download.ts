@@ -4,7 +4,7 @@ import { MAX_IMAGE_BLOCK_BYTES } from "@shoggoth/shared";
 import { join } from "node:path";
 import { getLogger } from "../logging.js";
 
-const log = getLogger();
+const log = getLogger("attachment-download");
 
 export interface DownloadInboundAttachmentsOptions {
   readonly attachments: readonly MessageAttachment[];

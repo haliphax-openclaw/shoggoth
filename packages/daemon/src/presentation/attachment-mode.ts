@@ -2,7 +2,7 @@ import type { AttachmentHandlingMode, ShoggothConfig } from "@shoggoth/shared";
 import { parseAgentSessionUrn } from "@shoggoth/shared";
 import { getLogger } from "../logging.js";
 
-const log = getLogger();
+const log = getLogger("attachment-mode");
 
 /**
  * Resolve the effective attachment handling mode for a session.
