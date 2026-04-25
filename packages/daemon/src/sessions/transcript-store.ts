@@ -5,6 +5,8 @@ export interface ToolCallEntry {
   readonly id: string;
   readonly name: string;
   readonly argsJson: string;
+  /** Gemini thought signature — opaque token that must be echoed back on replay. */
+  readonly thoughtSignature?: string;
 }
 
 export interface TranscriptMessageRow {
@@ -167,9 +169,7 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         input.toolCallId ?? null,
         input.toolCalls?.length ? JSON.stringify(input.toolCalls) : null,
         input.metadata !== undefined ? JSON.stringify(input.metadata) : null,
-        input.systemContext !== undefined
-          ? JSON.stringify(input.systemContext)
-          : null,
+        input.systemContext !== undefined ? JSON.stringify(input.systemContext) : null,
       );
 
       return { seq };
@@ -199,15 +199,12 @@ export function createTranscriptStore(db: Database.Database): TranscriptStore {
         toolCalls: r.tool_calls_json
           ? (JSON.parse(r.tool_calls_json) as ToolCallEntry[])
           : undefined,
-        metadata: r.metadata_json
-          ? (JSON.parse(r.metadata_json) as unknown)
-          : undefined,
+        metadata: r.metadata_json ? (JSON.parse(r.metadata_json) as unknown) : undefined,
         createdAt: r.created_at,
       }));
 
       const last = messages[messages.length - 1];
-      const nextCursor =
-        messages.length >= limit && last !== undefined ? last.seq : undefined;
+      const nextCursor = messages.length >= limit && last !== undefined ? last.seq : undefined;
 
       return { messages, nextCursor };
     },

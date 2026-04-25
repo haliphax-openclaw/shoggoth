@@ -1,10 +1,5 @@
 import type Database from "better-sqlite3";
-import type {
-  ChatMessage,
-  ChatToolCall,
-  ChatContentPart,
-  ImageBlockCodec,
-} from "@shoggoth/models";
+import type { ChatMessage, ChatToolCall, ChatContentPart, ImageBlockCodec } from "@shoggoth/models";
 import type { TranscriptMessageRow } from "./transcript-store";
 import { createTranscriptStore } from "./transcript-store";
 
@@ -16,11 +11,7 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length > 0 &&
-        typeof parsed[0]?.type === "string"
-      ) {
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.type === "string") {
         return parsed as ChatContentPart[];
       }
     } catch {
@@ -34,9 +25,7 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
  * Strip thinking blocks from content parts.
  * Returns the original content if it's a string, or filters out thinking parts if it's an array.
  */
-function stripThinkingBlocks(
-  content: string | ChatContentPart[],
-): string | ChatContentPart[] {
+function stripThinkingBlocks(content: string | ChatContentPart[]): string | ChatContentPart[] {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return content;
 
@@ -72,6 +61,7 @@ export function transcriptRowsToModelChatMessages(
           id: tc.id,
           name: tc.name,
           arguments: tc.argsJson,
+          ...(tc.thoughtSignature ? { thoughtSignature: tc.thoughtSignature } : {}),
         }));
         let content = m.content ? parseTranscriptContent(m.content) : m.content;
         content = content != null ? stripThinkingBlocks(content) : content;
@@ -129,9 +119,7 @@ export function loadSessionTranscriptAsModelChat(
   sessionId: string,
   contextSegmentId: string,
 ): ChatMessage[] {
-  return transcriptRowsToModelChatMessages(
-    loadTranscriptPage(db, sessionId, contextSegmentId),
-  );
+  return transcriptRowsToModelChatMessages(loadTranscriptPage(db, sessionId, contextSegmentId));
 }
 
 /** Last non–tool-call assistant content in the transcript (final visible reply). */

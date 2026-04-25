@@ -10,10 +10,7 @@ import {
   type FailoverModelClient,
 } from "@shoggoth/models";
 import type { ShoggothModelsConfig } from "@shoggoth/shared";
-import {
-  createSessionStore,
-  getSessionContextSegmentId,
-} from "./sessions/session-store";
+import { createSessionStore, getSessionContextSegmentId } from "./sessions/session-store";
 import { recordCompaction } from "./sessions/session-stats-store";
 
 /** Options for {@link compactSessionTranscript}; `modelsConfig` enables per-session `model_selection` merge. */
@@ -63,6 +60,9 @@ export function loadSessionTranscript(
           id: tc.id,
           name: tc.name,
           arguments: tc.argsJson ?? tc.arguments ?? "",
+          ...((tc as Record<string, unknown>).thoughtSignature
+            ? { thoughtSignature: (tc as Record<string, unknown>).thoughtSignature as string }
+            : {}),
         })),
       };
     }
@@ -98,6 +98,7 @@ export function replaceSessionTranscript(
               id: tc.id,
               name: tc.name,
               argsJson: tc.arguments,
+              ...(tc.thoughtSignature ? { thoughtSignature: tc.thoughtSignature } : {}),
             })),
           )
         : null;
@@ -127,19 +128,13 @@ export function stripImageBlocksFromContent(content: string): string {
   if (!content.startsWith("[")) return content;
   try {
     const parsed = JSON.parse(content);
-    if (
-      !Array.isArray(parsed) ||
-      parsed.length === 0 ||
-      typeof parsed[0]?.type !== "string"
-    ) {
+    if (!Array.isArray(parsed) || parsed.length === 0 || typeof parsed[0]?.type !== "string") {
       return content;
     }
     const parts = parsed as ChatContentPart[];
     const stripped = parts.map(
       (part): ChatContentPart =>
-        part.type === "image"
-          ? { type: "text", text: "[image omitted]" }
-          : part,
+        part.type === "image" ? { type: "text", text: "[image omitted]" } : part,
     );
     return JSON.stringify(stripped);
   } catch {
@@ -157,11 +152,7 @@ function stripThinkingBlocksFromContent(content: string): string {
   if (!content.startsWith("[")) return content;
   try {
     const parsed = JSON.parse(content);
-    if (
-      !Array.isArray(parsed) ||
-      parsed.length === 0 ||
-      typeof parsed[0]?.type !== "string"
-    ) {
+    if (!Array.isArray(parsed) || parsed.length === 0 || typeof parsed[0]?.type !== "string") {
       return content;
     }
     const parts = parsed as ChatContentPart[];
@@ -176,9 +167,7 @@ function stripThinkingBlocksFromContent(content: string): string {
  * Return a copy of the messages with image blocks stripped from content,
  * suitable for sending to the summarizer model during compaction.
  */
-export function stripImageBlocksForCompaction(
-  messages: readonly ChatMessage[],
-): ChatMessage[] {
+export function stripImageBlocksForCompaction(messages: readonly ChatMessage[]): ChatMessage[] {
   return messages.map((m) => {
     if (typeof m.content !== "string" || !m.content) return { ...m };
     const stripped = stripImageBlocksFromContent(m.content);
@@ -191,9 +180,7 @@ export function stripImageBlocksForCompaction(
  * Return a copy of the messages with thinking blocks stripped from content,
  * suitable for sending to the summarizer model during compaction.
  */
-function stripThinkingBlocksForCompaction(
-  messages: readonly ChatMessage[],
-): ChatMessage[] {
+function stripThinkingBlocksForCompaction(messages: readonly ChatMessage[]): ChatMessage[] {
   return messages.map((m) => {
     if (typeof m.content !== "string" || !m.content) return { ...m };
     const stripped = stripThinkingBlocksFromContent(m.content);
@@ -216,23 +203,15 @@ export async function compactSessionTranscript(
   if (modelsConfig !== undefined) {
     const row = createSessionStore(db).getById(sessionId);
     const base = mergeModelInvocationParams(modelsConfig, row?.modelSelection);
-    modelInvocation = mergeModelInvocationOverlay(
-      base,
-      options?.modelInvocation,
-    );
+    modelInvocation = mergeModelInvocationOverlay(base, options?.modelInvocation);
   }
   // Strip image and thinking blocks before summarization to avoid sending large payloads
   // and internal reasoning to the summarizer.
   let sanitizedRows = stripImageBlocksForCompaction(rows);
   sanitizedRows = stripThinkingBlocksForCompaction(sanitizedRows);
-  const result = await compactTranscriptIfNeeded(
-    sanitizedRows,
-    policy,
-    client,
-    {
-      modelInvocation,
-    },
-  );
+  const result = await compactTranscriptIfNeeded(sanitizedRows, policy, client, {
+    modelInvocation,
+  });
   if (result.compacted) {
     replaceSessionTranscript(db, sessionId, contextSegmentId, result.messages);
     recordCompaction(db, sessionId, {

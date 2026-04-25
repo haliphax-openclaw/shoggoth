@@ -120,17 +120,14 @@ export function createSessionToolLoopModelClient(input: {
             allContent += m.content;
           } else if (Array.isArray(m.content)) {
             for (const p of m.content)
-              if ("text" in p && typeof p.text === "string")
-                allContent += p.text;
+              if ("text" in p && typeof p.text === "string") allContent += p.text;
           }
           if (m.toolCalls) {
             for (const tc of m.toolCalls) allContent += tc.arguments;
           }
         }
         const estimatedTokens =
-          c.systemPromptChars / 4 +
-          c.toolSchemaChars / 2 +
-          estimateTokensFromContent(allContent);
+          c.systemPromptChars / 4 + c.toolSchemaChars / 2 + estimateTokensFromContent(allContent);
         if (estimatedTokens > c.ctxWindowTokens - c.reserveTokens) {
           log.debug("mid-turn compaction triggered", {
             sessionId: c.sessionId,
@@ -139,18 +136,14 @@ export function createSessionToolLoopModelClient(input: {
             reserveTokens: c.reserveTokens,
           });
           const compactionPromise = (async () => {
-            const policy = resolveCompactionPolicyFromModelsConfig(
-              c.modelsConfig,
-            );
+            const policy = resolveCompactionPolicyFromModelsConfig(c.modelsConfig);
             let compactionModelsConfig = c.modelsConfig;
             if (c.compactionModel) {
               const slash = c.compactionModel.indexOf("/");
               if (slash > 0 && slash < c.compactionModel.length - 1) {
                 const providerId = c.compactionModel.slice(0, slash);
                 const modelName = c.compactionModel.slice(slash + 1);
-                const provider = c.modelsConfig?.providers?.find(
-                  (p) => p.id === providerId,
-                );
+                const provider = c.modelsConfig?.providers?.find((p) => p.id === providerId);
                 if (provider) {
                   compactionModelsConfig = {
                     providers: [provider],
@@ -159,10 +152,9 @@ export function createSessionToolLoopModelClient(input: {
                 }
               }
             }
-            const compactionClient = createFailoverClientFromModelsConfig(
-              compactionModelsConfig,
-              { env: c.env },
-            );
+            const compactionClient = createFailoverClientFromModelsConfig(compactionModelsConfig, {
+              env: c.env,
+            });
             const { compacted } = await compactSessionTranscript(
               c.db,
               c.sessionId,
@@ -196,15 +188,14 @@ export function createSessionToolLoopModelClient(input: {
             await Promise.race([compactionPromise, timeoutPromise]);
           } catch (e) {
             if (String(e).includes("compaction timeout")) {
-              log.warn(
-                "mid-turn compaction timed out, proceeding with current messages",
-                { sessionId: c.sessionId },
-              );
+              log.warn("mid-turn compaction timed out, proceeding with current messages", {
+                sessionId: c.sessionId,
+              });
             } else {
-              log.warn(
-                "mid-turn compaction failed, proceeding with current messages",
-                { sessionId: c.sessionId, err: String(e) },
-              );
+              log.warn("mid-turn compaction failed, proceeding with current messages", {
+                sessionId: c.sessionId,
+                err: String(e),
+              });
             }
           } finally {
             if (timer !== undefined) clearTimeout(timer);
@@ -225,9 +216,7 @@ export function createSessionToolLoopModelClient(input: {
               stream: true as const,
               onTextDelta: (_delta: string, accumulated: string) => {
                 const display = priorRoundsStreamText + accumulated;
-                void Promise.resolve(input.onModelTextDelta?.(display)).catch(
-                  () => {},
-                );
+                void Promise.resolve(input.onModelTextDelta?.(display)).catch(() => {});
               },
             }
           : {};
@@ -270,9 +259,7 @@ export function createSessionToolLoopModelClient(input: {
       if (out.toolCalls.length > 0) {
         const piece = out.content?.trim() ? out.content : "";
         if (piece) {
-          priorRoundsStreamText += priorRoundsStreamText
-            ? `\n\n${piece}`
-            : piece;
+          priorRoundsStreamText += priorRoundsStreamText ? `\n\n${piece}` : piece;
         }
         messages = [
           ...messages,
@@ -288,6 +275,7 @@ export function createSessionToolLoopModelClient(input: {
             id: tc.id,
             name: tc.name,
             argsJson: tc.arguments,
+            ...(tc.thoughtSignature ? { thoughtSignature: tc.thoughtSignature } : {}),
           })),
         };
       }

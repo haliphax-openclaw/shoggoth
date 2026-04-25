@@ -3,16 +3,10 @@ import type { ShoggothHitlConfig, HitlRiskTier } from "@shoggoth/shared";
 import type { ChatContentPart } from "@shoggoth/models";
 import { classifyToolRisk } from "../hitl/risk-classify";
 import { requiresHumanApproval } from "../hitl/approval-gate";
-import {
-  resolveCompoundResource,
-  type SubResourceExtractorRegistry,
-} from "../policy/sub-resource";
+import { resolveCompoundResource, type SubResourceExtractorRegistry } from "../policy/sub-resource";
 import type { HitlAutoApproveGate } from "../hitl/hitl-auto-approve";
 import type { HitlNotifier } from "../hitl/hitl-notifier";
-import type {
-  PendingActionRow,
-  PendingActionsStore,
-} from "../hitl/pending-actions-store";
+import type { PendingActionRow, PendingActionsStore } from "../hitl/pending-actions-store";
 import type { TranscriptStore } from "./transcript-store";
 import type { ToolRunStore } from "./tool-run-store";
 import { TurnAbortedError } from "./session-turn-abort";
@@ -38,6 +32,8 @@ export interface ToolCall {
   readonly id: string;
   readonly name: string;
   readonly argsJson: string;
+  /** Gemini thought signature — opaque token that must be echoed back on replay. */
+  readonly thoughtSignature?: string;
 }
 
 export interface ModelClient {
@@ -79,9 +75,7 @@ export interface RunToolLoopHitl {
   readonly clock: { readonly nowMs: () => number };
   readonly newPendingId: () => string;
   /** Resolves when the pending row is approved, denied, or timed out (DB + {@link PendingActionsStore.expireDue}). */
-  readonly waitForHitlResolution: (
-    pendingId: string,
-  ) => Promise<"approved" | "denied">;
+  readonly waitForHitlResolution: (pendingId: string) => Promise<"approved" | "denied">;
   /** Invoked after a row is enqueued (operator alerts / logs). */
   readonly hitlNotifier?: HitlNotifier;
   /**
@@ -145,8 +139,7 @@ export interface ToolLoopStatsUpdate {
   readonly transcriptMessageCount?: number;
 }
 
-const allowedNames = (tools: ReadonlyArray<{ name: string }>) =>
-  new Set(tools.map((t) => t.name));
+const allowedNames = (tools: ReadonlyArray<{ name: string }>) => new Set(tools.map((t) => t.name));
 
 const buildSchemaMap = (
   tools: ReadonlyArray<{ name: string; inputSchema?: Record<string, unknown> }>,
@@ -186,9 +179,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
   let schemas = buildSchemaMap(options.tools);
   const ctxSeg = options.contextSegmentId?.trim() ?? "";
   if (options.transcript && !ctxSeg) {
-    throw new Error(
-      "runToolLoop: contextSegmentId is required when transcript is set",
-    );
+    throw new Error("runToolLoop: contextSegmentId is required when transcript is set");
   }
   const appendTx = (row: {
     role: string;
@@ -274,6 +265,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             id: tc.id,
             name: tc.name,
             argsJson: tc.argsJson,
+            ...(tc.thoughtSignature ? { thoughtSignature: tc.thoughtSignature } : {}),
           })),
         });
         emitStats?.({ transcriptMessageCount: getTranscriptCount() });
@@ -301,8 +293,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           });
           const errBody = JSON.stringify({
             error: "invalid_tool_name",
-            message:
-              "Tool name contains invalid characters or exceeds 128 chars.",
+            message: "Tool name contains invalid characters or exceeds 128 chars.",
           });
           options.audit.record({
             phase: "invalid_tool_name",
@@ -406,9 +397,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
         if (toolSchema) {
           const validationErrors = validateToolArgs(toolArgs, toolSchema);
           if (validationErrors.length > 0) {
-            const detail = validationErrors
-              .map((e) => `${e.field}: ${e.message}`)
-              .join("; ");
+            const detail = validationErrors.map((e) => `${e.field}: ${e.message}`).join("; ");
             log.warn("tool call args validation failed", {
               toolName: tc.name,
               toolCallId: tc.id,
@@ -442,11 +431,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           }
         }
         const compoundResource = options.subResourceRegistry
-          ? resolveCompoundResource(
-              tc.name,
-              toolArgs,
-              options.subResourceRegistry,
-            )
+          ? resolveCompoundResource(tc.name, toolArgs, options.subResourceRegistry)
           : tc.name;
 
         const decision = options.policy.check({
@@ -464,8 +449,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           decision,
         });
 
-        const requiresReview =
-          !decision.allow && decision.reason === "requires_review";
+        const requiresReview = !decision.allow && decision.reason === "requires_review";
 
         if (!decision.allow && !requiresReview) {
           log.warn("tool call policy denied", {
@@ -541,20 +525,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           const autoApproved =
             needsApproval &&
             tier !== "never" &&
-            h.autoApprove?.shouldAutoApprove(
-              options.sessionId,
-              compoundResource,
-            );
+            h.autoApprove?.shouldAutoApprove(options.sessionId, compoundResource);
           if (autoApproved) {
             log.info("hitl auto-approve fired", {
               toolName: compoundResource,
               sessionId: options.sessionId,
             });
           }
-          if (
-            requiresReview ||
-            (needsApproval && (tier === "never" || !autoApproved))
-          ) {
+          if (requiresReview || (needsApproval && (tier === "never" || !autoApproved))) {
             const pendingId = h.newPendingId();
             const expiresAtIso = new Date(
               h.clock.nowMs() + h.config.defaultApprovalTimeoutMs,
@@ -585,9 +563,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
             const queuedRow = h.pending.getById(pendingId);
             if (queuedRow) {
               h.hitlNotifier?.onQueued(queuedRow);
-              void Promise.resolve(h.afterHitlQueued?.(queuedRow)).catch(
-                () => {},
-              );
+              void Promise.resolve(h.afterHitlQueued?.(queuedRow)).catch(() => {});
             }
 
             const expireTimer = setInterval(() => {
@@ -601,8 +577,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
               ]);
               if (outcome === "denied") {
                 const row = h.pending.getById(pendingId);
-                const reason =
-                  row?.denialReason === "timeout" ? "timeout" : "operator";
+                const reason = row?.denialReason === "timeout" ? "timeout" : "operator";
                 const errBody = JSON.stringify({
                   error: "hitl_denied",
                   pendingId,
@@ -674,8 +649,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           if (timeoutMs != null && timeoutMs > 0) {
             const timeoutPromise = new Promise<never>((_, reject) => {
               setTimeout(
-                () =>
-                  reject(new ToolCallTimeoutError(compoundResource, timeoutMs)),
+                () => reject(new ToolCallTimeoutError(compoundResource, timeoutMs)),
                 timeoutMs,
               );
             });
@@ -685,10 +659,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
               abortPromise(options.turnAbortSignal),
             ]);
           } else {
-            out = await Promise.race([
-              execPromise,
-              abortPromise(options.turnAbortSignal),
-            ]);
+            out = await Promise.race([execPromise, abortPromise(options.turnAbortSignal)]);
           }
         } catch (e) {
           if (e instanceof TurnAbortedError) throw e;
@@ -824,8 +795,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
       .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
       .get(options.runId) as { status: string } | undefined;
     if (row?.status === "running") {
-      const reason =
-        e instanceof TurnAbortedError ? "aborted" : `error:${String(e)}`;
+      const reason = e instanceof TurnAbortedError ? "aborted" : `error:${String(e)}`;
       options.toolRuns.markFailed(options.runId, reason);
     }
     throw e;

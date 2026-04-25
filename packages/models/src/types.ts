@@ -5,6 +5,12 @@ export interface ChatToolCall {
   readonly id: string;
   readonly name: string;
   readonly arguments: string;
+  /**
+   * Gemini thought signature — opaque token returned on functionCall parts by
+   * Gemini 3.x+ thinking models. Must be echoed back verbatim when replaying
+   * the assistant turn so the API can verify reasoning continuity.
+   */
+  readonly thoughtSignature?: string;
 }
 
 /** Provider-agnostic image content block. At least one of base64 or url must be present. */
@@ -56,10 +62,7 @@ export interface OpenAIToolFunctionDefinition {
 }
 
 /** Optional callback for streaming assistant text (`stream: true` on OpenAI-compatible providers). */
-export type ModelStreamTextDeltaCallback = (
-  delta: string,
-  accumulated: string,
-) => void;
+export type ModelStreamTextDeltaCallback = (delta: string, accumulated: string) => void;
 
 /**
  * Extended thinking (Anthropic Messages `thinking` block). When `enabled`, providers that support it
@@ -142,7 +145,5 @@ export interface ModelProvider {
   readonly capabilities?: ModelCapabilities;
   complete(input: ModelCompleteInput): Promise<ModelCompleteOutput>;
   /** OpenAI-style chat completions with `tools` + `tool_calls` / tool messages. */
-  completeWithTools(
-    input: ModelToolCompleteInput,
-  ): Promise<ModelToolCompleteOutput>;
+  completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput>;
 }

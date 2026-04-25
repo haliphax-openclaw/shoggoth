@@ -121,7 +121,11 @@ export function mapChatMessagesToGeminiPayload(messages: readonly ChatMessage[])
               tc.arguments.slice(0, 200),
             );
           }
-          parts.push({ functionCall: { name: tc.name, args } });
+          const fcPart: Record<string, unknown> = { functionCall: { name: tc.name, args } };
+          if (tc.thoughtSignature) {
+            fcPart.thought_signature = tc.thoughtSignature;
+          }
+          parts.push(fcPart);
         }
       }
       if (parts.length === 0) {
@@ -326,7 +330,13 @@ function parseGeminiResponse(
         throw new ModelHttpError(502, "functionCall args not JSON-serializable", "");
       }
       const strippedArgs = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(argsStr) : argsStr;
-      toolCalls.push({ id, name, arguments: strippedArgs });
+      const thoughtSig = typeof p.thought_signature === "string" ? p.thought_signature : undefined;
+      toolCalls.push({
+        id,
+        name,
+        arguments: strippedArgs,
+        ...(thoughtSig ? { thoughtSignature: thoughtSig } : {}),
+      });
       callIndex += 1;
     }
   }
@@ -444,7 +454,14 @@ export async function consumeGeminiStream(
           }
           const strippedArgs =
             options.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(argsStr) : argsStr;
-          toolCalls.push({ id, name, arguments: strippedArgs });
+          const thoughtSig =
+            typeof p.thought_signature === "string" ? p.thought_signature : undefined;
+          toolCalls.push({
+            id,
+            name,
+            arguments: strippedArgs,
+            ...(thoughtSig ? { thoughtSignature: thoughtSig } : {}),
+          });
           callIndex += 1;
         }
       }
