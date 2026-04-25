@@ -129,7 +129,7 @@ describe("Tool task execution", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("executes a tool task synchronously and marks it done", async () => {

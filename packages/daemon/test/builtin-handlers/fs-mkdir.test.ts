@@ -40,7 +40,7 @@ describe("builtin-fs mkdir action", () => {
   });
 
   afterEach(() => {
-    rmSync(workspace, { recursive: true, force: true });
+    rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("creates a single directory", async () => {

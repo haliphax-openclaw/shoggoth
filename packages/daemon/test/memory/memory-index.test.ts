@@ -40,7 +40,7 @@ describe("memory — markdown ingest + FTS/BM25", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("ingestMemoryRoots indexes markdown under roots and searchMemoryFts finds terms", () => {
@@ -116,7 +116,7 @@ describe("memory — optional embeddings", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("upsertMemoryEmbedding stores vector; search uses cosine when enabled", () => {
@@ -214,7 +214,7 @@ describe("memory — relevance scores", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("searchMemoryFts returns scores when includeScores is true", () => {
@@ -339,7 +339,7 @@ describe("memory — search filters", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("searchMemoryFts filters by path prefix", () => {
@@ -599,7 +599,7 @@ describe("memory — ingest file reporting", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("reports added files with status 'added'", () => {
@@ -700,7 +700,7 @@ describe("memory — selective ingest (paths / exclude)", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("paths filter restricts ingest to matching files only", () => {

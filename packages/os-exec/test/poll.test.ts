@@ -25,7 +25,7 @@ describe("toolPoll", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   /** Helper: spawn a background process and return its PID + sessionId. */

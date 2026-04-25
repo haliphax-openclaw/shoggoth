@@ -38,7 +38,7 @@ describe("events queue", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("emitEvent writes durable global and session-scoped rows", () => {

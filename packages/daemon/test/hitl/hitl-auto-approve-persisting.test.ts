@@ -80,7 +80,7 @@ describe("createPersistingHitlAutoApproveGate", () => {
         db.close();
       }
     } finally {
-      rmSync(root, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

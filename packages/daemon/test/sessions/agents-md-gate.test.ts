@@ -37,7 +37,7 @@ describe("checkAgentsMdGate", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("returns null when no AGENTS.md files exist below workspace root", () => {

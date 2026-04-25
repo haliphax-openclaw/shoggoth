@@ -19,7 +19,7 @@ describe("Workflow Integration", () => {
   });
 
   afterEach(() => {
-    rmSync(tempDir, { recursive: true, force: true });
+    rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("should accept createMessagePoster factory in options", () => {

@@ -25,7 +25,7 @@ describe("toolExecExtended", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   // -----------------------------------------------------------------------
@@ -192,7 +192,7 @@ describe("toolExecExtended", () => {
         assert.equal(r.kind, "foreground");
         assert.ok((r as ExecForegroundResult).output?.trim().includes(absDir));
       } finally {
-        rmSync(absDir, { recursive: true, force: true });
+        rmSync(absDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
 

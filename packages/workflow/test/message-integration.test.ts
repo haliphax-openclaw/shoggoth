@@ -20,7 +20,7 @@ describe("Message task integration with all task types", () => {
   });
 
   afterEach(() => {
-    rmSync(tempDir, { recursive: true, force: true });
+    rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("executes workflow with agent, tool, gate, transform, and message tasks", async () => {

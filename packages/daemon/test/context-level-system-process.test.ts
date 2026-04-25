@@ -151,7 +151,7 @@ describe("cron job context level", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("persists per-job contextLevel and includes it in event payload", () => {

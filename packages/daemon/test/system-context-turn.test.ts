@@ -40,7 +40,7 @@ describe("SystemContext in session agent turns", { concurrency: false }, () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   function buildTurnInput(overrides: {

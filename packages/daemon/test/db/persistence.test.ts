@@ -35,7 +35,7 @@ describe("persistence (migrations, WAL, backup)", () => {
   });
 
   afterAll(() => {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("applies all numbered migrations forward-only and is idempotent", () => {

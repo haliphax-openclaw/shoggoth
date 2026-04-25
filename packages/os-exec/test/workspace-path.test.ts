@@ -24,7 +24,7 @@ describe("workspace path allowlist", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   describe("relative paths", () => {
@@ -59,7 +59,7 @@ describe("workspace path allowlist", () => {
         symlinkSync(join(outside, "secret"), join(ws, "link"));
         assert.throws(() => resolvePathForRead(ws, "link"), PathEscapeError);
       } finally {
-        rmSync(outside, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
   });
@@ -90,7 +90,7 @@ describe("workspace path allowlist", () => {
           PathEscapeError,
         );
       } finally {
-        rmSync(outside, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
 
@@ -102,7 +102,7 @@ describe("workspace path allowlist", () => {
           PathEscapeError,
         );
       } finally {
-        rmSync(outside, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
 
@@ -114,7 +114,7 @@ describe("workspace path allowlist", () => {
         const absLink = resolve(ws, "link");
         assert.throws(() => resolvePathForRead(ws, absLink), PathEscapeError);
       } finally {
-        rmSync(outside, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
   });
@@ -133,7 +133,7 @@ describe("workspace path allowlist", () => {
     });
 
     afterEach(() => {
-      rmSync(appDir, { recursive: true, force: true });
+      rmSync(appDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("accepts paths under an additional read root", () => {
@@ -174,7 +174,7 @@ describe("workspace path allowlist", () => {
           PathEscapeError,
         );
       } finally {
-        rmSync(outside, { recursive: true, force: true });
+        rmSync(outside, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     });
 

@@ -109,7 +109,7 @@ describe("handleDiscordHitlReactionAdd", () => {
       assert.equal(pending.getById(id)!.status, "approved");
     } finally {
       db.close();
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

@@ -37,7 +37,7 @@ describe("executeSessionAgentTurn (no Discord)", { concurrency: false }, () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("runs builtin-only MCP context and returns assistant text", async () => {
@@ -362,7 +362,7 @@ describe(
 
     afterEach(() => {
       db.close();
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("prepends session modelSelection.model to the failover chain (deduped)", async () => {

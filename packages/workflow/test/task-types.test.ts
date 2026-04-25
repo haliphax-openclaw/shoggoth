@@ -125,7 +125,7 @@ describe("Transform tasks", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("executes a transform task with a static template", async () => {
@@ -247,7 +247,7 @@ describe("Message tasks", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("posts a message to the default replyTo channel", async () => {
@@ -433,7 +433,7 @@ describe("Mixed task type workflows", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("runs agent → transform → message pipeline", async () => {

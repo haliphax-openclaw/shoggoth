@@ -100,7 +100,7 @@ describe("per-session MCP idle timeout — turn lifecycle wiring", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("runInboundSessionTurn calls mcpLifecycle.onTurnBegin at start and onTurnEnd at end (success path)", async () => {
@@ -321,7 +321,7 @@ describe("per-session MCP idle timeout — timer and eviction", () => {
   afterEach(async () => {
     vi.useRealTimers();
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("notifyTurnEnd schedules an idle timer that evicts the per-session pool", async () => {

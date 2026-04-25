@@ -7,11 +7,11 @@ import { loadLayeredConfig } from "../src/config";
 const TMP = join(import.meta.dirname ?? ".", ".tmp-config-test");
 
 function setup() {
-  rmSync(TMP, { recursive: true, force: true });
+  rmSync(TMP, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   mkdirSync(TMP, { recursive: true });
 }
 function teardown() {
-  rmSync(TMP, { recursive: true, force: true });
+  rmSync(TMP, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 }
 
 describe("loadLayeredConfig recursive", () => {

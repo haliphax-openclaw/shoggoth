@@ -16,8 +16,8 @@ describe("ensureAgentWorkspaceLayout", () => {
   });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-    rmSync(tmpl, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    rmSync(tmpl, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("creates skills/memory and copies missing template files", async () => {

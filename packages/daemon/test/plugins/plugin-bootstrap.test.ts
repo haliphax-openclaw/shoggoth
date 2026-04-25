@@ -15,7 +15,7 @@ describe("bootstrapPlugins", () => {
   afterEach(() => {
     for (const d of dirs) {
       try {
-        rmSync(d, { recursive: true, force: true });
+        rmSync(d, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       } catch {
         /* ignore */
       }

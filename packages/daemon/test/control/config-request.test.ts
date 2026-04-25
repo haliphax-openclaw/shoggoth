@@ -82,7 +82,7 @@ describe("config_request control op", { concurrency: false }, () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("succeeds with a valid fragment and writes the file", async () => {

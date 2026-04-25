@@ -65,7 +65,7 @@ describe("BuiltinToolContext workingDirectory integration", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("read resolves relative path from workingDirectory", async () => {

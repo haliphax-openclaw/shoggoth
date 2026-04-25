@@ -60,7 +60,7 @@ describe("workflow-singleton", () => {
       assert.ok(fs.existsSync(tmpDir));
 
       // Cleanup
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("returns existing instances on repeated calls", async () => {
@@ -131,7 +131,7 @@ describe("workflow-singleton", () => {
       assert.ok(result.controlPlane);
 
       // Cleanup
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("passes createToolExecutor to WorkflowServer constructor", async () => {
@@ -179,7 +179,7 @@ describe("workflow-singleton", () => {
       assert.ok(server);
 
       // Cleanup
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("allows createToolExecutor to be undefined", async () => {
@@ -212,7 +212,7 @@ describe("workflow-singleton", () => {
       assert.ok(result.controlPlane);
 
       // Cleanup
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("preserves createToolExecutor reference through server initialization", async () => {
@@ -254,7 +254,7 @@ describe("workflow-singleton", () => {
       // This verifies the reference was properly passed through
 
       // Cleanup
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
   });
 

@@ -28,7 +28,7 @@ describe("SessionStore working_directory", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("defaults workingDirectory to undefined on new session", () => {

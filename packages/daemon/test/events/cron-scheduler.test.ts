@@ -29,7 +29,7 @@ describe("cron scheduler", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("runCronTick enqueues a durable event and advances next_run_at", () => {

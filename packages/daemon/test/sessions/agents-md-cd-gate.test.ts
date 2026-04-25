@@ -60,7 +60,7 @@ describe("cd handler AGENTS.md gate", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("gates cd when AGENTS.md exists in cwd", async () => {

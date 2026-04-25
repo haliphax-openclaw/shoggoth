@@ -109,7 +109,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("absolute paths outside workspace are rejected (control socket, etc.)", () => {
@@ -156,7 +156,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
       chmodSync(fakeState, 0o700);
       await assertAgentCannotReadAbsolutePath(secret);
     } finally {
-      rmSync(fakeState, { recursive: true, force: true });
+      rmSync(fakeState, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -174,7 +174,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
       chmodSync(fakeState, 0o700);
       await assertAgentCannotReadAbsolutePath(secret);
     } finally {
-      rmSync(fakeState, { recursive: true, force: true });
+      rmSync(fakeState, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -195,7 +195,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
       chmodSync(fakeOp, 0o750);
       await assertAgentCannotReadAbsolutePath(token);
     } finally {
-      rmSync(fakeOp, { recursive: true, force: true });
+      rmSync(fakeOp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -219,7 +219,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
       chmodSync(wsA, 0o777);
       await assertAgentCannotReadAbsolutePath(peerSecret);
     } finally {
-      rmSync(parent, { recursive: true, force: true });
+      rmSync(parent, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

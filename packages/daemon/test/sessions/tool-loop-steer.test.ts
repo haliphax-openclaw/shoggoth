@@ -33,7 +33,7 @@ describe("runToolLoop steer injection", () => {
   afterEach(() => {
     _resetAllChannels();
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("injects steer messages between tool calls as user messages", async () => {

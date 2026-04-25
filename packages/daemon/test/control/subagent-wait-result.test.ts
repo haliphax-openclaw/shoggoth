@@ -103,7 +103,7 @@ describe(
 
     afterEach(() => {
       db.close();
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     // --- subagent_result tests ---

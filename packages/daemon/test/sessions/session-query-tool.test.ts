@@ -89,7 +89,7 @@ describe("session.query tool handler", { concurrency: false }, () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   async function runWithToolArgs(

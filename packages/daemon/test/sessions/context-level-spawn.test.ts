@@ -43,7 +43,7 @@ describe("context level spawn wiring", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(workspacesRoot, { recursive: true, force: true });
+    rmSync(workspacesRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("spawn with explicit contextLevel override persists it on the session row", async () => {
@@ -233,7 +233,7 @@ describe("context level session store persistence", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("persists contextLevel on create and returns it on read", () => {

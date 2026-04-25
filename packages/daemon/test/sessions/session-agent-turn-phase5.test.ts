@@ -71,7 +71,7 @@ describe(
     afterEach(() => {
       vi.restoreAllMocks();
       db.close();
-      rmSync(tmp, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     });
 
     it("resolves ctxWindowTokens from metadata store (not resolveModel) when session has a valid model ref", async () => {

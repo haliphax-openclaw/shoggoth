@@ -20,7 +20,7 @@ describe("minimal v1 tools (read / write / exec)", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("toolRead returns file contents via dropped-priv child", async () => {

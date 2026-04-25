@@ -10,7 +10,7 @@ import { appendAuditRow } from "../../src/audit/append-audit";
 describe("appendAuditRow", () => {
   let dir: string;
   afterEach(() => {
-    if (dir) rmSync(dir, { recursive: true, force: true });
+    if (dir) rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("inserts plugin load rows", () => {

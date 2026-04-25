@@ -18,7 +18,7 @@ describe("buildSessionSystemContext", () => {
   });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("includes core sections without workspace", () => {
@@ -64,7 +64,7 @@ describe("buildSessionSystemContext", () => {
         "operator global precedes AGENTS block",
       );
     } finally {
-      rmSync(opDir, { recursive: true, force: true });
+      rmSync(opDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -83,7 +83,7 @@ describe("buildSessionSystemContext", () => {
       });
       assert.match(s, /from-env-path/);
     } finally {
-      rmSync(opDir, { recursive: true, force: true });
+      rmSync(opDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -101,7 +101,7 @@ describe("buildSessionSystemContext", () => {
       });
       assert.doesNotMatch(s, /## Global instructions \(operator-managed\)/);
     } finally {
-      rmSync(opDir, { recursive: true, force: true });
+      rmSync(opDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -197,8 +197,8 @@ describe("buildSessionSystemContext — context levels", () => {
   });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-    rmSync(opDir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    rmSync(opDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   function build(level: ContextLevel) {

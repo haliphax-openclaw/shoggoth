@@ -87,7 +87,7 @@ describe("model-resolution", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(TMP, { recursive: true, force: true });
+    rmSync(TMP, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   describe("resolveModel", () => {

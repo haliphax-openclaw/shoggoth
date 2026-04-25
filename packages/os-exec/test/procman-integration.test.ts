@@ -34,7 +34,7 @@ describe("procman integration", () => {
   afterEach(async () => {
     await pm.stopAll();
     setProcessManager(undefined);
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   // -----------------------------------------------------------------------

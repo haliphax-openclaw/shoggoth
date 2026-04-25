@@ -195,7 +195,7 @@ describe("mid-turn compaction in complete()", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("triggers compaction when estimated tokens exceed budget", async () => {
@@ -503,7 +503,7 @@ describe("dedicated compaction model", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("uses dedicated model when compactionModel is set", async () => {
@@ -636,7 +636,7 @@ describe("abort during mid-turn compaction", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   function makeCompactionConfig(overrides?: {

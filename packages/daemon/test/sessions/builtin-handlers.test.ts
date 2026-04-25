@@ -338,7 +338,7 @@ describe("fs-handlers image read", () => {
       assert.strictEqual(textPart.type, "text");
       assert.ok(textPart.text.includes("test.png"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -358,7 +358,7 @@ describe("fs-handlers image read", () => {
       const parsed = JSON.parse(result.resultJson);
       assert.strictEqual(parsed.content, "hello world");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -377,7 +377,7 @@ describe("fs-handlers image read", () => {
       const parsed = JSON.parse(result.resultJson);
       assert.ok(parsed.error.includes("not supported"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -399,7 +399,7 @@ describe("fs-handlers image read", () => {
       const parsed = JSON.parse(result.resultJson);
       assert.ok(parsed.error.includes("too large"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });
@@ -440,7 +440,7 @@ describe("fs-handlers read truncation", () => {
         "should include truncation notice",
       );
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -459,7 +459,7 @@ describe("fs-handlers read truncation", () => {
       const parsed = JSON.parse(result.resultJson);
       assert.equal(parsed.content, content);
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

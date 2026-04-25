@@ -36,7 +36,7 @@ describe("boot reconciliation", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("requeues stale processing claims and fails orphaned tool runs", () => {

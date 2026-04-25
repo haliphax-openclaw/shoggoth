@@ -221,7 +221,7 @@ describe("Integration: happy path", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("executes tasks in dependency order and posts summary on completion", async () => {
@@ -311,7 +311,7 @@ describe("Integration: failure + retry", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("fails a task, retries it, and completes the workflow", async () => {
@@ -368,7 +368,7 @@ describe("Integration: failure + abort", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("aborts the workflow when a task fails with abort behavior", async () => {
@@ -426,7 +426,7 @@ describe("Integration: pause + resume", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("pauses, lets in-flight finish, resumes, and completes remaining tasks", async () => {
@@ -483,7 +483,7 @@ describe("Integration: edit", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("edits a pending task prompt, then uses the edited prompt when spawned", async () => {
@@ -532,7 +532,7 @@ describe("Integration: retention via control plane", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("prunes old completed workflows via control plane retention", async () => {
@@ -606,7 +606,7 @@ describe("Integration: status message lifecycle", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("posts initial status, edits on tick, and posts summary on completion", async () => {

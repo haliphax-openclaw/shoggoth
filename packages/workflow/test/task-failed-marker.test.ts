@@ -116,7 +116,7 @@ describe("ERROR:TASK_FAILED marker detection", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("marks task as failed when output contains ERROR:TASK_FAILED at the end", async () => {

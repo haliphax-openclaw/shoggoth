@@ -61,7 +61,7 @@ describe("write handler AGENTS.md gate", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("gates write when AGENTS.md exists in cwd", async () => {
@@ -119,7 +119,7 @@ describe("search-replace handler AGENTS.md gate", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("gates replace when AGENTS.md exists in cwd", async () => {

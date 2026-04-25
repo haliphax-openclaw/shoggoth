@@ -62,7 +62,7 @@ describe("search-replace: search", () => {
       assert.ok(output.includes("hello there"));
       assert.ok(!output.includes("goodbye"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -80,7 +80,7 @@ describe("search-replace: search", () => {
       assert.ok(output.includes("foo.bar"));
       assert.ok(!output.includes("fooXbar"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -98,7 +98,7 @@ describe("search-replace: search", () => {
       assert.ok(output.includes("a.ts"));
       assert.ok(!output.includes("b.json"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -116,7 +116,7 @@ describe("search-replace: search", () => {
       assert.ok(output.includes("keep.ts"));
       assert.ok(!output.includes("skip.test.ts"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -132,7 +132,7 @@ describe("search-replace: search", () => {
       const output = result.output as string;
       assert.ok(output.includes("Hello HELLO hello"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -147,7 +147,7 @@ describe("search-replace: search", () => {
       assert.ok(result.error);
       assert.ok((result.error as string).includes("escapes workspace"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -168,7 +168,7 @@ describe("search-replace: search", () => {
       assert.ok(outputLines.length <= 11); // 10 results + possible truncation notice
       assert.ok(result.truncated === true);
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -189,7 +189,7 @@ describe("search-replace: search", () => {
         "should not include non-matching lines",
       );
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });
@@ -214,7 +214,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "qux bar qux baz");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -232,7 +232,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "hi world\nhi there");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -248,7 +248,7 @@ describe("search-replace: replace", () => {
       });
       assert.ok(result.error);
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -267,7 +267,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "bbb bbb aaa");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -283,7 +283,7 @@ describe("search-replace: replace", () => {
       assert.ok(result.error);
       assert.ok((result.error as string).includes("escapes workspace"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -300,7 +300,7 @@ describe("search-replace: replace", () => {
       assert.ok(result.error);
       assert.ok((result.error as string).includes("not found"));
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -315,7 +315,7 @@ describe("search-replace: replace", () => {
       });
       assert.ok(result.error);
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -335,7 +335,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "call bar() and foo.bar[0] here");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -356,7 +356,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "replaced block\nline three\n");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -377,7 +377,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "REPLACED\nstart\nend\n");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -397,7 +397,7 @@ describe("search-replace: replace", () => {
         "should error when multiline match attempted without multiline flag",
       );
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 
@@ -418,7 +418,7 @@ describe("search-replace: replace", () => {
       const content = readFileSync(join(ws, "file.txt"), "utf8");
       assert.strictEqual(content, "x x a.b");
     } finally {
-      rmSync(ws, { recursive: true, force: true });
+      rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

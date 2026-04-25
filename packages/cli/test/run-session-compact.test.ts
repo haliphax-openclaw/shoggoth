@@ -74,6 +74,6 @@ describe("runSessionCompact", () => {
       .get("sess-1") as { c: number };
     assert.equal(n.c, 3);
     verify.close();
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 });

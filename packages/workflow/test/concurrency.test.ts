@@ -87,7 +87,7 @@ describe("Orchestrator concurrency", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("concurrency=2 only allows 2 tasks in_progress at once", async () => {

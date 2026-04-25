@@ -21,7 +21,7 @@ describe("load smoke — SQLite burst", () => {
   });
 
   afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("emits a burst of global events on one connection without loss", () => {

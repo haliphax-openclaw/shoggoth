@@ -61,7 +61,7 @@ describe("listAllWorkflows", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("returns all workflows including completed ones", () => {
@@ -107,7 +107,7 @@ describe("retentionRun", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("prunes completed workflows older than 48 hours", () => {
@@ -357,7 +357,7 @@ describe("retention schedule", () => {
   });
   afterEach(() => {
     stopRetentionSchedule();
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("startRetentionSchedule runs retention periodically", async () => {

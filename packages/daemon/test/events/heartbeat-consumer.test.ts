@@ -32,7 +32,7 @@ describe("heartbeat consumer", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(tmp, { recursive: true, force: true });
+    rmSync(tmp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("dispatches registered handler and completes event", async () => {

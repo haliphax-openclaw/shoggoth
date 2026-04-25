@@ -25,7 +25,7 @@ describe("reconcilePersistentSubagents", () => {
 
   afterEach(() => {
     db.close();
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("restores active persistent rows and registers thread + bus hooks", () => {

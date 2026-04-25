@@ -34,7 +34,7 @@ describe("toolReadExtended", () => {
   });
 
   afterEach(() => {
-    rmSync(ws, { recursive: true, force: true });
+    rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   // -----------------------------------------------------------------------

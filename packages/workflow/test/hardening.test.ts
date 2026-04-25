@@ -312,7 +312,7 @@ describe("detectAndPersistOrphans", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("persists state when orphans are found", async () => {
@@ -387,7 +387,7 @@ describe("concurrent workflow isolation", () => {
     baseDir = makeTmpDir();
   });
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   it("state files for different workflows do not interfere", () => {

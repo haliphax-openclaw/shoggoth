@@ -93,7 +93,7 @@ describe("WorkflowServer", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(baseDir, { recursive: true, force: true });
+    fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   });
 
   describe("createToolExecutor factory", () => {
