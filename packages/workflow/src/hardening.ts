@@ -31,10 +31,7 @@ export function isValidTransition(from: TaskStatus, to: TaskStatus): boolean {
 /**
  * Attempt a guarded status transition. Returns true if the transition was applied.
  */
-export function guardedTransition(
-  task: TaskState,
-  newStatus: TaskStatus,
-): boolean {
+export function guardedTransition(task: TaskState, newStatus: TaskStatus): boolean {
   if (!isValidTransition(task.status, newStatus)) return false;
   task.status = newStatus;
   return true;
@@ -79,10 +76,7 @@ export interface OrphanResult {
  * Marks orphaned tasks as failed with an appropriate error.
  * Returns a summary of what was found.
  */
-export async function detectOrphans(
-  wf: TaskList,
-  poller: PollAdapter,
-): Promise<OrphanResult> {
+export async function detectOrphans(wf: TaskList, poller: PollAdapter): Promise<OrphanResult> {
   const orphanedTaskIds: number[] = [];
 
   for (const task of wf.tasks) {

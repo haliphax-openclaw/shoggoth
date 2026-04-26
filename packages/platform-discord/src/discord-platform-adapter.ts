@@ -21,10 +21,7 @@ import type {
 } from "@shoggoth/daemon/lib";
 import type { DiscordMessagingRuntime } from "./bridge";
 import type { DiscordRestTransport } from "./transport";
-import {
-  DISCORD_PLATFORM_MAX_MESSAGE_BODY_CHARS,
-  sliceDiscordPlatformMessageBody,
-} from "./errors";
+import { DISCORD_PLATFORM_MAX_MESSAGE_BODY_CHARS, sliceDiscordPlatformMessageBody } from "./errors";
 import { splitDiscordMessage } from "./split-message";
 import type { HitlDiscordNoticeRegistry } from "./hitl/notice-registry";
 import { registerDiscordHitlNoticeAndAddReactions } from "./hitl/reaction-wiring";
@@ -78,8 +75,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
           userId: "system",
           createdAt: new Date().toISOString(),
           body: chunks[i],
-          extensions:
-            i === 0 && opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
+          extensions: i === 0 && opts?.replyTo ? { replyToMessageId: opts.replyTo } : {},
         }),
         chunkFiles?.length ? { attachments: chunkFiles } : undefined,
       );
@@ -174,10 +170,7 @@ export class DiscordPlatformAdapter implements PlatformAdapter {
   /**
    * Run work wrapped in a typing indicator that auto-renews.
    */
-  async withTypingIndicator(
-    sessionId: string,
-    work: () => Promise<void>,
-  ): Promise<void> {
+  async withTypingIndicator(sessionId: string, work: () => Promise<void>): Promise<void> {
     if (
       !messagingCapabilitiesHasFeature(
         this.discord.capabilities,

@@ -1,6 +1,5 @@
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert";
-import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Mock MediaGenerationService before importing integration-ops

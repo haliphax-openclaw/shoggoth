@@ -29,14 +29,7 @@ A structured HTTP client tool with explicit parameters for method, URL, headers,
 ```ts
 interface FetchToolParams {
   /** HTTP method. Default: GET. */
-  readonly method?:
-    | "GET"
-    | "POST"
-    | "PUT"
-    | "PATCH"
-    | "DELETE"
-    | "HEAD"
-    | "OPTIONS";
+  readonly method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
   /** Target URL. Required. */
   readonly url: string;
   /** Request headers as key-value pairs. */

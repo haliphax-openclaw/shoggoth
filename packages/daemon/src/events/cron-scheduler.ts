@@ -1,10 +1,6 @@
 import type Database from "better-sqlite3";
 import type { ContextLevel } from "@shoggoth/shared";
-import {
-  emitEvent,
-  EVENT_SCOPE_GLOBAL,
-  sessionEventScope,
-} from "./events-queue";
+import { emitEvent, EVENT_SCOPE_GLOBAL, sessionEventScope } from "./events-queue";
 
 /** Parses `every:Ns` (e.g. `every:60s`) into seconds; returns null if unsupported. */
 export function parseEverySchedule(scheduleExpr: string): number | null {
@@ -25,14 +21,9 @@ interface UpsertCronJobInput {
   readonly contextLevel?: ContextLevel;
 }
 
-export function upsertCronJob(
-  db: Database.Database,
-  input: UpsertCronJobInput,
-): void {
+export function upsertCronJob(db: Database.Database, input: UpsertCronJobInput): void {
   const payloadJson =
-    input.payload !== undefined && input.payload !== null
-      ? JSON.stringify(input.payload)
-      : null;
+    input.payload !== undefined && input.payload !== null ? JSON.stringify(input.payload) : null;
   const enabled = input.enabled !== false ? 1 : 0;
   db.prepare(
     `
@@ -121,9 +112,7 @@ export function runCronTick(db: Database.Database): number {
       payload: userPayload,
       ...(job.context_level ? { contextLevel: job.context_level } : {}),
     };
-    const scope = job.session_id
-      ? sessionEventScope(job.session_id)
-      : EVENT_SCOPE_GLOBAL;
+    const scope = job.session_id ? sessionEventScope(job.session_id) : EVENT_SCOPE_GLOBAL;
     emitEvent(db, {
       scope,
       eventType: "cron.fire",

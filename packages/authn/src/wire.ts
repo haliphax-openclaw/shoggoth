@@ -49,13 +49,10 @@ export function parseRequestLine(line: string): WireRequest {
       trimmed,
     );
   }
-  if (!obj || typeof obj !== "object")
-    throw new WireParseError("request must be a JSON object");
+  if (!obj || typeof obj !== "object") throw new WireParseError("request must be a JSON object");
   const r = obj as Record<string, unknown>;
-  if (r.v !== WIRE_VERSION)
-    throw new WireParseError(`unsupported wire version: ${String(r.v)}`);
-  if (typeof r.id !== "string" || !r.id)
-    throw new WireParseError("missing request id");
+  if (r.v !== WIRE_VERSION) throw new WireParseError(`unsupported wire version: ${String(r.v)}`);
+  if (typeof r.id !== "string" || !r.id) throw new WireParseError("missing request id");
   if (typeof r.op !== "string" || !r.op) throw new WireParseError("missing op");
   // Auth is optional — ops like "health" are exempt
   if (r.auth && typeof r.auth === "object") {
@@ -95,13 +92,10 @@ export function parseResponseLine(line: string): WireResponse {
       trimmed,
     );
   }
-  if (!obj || typeof obj !== "object")
-    throw new WireParseError("response must be a JSON object");
+  if (!obj || typeof obj !== "object") throw new WireParseError("response must be a JSON object");
   const r = obj as Record<string, unknown>;
-  if (r.v !== WIRE_VERSION)
-    throw new WireParseError(`unsupported wire version: ${String(r.v)}`);
-  if (typeof r.id !== "string" || !r.id)
-    throw new WireParseError("missing response id");
+  if (r.v !== WIRE_VERSION) throw new WireParseError(`unsupported wire version: ${String(r.v)}`);
+  if (typeof r.id !== "string" || !r.id) throw new WireParseError("missing response id");
   if (typeof r.ok !== "boolean") throw new WireParseError("missing ok boolean");
   if (r.ok === true && r.error !== undefined)
     throw new WireParseError("ok:true must not include error");

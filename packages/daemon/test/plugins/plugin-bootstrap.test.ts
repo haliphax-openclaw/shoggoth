@@ -79,15 +79,10 @@ describe("bootstrapPlugins", () => {
         resolveFromFile: fileURLToPath(import.meta.url),
       });
 
-      assert.strictEqual(
-        (globalThis as { __shoggothPlugTest?: number }).__shoggothPlugTest,
-        1,
-      );
+      assert.strictEqual((globalThis as { __shoggothPlugTest?: number }).__shoggothPlugTest, 1);
 
       const rows = db
-        .prepare(
-          `SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`,
-        )
+        .prepare(`SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`)
         .all() as {
         action: string;
         resource: string | null;
@@ -95,26 +90,19 @@ describe("bootstrapPlugins", () => {
       }[];
 
       assert.ok(
-        rows.some(
-          (r) =>
-            r.action === "config.effective_loaded" && r.outcome === "success",
-        ),
+        rows.some((r) => r.action === "config.effective_loaded" && r.outcome === "success"),
       );
       assert.ok(
         rows.some(
           (r) =>
-            r.action === "plugin.load" &&
-            r.resource === "my-plugin" &&
-            r.outcome === "success",
+            r.action === "plugin.load" && r.resource === "my-plugin" && r.outcome === "success",
         ),
       );
 
       await rt.shutdown.requestShutdown("SIGTEST");
 
       const rowsAfter = db
-        .prepare(
-          `SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`,
-        )
+        .prepare(`SELECT action, resource, outcome FROM audit_log ORDER BY id ASC`)
         .all() as {
         action: string;
         resource: string | null;
@@ -124,9 +112,7 @@ describe("bootstrapPlugins", () => {
       assert.ok(
         rowsAfter.some(
           (r) =>
-            r.action === "plugin.unload" &&
-            r.resource === "my-plugin" &&
-            r.outcome === "success",
+            r.action === "plugin.unload" && r.resource === "my-plugin" && r.outcome === "success",
         ),
       );
     } finally {

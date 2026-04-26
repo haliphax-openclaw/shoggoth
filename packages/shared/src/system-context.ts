@@ -36,10 +36,7 @@ export function generateSystemContextToken(): string {
  * Renders a SystemContext into the envelope format with start/end dividers.
  * When a token is provided, the dividers include it for anti-spoofing.
  */
-export function renderSystemContextEnvelope(
-  ctx: SystemContext,
-  token: string,
-): string {
+export function renderSystemContextEnvelope(ctx: SystemContext, token: string): string {
   const lines: string[] = [beginDivider(token), `[${ctx.kind}]`, ctx.summary];
   if (ctx.guidance !== undefined) {
     lines.push("");

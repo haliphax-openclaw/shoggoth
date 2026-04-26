@@ -110,15 +110,9 @@ describe("web-search-handler", () => {
 
   it("returns note when results are empty", async () => {
     const ctx = makeCtx(makeConfig({ baseUrl: "http://searxng:8080" }));
-    fetchSpy.mockResolvedValueOnce(
-      new Response(JSON.stringify({ results: [] }), { status: 200 }),
-    );
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
 
-    const result = await registry.execute(
-      "web-search",
-      { query: "obscure query" },
-      ctx,
-    );
+    const result = await registry.execute("web-search", { query: "obscure query" }, ctx);
     const parsed = JSON.parse(result.resultJson);
     expect(parsed).toEqual({
       results: [],
@@ -148,10 +142,7 @@ describe("web-search-handler", () => {
 
   it("handles timeout (AbortError)", async () => {
     const ctx = makeCtx(makeConfig({ baseUrl: "http://searxng:8080" }));
-    const abortError = new DOMException(
-      "The operation was aborted",
-      "AbortError",
-    );
+    const abortError = new DOMException("The operation was aborted", "AbortError");
     fetchSpy.mockRejectedValueOnce(abortError);
 
     const result = await registry.execute("web-search", { query: "test" }, ctx);
@@ -182,11 +173,7 @@ describe("web-search-handler", () => {
       new Response(JSON.stringify({ results: manyResults }), { status: 200 }),
     );
 
-    const result = await registry.execute(
-      "web-search",
-      { query: "test", count: 3 },
-      ctx,
-    );
+    const result = await registry.execute("web-search", { query: "test", count: 3 }, ctx);
     const parsed = JSON.parse(result.resultJson);
     expect(parsed).toHaveLength(3);
   });
@@ -201,9 +188,7 @@ describe("web-search-handler", () => {
         apiKey: "secret-key",
       }),
     );
-    fetchSpy.mockResolvedValueOnce(
-      new Response(JSON.stringify({ results: [] }), { status: 200 }),
-    );
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
 
     await registry.execute("web-search", { query: "test" }, ctx);
 
@@ -213,8 +198,6 @@ describe("web-search-handler", () => {
     expect(parsed.searchParams.get("language")).toBe("de");
     expect(parsed.searchParams.get("time_range")).toBe("week");
     expect(parsed.searchParams.get("engines")).toBe("google,bing");
-    expect((opts.headers as Record<string, string>)["Authorization"]).toBe(
-      "Bearer secret-key",
-    );
+    expect((opts.headers as Record<string, string>)["Authorization"]).toBe("Bearer secret-key");
   });
 });

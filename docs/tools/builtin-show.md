@@ -46,9 +46,6 @@ Surface content blocks (images) to the user. Provide a source via `path`, `url`,
 ```json
 {
   "type": "image",
-  "items": [
-    { "path": "screenshots/before.png" },
-    { "path": "screenshots/after.png" }
-  ]
+  "items": [{ "path": "screenshots/before.png" }, { "path": "screenshots/after.png" }]
 }
 ```

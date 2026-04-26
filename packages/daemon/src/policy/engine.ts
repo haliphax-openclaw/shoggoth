@@ -98,10 +98,7 @@ function matchesDeny(resource: string, deny: readonly string[]): boolean {
   return matchesRule(resource, deny);
 }
 
-function matchesReview(
-  resource: string,
-  review: readonly string[] | undefined,
-): boolean {
+function matchesReview(resource: string, review: readonly string[] | undefined): boolean {
   if (!review || review.length === 0) return false;
   return matchesRule(resource, review);
 }
@@ -111,10 +108,7 @@ function matchesReview(
  * Evaluation order: deny → review → allow → default_deny.
  * `*` in allow permits any resource not explicitly denied; `*` in deny blocks all.
  */
-export function evaluateRules(
-  resource: string,
-  rules: ShoggothToolRules,
-): PolicyDecision {
+export function evaluateRules(resource: string, rules: ShoggothToolRules): PolicyDecision {
   if (matchesDeny(resource, rules.deny)) {
     return { allow: false, reason: "explicit_deny" };
   }
@@ -177,13 +171,8 @@ export function createPolicyEngine(
         }
         if (action === "tool.invoke") {
           const agentId = resolveAgentIdFromSessionId(principal.sessionId);
-          const perAgent = agentId
-            ? agents?.list?.[agentId]?.policy?.tools
-            : undefined;
-          const effective = resolveEffectiveToolRules(
-            config.agent.tools,
-            perAgent,
-          );
+          const perAgent = agentId ? agents?.list?.[agentId]?.policy?.tools : undefined;
+          const effective = resolveEffectiveToolRules(config.agent.tools, perAgent);
           return evaluateRules(resource, effective);
         }
         return { allow: false, reason: "unknown_action" };
@@ -198,9 +187,7 @@ export function createPolicyEngine(
  * Forwards `check` and `config` to the engine returned by `getEngine()` so policy can be
  * swapped in-process (config hot-reload) without recreating listeners.
  */
-export function createDelegatingPolicyEngine(
-  getEngine: () => PolicyEngine,
-): PolicyEngine {
+export function createDelegatingPolicyEngine(getEngine: () => PolicyEngine): PolicyEngine {
   return {
     get config(): ShoggothPolicyConfig {
       return getEngine().config;

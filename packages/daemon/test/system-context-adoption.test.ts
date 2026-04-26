@@ -5,13 +5,7 @@
  * `systemContext` with the expected `kind`, `summary`, and `data` fields.
  */
 
-import {
-  describe,
-  it,
-  beforeAll,
-  afterAll,
-  vi,
-} from "vitest";
+import { describe, it, beforeAll, afterAll, vi } from "vitest";
 
 vi.mock("../src/workspaces/agent-workspace-layout", () => ({
   ensureAgentWorkspaceLayout: async () => {},
@@ -25,8 +19,7 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined)
-    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 import { randomUUID } from "node:crypto";
@@ -50,10 +43,7 @@ import { startControlPlane } from "../src/control/control-plane.js";
 import { createLogger } from "../src/logging.js";
 import { HealthRegistry } from "../src/health.js";
 import { ShutdownCoordinator } from "../src/shutdown.js";
-import {
-  createDaemonSpawnAdapter,
-  createWorkflowNotifier,
-} from "../src/workflow-adapters.js";
+import { createDaemonSpawnAdapter, createWorkflowNotifier } from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -113,9 +103,7 @@ async function withControlPlaneSession(
     stateDb?: Database.Database;
     config?: ShoggothConfig;
   },
-  fn: (
-    send: (body: Record<string, unknown>) => Promise<string>,
-  ) => Promise<void>,
+  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
 ): Promise<void> {
   const { createConnection } = await import("node:net");
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-sc-"));
@@ -218,10 +206,7 @@ describe("systemContext adoption: subagent_spawn one_shot", () => {
           assert.ok(sc, "systemContext must be present");
           assert.equal(sc.kind, "subagent.task");
           assert.ok(sc.summary.length > 0, "summary must be non-empty");
-          assert.ok(
-            sc.summary.includes("one-shot"),
-            "summary should mention one-shot",
-          );
+          assert.ok(sc.summary.includes("one-shot"), "summary should mention one-shot");
           assert.ok(sc.data, "data must be present");
           assert.equal(sc.data!.parent_session_id, parentId);
           assert.equal(sc.data!.internal, true);
@@ -288,10 +273,7 @@ describe("systemContext adoption: subagent_spawn persistent", () => {
           assert.ok(sc, "systemContext must be present");
           assert.equal(sc.kind, "subagent.task");
           assert.ok(sc.summary.length > 0, "summary must be non-empty");
-          assert.ok(
-            sc.summary.includes("persistent"),
-            "summary should mention persistent",
-          );
+          assert.ok(sc.summary.includes("persistent"), "summary should mention persistent");
           assert.ok(sc.data, "data must be present");
           assert.equal(sc.data!.parent_session_id, parentId);
           assert.equal(sc.data!.internal, true);
@@ -389,12 +371,7 @@ describe("systemContext adoption: session_steer", () => {
       "channel",
       SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
     );
-    const childId = formatAgentSessionUrn(
-      "ag",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
+    const childId = formatAgentSessionUrn("ag", "discord", "channel", randomUUID());
     sessions.create({ id: parentId, workspacePath: "/wp", status: "active" });
     sessions.create({ id: childId, workspacePath: "/wc", status: "active" });
     sessions.update(childId, {
@@ -457,10 +434,7 @@ describe("systemContext adoption: workflow completion notification", () => {
     assert.ok(sc, "systemContext must be present");
     assert.equal(sc.kind, "workflow.complete");
     assert.ok(sc.summary.length > 0, "summary must be non-empty");
-    assert.ok(
-      sc.summary.includes("successfully"),
-      "summary should mention success",
-    );
+    assert.ok(sc.summary.includes("successfully"), "summary should mention success");
     assert.ok(sc.data, "data must be present");
     assert.equal(sc.data!.workflow_id, "wf-123");
     assert.equal(sc.data!.success, true);

@@ -1,18 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type {
-  TaskDef,
-  TaskState,
-  TaskList,
-  DependencyGraph,
-  ToolExecutor,
-} from "./types.js";
+import type { TaskDef, TaskState, TaskList, DependencyGraph, ToolExecutor } from "./types.js";
 import { getTaskPromptOrLabel } from "./types.js";
 import { parseGraph, validateGraph } from "./graph.js";
-import {
-  parseTemplateRefs,
-  validateTemplateRefs,
-  resolveTemplates,
-} from "./templates.js";
+import { parseTemplateRefs, validateTemplateRefs, resolveTemplates } from "./templates.js";
 import { canSpawn } from "./depth.js";
 import { saveWorkflow } from "./state.js";
 import { buildGateContext, evaluateGateCondition } from "./gate-eval.js";
@@ -98,11 +88,7 @@ function taskMap(tasks: TaskState[]): Map<number, TaskState> {
  * blocking it). A task is blocked if any of its direct deps are failed,
  * or if any direct dep is pending and itself blocked.
  */
-function isBlocked(
-  taskId: number,
-  graph: DependencyGraph,
-  tasks: Map<number, TaskState>,
-): boolean {
+function isBlocked(taskId: number, graph: DependencyGraph, tasks: Map<number, TaskState>): boolean {
   const deps = graph.get(taskId);
   if (!deps || deps.size === 0) return false;
 
@@ -130,8 +116,7 @@ function shouldSkip(
     const dep = tasks.get(depId);
     if (!dep) continue;
     if (dep.status === "skipped") return true;
-    if (dep.status === "pending" && shouldSkip(depId, graph, tasks))
-      return true;
+    if (dep.status === "pending" && shouldSkip(depId, graph, tasks)) return true;
   }
   return false;
 }
@@ -139,10 +124,7 @@ function shouldSkip(
 /**
  * Get all transitive dependents of a task (tasks that depend on it, directly or transitively).
  */
-function getTransitiveDependents(
-  taskId: number,
-  graph: DependencyGraph,
-): Set<number> {
+function getTransitiveDependents(taskId: number, graph: DependencyGraph): Set<number> {
   // Build reverse graph: for each task, which tasks depend on it
   const reverse = new Map<number, Set<number>>();
   for (const [tid, deps] of graph) {
@@ -237,11 +219,7 @@ export class Orchestrator {
   }
 
   /** Start a new workflow. Returns the workflow ID. */
-  async start(
-    tasks: TaskDef[],
-    graphDsl: string,
-    opts: OrchestratorOptions,
-  ): Promise<string> {
+  async start(tasks: TaskDef[], graphDsl: string, opts: OrchestratorOptions): Promise<string> {
     // Depth check
     if (!canSpawn(opts.currentDepth, opts.maxDepth)) {
       throw new Error("Cannot start workflow: spawn depth limit reached");
@@ -515,8 +493,7 @@ export class Orchestrator {
     const now = Date.now();
 
     for (const task of wf.tasks) {
-      if (task.status !== "in_progress" || !task.sessionKey || !task.startedAt)
-        continue;
+      if (task.status !== "in_progress" || !task.sessionKey || !task.startedAt) continue;
 
       const limit = task.taskDef.runtimeLimitMs ?? opts.runtimeLimitMs;
       const elapsed = now - task.startedAt;
@@ -657,9 +634,7 @@ export class Orchestrator {
 
       // Concurrency cap: count current in_progress tasks
       if (concurrency > 0) {
-        const inProgress = wf.tasks.filter(
-          (t) => t.status === "in_progress",
-        ).length;
+        const inProgress = wf.tasks.filter((t) => t.status === "in_progress").length;
         if (inProgress >= concurrency) break;
       }
 
@@ -701,10 +676,7 @@ export class Orchestrator {
             });
 
             // Propagate: mark all transitive dependents as skipped
-            const dependents = getTransitiveDependents(
-              task.taskDef.id,
-              wf.graph,
-            );
+            const dependents = getTransitiveDependents(task.taskDef.id, wf.graph);
             for (const depId of dependents) {
               const depTask = tm.get(depId);
               if (depTask && depTask.status === "pending") {
@@ -750,8 +722,7 @@ export class Orchestrator {
         task.startedAt = now;
         if (!this.messagePoster) {
           task.status = "failed";
-          task.error =
-            "message task requires a MessagePoster but none was provided";
+          task.error = "message task requires a MessagePoster but none was provided";
           task.completedAt = Date.now();
           continue;
         }
@@ -781,8 +752,7 @@ export class Orchestrator {
         task.startedAt = now;
         if (!this.toolExecutor) {
           task.status = "failed";
-          task.error =
-            "tool task requires a ToolExecutor but none was provided";
+          task.error = "tool task requires a ToolExecutor but none was provided";
           task.completedAt = Date.now();
           continue;
         }
@@ -792,18 +762,14 @@ export class Orchestrator {
             if (Array.isArray(val)) return val.map(resolveArgsDeep);
             if (val !== null && typeof val === "object") {
               const out: Record<string, unknown> = {};
-              for (const [k, v] of Object.entries(
-                val as Record<string, unknown>,
-              )) {
+              for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
                 out[k] = resolveArgsDeep(v);
               }
               return out;
             }
             return val;
           };
-          const resolvedArgs = resolveArgsDeep(
-            task.taskDef.args ?? {},
-          ) as Record<string, unknown>;
+          const resolvedArgs = resolveArgsDeep(task.taskDef.args ?? {}) as Record<string, unknown>;
           const toolCallId = randomUUID();
           const result = await this.toolExecutor.execute({
             name: task.taskDef.tool,
@@ -815,10 +781,7 @@ export class Orchestrator {
             task.status = "failed";
             task.error = parsed.error;
           } else {
-            task.output =
-              typeof parsed.output === "string"
-                ? parsed.output
-                : result.resultJson;
+            task.output = typeof parsed.output === "string" ? parsed.output : result.resultJson;
             task.status = "done";
           }
           task.completedAt = Date.now();

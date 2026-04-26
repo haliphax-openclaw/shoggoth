@@ -110,10 +110,7 @@ describe("validateGraph", () => {
 
   it("throws when graph references a task not in the task list", () => {
     const g = parseGraph("1>2>3");
-    assert.throws(
-      () => validateGraph(g, new Set([1, 2])),
-      /task 3 which is not in the task list/,
-    );
+    assert.throws(() => validateGraph(g, new Set([1, 2])), /task 3 which is not in the task list/);
   });
 
   it("throws when a dependency references a task not in the task list", () => {
@@ -121,10 +118,7 @@ describe("validateGraph", () => {
     g.set(1, new Set());
     g.set(2, new Set([99]));
 
-    assert.throws(
-      () => validateGraph(g, new Set([1, 2])),
-      /task 99 which is not in the task list/,
-    );
+    assert.throws(() => validateGraph(g, new Set([1, 2])), /task 99 which is not in the task list/);
   });
 
   it("passes for an empty graph", () => {

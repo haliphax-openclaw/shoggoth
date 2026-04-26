@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createConnection } from "node:net";
-import {
-  parseResponseLine,
-  WIRE_VERSION,
-  type WireAuth,
-  type WireResponse,
-} from "@shoggoth/authn";
+import { parseResponseLine, WIRE_VERSION, type WireAuth, type WireResponse } from "@shoggoth/authn";
 
 export type InvokeControlRequestInput = {
   readonly socketPath: string;

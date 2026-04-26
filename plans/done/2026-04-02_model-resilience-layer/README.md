@@ -166,10 +166,7 @@ interface ParsedRateLimitHeaders {
   retryAfterMs?: number;
 }
 
-function parseRateLimitHeaders(
-  providerId: string,
-  headers: Headers,
-): ParsedRateLimitHeaders;
+function parseRateLimitHeaders(providerId: string, headers: Headers): ParsedRateLimitHeaders;
 ```
 
 ## Config

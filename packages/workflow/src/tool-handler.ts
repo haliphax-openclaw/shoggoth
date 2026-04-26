@@ -1,8 +1,4 @@
-import type {
-  TaskDef,
-  FailureBehavior,
-  FailureNotification,
-} from "./types.js";
+import type { TaskDef, FailureBehavior, FailureNotification } from "./types.js";
 import type { WorkflowServer } from "./server.js";
 import type { ControlPlane } from "./control.js";
 import type { OrchestratorOptions } from "./orchestrator.js";
@@ -90,15 +86,11 @@ function requireField<T>(value: T | undefined, name: string): T {
 }
 
 function normalizeFailureNotification(
-  input?:
-    | "silent"
-    | { kind: "notify-parent" }
-    | { kind: "notify-target"; target_id: string },
+  input?: "silent" | { kind: "notify-parent" } | { kind: "notify-target"; target_id: string },
 ): FailureNotification {
   if (!input || input === "silent") return "silent";
   if (input.kind === "notify-parent") return { kind: "notify-parent" };
-  if (input.kind === "notify-target")
-    return { kind: "notify-target", targetId: input.target_id };
+  if (input.kind === "notify-target") return { kind: "notify-target", targetId: input.target_id };
   return "silent";
 }
 
@@ -116,21 +108,12 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
 
     switch (kind) {
       case "agent": {
-        const prompt = requireField(
-          t.prompt,
-          `tasks[${t.id}].prompt (required for agent task)`,
-        );
+        const prompt = requireField(t.prompt, `tasks[${t.id}].prompt (required for agent task)`);
         return { ...base, kind: "agent" as const, prompt };
       }
       case "tool": {
-        const tool = requireField(
-          t.tool,
-          `tasks[${t.id}].tool (required for tool task)`,
-        );
-        const args = requireField(
-          t.args,
-          `tasks[${t.id}].args (required for tool task)`,
-        );
+        const tool = requireField(t.tool, `tasks[${t.id}].tool (required for tool task)`);
+        const args = requireField(t.args, `tasks[${t.id}].args (required for tool task)`);
         return { ...base, kind: "tool" as const, tool, args };
       }
       case "gate": {
@@ -166,9 +149,7 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
 }
 
 /** Convert a DependencyGraph (Map<number, Set<number>>) to a JSON-safe object. */
-function serializeGraph(
-  graph: Map<number, Set<number>>,
-): Record<string, number[]> {
+function serializeGraph(graph: Map<number, Set<number>>): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   for (const [taskId, deps] of graph) {
     out[String(taskId)] = [...deps];
@@ -246,15 +227,11 @@ export async function handleWorkflowToolCall(
         const taskId = requireField(args.task_id, "task_id");
         const updates: Record<string, unknown> = {};
         if (args.prompt !== undefined) updates.prompt = args.prompt;
-        if (args.failure_behavior !== undefined)
-          updates.failureBehavior = args.failure_behavior;
+        if (args.failure_behavior !== undefined) updates.failureBehavior = args.failure_behavior;
         if (args.failure_notification !== undefined) {
-          updates.failureNotification = normalizeFailureNotification(
-            args.failure_notification,
-          );
+          updates.failureNotification = normalizeFailureNotification(args.failure_notification);
         }
-        if (args.runtime_limit_ms !== undefined)
-          updates.runtimeLimitMs = args.runtime_limit_ms;
+        if (args.runtime_limit_ms !== undefined) updates.runtimeLimitMs = args.runtime_limit_ms;
 
         await deps.controlPlane.edit(wfId, taskId, updates);
         return {

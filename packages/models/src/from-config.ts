@@ -6,16 +6,10 @@ import {
   type FailoverHooks,
 } from "./failover";
 import { createGeminiProvider } from "./gemini";
-import {
-  createOpenAICompatibleProvider,
-  type FetchLike,
-} from "./openai-compatible";
+import { createOpenAICompatibleProvider, type FetchLike } from "./openai-compatible";
 import type { CompactionPolicy } from "./compaction";
 import type { ModelProvider } from "./types";
-import {
-  createFailoverToolCallingClient,
-  type FailoverToolCallingClient,
-} from "./tool-failover";
+import { createFailoverToolCallingClient, type FailoverToolCallingClient } from "./tool-failover";
 
 export interface CreateFailoverFromConfigOptions {
   readonly env?: NodeJS.ProcessEnv;
@@ -92,10 +86,7 @@ function singleHopFromEnv(
       baseUrl: anthropicOrigin,
       apiKey: env.ANTHROPIC_API_KEY,
       anthropicVersion: env.ANTHROPIC_VERSION,
-      auth:
-        env.ANTHROPIC_AUTH?.trim().toLowerCase() === "bearer"
-          ? "bearer"
-          : undefined,
+      auth: env.ANTHROPIC_AUTH?.trim().toLowerCase() === "bearer" ? "bearer" : undefined,
       fetchImpl,
     });
     const model = env.SHOGGOTH_MODEL?.trim() || "claude-3-5-sonnet-20241022";
@@ -113,8 +104,7 @@ function singleHopFromEnv(
     return { provider, model };
   }
 
-  const baseRaw =
-    env.OPENAI_BASE_URL ?? env.OLLAMA_HOST ?? "https://api.openai.com/v1";
+  const baseRaw = env.OPENAI_BASE_URL ?? env.OLLAMA_HOST ?? "https://api.openai.com/v1";
   const provider = createOpenAICompatibleProvider({
     id: "env-default",
     baseUrl: normalizeOpenAIBaseUrl(baseRaw),
@@ -154,22 +144,16 @@ export function createFailoverClientFromModelsConfig(
   const entries = chain.map((entry) => {
     const slash = entry.indexOf("/");
     if (slash < 1 || slash === entry.length - 1) {
-      throw new Error(
-        `Invalid failover chain entry "${entry}" — expected "providerId/model"`,
-      );
+      throw new Error(`Invalid failover chain entry "${entry}" — expected "providerId/model"`);
     }
     const providerId = entry.slice(0, slash);
     const modelName = entry.slice(slash + 1);
     const provider = byId.get(providerId);
     if (!provider) {
-      throw new Error(
-        `Unknown model provider id "${providerId}" in failoverChain`,
-      );
+      throw new Error(`Unknown model provider id "${providerId}" in failoverChain`);
     }
     const providerConfig = providers?.find((p) => p.id === providerId);
-    const modelConfig = providerConfig?.models?.find(
-      (m) => m.name === modelName,
-    );
+    const modelConfig = providerConfig?.models?.find((m) => m.name === modelName);
     return {
       provider,
       model: modelName,
@@ -192,10 +176,7 @@ export function createFailoverToolCallingClientFromModelsConfig(
 
   if (!chain?.length) {
     const { provider, model } = singleHopFromEnv(env, options.fetchImpl);
-    return createFailoverToolCallingClient(
-      [{ provider, model }],
-      options.hooks,
-    );
+    return createFailoverToolCallingClient([{ provider, model }], options.hooks);
   }
 
   const byId = modelProvidersById(providers, env, options.fetchImpl);
@@ -203,22 +184,16 @@ export function createFailoverToolCallingClientFromModelsConfig(
   const entries = chain.map((entry) => {
     const slash = entry.indexOf("/");
     if (slash < 1 || slash === entry.length - 1) {
-      throw new Error(
-        `Invalid failover chain entry "${entry}" — expected "providerId/model"`,
-      );
+      throw new Error(`Invalid failover chain entry "${entry}" — expected "providerId/model"`);
     }
     const providerId = entry.slice(0, slash);
     const modelName = entry.slice(slash + 1);
     const provider = byId.get(providerId);
     if (!provider) {
-      throw new Error(
-        `Unknown model provider id "${providerId}" in failoverChain`,
-      );
+      throw new Error(`Unknown model provider id "${providerId}" in failoverChain`);
     }
     const providerConfig = providers?.find((p) => p.id === providerId);
-    const modelConfig = providerConfig?.models?.find(
-      (m) => m.name === modelName,
-    );
+    const modelConfig = providerConfig?.models?.find((m) => m.name === modelName);
     return {
       provider,
       model: modelName,
@@ -238,8 +213,7 @@ export function resolveCompactionPolicyFromModelsConfig(
 ): CompactionPolicy {
   const c = models?.compaction;
   return {
-    preserveRecentMessages:
-      c?.preserveRecentMessages ?? DEFAULT_PRESERVE_RECENT,
+    preserveRecentMessages: c?.preserveRecentMessages ?? DEFAULT_PRESERVE_RECENT,
     summaryMaxOutputTokens: c?.summaryMaxOutputTokens,
   };
 }

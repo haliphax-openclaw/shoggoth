@@ -1,9 +1,6 @@
 import { DEFAULT_BACKOFF_CONFIG } from "./backoff.js";
 import { classifyModelError } from "./classify.js";
-import {
-  ProviderResilienceManager,
-  type ProviderResilienceConfig,
-} from "./provider-manager.js";
+import { ProviderResilienceManager, type ProviderResilienceConfig } from "./provider-manager.js";
 
 export interface ResilienceOptions {
   abortSignal?: AbortSignal;
@@ -41,8 +38,7 @@ export class ModelResilienceGate {
       baseDelayMs: overrides?.baseDelayMs ?? this.globalDefaults.baseDelayMs,
       maxDelayMs: overrides?.maxDelayMs ?? this.globalDefaults.maxDelayMs,
       jitterMs: overrides?.jitterMs ?? this.globalDefaults.jitterMs,
-      concurrency:
-        overrides?.concurrency ?? this.globalDefaults.defaultConcurrency,
+      concurrency: overrides?.concurrency ?? this.globalDefaults.defaultConcurrency,
     };
 
     manager = new ProviderResilienceManager(providerId, config);
@@ -58,9 +54,7 @@ export class ModelResilienceGate {
     const manager = this.getOrCreateManager(providerId);
     const overrides = this.providerOverrides[providerId];
     const maxRetries =
-      overrides?.maxRetries ??
-      this.globalDefaults.maxRetries ??
-      DEFAULT_BACKOFF_CONFIG.maxRetries;
+      overrides?.maxRetries ?? this.globalDefaults.maxRetries ?? DEFAULT_BACKOFF_CONFIG.maxRetries;
 
     let attempt = 0;
 
@@ -76,14 +70,11 @@ export class ModelResilienceGate {
         const classification = classifyModelError(status, code);
 
         if (
-          (classification === "retryable" ||
-            classification === "rate_limited") &&
+          (classification === "retryable" || classification === "rate_limited") &&
           attempt < maxRetries
         ) {
           const retryAfterMs =
-            classification === "rate_limited"
-              ? extractRetryAfter(err)
-              : undefined;
+            classification === "rate_limited" ? extractRetryAfter(err) : undefined;
           const delay = manager.recordFailure(retryAfterMs);
           manager.release();
           slotReleased = true; // eslint-disable-line no-useless-assignment -- guards finally
@@ -168,8 +159,7 @@ function extractRetryAfter(err: unknown): number | undefined {
 }
 
 function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted)
-    return Promise.reject(signal.reason ?? new Error("Aborted"));
+  if (signal?.aborted) return Promise.reject(signal.reason ?? new Error("Aborted"));
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(resolve, ms);
     if (!signal) return;

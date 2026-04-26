@@ -1,10 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "vitest";
 import type { ShoggothConfig } from "../src/schema.js";
-import {
-  resolveContextLevel,
-  validateContextLevel,
-} from "../src/context-level.js";
+import { resolveContextLevel, validateContextLevel } from "../src/context-level.js";
 
 function cfg(partial: Partial<ShoggothConfig>): ShoggothConfig {
   return partial as ShoggothConfig;
@@ -184,10 +181,7 @@ describe("validateContextLevel", () => {
   });
 
   it("rejects invalid strings", () => {
-    assert.throws(
-      () => validateContextLevel("invalid"),
-      /Invalid context level/,
-    );
+    assert.throws(() => validateContextLevel("invalid"), /Invalid context level/);
     assert.throws(() => validateContextLevel(""), /Invalid context level/);
     assert.throws(() => validateContextLevel("FULL"), /Invalid context level/);
   });
@@ -195,10 +189,7 @@ describe("validateContextLevel", () => {
   it("rejects non-string values", () => {
     assert.throws(() => validateContextLevel(42), /Invalid context level/);
     assert.throws(() => validateContextLevel(null), /Invalid context level/);
-    assert.throws(
-      () => validateContextLevel(undefined),
-      /Invalid context level/,
-    );
+    assert.throws(() => validateContextLevel(undefined), /Invalid context level/);
     assert.throws(() => validateContextLevel(true), /Invalid context level/);
   });
 });

@@ -1,15 +1,8 @@
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
-import {
-  DEFAULT_POLICY_CONFIG,
-  type ShoggothMcpServerEntry,
-} from "@shoggoth/shared";
+import { DEFAULT_POLICY_CONFIG, type ShoggothMcpServerEntry } from "@shoggoth/shared";
 import assert from "node:assert";
 import Database from "better-sqlite3";
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "vitest";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
@@ -29,10 +22,7 @@ import {
 } from "../../src/mcp/mcp-server-pool";
 
 const mockServerPath = fileURLToPath(
-  new URL(
-    "../../../mcp-integration/test/fixtures/mock-mcp-server.mjs",
-    import.meta.url,
-  ),
+  new URL("../../../mcp-integration/test/fixtures/mock-mcp-server.mjs", import.meta.url),
 );
 
 describe("partitionMcpServersByEffectiveScope", () => {
@@ -45,8 +35,10 @@ describe("partitionMcpServersByEffectiveScope", () => {
   }
 
   it("inherits top-level global by default", () => {
-    const { globalServers, perSessionServers } =
-      partitionMcpServersByEffectiveScope([stdio("a"), stdio("b")], "global");
+    const { globalServers, perSessionServers } = partitionMcpServersByEffectiveScope(
+      [stdio("a"), stdio("b")],
+      "global",
+    );
     assert.deepEqual(
       globalServers.map((s) => s.id),
       ["a", "b"],
@@ -55,11 +47,10 @@ describe("partitionMcpServersByEffectiveScope", () => {
   });
 
   it("splits per-server overrides against top-level global", () => {
-    const { globalServers, perSessionServers } =
-      partitionMcpServersByEffectiveScope(
-        [stdio("g1"), stdio("p1", "per_session")],
-        "global",
-      );
+    const { globalServers, perSessionServers } = partitionMcpServersByEffectiveScope(
+      [stdio("g1"), stdio("p1", "per_session")],
+      "global",
+    );
     assert.deepEqual(
       globalServers.map((s) => s.id),
       ["g1"],
@@ -71,11 +62,10 @@ describe("partitionMcpServersByEffectiveScope", () => {
   });
 
   it("per-server global overrides top-level per_session", () => {
-    const { globalServers, perSessionServers } =
-      partitionMcpServersByEffectiveScope(
-        [stdio("g1", "global"), stdio("p1")],
-        "per_session",
-      );
+    const { globalServers, perSessionServers } = partitionMcpServersByEffectiveScope(
+      [stdio("g1", "global"), stdio("p1")],
+      "per_session",
+    );
     assert.deepEqual(
       globalServers.map((s) => s.id),
       ["g1"],
@@ -109,9 +99,7 @@ describe("connectShoggothMcpServers + createMcpRoutingToolExecutor", () => {
     ]);
     try {
       const aggregated = buildAggregatedMcpCatalog(pool.externalSources);
-      assert.ok(
-        aggregated.tools.some((t) => t.namespacedName === "mocksrv-echo"),
-      );
+      assert.ok(aggregated.tools.some((t) => t.namespacedName === "mocksrv-echo"));
 
       const db = new Database(":memory:");
       db.pragma("foreign_keys = ON");
@@ -167,9 +155,9 @@ describe("connectShoggothMcpServers + createMcpRoutingToolExecutor", () => {
         toolRuns,
       });
 
-      const row = db
-        .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
-        .get("run-ext-mcp") as { status: string } | undefined;
+      const row = db.prepare(`SELECT status FROM tool_runs WHERE id = ?`).get("run-ext-mcp") as
+        | { status: string }
+        | undefined;
       assert.equal(row?.status, "completed");
       db.close();
     } finally {
@@ -271,9 +259,7 @@ describe("connectShoggothMcpServers + createMcpRoutingToolExecutor", () => {
     ]);
     try {
       const aggregated = buildAggregatedMcpCatalog(pool.externalSources);
-      assert.ok(
-        aggregated.tools.some((t) => t.namespacedName === "httpsrv-echo"),
-      );
+      assert.ok(aggregated.tools.some((t) => t.namespacedName === "httpsrv-echo"));
 
       const db = new Database(":memory:");
       db.pragma("foreign_keys = ON");
@@ -329,9 +315,9 @@ describe("connectShoggothMcpServers + createMcpRoutingToolExecutor", () => {
         toolRuns,
       });
 
-      const row = db
-        .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
-        .get("run-http-mcp") as { status: string } | undefined;
+      const row = db.prepare(`SELECT status FROM tool_runs WHERE id = ?`).get("run-http-mcp") as
+        | { status: string }
+        | undefined;
       assert.equal(row?.status, "completed");
       db.close();
     } finally {
@@ -440,10 +426,7 @@ describe("connectShoggothMcpServers + createMcpRoutingToolExecutor", () => {
     try {
       await new Promise((r) => setTimeout(r, 250));
       assert.ok(
-        received.some(
-          (x) =>
-            x.sourceId === "sse-src" && x.method === "notifications/progress",
-        ),
+        received.some((x) => x.sourceId === "sse-src" && x.method === "notifications/progress"),
       );
     } finally {
       await pool.close();

@@ -64,17 +64,13 @@ describe("createDiscordPlugin", () => {
     const plugin = createDiscordPlugin();
     expect(typeof plugin.hooks["platform.start"]).toBe("function");
     // Async functions have AsyncFunction constructor
-    expect(plugin.hooks["platform.start"].constructor.name).toBe(
-      "AsyncFunction",
-    );
+    expect(plugin.hooks["platform.start"].constructor.name).toBe("AsyncFunction");
   });
 
   it("platform.stop hook exists and is async", () => {
     const plugin = createDiscordPlugin();
     expect(typeof plugin.hooks["platform.stop"]).toBe("function");
-    expect(plugin.hooks["platform.stop"].constructor.name).toBe(
-      "AsyncFunction",
-    );
+    expect(plugin.hooks["platform.stop"].constructor.name).toBe("AsyncFunction");
   });
 });
 

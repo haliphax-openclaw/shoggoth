@@ -23,15 +23,10 @@ function taskDuration(task: TaskState, now?: number): string | null {
   return formatDuration(end - task.startedAt);
 }
 
-function formatTaskLine(
-  task: TaskState,
-  deps: Set<number>,
-  now?: number,
-): string {
+function formatTaskLine(task: TaskState, deps: Set<number>, now?: number): string {
   const emoji = STATUS_EMOJI[task.status];
   const id = task.taskDef.id;
-  const depStr =
-    deps.size > 0 ? ` [${[...deps].sort((a, b) => a - b).join(",")}]` : "";
+  const depStr = deps.size > 0 ? ` [${[...deps].sort((a, b) => a - b).join(",")}]` : "";
   const dur = taskDuration(task, now);
   const durStr = dur != null ? ` (${dur})` : "";
   return `${emoji} ${id}${depStr} - ${taskDisplayName(task)}${durStr}`;

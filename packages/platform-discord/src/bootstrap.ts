@@ -66,11 +66,7 @@ export async function startDaemonDiscordMessaging(
     reactionBotUserIdRef: opts.reactionBotUserIdRef,
   });
 
-  if (
-    runtime &&
-    opts.registerSlashCommands !== false &&
-    runtime.discordBotUserId
-  ) {
+  if (runtime && opts.registerSlashCommands !== false && runtime.discordBotUserId) {
     try {
       await registerDiscordSlashCommands({
         transport: runtime.discordRestTransport,

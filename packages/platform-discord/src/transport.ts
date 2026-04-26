@@ -33,11 +33,7 @@ export interface DiscordRestTransport {
     body: DiscordCreateMessageBody,
     files: readonly DiscordMessageUploadFile[],
   ): Promise<{ readonly id: string }>;
-  editMessage(
-    channelId: string,
-    messageId: string,
-    body: DiscordEditMessageBody,
-  ): Promise<void>;
+  editMessage(channelId: string, messageId: string, body: DiscordEditMessageBody): Promise<void>;
   /** DELETE `/channels/{channel.id}/messages/{message.id}` */
   deleteMessage(channelId: string, messageId: string): Promise<void>;
   /**
@@ -54,10 +50,7 @@ export interface DiscordRestTransport {
   /** DELETE `/channels/{channel.id}` — also deletes thread channels. */
   deleteChannel(channelId: string): Promise<void>;
   /** GET `/channels/{channel.id}/messages/{message.id}` — returns raw API message object. */
-  getMessage(
-    channelId: string,
-    messageId: string,
-  ): Promise<Record<string, unknown>>;
+  getMessage(channelId: string, messageId: string): Promise<Record<string, unknown>>;
   /** GET `/channels/{channel.id}/messages` — returns newest-first array per Discord API. */
   getChannelMessages(
     channelId: string,
@@ -67,20 +60,12 @@ export interface DiscordRestTransport {
    * PUT `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me` — unicode `emoji` is
    * passed raw and URL-encoded (e.g. `✅`). Custom emojis use `name:id`.
    */
-  createMessageReaction(
-    channelId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<void>;
+  createMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
   /**
    * DELETE `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me` — remove the bot's
    * own reaction. Unicode `emoji` is URL-encoded; custom emojis use `name:id`.
    */
-  deleteMessageReaction(
-    channelId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<void>;
+  deleteMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
   /**
    * GET `/channels/{channel.id}/messages/{message.id}/reactions/{emoji}` — returns users who
    * reacted with this emoji. When `emoji` is omitted by the caller, the message-tool layer

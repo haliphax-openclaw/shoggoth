@@ -25,7 +25,4 @@ export type SystemPrincipal = {
   source: "system";
 };
 
-export type AuthenticatedPrincipal =
-  | OperatorPrincipal
-  | AgentPrincipal
-  | SystemPrincipal;
+export type AuthenticatedPrincipal = OperatorPrincipal | AgentPrincipal | SystemPrincipal;

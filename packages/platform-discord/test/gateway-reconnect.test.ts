@@ -354,7 +354,7 @@ describe("gateway reconnection", () => {
   describe("max reconnect attempts", () => {
     it("gives up after max consecutive failures", async () => {
       const factory = createFakeSocketFactory();
-      const { session, s0 } = await connectAndHandshake(factory);
+      const { s0 } = await connectAndHandshake(factory);
 
       // Kill the initial connection post-handshake → triggers scheduleReconnect.
       s0.serverClose(1006);

@@ -8,9 +8,7 @@ export type AcpxBindingStore = {
   list(): AcpxWorkspaceBinding[];
 };
 
-export function createSqliteAcpxBindingStore(
-  db: Database.Database,
-): AcpxBindingStore {
+export function createSqliteAcpxBindingStore(db: Database.Database): AcpxBindingStore {
   const selectOne = db.prepare(`
     SELECT acp_workspace_root, shoggoth_session_id, agent_principal_id
     FROM acpx_workspace_bindings
@@ -32,9 +30,7 @@ export function createSqliteAcpxBindingStore(
       updated_at = datetime('now')
   `);
 
-  const del = db.prepare(
-    `DELETE FROM acpx_workspace_bindings WHERE acp_workspace_root = ?`,
-  );
+  const del = db.prepare(`DELETE FROM acpx_workspace_bindings WHERE acp_workspace_root = ?`);
 
   function rowToBinding(r: {
     acp_workspace_root: string;

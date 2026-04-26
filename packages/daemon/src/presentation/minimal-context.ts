@@ -11,14 +11,9 @@ export interface MinimalContextInput {
  * Build a minimal message array for a lightweight model turn.
  * Returns [system, ...tail_of_transcript, event_context_user_message].
  */
-export function buildMinimalContextMessages(
-  input: MinimalContextInput,
-): ChatMessage[] {
+export function buildMinimalContextMessages(input: MinimalContextInput): ChatMessage[] {
   const system: ChatMessage = { role: "system", content: input.systemPrompt };
-  const tail =
-    input.tailMessages > 0
-      ? input.fullTranscript.slice(-input.tailMessages)
-      : [];
+  const tail = input.tailMessages > 0 ? input.fullTranscript.slice(-input.tailMessages) : [];
   const eventMessage: ChatMessage = {
     role: "user",
     content: input.eventContext,
@@ -27,14 +22,9 @@ export function buildMinimalContextMessages(
 }
 
 /** Format event context for a global reaction turn. */
-export function formatGlobalReactionEventContext(
-  emoji: string,
-  messageContent: string,
-): string {
+export function formatGlobalReactionEventContext(emoji: string, messageContent: string): string {
   const truncated =
-    messageContent.length > 500
-      ? messageContent.slice(0, 500) + "\u2026"
-      : messageContent;
+    messageContent.length > 500 ? messageContent.slice(0, 500) + "\u2026" : messageContent;
   return `Operator reacted ${emoji} to your message: "${truncated}"`;
 }
 
@@ -45,13 +35,9 @@ export function formatAdhocReactionEventContext(
   messageContent: string,
 ): string {
   const truncated =
-    messageContent.length > 500
-      ? messageContent.slice(0, 500) + "\u2026"
-      : messageContent;
+    messageContent.length > 500 ? messageContent.slice(0, 500) + "\u2026" : messageContent;
   const legendLines = legend.map((e) =>
-    e.emoji === selectedEmoji
-      ? `${e.emoji} ${e.label} \u2190 selected`
-      : `${e.emoji} ${e.label}`,
+    e.emoji === selectedEmoji ? `${e.emoji} ${e.label} \u2190 selected` : `${e.emoji} ${e.label}`,
   );
   return [
     `Operator reacted ${selectedEmoji} to your message with reaction legend:`,

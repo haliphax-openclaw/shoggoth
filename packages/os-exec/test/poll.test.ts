@@ -3,17 +3,9 @@ import assert from "node:assert";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  toolExecExtended,
-  getExecSession,
-  removeExecSession,
-} from "../src/tools";
+import { toolExecExtended, getExecSession, removeExecSession } from "../src/tools";
 import { toolPoll } from "../src/poll";
-import type {
-  PollCombinedResult,
-  PollSplitResult,
-  PollError,
-} from "../src/poll";
+import type { PollCombinedResult, PollSplitResult, PollError } from "../src/poll";
 import type { ExecBackgroundResult } from "../src/tools";
 
 describe("toolPoll", () => {
@@ -75,52 +67,31 @@ describe("toolPoll", () => {
     });
 
     it("rejects non-integer pid", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 1.5 }),
-        /pid.*positive integer/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 1.5 }), /pid.*positive integer/i);
     });
 
     it("rejects negative pid", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: -1 }),
-        /pid.*positive integer/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: -1 }), /pid.*positive integer/i);
     });
 
     it("rejects zero pid", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 0 }),
-        /pid.*positive integer/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 0 }), /pid.*positive integer/i);
     });
 
     it("rejects negative timeout", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 1, timeout: -1 }),
-        /timeout.*non-negative/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 1, timeout: -1 }), /timeout.*non-negative/i);
     });
 
     it("rejects non-integer tail", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 1, tail: 1.5 }),
-        /tail.*positive integer/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 1, tail: 1.5 }), /tail.*positive integer/i);
     });
 
     it("rejects zero tail", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 1, tail: 0 }),
-        /tail.*positive integer/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 1, tail: 0 }), /tail.*positive integer/i);
     });
 
     it("rejects negative since", async () => {
-      await assert.rejects(
-        () => toolPoll({ pid: 1, since: -1 }),
-        /since.*non-negative/i,
-      );
+      await assert.rejects(() => toolPoll({ pid: 1, since: -1 }), /since.*non-negative/i);
     });
   });
 
@@ -132,9 +103,7 @@ describe("toolPoll", () => {
     it("returns error for untracked PID", async () => {
       const r = await toolPoll({ pid: 999999 });
       assert.ok("error" in r);
-      assert.ok(
-        (r as PollError).error.includes("no tracked process with pid 999999"),
-      );
+      assert.ok((r as PollError).error.includes("no tracked process with pid 999999"));
     });
   });
 
@@ -290,9 +259,7 @@ describe("toolPoll", () => {
     });
 
     it("returns split stdout/stderr when streams is true", async () => {
-      const { pid, sessionId } = await spawnBg(
-        "echo out-data; echo err-data >&2",
-      );
+      const { pid, sessionId } = await spawnBg("echo out-data; echo err-data >&2");
       const session = getExecSession(sessionId)!;
       await session.done;
 
@@ -427,9 +394,7 @@ describe("toolPoll", () => {
     });
 
     it("works with streams: true", async () => {
-      const { pid, sessionId } = await spawnBg(
-        "printf 'STDOUT'; printf 'STDERR' >&2",
-      );
+      const { pid, sessionId } = await spawnBg("printf 'STDOUT'; printf 'STDERR' >&2");
       const session = getExecSession(sessionId)!;
       await session.done;
 

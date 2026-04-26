@@ -73,10 +73,7 @@ export function saveWorkflow(baseDir: string, wf: TaskList): void {
   fs.writeFileSync(statePath(baseDir, wf.id), data, "utf-8");
 }
 
-export function loadWorkflow(
-  baseDir: string,
-  workflowId: string,
-): TaskList | undefined {
+export function loadWorkflow(baseDir: string, workflowId: string): TaskList | undefined {
   const fp = statePath(baseDir, workflowId);
   if (!fs.existsSync(fp)) return undefined;
   const raw: SerializedWorkflow = JSON.parse(fs.readFileSync(fp, "utf-8"));

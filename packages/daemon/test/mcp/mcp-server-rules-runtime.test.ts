@@ -40,10 +40,7 @@ function makeDb(): Database.Database {
 }
 
 /** Fake MCP source catalog for a server with one tool. */
-function fakeSourceCatalog(
-  serverId: string,
-  toolName: string,
-): McpSourceCatalog {
+function fakeSourceCatalog(serverId: string, toolName: string): McpSourceCatalog {
   return {
     sourceId: serverId,
     tools: [
@@ -167,23 +164,13 @@ describe("MCP server rules — runtime filtering", () => {
     const ctx = await runtime.resolveContext(SESSION_ID);
 
     // The denied server's tool should NOT appear
-    const externalTools = ctx.aggregated.tools.filter(
-      (t) => t.sourceId !== "builtin",
-    );
+    const externalTools = ctx.aggregated.tools.filter((t) => t.sourceId !== "builtin");
     const sourceIds = new Set(externalTools.map((t) => t.sourceId));
 
+    assert.ok(sourceIds.has("allowed-server"), "allowed-server tools should be present");
+    assert.ok(!sourceIds.has("denied-server"), "denied-server tools should be filtered out");
     assert.ok(
-      sourceIds.has("allowed-server"),
-      "allowed-server tools should be present",
-    );
-    assert.ok(
-      !sourceIds.has("denied-server"),
-      "denied-server tools should be filtered out",
-    );
-    assert.ok(
-      externalTools.some(
-        (t) => t.namespacedName === "allowed-server-good-tool",
-      ),
+      externalTools.some((t) => t.namespacedName === "allowed-server-good-tool"),
       "allowed-server-good-tool should be in the catalog",
     );
     assert.ok(

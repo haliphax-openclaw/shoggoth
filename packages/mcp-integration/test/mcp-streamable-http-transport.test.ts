@@ -1,9 +1,5 @@
 import assert from "node:assert";
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { describe, it } from "vitest";
 import { mcpFetchToolsList, mcpInvokeTool } from "../src/mcp-jsonrpc-transport";
 import {
@@ -210,9 +206,7 @@ describe("mcp-streamable-http-transport", () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
-          enc.encode(
-            'id: alpha\r\ndata: {"x":1}\r\n\r\nid: beta\ndata: {"y":2}\n\n',
-          ),
+          enc.encode('id: alpha\r\ndata: {"x":1}\r\n\r\nid: beta\ndata: {"y":2}\n\n'),
         );
         controller.close();
       },
@@ -263,9 +257,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "t", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -371,9 +363,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "g", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "g", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -449,9 +439,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "u", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "u", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -475,9 +463,7 @@ describe("mcp-streamable-http-transport", () => {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache",
         });
-        res.write(
-          `data: ${JSON.stringify({ jsonrpc: "2.0", id, result: { via: "retry" } })}\n\n`,
-        );
+        res.write(`data: ${JSON.stringify({ jsonrpc: "2.0", id, result: { via: "retry" } })}\n\n`);
         res.end();
         return;
       }
@@ -554,9 +540,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "c", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "c", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -637,9 +621,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "x", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "x", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -736,9 +718,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "t", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -788,8 +768,7 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect sends Last-Event-ID after disconnect when server sent id: fields", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
-      [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
     let getCount = 0;
     let resolveToolCallId1: ((id: number) => void) | undefined;
     const toolCallIdPromise1 = new Promise<number>((r) => {
@@ -869,9 +848,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "r", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "r", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -920,8 +897,7 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect does NOT send Last-Event-ID when server never sent id: fields", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
-      [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
     let getCount = 0;
     let resolveToolCallId2: ((id: number) => void) | undefined;
     const toolCallIdPromise2 = new Promise<number>((r) => {
@@ -994,9 +970,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "n", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "n", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -1048,8 +1022,7 @@ describe("mcp-streamable-http-transport", () => {
   });
 
   it("standing GET reconnect updates Last-Event-ID across multiple disconnects", async () => {
-    const getRequestHeaders: Record<string, string | string[] | undefined>[] =
-      [];
+    const getRequestHeaders: Record<string, string | string[] | undefined>[] = [];
     let getCount = 0;
     let resolveToolCallId3: ((id: number) => void) | undefined;
     const toolCallIdPromise3 = new Promise<number>((r) => {
@@ -1130,9 +1103,7 @@ describe("mcp-streamable-http-transport", () => {
             jsonrpc: "2.0",
             id,
             result: {
-              tools: [
-                { name: "m", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "m", inputSchema: { type: "object", properties: {} } }],
             },
           }),
         );
@@ -1216,10 +1187,7 @@ describe("mcp-streamable-http-transport", () => {
         );
         return;
       }
-      if (
-        method === "notifications/initialized" ||
-        method === "notifications/cancelled"
-      ) {
+      if (method === "notifications/initialized" || method === "notifications/cancelled") {
         lastNotification = msg;
         res.writeHead(202).end();
         return;

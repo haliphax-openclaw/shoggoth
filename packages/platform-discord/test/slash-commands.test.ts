@@ -7,9 +7,7 @@ import {
 import type { DiscordInteractionEvent } from "../src/interaction";
 import type { DiscordRestTransport } from "../src/transport";
 
-function stubTransport(
-  calls: Array<{ method: string; args: unknown[] }>,
-): DiscordRestTransport {
+function stubTransport(calls: Array<{ method: string; args: unknown[] }>): DiscordRestTransport {
   return {
     openDmChannel: async () => "dm-ch",
     createMessage: async () => ({ id: "m1" }),
@@ -397,10 +395,7 @@ describe("registerDiscordSlashCommands", () => {
 
     assert.strictEqual(calls.length, 1);
     assert.strictEqual(calls[0]!.method, "registerGlobalCommands");
-    const [appId, commands] = calls[0]!.args as [
-      string,
-      Array<Record<string, unknown>>,
-    ];
+    const [appId, commands] = calls[0]!.args as [string, Array<Record<string, unknown>>];
     assert.strictEqual(appId, "app-123");
     assert.strictEqual(commands.length, 8);
     assert.ok(commands.some((c) => c.name === "abort"));
@@ -421,10 +416,7 @@ describe("registerDiscordSlashCommands", () => {
       applicationId: "app-123",
     });
 
-    const [, commands] = calls[0]!.args as [
-      string,
-      Array<Record<string, unknown>>,
-    ];
+    const [, commands] = calls[0]!.args as [string, Array<Record<string, unknown>>];
     const modelCmd = commands.find((c) => c.name === "model");
     assert.ok(modelCmd);
     const options = modelCmd!.options as Array<Record<string, unknown>>;

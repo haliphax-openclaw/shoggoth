@@ -5,10 +5,7 @@ import { describe, test, expect } from "vitest";
 import { fileURLToPath } from "node:url";
 import type { ShoggothConfig } from "@shoggoth/shared";
 import { ShoggothPluginSystem } from "../src/plugin-system";
-import {
-  loadAllPluginsFromConfig,
-  resolveLocalPluginPath,
-} from "../src/load-plugins-from-config";
+import { loadAllPluginsFromConfig, resolveLocalPluginPath } from "../src/load-plugins-from-config";
 
 describe("resolveLocalPluginPath", () => {
   test("returns absolute paths unchanged", () => {

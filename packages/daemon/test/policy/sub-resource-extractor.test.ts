@@ -4,10 +4,7 @@ import { execSubResourceExtractor } from "../../src/policy/sub-resource";
 
 describe("execSubResourceExtractor", () => {
   it("extracts command name from simple command", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({ command: "curl https://example.com" }),
-      "curl",
-    );
+    assert.strictEqual(execSubResourceExtractor({ command: "curl https://example.com" }), "curl");
   });
 
   it("extracts basename from absolute path", () => {
@@ -20,10 +17,7 @@ describe("execSubResourceExtractor", () => {
   });
 
   it("extracts command name with flags", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({ command: "bash -c 'echo hello'" }),
-      "bash",
-    );
+    assert.strictEqual(execSubResourceExtractor({ command: "bash -c 'echo hello'" }), "bash");
   });
 
   it("returns 'unknown' for empty command", () => {
@@ -31,10 +25,7 @@ describe("execSubResourceExtractor", () => {
   });
 
   it("handles leading/trailing whitespace", () => {
-    assert.strictEqual(
-      execSubResourceExtractor({ command: "  git status  " }),
-      "git",
-    );
+    assert.strictEqual(execSubResourceExtractor({ command: "  git status  " }), "git");
   });
 
   it("returns 'unknown' for undefined command", () => {

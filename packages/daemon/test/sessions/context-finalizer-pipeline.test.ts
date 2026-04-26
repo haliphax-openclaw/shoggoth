@@ -7,10 +7,7 @@ import {
 } from "../../src/sessions/session-mcp-tool-context";
 import type { SessionMcpContextFinalizer } from "../../src/sessions/session-mcp-runtime";
 import { mcpToolsForToolLoop } from "../../src/mcp/tool-loop-mcp";
-import type {
-  AggregateMcpCatalogResult,
-  AggregatedTool,
-} from "@shoggoth/mcp-integration";
+import type { AggregateMcpCatalogResult, AggregatedTool } from "@shoggoth/mcp-integration";
 
 /**
  * Minimal pipeline runner extracted from the runtime module's `runContextFinalizers`.
@@ -45,8 +42,7 @@ function ctxWithTools(tools: AggregatedTool[]): SessionMcpToolContext {
 }
 
 describe("context-finalizer-pipeline", () => {
-  const sessionId =
-    "urn:shoggoth:agent-session:main:discord:00000000-0000-4000-8000-000000000001";
+  const sessionId = "urn:shoggoth:agent-session:main:discord:00000000-0000-4000-8000-000000000001";
 
   it("passes through with zero finalizers", () => {
     const base = buildBuiltinOnlySessionMcpToolContext();
@@ -107,9 +103,7 @@ describe("context-finalizer-pipeline", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const removeA: SessionMcpContextFinalizer = (ctx, _sid) => {
-      return ctxWithTools(
-        ctx.aggregated.tools.filter((t) => t.originalName !== "a"),
-      );
+      return ctxWithTools(ctx.aggregated.tools.filter((t) => t.originalName !== "a"));
     };
 
     const result = runPipeline([removeA], base, sessionId);

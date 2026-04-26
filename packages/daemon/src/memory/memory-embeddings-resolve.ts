@@ -3,15 +3,11 @@ import { normalizeOpenAiEmbeddingBaseUrl } from "./openai-embeddings";
 
 const DEFAULT_OPENAI_ORIGIN = "https://api.openai.com/v1";
 
-export function resolveMemoryEmbeddingModelId(
-  memory: ShoggothMemoryConfig,
-): string {
+export function resolveMemoryEmbeddingModelId(memory: ShoggothMemoryConfig): string {
   return memory.embeddings.modelId?.trim() || "text-embedding-3-small";
 }
 
-export function resolveMemoryEmbeddingApiKeyEnv(
-  memory: ShoggothMemoryConfig,
-): string {
+export function resolveMemoryEmbeddingApiKeyEnv(memory: ShoggothMemoryConfig): string {
   return memory.embeddings.apiKeyEnv?.trim() || "OPENAI_API_KEY";
 }
 

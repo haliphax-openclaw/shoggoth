@@ -2,10 +2,7 @@
 // procman handler
 // ---------------------------------------------------------------------------
 
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("procman", procman);

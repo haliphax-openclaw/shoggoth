@@ -79,10 +79,7 @@ describe("filterToolsByContextLevel", () => {
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal");
       const resultNames = names(result);
       for (const excluded of MINIMAL_EXCLUDED) {
-        assert.ok(
-          !resultNames.includes(excluded),
-          `expected ${excluded} to be excluded`,
-        );
+        assert.ok(!resultNames.includes(excluded), `expected ${excluded} to be excluded`);
       }
       // Non-excluded tools should be present
       assert.ok(resultNames.includes("builtin-read"));
@@ -101,16 +98,10 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(
-        !resultNames.includes("builtin-exec"),
-        "builtin-exec should be excluded",
-      );
+      assert.ok(!resultNames.includes("builtin-exec"), "builtin-exec should be excluded");
       // Default exclusions still apply
       for (const excluded of MINIMAL_EXCLUDED) {
-        assert.ok(
-          !resultNames.includes(excluded),
-          `expected ${excluded} to still be excluded`,
-        );
+        assert.ok(!resultNames.includes(excluded), `expected ${excluded} to still be excluded`);
       }
     });
 
@@ -121,10 +112,7 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(
-        resultNames.includes("builtin-subagent"),
-        "builtin-subagent should be re-allowed",
-      );
+      assert.ok(resultNames.includes("builtin-subagent"), "builtin-subagent should be re-allowed");
       // Other default exclusions still apply
       assert.ok(
         !resultNames.includes("builtin-workflow"),
@@ -144,14 +132,8 @@ describe("filterToolsByContextLevel", () => {
       };
       const result = filterToolsByContextLevel(ALL_TOOLS, "minimal", cfg);
       const resultNames = names(result);
-      assert.ok(
-        resultNames.includes("builtin-workflow"),
-        "builtin-workflow should be re-allowed",
-      );
-      assert.ok(
-        !resultNames.includes("builtin-read"),
-        "builtin-read should be excluded",
-      );
+      assert.ok(resultNames.includes("builtin-workflow"), "builtin-workflow should be re-allowed");
+      assert.ok(!resultNames.includes("builtin-read"), "builtin-read should be excluded");
       assert.ok(
         !resultNames.includes("builtin-subagent"),
         "builtin-subagent should still be excluded",

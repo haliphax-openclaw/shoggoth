@@ -1,4 +1,3 @@
-import { getLogger } from "./logging";
 import { installSignalHandlers } from "./signals";
 import { ShutdownCoordinator, type ShutdownOptions } from "./shutdown";
 import { HealthRegistry, type HealthSnapshot } from "./health";
@@ -19,9 +18,7 @@ export interface DaemonRuntime {
 /**
  * Wires health registry, shutdown coordinator, and OS signals.
  */
-export function createDaemonRuntime(
-  options: DaemonRuntimeOptions,
-): DaemonRuntime {
+export function createDaemonRuntime(options: DaemonRuntimeOptions): DaemonRuntime {
   const shutdown = new ShutdownCoordinator({
     ...options.shutdown,
   });

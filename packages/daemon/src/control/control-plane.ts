@@ -15,28 +15,15 @@ import type Database from "better-sqlite3";
 import { chmod, chown, mkdir, unlink } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import { dirname } from "node:path";
-import {
-  appendAuditRow,
-  type AppendAuditRowInput,
-} from "../audit/append-audit";
+import { appendAuditRow, type AppendAuditRowInput } from "../audit/append-audit";
 import { readOperatorTokenSecret } from "../auth/read-operator-secret";
 import { createSqliteAgentTokenStore } from "../auth/sqlite-agent-tokens";
 import type { HealthSnapshot } from "../health";
 import { getLogger } from "../logging";
-import {
-  auditSourceForPrincipal,
-  principalAuditFields,
-} from "../policy/audit-source";
-import {
-  createPolicyEngine,
-  isDefinedControlOp,
-  type PolicyEngine,
-} from "../policy/engine";
+import { auditSourceForPrincipal, principalAuditFields } from "../policy/audit-source";
+import { createPolicyEngine, isDefinedControlOp, type PolicyEngine } from "../policy/engine";
 import type { ShutdownCoordinator } from "../shutdown";
-import {
-  createAcpxProcessSupervisor,
-  type AcpxSpawnFn,
-} from "../acpx/acpx-process-supervisor";
+import { createAcpxProcessSupervisor, type AcpxSpawnFn } from "../acpx/acpx-process-supervisor";
 import { createSqliteAcpxBindingStore } from "../acpx/sqlite-acpx-bindings";
 import { resolveShoggothAgentId } from "../config/effective-runtime";
 import { createSessionManager } from "../sessions/session-manager";
@@ -113,11 +100,7 @@ async function dispatchOp(
     op: req.op,
     principalKind: principal.kind,
   });
-  const integration = await handleIntegrationControlOp(
-    req,
-    principal,
-    integrationCtx,
-  );
+  const integration = await handleIntegrationControlOp(req, principal, integrationCtx);
   if (integration !== undefined) return integration;
 
   if (principal.kind === "agent") {
@@ -320,9 +303,7 @@ async function handleOneLine(
  * Control plane: Unix socket, JSONL framing, minimal op router.
  * Socket mode defaults to `0o600` (operator UID only). Set `controlSocketGid` + mode `0o660` for group access.
  */
-export async function startControlPlane(
-  opts: ControlPlaneOptions,
-): Promise<ControlPlaneHandle> {
+export async function startControlPlane(opts: ControlPlaneOptions): Promise<ControlPlaneHandle> {
   const {
     config,
     policyEngine: policyEngineOpt,
@@ -339,20 +320,15 @@ export async function startControlPlane(
 
   const logger = getLogger("control-plane");
   const acpxStore = stateDb ? createSqliteAcpxBindingStore(stateDb) : undefined;
-  const agentStore = stateDb
-    ? createSqliteAgentTokenStore(stateDb)
-    : new MemoryAgentTokenStore();
+  const agentStore = stateDb ? createSqliteAgentTokenStore(stateDb) : new MemoryAgentTokenStore();
   const operatorTokenSecret = readOperatorTokenSecret(config);
-  const engine =
-    policyEngineOpt ?? createPolicyEngine(config.policy, config.agents);
+  const engine = policyEngineOpt ?? createPolicyEngine(config.policy, config.agents);
   const socketPath = config.socketPath;
   const mode = config.controlSocketMode ?? 0o600;
 
   let sessions: ReturnType<typeof createSessionStore> | undefined;
   let sessionManager: ReturnType<typeof createSessionManager> | undefined;
-  let acpxSupervisor:
-    | ReturnType<typeof createAcpxProcessSupervisor>
-    | undefined;
+  let acpxSupervisor: ReturnType<typeof createAcpxProcessSupervisor> | undefined;
   if (stateDb) {
     sessions = createSessionStore(stateDb);
     sessionManager = createSessionManager({
@@ -391,8 +367,7 @@ export async function startControlPlane(
     acpxSupervisor,
     hitlPending: hitlPendingOpt,
     hitlClear: hitlClearOpt,
-    cancelMcpHttpRequest:
-      cancelMcpHttpRequestOpt ?? dispatchMcpHttpCancelRequest,
+    cancelMcpHttpRequest: cancelMcpHttpRequestOpt ?? dispatchMcpHttpCancelRequest,
   };
 
   await mkdir(dirname(socketPath), { recursive: true, mode: 0o700 });
@@ -459,10 +434,7 @@ export async function startControlPlane(
   process.umask(prevUmask);
 
   await chmod(socketPath, mode);
-  if (
-    config.controlSocketUid !== undefined &&
-    config.controlSocketGid !== undefined
-  ) {
+  if (config.controlSocketUid !== undefined && config.controlSocketGid !== undefined) {
     await chown(socketPath, config.controlSocketUid, config.controlSocketGid);
   }
 
@@ -479,10 +451,7 @@ export async function startControlPlane(
   const close = (): Promise<void> =>
     new Promise((resolve, reject) => {
       server.close((err) => {
-        if (
-          err &&
-          (err as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING"
-        ) {
+        if (err && (err as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING") {
           reject(err);
           return;
         }

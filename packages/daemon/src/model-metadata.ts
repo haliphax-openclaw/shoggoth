@@ -87,10 +87,7 @@ function setModelMetadataDefault(
  * Get the context window tokens for a model.
  * Returns undefined if no metadata is available.
  */
-export function getModelContextWindowTokens(
-  providerId: string,
-  model: string,
-): number | undefined {
+export function getModelContextWindowTokens(providerId: string, model: string): number | undefined {
   return store.get(makeKey(providerId, model))?.contextWindowTokens;
 }
 
@@ -101,9 +98,7 @@ export function getModelContextWindowTokens(
 export function registerAnthropicDefaultsForProviders(
   providers: ReadonlyArray<{ id: string; kind: string }>,
 ): void {
-  const anthropicIds = providers
-    .filter((p) => p.kind === "anthropic-messages")
-    .map((p) => p.id);
+  const anthropicIds = providers.filter((p) => p.kind === "anthropic-messages").map((p) => p.id);
 
   const models200k = [
     "claude-sonnet-4-20250514",

@@ -128,20 +128,12 @@ describe("builtin-discover reset action", () => {
     const ctx = stubCtx(db, config);
 
     // Reset with list
-    const result = await registry.execute(
-      "discover",
-      { reset: true, list: true },
-      ctx,
-    );
+    const result = await registry.execute("discover", { reset: true, list: true }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     // alwaysOn tools should still show as enabled
-    const readTool = parsed.catalog.find(
-      (t: { id: string }) => t.id === "builtin-read",
-    );
-    const writeTool = parsed.catalog.find(
-      (t: { id: string }) => t.id === "builtin-write",
-    );
+    const readTool = parsed.catalog.find((t: { id: string }) => t.id === "builtin-read");
+    const writeTool = parsed.catalog.find((t: { id: string }) => t.id === "builtin-write");
 
     assert.strictEqual(readTool?.enabled, true);
     assert.strictEqual(readTool?.alwaysOn, true);
@@ -153,8 +145,7 @@ describe("builtin-discover reset action", () => {
     const ctx = stubCtx(db, config);
 
     // Import the refresh signal map
-    const { toolRefreshNeeded } =
-      await import("../../src/sessions/session-tool-discovery");
+    const { toolRefreshNeeded } = await import("../../src/sessions/session-tool-discovery");
     toolRefreshNeeded.delete(ctx.sessionId);
 
     await registry.execute("discover", { reset: true }, ctx);

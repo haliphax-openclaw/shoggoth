@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import {
-  defaultConfig,
-  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
-} from "@shoggoth/shared";
+import { defaultConfig, SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID } from "@shoggoth/shared";
 import { resolveSessionTargetFromCliArg } from "../../src/control/resolve-session-cli-target";
 import { discordPlatformRegistration } from "@shoggoth/platform-discord";
 import { registerPlatform, getPlatformRegistration } from "@shoggoth/messaging";
@@ -49,8 +46,7 @@ describe("resolveSessionTargetFromCliArg", () => {
     } finally {
       if (prev !== undefined) process.env.SHOGGOTH_PRIMARY_CHANNEL_ID = prev;
       else delete process.env.SHOGGOTH_PRIMARY_CHANNEL_ID;
-      if (prevRoutes !== undefined)
-        process.env.SHOGGOTH_DISCORD_ROUTES = prevRoutes;
+      if (prevRoutes !== undefined) process.env.SHOGGOTH_DISCORD_ROUTES = prevRoutes;
       else delete process.env.SHOGGOTH_DISCORD_ROUTES;
     }
   });
@@ -69,10 +65,7 @@ describe("resolveSessionTargetFromCliArg", () => {
 
   it("rejects invalid tokens", () => {
     assert.throws(() => resolveSessionTargetFromCliArg("", cfg), /non-empty/);
-    assert.throws(
-      () => resolveSessionTargetFromCliArg("bad:id", cfg),
-      /not a valid session URN/,
-    );
+    assert.throws(() => resolveSessionTargetFromCliArg("bad:id", cfg), /not a valid session URN/);
   });
 
   it("throws when agent has no platform bindings", () => {

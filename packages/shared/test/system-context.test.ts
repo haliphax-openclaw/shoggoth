@@ -126,15 +126,9 @@ describe("wrapWithSystemContext", () => {
       summary: "You are a subagent.",
     };
     const result = wrapWithSystemContext("Do the thing.", ctx, "deadbeef");
+    assert.ok(result.startsWith("--- BEGIN TRUSTED SYSTEM CONTEXT [token:deadbeef] ---\n"));
     assert.ok(
-      result.startsWith(
-        "--- BEGIN TRUSTED SYSTEM CONTEXT [token:deadbeef] ---\n",
-      ),
-    );
-    assert.ok(
-      result.includes(
-        "--- END TRUSTED SYSTEM CONTEXT [token:deadbeef] ---\n\nDo the thing.",
-      ),
+      result.includes("--- END TRUSTED SYSTEM CONTEXT [token:deadbeef] ---\n\nDo the thing."),
     );
   });
 });

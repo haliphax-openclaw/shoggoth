@@ -6,10 +6,7 @@ export {
   type PluginAuditEvent,
   type PluginAuditOutcome,
 } from "./load-plugins-from-config";
-export {
-  loadPluginFromDirectory,
-  type LoadedPluginMeta,
-} from "./plugin-loader";
+export { loadPluginFromDirectory, type LoadedPluginMeta } from "./plugin-loader";
 export {
   parseShoggothPluginBag,
   resolvePluginMeta,

@@ -33,15 +33,9 @@ export async function runSessionCompact(
       fetchImpl: options.fetchImpl,
     });
     const policy = resolveCompactionPolicyFromModelsConfig(options.models);
-    return await compactSessionTranscript(
-      db,
-      options.sessionId,
-      policy,
-      client,
-      {
-        modelsConfig: options.models,
-      },
-    );
+    return await compactSessionTranscript(db, options.sessionId, policy, client, {
+      modelsConfig: options.models,
+    });
   } finally {
     db.close();
   }

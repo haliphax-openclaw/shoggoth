@@ -200,10 +200,7 @@ interface McpJsonRpcSession {
 After establishing a session, discover available tools:
 
 ```typescript
-import {
-  mcpFetchToolsList,
-  mcpToolListEntryToDescriptor,
-} from "@shoggoth/mcp-integration";
+import { mcpFetchToolsList, mcpToolListEntryToDescriptor } from "@shoggoth/mcp-integration";
 
 // Fetches all pages (handles cursor-based pagination)
 const tools = await mcpFetchToolsList(session);
@@ -329,10 +326,7 @@ const payload = toMcpToolsListPayload(aggregated);
 `builtinShoggothToolsCatalog()` returns an `McpSourceCatalog` containing all of Shoggoth's native tools expressed as MCP tool descriptors. The default source ID is `"builtin"`.
 
 ```typescript
-import {
-  builtinShoggothToolsCatalog,
-  BUILTIN_SOURCE_ID,
-} from "@shoggoth/mcp-integration";
+import { builtinShoggothToolsCatalog, BUILTIN_SOURCE_ID } from "@shoggoth/mcp-integration";
 
 const catalog = builtinShoggothToolsCatalog();
 // catalog.sourceId === "builtin"

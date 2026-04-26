@@ -21,9 +21,7 @@ function sessionHasToolAutoApprove(
       `SELECT 1 AS ok FROM hitl_session_tool_auto_approve
        WHERE session_id = @sid AND tool_name = @tn LIMIT 1`,
     )
-    .get({ sid: sessionId.trim(), tn: toolName.trim() }) as
-    | { ok: number }
-    | undefined;
+    .get({ sid: sessionId.trim(), tn: toolName.trim() }) as { ok: number } | undefined;
   return row !== undefined;
 }
 
@@ -42,9 +40,7 @@ export function clearSessionToolAutoApproveForSession(
   sessionId: string,
 ): number {
   const r = db
-    .prepare(
-      `DELETE FROM hitl_session_tool_auto_approve WHERE session_id = @sid`,
-    )
+    .prepare(`DELETE FROM hitl_session_tool_auto_approve WHERE session_id = @sid`)
     .run({ sid: sessionId.trim() });
   return Number(r.changes);
 }
@@ -57,9 +53,7 @@ export function clearSessionToolAutoApproveForSessionIds(
   if (sessionIds.length === 0) return 0;
   const placeholders = sessionIds.map(() => "?").join(", ");
   const r = db
-    .prepare(
-      `DELETE FROM hitl_session_tool_auto_approve WHERE session_id IN (${placeholders})`,
-    )
+    .prepare(`DELETE FROM hitl_session_tool_auto_approve WHERE session_id IN (${placeholders})`)
     .run(...sessionIds.map((s) => s.trim()));
   return Number(r.changes);
 }

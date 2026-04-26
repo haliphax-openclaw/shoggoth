@@ -3,10 +3,7 @@ import type Database from "better-sqlite3";
 import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import { WIRE_VERSION, type WireRequest } from "@shoggoth/authn";
 import { appendAuditRow } from "../audit/append-audit";
-import {
-  auditSourceForPrincipal,
-  principalAuditFields,
-} from "../policy/audit-source";
+import { auditSourceForPrincipal, principalAuditFields } from "../policy/audit-source";
 import type { PolicyEngine } from "../policy/engine";
 import { getLogger } from "../logging";
 import {
@@ -59,24 +56,23 @@ export function createInProcessAgentIntegrationInvoker(input: {
       throw new IntegrationOpError("ERR_FORBIDDEN", authz.reason);
     }
     const correlationId = randomUUID();
-    const recordIntegrationAudit: IntegrationOpsContext["recordIntegrationAudit"] =
-      (extras) => {
-        if (!input.stateDb) return;
-        try {
-          const pf = principalAuditFields(principal);
-          appendAuditRow(input.stateDb, {
-            source: auditSourceForPrincipal(principal),
-            ...pf,
-            correlationId,
-            action: extras.action,
-            resource: extras.resource,
-            outcome: extras.outcome,
-            argsRedactedJson: extras.argsRedactedJson,
-          });
-        } catch (e) {
-          log.warn("agent integration audit append failed", { err: String(e) });
-        }
-      };
+    const recordIntegrationAudit: IntegrationOpsContext["recordIntegrationAudit"] = (extras) => {
+      if (!input.stateDb) return;
+      try {
+        const pf = principalAuditFields(principal);
+        appendAuditRow(input.stateDb, {
+          source: auditSourceForPrincipal(principal),
+          ...pf,
+          correlationId,
+          action: extras.action,
+          resource: extras.resource,
+          outcome: extras.outcome,
+          argsRedactedJson: extras.argsRedactedJson,
+        });
+      } catch (e) {
+        log.warn("agent integration audit append failed", { err: String(e) });
+      }
+    };
     const ctx: IntegrationOpsContext = {
       ...input.integration,
       recordIntegrationAudit,

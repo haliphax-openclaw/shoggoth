@@ -131,11 +131,7 @@ Resolution algorithm:
 When a model provider throws an error and exhausts its retries:
 
 ```ts
-function markProviderFailed(
-  db: Database.Database,
-  providerId: string,
-  error?: string,
-): void;
+function markProviderFailed(db: Database.Database, providerId: string, error?: string): void;
 
 function clearProviderFailure(db: Database.Database, providerId: string): void;
 

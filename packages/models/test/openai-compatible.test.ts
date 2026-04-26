@@ -28,10 +28,9 @@ describe("createOpenAICompatibleProvider", () => {
     let body: string | undefined;
     const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
       body = init?.body as string;
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: "ok" } }] }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+        status: 200,
+      });
     };
     const p = createOpenAICompatibleProvider({
       id: "oai",
@@ -91,8 +90,7 @@ describe("createOpenAICompatibleProvider", () => {
     });
 
     await assert.rejects(
-      () =>
-        p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
+      () => p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
       (e: unknown) => e instanceof ModelHttpError && e.status === 503,
     );
   });
@@ -233,9 +231,7 @@ describe("createOpenAICompatibleProvider", () => {
             choices: [
               {
                 delta: {
-                  tool_calls: [
-                    { index: 0, function: { arguments: 'th":"a"}' } },
-                  ],
+                  tool_calls: [{ index: 0, function: { arguments: 'th":"a"}' } }],
                 },
               },
             ],
@@ -352,10 +348,9 @@ describe("serializeChatMessage with ChatContentPart[]", () => {
     let capturedBody: string | undefined;
     const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
       capturedBody = init?.body as string;
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: "ok" } }] }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+        status: 200,
+      });
     };
     const p = createOpenAICompatibleProvider({
       id: "oai",
@@ -392,10 +387,9 @@ describe("serializeChatMessage with ChatContentPart[]", () => {
     let capturedBody: string | undefined;
     const fetchImpl = async (_url: string | URL, init?: RequestInit) => {
       capturedBody = init?.body as string;
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: "hi" } }] }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ choices: [{ message: { content: "hi" } }] }), {
+        status: 200,
+      });
     };
     const p = createOpenAICompatibleProvider({
       id: "oai",

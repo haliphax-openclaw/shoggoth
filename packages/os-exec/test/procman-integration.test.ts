@@ -14,11 +14,7 @@ import {
 } from "../src/tools";
 import { toolPoll } from "../src/poll";
 import type { ExecForegroundResult, ExecBackgroundResult } from "../src/tools";
-import type {
-  PollCombinedResult,
-  PollSplitResult,
-  PollError,
-} from "../src/poll";
+import type { PollCombinedResult, PollSplitResult, PollError } from "../src/poll";
 
 describe("procman integration", () => {
   let ws: string;

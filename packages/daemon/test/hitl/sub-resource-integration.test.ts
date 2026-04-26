@@ -25,9 +25,7 @@ describe("HITL auto-approve with sub-resource extraction", () => {
 
 describe("resolveCompoundResource", () => {
   it("returns toolName:subResource when extractor returns a value", () => {
-    const registry: SubResourceExtractorRegistry = new Map([
-      ["exec", execSubResourceExtractor],
-    ]);
+    const registry: SubResourceExtractorRegistry = new Map([["exec", execSubResourceExtractor]]);
     const result = resolveCompoundResource(
       "exec",
       { command: "curl https://example.com" },
@@ -38,43 +36,25 @@ describe("resolveCompoundResource", () => {
 
   it("returns bare tool name when no extractor is registered", () => {
     const registry: SubResourceExtractorRegistry = new Map();
-    const result = resolveCompoundResource(
-      "read",
-      { path: "/etc/passwd" },
-      registry,
-    );
+    const result = resolveCompoundResource("read", { path: "/etc/passwd" }, registry);
     assert.strictEqual(result, "read");
   });
 
   it("returns bare tool name when extractor returns undefined", () => {
-    const registry: SubResourceExtractorRegistry = new Map([
-      ["exec", () => undefined],
-    ]);
+    const registry: SubResourceExtractorRegistry = new Map([["exec", () => undefined]]);
     const result = resolveCompoundResource("exec", {}, registry);
     assert.strictEqual(result, "exec");
   });
 
   it("exec extractor produces compound resource for git command", () => {
-    const registry: SubResourceExtractorRegistry = new Map([
-      ["exec", execSubResourceExtractor],
-    ]);
-    const result = resolveCompoundResource(
-      "exec",
-      { command: "git status" },
-      registry,
-    );
+    const registry: SubResourceExtractorRegistry = new Map([["exec", execSubResourceExtractor]]);
+    const result = resolveCompoundResource("exec", { command: "git status" }, registry);
     assert.strictEqual(result, "exec:git");
   });
 
   it("exec extractor produces compound resource for absolute path command", () => {
-    const registry: SubResourceExtractorRegistry = new Map([
-      ["exec", execSubResourceExtractor],
-    ]);
-    const result = resolveCompoundResource(
-      "exec",
-      { command: "/usr/bin/ls -la" },
-      registry,
-    );
+    const registry: SubResourceExtractorRegistry = new Map([["exec", execSubResourceExtractor]]);
+    const result = resolveCompoundResource("exec", { command: "/usr/bin/ls -la" }, registry);
     assert.strictEqual(result, "exec:ls");
   });
 });

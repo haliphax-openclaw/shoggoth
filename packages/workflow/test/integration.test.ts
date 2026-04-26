@@ -25,9 +25,7 @@ import { COMPLETED_MAX_AGE_MS } from "../src/retention.js";
 // --- Mock helpers ---
 
 function makeTmpDir(): string {
-  const dir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "fanout-integration-test-"),
-  );
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fanout-integration-test-"));
   fs.chmodSync(dir, 0o777);
   return dir;
 }
@@ -35,9 +33,7 @@ function makeTmpDir(): string {
 function makeTask(
   id: number,
   prompt = `do task ${id}`,
-  opts: Partial<
-    Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">
-  > = {},
+  opts: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">> = {},
 ): TaskDef {
   return {
     kind: "agent",
@@ -175,14 +171,7 @@ async function setup(
   const msgAdapter = mockMessageAdapter();
   const statusManager = new StatusManager(msgAdapter);
 
-  const orch = new Orchestrator(
-    spawner,
-    poller,
-    notifier,
-    statusManager,
-    notifications,
-    killer,
-  );
+  const orch = new Orchestrator(spawner, poller, notifier, statusManager, notifications, killer);
   const opts = defaultOpts(baseDir);
   const wfId = await orch.start(tasks, graphDsl, opts);
 
@@ -226,11 +215,7 @@ describe("Integration: happy path", () => {
 
   it("executes tasks in dependency order and posts summary on completion", async () => {
     // Graph: 1 → 2 → 3 (sequential chain)
-    const s = await setup(
-      baseDir,
-      [makeTask(1), makeTask(2), makeTask(3)],
-      "1>2>3",
-    );
+    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1>2>3");
 
     // Task 1 should be spawned immediately
     assert.equal(s.spawner.calls.length, 1);
@@ -275,11 +260,7 @@ describe("Integration: happy path", () => {
 
   it("executes parallel tasks concurrently", async () => {
     // Graph: 1,2 → 3 (parallel roots, then join)
-    const s = await setup(
-      baseDir,
-      [makeTask(1), makeTask(2), makeTask(3)],
-      "1,2>3",
-    );
+    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1,2>3");
 
     // Tasks 1 and 2 should be spawned immediately
     assert.equal(s.spawner.calls.length, 2);
@@ -430,11 +411,7 @@ describe("Integration: pause + resume", () => {
   });
 
   it("pauses, lets in-flight finish, resumes, and completes remaining tasks", async () => {
-    const s = await setup(
-      baseDir,
-      [makeTask(1), makeTask(2), makeTask(3)],
-      "1>2>3",
-    );
+    const s = await setup(baseDir, [makeTask(1), makeTask(2), makeTask(3)], "1>2>3");
 
     // Task 1 is in_progress. Pause the workflow.
     await s.cp.pause(s.wfId);
@@ -446,10 +423,7 @@ describe("Integration: pause + resume", () => {
 
     // Task 1 should be done, but task 2 should NOT be spawned (paused)
     const wfPaused = s.orch.getWorkflowStatus()!;
-    assert.equal(
-      wfPaused.tasks.find((t) => t.taskDef.id === 1)!.status,
-      "done",
-    );
+    assert.equal(wfPaused.tasks.find((t) => t.taskDef.id === 1)!.status, "done");
     assert.equal(s.spawner.calls.filter((c) => c.taskId === 2).length, 0);
 
     // Resume
@@ -487,11 +461,7 @@ describe("Integration: edit", () => {
   });
 
   it("edits a pending task prompt, then uses the edited prompt when spawned", async () => {
-    const s = await setup(
-      baseDir,
-      [makeTask(1), makeTask(2, "original prompt")],
-      "1>2",
-    );
+    const s = await setup(baseDir, [makeTask(1), makeTask(2, "original prompt")], "1>2");
 
     // Pause so we can edit task 2 before it runs
     await s.cp.pause(s.wfId);

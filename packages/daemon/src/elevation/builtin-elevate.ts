@@ -15,17 +15,13 @@ export interface ElevateArgs {
   timeout?: number;
 }
 
-export function handleElevate(
-  args: ElevateArgs,
-  ctx: BuiltinToolContext,
-): { resultJson: string } {
+export function handleElevate(args: ElevateArgs, ctx: BuiltinToolContext): { resultJson: string } {
   const store = createElevationStore(ctx.db);
 
   if (!store.isActive(ctx.sessionId)) {
     return {
       resultJson: JSON.stringify({
-        error:
-          "No active elevation grant. Ask the operator to grant elevation.",
+        error: "No active elevation grant. Ask the operator to grant elevation.",
       }),
     };
   }
@@ -55,7 +51,7 @@ export function handleElevate(
       stdio: ["pipe", "pipe", "pipe"],
     });
     return { resultJson: JSON.stringify({ exitCode: 0, output }) };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     const exitCode = e.status ?? 1;
     const output = (e.stdout ?? "") + (e.stderr ?? "");

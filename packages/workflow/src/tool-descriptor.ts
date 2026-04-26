@@ -78,8 +78,7 @@ const workflowToolArgs = {
           },
           runtime_limit_ms: {
             type: "integer",
-            description:
-              "Max runtime for this task in ms. Default: 600000 (10 min).",
+            description: "Max runtime for this task in ms. Default: 600000 (10 min).",
             minimum: 1000,
           },
           tool: { type: "string", description: "Tool task: tool name." },
@@ -99,8 +98,7 @@ const workflowToolArgs = {
           },
           channel: {
             type: "string",
-            description:
-              "Message task: target channel. Defaults to replyTo session.",
+            description: "Message task: target channel. Defaults to replyTo session.",
           },
           output_template: {
             type: "string",
@@ -124,14 +122,12 @@ const workflowToolArgs = {
     },
     runtime_limit_ms: {
       type: "integer",
-      description:
-        "start: default runtime limit per task in ms. Default: 600000.",
+      description: "start: default runtime limit per task in ms. Default: 600000.",
       minimum: 1000,
     },
     reply_to: {
       type: "string",
-      description:
-        "start: session ID where subagent results should be delivered.",
+      description: "start: session ID where subagent results should be delivered.",
     },
     concurrency: {
       type: "integer",
@@ -141,8 +137,7 @@ const workflowToolArgs = {
     // --- workflow targeting ---
     workflow_id: {
       type: "string",
-      description:
-        "abort/pause/resume/status/post/edit/retry: target workflow ID.",
+      description: "abort/pause/resume/status/post/edit/retry: target workflow ID.",
     },
     // --- edit ---
     task_id: {
@@ -180,14 +175,12 @@ const workflowToolArgs = {
     // --- retry ---
     cascade: {
       type: "boolean",
-      description:
-        "retry: also re-run completed downstream tasks. Default: false.",
+      description: "retry: also re-run completed downstream tasks. Default: false.",
     },
     // --- list ---
     agent_chain_id: {
       type: "string",
-      description:
-        "list: filter by agent chain ID. Defaults to calling agent's chain.",
+      description: "list: filter by agent chain ID. Defaults to calling agent's chain.",
     },
   },
   required: ["action"],

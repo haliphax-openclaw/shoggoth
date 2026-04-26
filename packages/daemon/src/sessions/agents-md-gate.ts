@@ -62,9 +62,7 @@ export function checkAgentsMdGate(
   );
 
   const unseen = found.filter((f) => {
-    const row = getStmt.get(sessionId, f.absPath) as
-      | { mtime_ms: number }
-      | undefined;
+    const row = getStmt.get(sessionId, f.absPath) as { mtime_ms: number } | undefined;
     return !row || row.mtime_ms !== f.mtimeMs;
   });
 

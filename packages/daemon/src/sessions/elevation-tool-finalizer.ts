@@ -3,15 +3,9 @@
 // ---------------------------------------------------------------------------
 
 import type Database from "better-sqlite3";
-import type {
-  AggregateMcpCatalogResult,
-  AggregatedTool,
-} from "@shoggoth/mcp-integration";
+import type { AggregateMcpCatalogResult, AggregatedTool } from "@shoggoth/mcp-integration";
 import { createElevationStore } from "../elevation/elevation-store";
-import {
-  openAiToolsFromCatalog,
-  type SessionMcpToolContext,
-} from "./session-mcp-tool-context";
+import { openAiToolsFromCatalog, type SessionMcpToolContext } from "./session-mcp-tool-context";
 import { mcpToolsForToolLoop } from "../mcp/tool-loop-mcp";
 import type { SessionMcpContextFinalizer } from "./session-mcp-runtime";
 
@@ -36,21 +30,15 @@ const ELEVATE_TOOL_DESCRIPTOR: AggregatedTool = {
       },
       timeout: {
         type: "number",
-        description:
-          "Max milliseconds before the command is killed. Default 30000, max 120000.",
+        description: "Max milliseconds before the command is killed. Default 30000, max 120000.",
       },
     },
     required: ["argv"],
   },
 };
 
-export function createElevationToolFinalizer(
-  db: Database.Database,
-): SessionMcpContextFinalizer {
-  return (
-    ctx: SessionMcpToolContext,
-    sessionId: string,
-  ): SessionMcpToolContext => {
+export function createElevationToolFinalizer(db: Database.Database): SessionMcpContextFinalizer {
+  return (ctx: SessionMcpToolContext, sessionId: string): SessionMcpToolContext => {
     let active: boolean;
     try {
       const store = createElevationStore(db);
@@ -61,9 +49,7 @@ export function createElevationToolFinalizer(
     }
     if (!active) {
       // Remove builtin-elevate if somehow present
-      const tools = ctx.aggregated.tools.filter(
-        (t) => t.namespacedName !== "builtin-elevate",
-      );
+      const tools = ctx.aggregated.tools.filter((t) => t.namespacedName !== "builtin-elevate");
       if (tools.length === ctx.aggregated.tools.length) return ctx;
       const aggregated: AggregateMcpCatalogResult = { tools };
       return {
@@ -76,18 +62,14 @@ export function createElevationToolFinalizer(
     }
 
     // Elevation is active — inject the tool if not already present
-    if (
-      ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-elevate")
-    )
-      return ctx;
+    if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-elevate")) return ctx;
     const aggregated: AggregateMcpCatalogResult = {
       tools: [...ctx.aggregated.tools, ELEVATE_TOOL_DESCRIPTOR],
     };
     // Also add to fullAggregated so the executor can route to it
-    const fullAggregated: AggregateMcpCatalogResult | undefined =
-      ctx.fullAggregated
-        ? { tools: [...ctx.fullAggregated.tools, ELEVATE_TOOL_DESCRIPTOR] }
-        : undefined;
+    const fullAggregated: AggregateMcpCatalogResult | undefined = ctx.fullAggregated
+      ? { tools: [...ctx.fullAggregated.tools, ELEVATE_TOOL_DESCRIPTOR] }
+      : undefined;
     return {
       aggregated,
       toolsOpenAi: openAiToolsFromCatalog(aggregated),

@@ -75,10 +75,7 @@ function spawnChild(options: RunAsUserOptions): ChildProcess {
     cwd: options.cwd,
     uid: options.uid,
     gid: options.gid,
-    stdio:
-      options.stdin !== undefined
-        ? ["pipe", "pipe", "pipe"]
-        : ["ignore", "pipe", "pipe"],
+    stdio: options.stdin !== undefined ? ["pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...options.env },
     detached: true,
   });
@@ -244,11 +241,7 @@ export function spawnAsUser(options: RunAsUserOptions): BackgroundHandle {
 }
 
 /** Read all accumulated output from a BackgroundHandle as a string. */
-export function readHandleOutput(
-  handle: BackgroundHandle,
-  stream: "stdout" | "stderr",
-): string {
-  const chunks =
-    stream === "stdout" ? handle.stdoutChunks : handle.stderrChunks;
+export function readHandleOutput(handle: BackgroundHandle, stream: "stdout" | "stderr"): string {
+  const chunks = stream === "stdout" ? handle.stdoutChunks : handle.stderrChunks;
   return Buffer.concat(chunks).toString("utf8");
 }

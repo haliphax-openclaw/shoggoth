@@ -4,15 +4,8 @@
 
 import { realpathSync, statSync } from "node:fs";
 import { dirname, basename } from "node:path";
-import {
-  runAsUser,
-  resolvePathForRead,
-  resolvePathForWrite,
-} from "@shoggoth/os-exec";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import { runAsUser, resolvePathForRead, resolvePathForWrite } from "@shoggoth/os-exec";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 import { checkAgentsMdGate } from "../agents-md-gate";
 
@@ -39,8 +32,7 @@ async function handleSearch(
   ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
   const pattern = args.pattern as string;
-  if (!pattern)
-    return { resultJson: JSON.stringify({ error: "pattern is required" }) };
+  if (!pattern) return { resultJson: JSON.stringify({ error: "pattern is required" }) };
 
   let searchPath: string;
   try {
@@ -52,31 +44,21 @@ async function handleSearch(
     return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
   }
 
-  const maxResults =
-    typeof args.maxResults === "number" ? args.maxResults : 200;
+  const maxResults = typeof args.maxResults === "number" ? args.maxResults : 200;
 
-  const rgArgs: string[] = [
-    "--no-heading",
-    "--line-number",
-    "--color",
-    "never",
-  ];
+  const rgArgs: string[] = ["--no-heading", "--line-number", "--color", "never"];
 
   if (args.caseSensitive === false) rgArgs.push("-i");
   if (args.fixedStrings === true) rgArgs.push("-F");
   if (args.multiline === true) rgArgs.push("--multiline");
   if (args.includeHidden === true) rgArgs.push("--hidden");
-  if (typeof args.fileType === "string")
-    rgArgs.push("-t", args.fileType as string);
+  if (typeof args.fileType === "string") rgArgs.push("-t", args.fileType as string);
   if (typeof args.glob === "string") rgArgs.push("-g", args.glob as string);
-  if (typeof args.contextLines === "number")
-    rgArgs.push("-C", String(args.contextLines));
-  if (typeof args.maxCount === "number")
-    rgArgs.push("-m", String(args.maxCount));
+  if (typeof args.contextLines === "number") rgArgs.push("-C", String(args.contextLines));
+  if (typeof args.maxCount === "number") rgArgs.push("-m", String(args.maxCount));
 
   // Handle file vs directory paths
-  const isFile =
-    statSync(searchPath, { throwIfNoEntry: false })?.isFile() ?? false;
+  const isFile = statSync(searchPath, { throwIfNoEntry: false })?.isFile() ?? false;
   const rgCwd = isFile ? dirname(searchPath) : searchPath;
   const rgTarget = isFile ? basename(searchPath) : ".";
   rgArgs.push("--", pattern, rgTarget);
@@ -102,8 +84,7 @@ async function handleSearch(
   if (lines.length > maxResults) {
     truncated = true;
     output =
-      lines.slice(0, maxResults).join("\n") +
-      `\n... truncated (${lines.length} total lines)`;
+      lines.slice(0, maxResults).join("\n") + `\n... truncated (${lines.length} total lines)`;
   } else {
     output = r.stdout;
   }
@@ -121,12 +102,7 @@ async function handleReplace(
 ): Promise<{ resultJson: string }> {
   // AGENTS.md discovery gate
   const gateCwd = ctx.workingDirectory ?? ctx.workspacePath;
-  const gate = checkAgentsMdGate(
-    ctx.db,
-    ctx.sessionId,
-    gateCwd,
-    ctx.workspacePath,
-  );
+  const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, gateCwd, ctx.workspacePath);
   if (gate) return { resultJson: JSON.stringify(gate) };
 
   const file = args.file as string;
@@ -146,7 +122,7 @@ async function handleReplace(
   if (!fixedStrings) {
     try {
       new RegExp(match);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       return {
         resultJson: JSON.stringify({ error: `invalid regex: ${e.message}` }),
@@ -155,16 +131,11 @@ async function handleReplace(
   }
 
   // For regex operations in JS, escape the match when fixedStrings is set.
-  const regexPattern = fixedStrings
-    ? match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    : match;
+  const regexPattern = fixedStrings ? match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : match;
 
   let absPath: string;
   try {
-    absPath = resolvePathForWrite(
-      ctx.workspacePath,
-      resolveUserPath(ctx, file),
-    );
+    absPath = resolvePathForWrite(ctx.workspacePath, resolveUserPath(ctx, file));
   } catch {
     return { resultJson: JSON.stringify({ error: "path escapes workspace" }) };
   }
@@ -220,26 +191,16 @@ async function handleReplace(
     }
 
     const count = args.count as number;
-    const maxReplacements = hasCount
-      ? count === 0
-        ? Infinity
-        : count
-      : Infinity;
+    const maxReplacements = hasCount ? (count === 0 ? Infinity : count) : Infinity;
     let replacements = 0;
     const regexFlags = multiline ? "gs" : "g";
-    const result = readResult.stdout.replace(
-      new RegExp(regexPattern, regexFlags),
-      (m, ...rest) => {
-        if (replacements >= maxReplacements) return m;
-        replacements++;
-        if (fixedStrings) return replacement;
-        // Support $1..$9 capture group refs via the native replace
-        return replacement.replace(
-          /\$(\d)/g,
-          (_, n) => rest[parseInt(n, 10) - 1] ?? _,
-        );
-      },
-    );
+    const result = readResult.stdout.replace(new RegExp(regexPattern, regexFlags), (m, ...rest) => {
+      if (replacements >= maxReplacements) return m;
+      replacements++;
+      if (fixedStrings) return replacement;
+      // Support $1..$9 capture group refs via the native replace
+      return replacement.replace(/\$(\d)/g, (_, n) => rest[parseInt(n, 10) - 1] ?? _);
+    });
 
     const writeResult = await runAsUser({
       file: process.execPath,
@@ -263,13 +224,7 @@ async function handleReplace(
   }
 
   // Step 2b: full replacement via rg --passthru --replace
-  const rgReplaceArgs = [
-    "--passthru",
-    "--no-line-number",
-    "--no-filename",
-    "--color",
-    "never",
-  ];
+  const rgReplaceArgs = ["--passthru", "--no-line-number", "--no-filename", "--color", "never"];
   if (fixedStrings) rgReplaceArgs.push("-F");
   if (multiline) rgReplaceArgs.push("--multiline");
   rgReplaceArgs.push("--replace", replacement, "--", match, absPath);
@@ -307,10 +262,7 @@ async function handleReplace(
 
   const writeResult = await runAsUser({
     file: process.execPath,
-    args: [
-      "-e",
-      `require("fs").writeFileSync(${JSON.stringify(absPath)}, process.env.SR_CONTENT)`,
-    ],
+    args: ["-e", `require("fs").writeFileSync(${JSON.stringify(absPath)}, process.env.SR_CONTENT)`],
     cwd,
     uid: ctx.creds.uid,
     gid: ctx.creds.gid,

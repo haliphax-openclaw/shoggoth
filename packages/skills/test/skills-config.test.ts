@@ -4,10 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "vitest";
 import type { ShoggothConfig } from "@shoggoth/shared";
-import {
-  listSkillsForConfig,
-  skillAbsolutePathById,
-} from "../src/skills-config";
+import { listSkillsForConfig, skillAbsolutePathById } from "../src/skills-config";
 
 function minimalConfig(
   configDirectory: string,

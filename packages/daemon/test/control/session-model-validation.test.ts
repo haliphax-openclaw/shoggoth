@@ -28,8 +28,7 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined)
-    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 
@@ -59,9 +58,7 @@ function minimalConfig(socketPath: string): ShoggothConfig {
 
 async function withControlPlaneSession(
   options: { stateDb?: Database.Database; config?: ShoggothConfig },
-  fn: (
-    send: (body: Record<string, unknown>) => Promise<string>,
-  ) => Promise<void>,
+  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-sm-val-"));
   const sock = join(dir, "c.sock");
@@ -135,11 +132,7 @@ describe("session_model model field format validation (Phase 4)", () => {
         },
       });
       const res = parseResponseLine(line);
-      assert.equal(
-        res.ok,
-        true,
-        `expected ok but got error: ${JSON.stringify(res.error)}`,
-      );
+      assert.equal(res.ok, true, `expected ok but got error: ${JSON.stringify(res.error)}`);
     });
     db.close();
   });
@@ -180,11 +173,7 @@ describe("session_model model field format validation (Phase 4)", () => {
         },
       });
       const res = parseResponseLine(line);
-      assert.equal(
-        res.ok,
-        false,
-        "model with empty provider should be rejected",
-      );
+      assert.equal(res.ok, false, "model with empty provider should be rejected");
       assert.equal(res.error?.code, "ERR_INVALID_PAYLOAD");
     });
     db.close();
@@ -205,11 +194,7 @@ describe("session_model model field format validation (Phase 4)", () => {
         },
       });
       const res = parseResponseLine(line);
-      assert.equal(
-        res.ok,
-        false,
-        "model with empty model name should be rejected",
-      );
+      assert.equal(res.ok, false, "model with empty model name should be rejected");
       assert.equal(res.error?.code, "ERR_INVALID_PAYLOAD");
     });
     db.close();

@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  setNoticeResolver,
-  daemonNotice,
-} from "../../src/presentation/notices";
+import { setNoticeResolver, daemonNotice } from "../../src/presentation/notices";
 
 describe("notices", () => {
   // Save and restore resolver state between tests.

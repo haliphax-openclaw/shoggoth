@@ -5,15 +5,8 @@
  * in without coupling the daemon core to any single transport.
  */
 
-import type { ShoggothConfig } from "@shoggoth/shared";
 import type { SessionModelTurnDelivery } from "../messaging/session-model-turn-delivery";
 import type { SessionAgentTurnResult } from "../sessions/session-agent-turn";
-import type {
-  CreateFailoverFromConfigOptions,
-  FailoverToolCallingClient,
-} from "@shoggoth/models";
-import type { RunToolLoopOptions } from "../sessions/tool-loop";
-import type { connectShoggothMcpServers } from "../mcp/mcp-server-pool";
 
 // ---------------------------------------------------------------------------
 // PlatformHandle
@@ -57,27 +50,3 @@ export interface PlatformHandle {
     readonly reason: "ttl_expired" | "killed";
   }) => void;
 }
-
-// ---------------------------------------------------------------------------
-// PlatformAssistantDeps
-// ---------------------------------------------------------------------------
-
-/**
- * Dependency injection seam for the assistant tool loop, model client creation,
- * and MCP server connectivity. Production platforms use real implementations;
- * tests may override individual pieces.
- */
-interface PlatformAssistantDeps {
-  /** Factory for the failover-capable tool-calling model client. */
-  readonly createToolCallingClient: (
-    models: ShoggothConfig["models"],
-    options?: CreateFailoverFromConfigOptions,
-  ) => FailoverToolCallingClient;
-
-  /** The tool-loop runner (chat → tool calls → tool results → chat, repeat). */
-  readonly runToolLoopImpl: (opts: RunToolLoopOptions) => Promise<void>;
-
-  /** Connect configured MCP servers for a session's tool context. */
-  readonly connectShoggothMcpServers: typeof connectShoggothMcpServers;
-}
-

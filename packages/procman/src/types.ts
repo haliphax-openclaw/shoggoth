@@ -3,13 +3,7 @@
 // ---------------------------------------------------------------------------
 
 /** Current lifecycle state of a managed process. */
-export type ProcessState =
-  | "starting"
-  | "running"
-  | "exited"
-  | "stopping"
-  | "failed"
-  | "dead";
+export type ProcessState = "starting" | "running" | "exited" | "stopping" | "failed" | "dead";
 
 /** Owner category for grouping and lifecycle scoping. */
 export interface ProcessOwner {

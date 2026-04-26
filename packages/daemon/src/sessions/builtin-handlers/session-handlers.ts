@@ -7,10 +7,7 @@ import {
   resolveEffectiveSessionQueryAllowedAgentIds,
 } from "@shoggoth/shared";
 import { IntegrationOpError } from "../../control/integration-ops";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { getLogger } from "../../logging";
 
 const log = getLogger("subagent");
@@ -42,10 +39,7 @@ async function sessionQuery(
     typeof args.agent_id === "string" && args.agent_id.trim()
       ? args.agent_id.trim()
       : callerAgentId;
-  const allowed = resolveEffectiveSessionQueryAllowedAgentIds(
-    ctx.config,
-    callerAgentId,
-  );
+  const allowed = resolveEffectiveSessionQueryAllowedAgentIds(ctx.config, callerAgentId);
   if (!allowed.has(requestedAgentId)) {
     return {
       resultJson: JSON.stringify({
@@ -53,10 +47,7 @@ async function sessionQuery(
       }),
     };
   }
-  const limit = Math.min(
-    Math.max(1, Math.trunc(Number(args.limit) || 50)),
-    100,
-  );
+  const limit = Math.min(Math.max(1, Math.trunc(Number(args.limit) || 50)), 100);
   const orderRaw = args.order;
   const order: "asc" | "desc" = orderRaw === "asc" ? "asc" : "desc";
   const hasExplicitOffset = args.offset !== undefined && args.offset !== null;
@@ -96,9 +87,7 @@ async function sessionQuery(
 
   // --- Search parameters (mutually exclusive) ---
   const queryStr =
-    typeof args.query === "string" && args.query.trim()
-      ? args.query.trim()
-      : undefined;
+    typeof args.query === "string" && args.query.trim() ? args.query.trim() : undefined;
   const queryRegexStr =
     typeof args.queryRegex === "string" && args.queryRegex.trim()
       ? args.queryRegex.trim()
@@ -136,9 +125,7 @@ async function sessionQuery(
     whereClauses.push("session_id = @session_id");
     params.session_id = sessionIdFilter;
   } else {
-    whereClauses.push(
-      "session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)",
-    );
+    whereClauses.push("session_id IN (SELECT id FROM sessions WHERE id LIKE @agent_pattern)");
     params.agent_pattern = `agent:${requestedAgentId}:%`;
   }
 
@@ -193,9 +180,7 @@ async function sessionQuery(
 
   // JS-side regex filter + pagination when needed
   if (compiledRegex) {
-    rows = rows.filter(
-      (r) => r.content != null && compiledRegex!.test(r.content),
-    );
+    rows = rows.filter((r) => r.content != null && compiledRegex!.test(r.content));
     const startIdx =
       order === "desc"
         ? rows.findIndex((r) => r.seq < offset)
@@ -312,11 +297,9 @@ async function subagentHandler(
       payload.platform_thread_id = threadId;
     }
     const du = args.platform_user_id;
-    if (typeof du === "string" && du.trim())
-      payload.platform_user_id = du.trim();
+    if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
     const rt = args.reply_to_message_id;
-    if (typeof rt === "string" && rt.trim())
-      payload.reply_to_message_id = rt.trim();
+    if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
     const lt = args.lifetime_ms;
     if (typeof lt === "number" && Number.isFinite(lt) && lt > 0) {
       payload.lifetime_ms = Math.trunc(lt);
@@ -342,11 +325,9 @@ async function subagentHandler(
     const del = args.delivery;
     if (del === "internal") payload.delivery = "internal";
     const du = args.platform_user_id;
-    if (typeof du === "string" && du.trim())
-      payload.platform_user_id = du.trim();
+    if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
     const rt = args.reply_to_message_id;
-    if (typeof rt === "string" && rt.trim())
-      payload.reply_to_message_id = rt.trim();
+    if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
   } else if (action === "abort") {
     const sid = String(args.session_id ?? "").trim();
     if (!sid) {
@@ -408,8 +389,7 @@ async function subagentHandler(
 
   // model_options for spawn actions
   const mo = args.model_options;
-  const spawnAction =
-    action === "spawn_one_shot" || action === "spawn_persistent";
+  const spawnAction = action === "spawn_one_shot" || action === "spawn_persistent";
   if (spawnAction && mo && typeof mo === "object" && !Array.isArray(mo)) {
     payload.model_options = mo;
   }
@@ -503,8 +483,7 @@ async function sessionSendHandler(
   const du = args.platform_user_id;
   if (typeof du === "string" && du.trim()) payload.platform_user_id = du.trim();
   const rt = args.reply_to_message_id;
-  if (typeof rt === "string" && rt.trim())
-    payload.reply_to_message_id = rt.trim();
+  if (typeof rt === "string" && rt.trim()) payload.reply_to_message_id = rt.trim();
   return invokeIntegration(inv, ctx.sessionId, "session_send", payload);
 }
 
@@ -512,11 +491,7 @@ async function sessionSendHandler(
 // Shared helper: invoke integration op with IntegrationOpError handling
 // ---------------------------------------------------------------------------
 
-type InvokerFn = (
-  sessionId: string,
-  op: string,
-  payload: unknown,
-) => Promise<unknown>;
+type InvokerFn = (sessionId: string, op: string, payload: unknown) => Promise<unknown>;
 
 async function invokeIntegration(
   inv: InvokerFn,

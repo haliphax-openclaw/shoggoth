@@ -5,10 +5,7 @@ import {
   type PluginAuditEvent,
 } from "@shoggoth/plugins";
 import type Database from "better-sqlite3";
-import {
-  appendAuditRow,
-  type AppendAuditRowInput,
-} from "../audit/append-audit";
+import { appendAuditRow, type AppendAuditRowInput } from "../audit/append-audit";
 import type { DaemonRuntime } from "../runtime";
 
 /** Redaction-friendly snapshot of skills/plugins-related config for audit. */
@@ -35,9 +32,7 @@ export function pluginAuditToRow(e: PluginAuditEvent): AppendAuditRowInput {
     action: e.action,
     resource: e.resource,
     outcome: e.outcome,
-    argsRedactedJson: e.detail
-      ? JSON.stringify({ detail: e.detail })
-      : undefined,
+    argsRedactedJson: e.detail ? JSON.stringify({ detail: e.detail }) : undefined,
   };
 }
 
@@ -78,12 +73,9 @@ export async function bootstrapPlugins(options: {
     },
   });
 
-  options.rt.shutdown.registerDrain(
-    "plugin-daemon-shutdown-hooks",
-    async () => {
-      await system.lifecycle["daemon.shutdown"].emit({ reason: "shutdown" });
-    },
-  );
+  options.rt.shutdown.registerDrain("plugin-daemon-shutdown-hooks", async () => {
+    await system.lifecycle["daemon.shutdown"].emit({ reason: "shutdown" });
+  });
   options.rt.shutdown.registerDrain("plugin-unload-audit", async () => {
     for (const p of loaded) {
       appendAuditRow(options.db, {

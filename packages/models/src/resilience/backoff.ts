@@ -17,10 +17,7 @@ export function computeBackoffDelay(
   config: BackoffConfig,
   retryAfterMs?: number,
 ): number {
-  const exponential = Math.min(
-    config.maxDelayMs,
-    config.baseDelayMs * 2 ** attempt,
-  );
+  const exponential = Math.min(config.maxDelayMs, config.baseDelayMs * 2 ** attempt);
   const jitter = Math.random() * config.jitterMs;
   const delay = exponential + jitter;
   if (retryAfterMs !== undefined && retryAfterMs > delay) {
@@ -35,9 +32,7 @@ export class BackoffState {
   private cooldownUntil: number | null = null;
   private lastDelay = 0;
 
-  constructor(
-    private readonly config: BackoffConfig = DEFAULT_BACKOFF_CONFIG,
-  ) {}
+  constructor(private readonly config: BackoffConfig = DEFAULT_BACKOFF_CONFIG) {}
 
   recordFailure(retryAfterMs?: number): number {
     this.lastFailureTime = Date.now();

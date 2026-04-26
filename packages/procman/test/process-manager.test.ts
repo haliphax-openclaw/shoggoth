@@ -32,14 +32,9 @@ describe("ProcessManager", () => {
 
   it("rejects duplicate spec IDs", async () => {
     const pm = new ProcessManager();
-    await pm.start(
-      makeSpec({ id: "dup-test", command: "sleep", args: ["60"] }),
-    );
+    await pm.start(makeSpec({ id: "dup-test", command: "sleep", args: ["60"] }));
 
-    await assert.rejects(
-      () => pm.start(makeSpec({ id: "dup-test" })),
-      /already registered/,
-    );
+    await assert.rejects(() => pm.start(makeSpec({ id: "dup-test" })), /already registered/);
 
     // Cleanup
     await pm.stopAll();
@@ -47,9 +42,7 @@ describe("ProcessManager", () => {
 
   it("stop removes the process", async () => {
     const pm = new ProcessManager();
-    await pm.start(
-      makeSpec({ id: "stop-test", command: "sleep", args: ["60"] }),
-    );
+    await pm.start(makeSpec({ id: "stop-test", command: "sleep", args: ["60"] }));
 
     assert.ok(pm.get("stop-test"));
     await pm.stop("stop-test");
@@ -192,14 +185,8 @@ describe("ProcessManager", () => {
     assert.ok(idxA >= 0, "dep-a should have been stopped");
     assert.ok(idxB >= 0, "dep-b should have been stopped");
     assert.ok(idxC >= 0, "dep-c should have been stopped");
-    assert.ok(
-      idxA < idxB,
-      `dep-a (${idxA}) should stop before dep-b (${idxB})`,
-    );
-    assert.ok(
-      idxB < idxC,
-      `dep-b (${idxB}) should stop before dep-c (${idxC})`,
-    );
+    assert.ok(idxA < idxB, `dep-a (${idxA}) should stop before dep-b (${idxB})`);
+    assert.ok(idxB < idxC, `dep-b (${idxB}) should stop before dep-c (${idxC})`);
   });
 
   it("emits process-started and process-stopped events", async () => {
@@ -209,9 +196,7 @@ describe("ProcessManager", () => {
     pm.on("process-started", () => events.push("started"));
     pm.on("process-stopped", () => events.push("stopped"));
 
-    const mp = await pm.start(
-      makeSpec({ id: "events-test", command: "sleep", args: ["60"] }),
-    );
+    const mp = await pm.start(makeSpec({ id: "events-test", command: "sleep", args: ["60"] }));
 
     // Wait for running
     if (mp.state !== "running") {

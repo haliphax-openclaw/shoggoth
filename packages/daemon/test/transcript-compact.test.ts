@@ -9,10 +9,7 @@ import {
   stripImageBlocksFromContent,
   stripImageBlocksForCompaction,
 } from "../src/transcript-compact";
-import {
-  createSessionStore,
-  getSessionContextSegmentId,
-} from "../src/sessions/session-store";
+import { createSessionStore, getSessionContextSegmentId } from "../src/sessions/session-store";
 import type { FailoverModelClient } from "@shoggoth/models";
 
 describe("transcript-compact", () => {
@@ -53,9 +50,7 @@ describe("transcript-compact", () => {
     });
     const seg = getSessionContextSegmentId(db, "s1");
 
-    const toolCallsJson = JSON.stringify([
-      { id: "tc1", name: "foo", argsJson: '{"x":1}' },
-    ]);
+    const toolCallsJson = JSON.stringify([{ id: "tc1", name: "foo", argsJson: '{"x":1}' }]);
     db.prepare(
       `INSERT INTO transcript_messages (session_id, context_segment_id, seq, role, content, tool_calls_json) VALUES (?, ?, ?, ?, ?, ?)`,
     ).run("s1", seg, 1, "assistant", null, toolCallsJson);
@@ -114,12 +109,7 @@ describe("transcript-compact", () => {
       },
     };
 
-    const out = await compactSessionTranscript(
-      db,
-      "s1",
-      { preserveRecentMessages: 2 },
-      client,
-    );
+    const out = await compactSessionTranscript(db, "s1", { preserveRecentMessages: 2 }, client);
 
     assert.equal(out.compacted, true);
     const rows = loadSessionTranscript(db, "s1", seg);
@@ -284,12 +274,7 @@ describe("transcript-compact", () => {
       },
     };
 
-    await compactSessionTranscript(
-      db,
-      "s1",
-      { preserveRecentMessages: 2 },
-      client,
-    );
+    await compactSessionTranscript(db, "s1", { preserveRecentMessages: 2 }, client);
 
     // The summarizer should have received messages with image blocks stripped
     assert.ok(capturedMessages, "summarizer should have been called");

@@ -83,10 +83,7 @@ export {
   geminiImageBlockCodec,
   wrapCodecWithCapabilities,
 } from "./image-codec";
-export {
-  extractXmlThinkingBlocks,
-  normalizeThinkingBlocks,
-} from "./thinking-normalize";
+export { extractXmlThinkingBlocks, normalizeThinkingBlocks } from "./thinking-normalize";
 
 // Resilience layer
 export type {

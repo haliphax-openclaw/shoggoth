@@ -7,9 +7,7 @@ import {
 } from "../src/platform-registry";
 
 /** Minimal valid registration for tests. */
-function makeReg(
-  overrides?: Partial<PlatformRegistration>,
-): PlatformRegistration {
+function makeReg(overrides?: Partial<PlatformRegistration>): PlatformRegistration {
   return {
     platformId: "test-platform",
     resourceTypes: ["channel"],
@@ -67,21 +65,15 @@ describe("Platform Registry", () => {
   // ---- shape validation ----
 
   it("throws when platformId is empty", () => {
-    expect(() => registerPlatform(makeReg({ platformId: "" }))).toThrow(
-      /platformId/i,
-    );
+    expect(() => registerPlatform(makeReg({ platformId: "" }))).toThrow(/platformId/i);
   });
 
   it("throws when platformId is whitespace-only", () => {
-    expect(() => registerPlatform(makeReg({ platformId: "   " }))).toThrow(
-      /platformId/i,
-    );
+    expect(() => registerPlatform(makeReg({ platformId: "   " }))).toThrow(/platformId/i);
   });
 
   it("throws when resourceTypes is empty", () => {
-    expect(() => registerPlatform(makeReg({ resourceTypes: [] }))).toThrow(
-      /resourceTypes/i,
-    );
+    expect(() => registerPlatform(makeReg({ resourceTypes: [] }))).toThrow(/resourceTypes/i);
   });
 
   it("throws when urnPolicy is missing", () => {

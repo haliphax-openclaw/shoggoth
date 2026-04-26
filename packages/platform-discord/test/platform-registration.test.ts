@@ -7,10 +7,7 @@ describe("discordPlatformRegistration", () => {
   });
 
   it("has resourceTypes ['channel', 'dm']", () => {
-    expect(discordPlatformRegistration.resourceTypes).toEqual([
-      "channel",
-      "dm",
-    ]);
+    expect(discordPlatformRegistration.resourceTypes).toEqual(["channel", "dm"]);
   });
 
   describe("validateUrn", () => {
@@ -26,9 +23,7 @@ describe("discordPlatformRegistration", () => {
     });
 
     it("accepts valid 'dm' resource type with snowflake leaf", () => {
-      expect(
-        validate({ resourceType: "dm", uuidChain: ["99999999999999999"] }),
-      ).toBeNull();
+      expect(validate({ resourceType: "dm", uuidChain: ["99999999999999999"] })).toBeNull();
     });
 
     it("rejects unknown resource type", () => {
@@ -79,9 +74,7 @@ describe("discordPlatformRegistration", () => {
 
     it("has required methods", () => {
       expect(typeof policy.checkRouteSessionUrn).toBe("function");
-      expect(typeof policy.assertRoutesDefaultPrimaryUuidMatchesAgent).toBe(
-        "function",
-      );
+      expect(typeof policy.assertRoutesDefaultPrimaryUuidMatchesAgent).toBe("function");
       expect(typeof policy.parseFirstChannelIdFromRoutesJson).toBe("function");
       expect(typeof policy.resolveBootstrapPrimarySessionUrn).toBe("function");
     });

@@ -29,11 +29,7 @@ function fakeLogger() {
 }
 
 /** Build an aggregated entry so routeMcpToolInvocation can find it by namespacedName. */
-function aggTool(
-  namespacedName: string,
-  sourceId = "external",
-  originalName?: string,
-) {
+function aggTool(namespacedName: string, sourceId = "external", originalName?: string) {
   return {
     name: originalName ?? namespacedName,
     namespacedName,

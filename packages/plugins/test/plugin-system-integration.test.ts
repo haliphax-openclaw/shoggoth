@@ -48,12 +48,10 @@ describe("loadPluginFromDirectory", () => {
 
     // Fire the hook through the plugin system and verify it ran
     await system.lifecycle["daemon.shutdown"].emit({ reason: "test-shutdown" });
-    expect(
-      (globalThis as { __testPluginShutdownReason?: string })
-        .__testPluginShutdownReason,
-    ).toBe("test-shutdown");
-    delete (globalThis as { __testPluginShutdownReason?: string })
-      .__testPluginShutdownReason;
+    expect((globalThis as { __testPluginShutdownReason?: string }).__testPluginShutdownReason).toBe(
+      "test-shutdown",
+    );
+    delete (globalThis as { __testPluginShutdownReason?: string }).__testPluginShutdownReason;
   });
 
   test("loads a plugin that directly exports a plugin object (not a factory)", async () => {
@@ -92,11 +90,8 @@ export default plugin;
     expect(meta.kind).toBe("general"); // default kind
 
     await system.lifecycle["daemon.shutdown"].emit({ reason: "bye" });
-    expect(
-      (globalThis as { __directPluginFired?: boolean }).__directPluginFired,
-    ).toBe(true);
-    delete (globalThis as { __directPluginFired?: boolean })
-      .__directPluginFired;
+    expect((globalThis as { __directPluginFired?: boolean }).__directPluginFired).toBe(true);
+    delete (globalThis as { __directPluginFired?: boolean }).__directPluginFired;
   });
 
   test("throws when package.json is missing shoggothPlugin bag", async () => {

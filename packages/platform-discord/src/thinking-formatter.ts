@@ -4,7 +4,6 @@
 
 export type ThinkingDisplayMode = "full" | "indicator" | "none";
 
-
 /**
  * Extract thinking and response content from a message body.
  * Assumes thinking is wrapped in <thinking>...</thinking> tags.
@@ -41,10 +40,7 @@ function formatThinkingIndicator(): string {
 /**
  * Format the message body based on thinking display mode.
  */
-export function formatMessageWithThinking(
-  body: string,
-  mode: ThinkingDisplayMode,
-): string {
+export function formatMessageWithThinking(body: string, mode: ThinkingDisplayMode): string {
   if (mode === "none") {
     // Strip thinking entirely
     return body.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim();
@@ -89,10 +85,7 @@ function _hasThinkingTransition(chunk: string): boolean {
  * Ensures proper formatting with blockquote closure before response.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _formatChunkWithTransition(
-  chunk: string,
-  mode: ThinkingDisplayMode,
-): string {
+function _formatChunkWithTransition(chunk: string, mode: ThinkingDisplayMode): string {
   if (mode === "none") {
     return chunk.replace(/<thinking>[\s\S]*?<\/thinking>/, "").trim();
   }

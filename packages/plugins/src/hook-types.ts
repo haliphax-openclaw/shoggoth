@@ -13,11 +13,7 @@ import type {
   MessageToolContext,
   PlatformAdapter,
 } from "@shoggoth/shared";
-import type {
-  PlatformRegistration,
-  PlatformRuntime,
-  InternalMessage,
-} from "@shoggoth/messaging";
+import type { PlatformRegistration, PlatformRuntime, InternalMessage } from "@shoggoth/messaging";
 import type { PlatformDeliveryRegistry } from "./platform-delivery-registry";
 
 // -------------------------------------------------------------------------------
@@ -34,10 +30,7 @@ export interface DaemonStartupCtx {
   readonly db: unknown;
   readonly config: Readonly<ShoggothConfig>;
   readonly configRef: { readonly current: ShoggothConfig };
-  readonly registerDrain: (
-    name: string,
-    fn: () => void | Promise<void>,
-  ) => void;
+  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
 }
 
 export interface DaemonReadyCtx {
@@ -56,10 +49,7 @@ export interface DaemonShutdownCtx {
 export interface PlatformRegisterCtx {
   readonly config: Readonly<ShoggothConfig>;
   readonly registerPlatform: (reg: PlatformRegistration) => void;
-  readonly setPlatformRuntime: (
-    platformId: string,
-    runtime: PlatformRuntime,
-  ) => void;
+  readonly setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
 }
 
 /**
@@ -86,10 +76,7 @@ export interface PlatformDeps {
     readonly config: ShoggothConfig;
     readonly ext: unknown;
   }) => { restored: number; expiredKilled: number };
-  readonly noticeResolver: (
-    key: string,
-    params?: Record<string, unknown>,
-  ) => string;
+  readonly noticeResolver: (key: string, params?: Record<string, unknown>) => string;
 }
 
 export interface PlatformStartCtx {
@@ -99,13 +86,8 @@ export interface PlatformStartCtx {
   readonly env: NodeJS.ProcessEnv;
   readonly deps: PlatformDeps;
   readonly deliveryRegistry: PlatformDeliveryRegistry;
-  readonly registerDrain: (
-    name: string,
-    fn: () => void | Promise<void>,
-  ) => void;
-  readonly setSubagentRuntimeExtension: (
-    ext: SubagentRuntimeExtension | undefined,
-  ) => void;
+  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
+  readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension | undefined) => void;
   readonly setMessageToolContext: (ctx: MessageToolContext) => void;
   readonly setPlatformAdapter: (adapter: PlatformAdapter) => void;
 }

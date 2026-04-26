@@ -1,17 +1,9 @@
-import {
-  spawn as defaultSpawn,
-  type ChildProcess,
-  type SpawnOptions,
-} from "node:child_process";
+import { spawn as defaultSpawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { getLogger } from "../logging";
 
 const log = getLogger("acpx");
 
-export type AcpxSpawnFn = (
-  command: string,
-  args: string[],
-  options: SpawnOptions,
-) => ChildProcess;
+export type AcpxSpawnFn = (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 
 type TrackedAcpxProcess = {
   readonly pid: number;
@@ -76,10 +68,7 @@ export class AcpxProcessSupervisor {
 
     const pid = child.pid;
     if (pid === undefined) {
-      throw new AcpxSupervisorError(
-        "ERR_ACPX_SPAWN",
-        "spawn did not assign a pid",
-      );
+      throw new AcpxSupervisorError("ERR_ACPX_SPAWN", "spawn did not assign a pid");
     }
 
     const startedAtMs = Date.now();
@@ -133,7 +122,7 @@ export class AcpxProcessSupervisor {
   }
 
   killAll(): void {
-    for (const root of [...this.byRoot.keys()]) {
+    for (const root of this.byRoot.keys()) {
       this.stop(root);
     }
   }

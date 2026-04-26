@@ -7,12 +7,7 @@ import { fileURLToPath } from "node:url";
 import { REQUIRED_PROMPT_KEYS } from "../../src/prompts/load-prompts";
 import { REQUIRED_NOTICE_KEYS } from "../../src/notices/load-notices";
 
-const daemonSrc = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "src",
-);
+const daemonSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "src");
 
 function mdKeys(dir: string): string[] {
   return readdirSync(dir)

@@ -1,11 +1,5 @@
 // Task status lifecycle
-export type TaskStatus =
-  | "pending"
-  | "in_progress"
-  | "done"
-  | "failed"
-  | "paused"
-  | "skipped";
+export type TaskStatus = "pending" | "in_progress" | "done" | "failed" | "paused" | "skipped";
 
 // What to do when a task fails
 export type FailureBehavior = "abort" | "pause" | "continue";
@@ -69,12 +63,7 @@ export interface MessageTaskDef extends TaskDefBase {
 }
 
 /** Discriminated union of all task definition kinds. */
-export type TaskDef =
-  | AgentTaskDef
-  | ToolTaskDef
-  | GateTaskDef
-  | TransformTaskDef
-  | MessageTaskDef;
+export type TaskDef = AgentTaskDef | ToolTaskDef | GateTaskDef | TransformTaskDef | MessageTaskDef;
 
 /** Return a human-readable label for any TaskDef (prompt text for agent, tool name for tool, etc.). */
 export function getTaskPromptOrLabel(td: TaskDef): string {

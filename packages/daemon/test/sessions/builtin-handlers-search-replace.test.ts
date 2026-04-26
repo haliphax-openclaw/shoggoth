@@ -36,10 +36,7 @@ function stubCtx(workspacePath: string): BuiltinToolContext {
   };
 }
 
-async function exec(
-  ws: string,
-  args: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
+async function exec(ws: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const reg = new BuiltinToolRegistry();
   registerSearchReplace(reg);
   const result = await reg.execute("search-replace", args, stubCtx(ws));
@@ -154,9 +151,7 @@ describe("search-replace: search", () => {
   it("maxResults truncation", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const lines = Array.from({ length: 500 }, (_, i) => `match${i}`).join(
-        "\n",
-      );
+      const lines = Array.from({ length: 500 }, (_, i) => `match${i}`).join("\n");
       writeFileSync(join(ws, "big.txt"), lines);
       const result = await exec(ws, {
         action: "search",
@@ -184,10 +179,7 @@ describe("search-replace: search", () => {
       assert.ok(!result.error, `unexpected error: ${result.error}`);
       const output = result.output as string;
       assert.ok(output.includes("beta"), "should find match in file");
-      assert.ok(
-        !output.includes("alpha"),
-        "should not include non-matching lines",
-      );
+      assert.ok(!output.includes("alpha"), "should not include non-matching lines");
     } finally {
       rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
@@ -392,10 +384,7 @@ describe("search-replace: replace", () => {
         replacement: "nope",
         fixedStrings: true,
       });
-      assert.ok(
-        result.error,
-        "should error when multiline match attempted without multiline flag",
-      );
+      assert.ok(result.error, "should error when multiline match attempted without multiline flag");
     } finally {
       rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }

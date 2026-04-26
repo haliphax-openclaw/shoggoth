@@ -98,24 +98,17 @@ function parseSegment(segment: string): number[] {
  * Throws on cycles or dead-end references.
  * Returns warnings for overlapping/duplicate edges (flattened automatically by Set).
  */
-export function validateGraph(
-  graph: DependencyGraph,
-  taskIds: Set<number>,
-): string[] {
+export function validateGraph(graph: DependencyGraph, taskIds: Set<number>): string[] {
   const warnings: string[] = [];
 
   // Check for references to tasks not in the task list
   for (const [taskId, deps] of graph) {
     if (!taskIds.has(taskId)) {
-      throw new Error(
-        `Graph references task ${taskId} which is not in the task list`,
-      );
+      throw new Error(`Graph references task ${taskId} which is not in the task list`);
     }
     for (const dep of deps) {
       if (!taskIds.has(dep)) {
-        throw new Error(
-          `Task ${taskId} depends on task ${dep} which is not in the task list`,
-        );
+        throw new Error(`Task ${taskId} depends on task ${dep} which is not in the task list`);
       }
     }
   }
@@ -182,10 +175,7 @@ function detectCycles(graph: DependencyGraph): void {
 /**
  * Get all transitive dependencies for a given task ID.
  */
-export function getTransitiveDeps(
-  graph: DependencyGraph,
-  taskId: number,
-): Set<number> {
+export function getTransitiveDeps(graph: DependencyGraph, taskId: number): Set<number> {
   const visited = new Set<number>();
   const stack = [...(graph.get(taskId) ?? [])];
 

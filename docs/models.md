@@ -69,9 +69,7 @@ interface ModelProvider {
   readonly id: string;
   readonly capabilities?: ModelCapabilities;
   complete(input: ModelCompleteInput): Promise<ModelCompleteOutput>;
-  completeWithTools(
-    input: ModelToolCompleteInput,
-  ): Promise<ModelToolCompleteOutput>;
+  completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput>;
 }
 ```
 
@@ -174,10 +172,7 @@ The failover chain walks an ordered list of `(provider, model)` entries. On a fa
 ```typescript
 // From config (preferred):
 const client = createFailoverClientFromModelsConfig(modelsConfig, { hooks });
-const toolClient = createFailoverToolCallingClientFromModelsConfig(
-  modelsConfig,
-  { hooks },
-);
+const toolClient = createFailoverToolCallingClientFromModelsConfig(modelsConfig, { hooks });
 
 // Manual:
 const client = createFailoverModelClient(chain, hooks);

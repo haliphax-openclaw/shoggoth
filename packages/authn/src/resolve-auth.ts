@@ -19,8 +19,7 @@ export function resolveAuthenticatedPrincipal(
 ): AuthenticatedPrincipal | null {
   if (auth.kind === "operator_token") {
     if (!ctx.operatorTokenSecret) return null;
-    if (!validateOperatorToken(ctx.operatorTokenSecret, auth.token))
-      return null;
+    if (!validateOperatorToken(ctx.operatorTokenSecret, auth.token)) return null;
     return {
       kind: "operator",
       operatorId: "local-operator",

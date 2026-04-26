@@ -75,12 +75,7 @@ describe("resolveEffectiveSessionQueryAllowedAgentIds", () => {
       },
     };
     const allowed = resolveEffectiveSessionQueryAllowedAgentIds(cfg, "alice");
-    assert.deepStrictEqual([...allowed].sort(), [
-      "alice",
-      "bob",
-      "charlie",
-      "dave",
-    ]);
+    assert.deepStrictEqual([...allowed].sort(), ["alice", "bob", "charlie", "dave"]);
   });
 
   it("always includes own agent id even when not in any list", () => {

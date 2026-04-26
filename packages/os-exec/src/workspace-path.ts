@@ -37,10 +37,7 @@ function logicalPathUnderRoot(
   return { rootReal, joined };
 }
 
-function ensureWriteParentContained(
-  rootReal: string,
-  logicalFile: string,
-): void {
+function ensureWriteParentContained(rootReal: string, logicalFile: string): void {
   let dir = dirname(logicalFile);
   const visited = new Set<string>();
   while (!visited.has(dir)) {
@@ -120,10 +117,7 @@ export function resolvePathForRead(
  * - Relative paths (resolved relative to workspace root)
  * - Absolute paths (validated to be within workspace root)
  */
-export function resolvePathForWrite(
-  workspaceRoot: string,
-  userPath: string,
-): string {
+export function resolvePathForWrite(workspaceRoot: string, userPath: string): string {
   const { rootReal, joined } = logicalPathUnderRoot(workspaceRoot, userPath);
   ensureWriteParentContained(rootReal, joined);
   return joined;

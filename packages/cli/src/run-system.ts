@@ -30,9 +30,7 @@ export async function runSystemCli(argv: string[]): Promise<void> {
     // Health checks are exempt from auth — no sensitive data returned
     const configDir = process.env.SHOGGOTH_CONFIG_DIR ?? LAYOUT.configDir;
     const socketPath = socketPathFromEnv(configDir);
-    const auth = process.env.SHOGGOTH_OPERATOR_TOKEN?.trim()
-      ? controlAuth()
-      : undefined;
+    const auth = process.env.SHOGGOTH_OPERATOR_TOKEN?.trim() ? controlAuth() : undefined;
     const res = await invokeControlRequest({
       socketPath,
       auth,
@@ -40,8 +38,7 @@ export async function runSystemCli(argv: string[]): Promise<void> {
       payload: {},
     });
     console.log(JSON.stringify(res, null, 2));
-    process.exitCode =
-      res.ok && (res.result as Record<string, unknown>)?.ready ? 0 : 1;
+    process.exitCode = res.ok && (res.result as Record<string, unknown>)?.ready ? 0 : 1;
     return;
   }
 

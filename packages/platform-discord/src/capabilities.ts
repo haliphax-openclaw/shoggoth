@@ -1,7 +1,4 @@
-import {
-  MESSAGING_FEATURE,
-  type MessagingAdapterCapabilities,
-} from "@shoggoth/messaging";
+import { MESSAGING_FEATURE, type MessagingAdapterCapabilities } from "@shoggoth/messaging";
 export type { MessagingAdapterCapabilities } from "@shoggoth/messaging";
 
 const outboundTextSchema = {
@@ -16,8 +13,7 @@ const outboundTextSchema = {
 
 const attachmentSchema = {
   type: "object",
-  description:
-    "Discord attachment reference (URL upload flow is adapter-specific)",
+  description: "Discord attachment reference (URL upload flow is adapter-specific)",
   properties: {
     filename: { type: "string" },
     url: { type: "string", description: "HTTPS URL for hosted attachment" },

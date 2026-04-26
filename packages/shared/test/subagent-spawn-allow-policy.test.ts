@@ -14,10 +14,7 @@ function cfg(partial: Partial<ShoggothConfig>): ShoggothConfig {
 
 describe("subagent spawn allowlist", () => {
   it("defaults to sender-only agent id when subagentSpawnAllow is absent", () => {
-    assert.deepStrictEqual(
-      effectiveSubagentSpawnAllowedAgentIds(cfg({}), "main"),
-      ["main"],
-    );
+    assert.deepStrictEqual(effectiveSubagentSpawnAllowedAgentIds(cfg({}), "main"), ["main"]);
     assert.equal(agentMayInvokeSubagentSpawnByAllowlist(cfg({}), "main"), true);
     assert.equal(hasExplicitSubagentSpawnAllowConfig(cfg({}), "main"), false);
   });
@@ -61,9 +58,7 @@ describe("subagent spawn allowlist", () => {
     assert.equal(hasExplicitSubagentSpawnAllowConfig(c, "onlyme"), true);
     assert.equal(agentMayInvokeSubagentSpawnByAllowlist(c, "onlyme"), true);
     assert.equal(hasExplicitSubagentSpawnAllowConfig(c, "other"), false);
-    assert.deepStrictEqual(effectiveSubagentSpawnAllowedAgentIds(c, "other"), [
-      "other",
-    ]);
+    assert.deepStrictEqual(effectiveSubagentSpawnAllowedAgentIds(c, "other"), ["other"]);
     assert.equal(agentMayInvokeSubagentSpawnByAllowlist(c, "other"), true);
   });
 });

@@ -30,12 +30,7 @@ describe("connectDiscordGateway", () => {
 
       const fake = {
         addEventListener(type: string, fn: (ev: { data: string }) => void) {
-          if (
-            type === "message" ||
-            type === "open" ||
-            type === "error" ||
-            type === "close"
-          ) {
+          if (type === "message" || type === "open" || type === "error" || type === "close") {
             on(type, fn);
           }
         },

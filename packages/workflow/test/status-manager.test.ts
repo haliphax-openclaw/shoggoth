@@ -1,11 +1,6 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type {
-  TaskList,
-  TaskState,
-  TaskDef,
-  DependencyGraph,
-} from "../src/types.js";
+import type { TaskList, TaskState, TaskDef, DependencyGraph } from "../src/types.js";
 import type { MessageAdapter } from "../src/message-adapter.js";
 import { StatusManager } from "../src/status-manager.js";
 
@@ -30,11 +25,7 @@ function makeTask(
   return { taskDef: makeDef(id, prompt), status, ...opts };
 }
 
-function makeWorkflow(
-  name: string,
-  tasks: TaskState[],
-  graph: DependencyGraph,
-): TaskList {
+function makeWorkflow(name: string, tasks: TaskState[], graph: DependencyGraph): TaskList {
   return {
     id: "wf-1",
     name,
@@ -88,9 +79,7 @@ describe("StatusManager", () => {
       await manager.postInitialStatus(wf);
 
       assert.equal(adapter.posted.length, 1);
-      assert.ok(
-        adapter.posted[0].content.includes("**Task workflow:** test-wf"),
-      );
+      assert.ok(adapter.posted[0].content.includes("**Task workflow:** test-wf"));
       assert.ok(adapter.posted[0].content.includes("⏳ 1 - First"));
       assert.ok(adapter.posted[0].content.includes("⏳ 2 [1] - Second"));
     });
@@ -193,9 +182,7 @@ describe("StatusManager", () => {
       await manager.postSummary(wf);
 
       assert.equal(adapter.posted.length, 1);
-      assert.ok(
-        adapter.posted[0].content.includes("**Task workflow complete:** wf"),
-      );
+      assert.ok(adapter.posted[0].content.includes("**Task workflow complete:** wf"));
       assert.ok(adapter.posted[0].content.includes("✅ **Completed:** 2/2"));
     });
 

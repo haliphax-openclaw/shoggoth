@@ -18,9 +18,7 @@ export interface CompactTranscriptResult {
   readonly messages: ChatMessage[];
 }
 
-export function estimateTranscriptChars(
-  messages: readonly ChatMessage[],
-): number {
+export function estimateTranscriptChars(messages: readonly ChatMessage[]): number {
   let n = 0;
   for (const m of messages) n += (m.content ?? "").length;
   return n;
@@ -111,9 +109,7 @@ export async function compactTranscriptIfNeeded(
     return { compacted: false, messages: [...messages] };
   }
 
-  const excerpt = middle
-    .map((m) => `${m.role}: ${m.content ?? ""}`)
-    .join("\n\n");
+  const excerpt = middle.map((m) => `${m.role}: ${m.content ?? ""}`).join("\n\n");
 
   const previousSummary = findPreviousSummary(messages);
 

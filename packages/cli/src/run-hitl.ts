@@ -120,9 +120,7 @@ export async function runHitlCli(argv: string[]): Promise<void> {
       if (t === "--session") {
         const v = tail[i + 1]?.trim();
         if (!v) {
-          console.error(
-            "usage: shoggoth hitl clear ... --session <session URN>",
-          );
+          console.error("usage: shoggoth hitl clear ... --session <session URN>");
           process.exitCode = 1;
           return;
         }

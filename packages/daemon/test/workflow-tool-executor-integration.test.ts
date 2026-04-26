@@ -83,9 +83,7 @@ describe("createDaemonToolExecutor", () => {
   });
 
   it("should log execution errors", async () => {
-    const externalFn = vi
-      .fn()
-      .mockRejectedValue(new Error("Tool execution failed"));
+    const externalFn = vi.fn().mockRejectedValue(new Error("Tool execution failed"));
     const ctx = mockContext(["failing-tool"], externalFn);
     const getToolContext = vi.fn().mockResolvedValue(ctx);
     const logger = {

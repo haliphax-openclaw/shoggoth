@@ -47,10 +47,7 @@ function rowToStats(r: SessionStatsRow): SessionStats {
 }
 
 /** Get stats for a session. Returns null if no stats row exists yet. */
-export function getSessionStats(
-  db: Database.Database,
-  sessionId: string,
-): SessionStats | null {
+export function getSessionStats(db: Database.Database, sessionId: string): SessionStats | null {
   const row = db
     .prepare(
       `SELECT session_id, turn_count, compaction_count, input_tokens, output_tokens,
@@ -90,10 +87,7 @@ export function recordCompaction(
 }
 
 /** Reset per-segment counters (turn_count, compaction_count, input_tokens, output_tokens, transcript_message_count). Called on context new/reset. */
-export function resetSegmentStats(
-  db: Database.Database,
-  sessionId: string,
-): void {
+export function resetSegmentStats(db: Database.Database, sessionId: string): void {
   db.prepare(
     `UPDATE session_stats SET
        turn_count = 0,
@@ -163,15 +157,11 @@ export function buildFormattedStats(
   contextFillTokens: number,
 ): FormattedSessionStats {
   const contextFill =
-    contextFillTokens > 0
-      ? `~${contextFillTokens.toLocaleString("en-US")}`
-      : "N/A";
+    contextFillTokens > 0 ? `~${contextFillTokens.toLocaleString("en-US")}` : "N/A";
 
   let contextWindowSuffix = "";
   if (stats.contextWindowTokens != null && contextFillTokens > 0) {
-    const pct = ((contextFillTokens / stats.contextWindowTokens) * 100).toFixed(
-      1,
-    );
+    const pct = ((contextFillTokens / stats.contextWindowTokens) * 100).toFixed(1);
     contextWindowSuffix = ` / ${stats.contextWindowTokens.toLocaleString("en-US")} (${pct}%)`;
   }
 
@@ -226,10 +216,7 @@ export function updateTranscriptMessageCount(
 }
 
 /** Increment turn_count by 1 and set last_turn_at. */
-export function incrementTurnCount(
-  db: Database.Database,
-  sessionId: string,
-): void {
+export function incrementTurnCount(db: Database.Database, sessionId: string): void {
   db.prepare(
     `INSERT INTO session_stats (session_id, turn_count, first_turn_at, last_turn_at, updated_at)
      VALUES (@sessionId, 1, datetime('now'), datetime('now'), datetime('now'))

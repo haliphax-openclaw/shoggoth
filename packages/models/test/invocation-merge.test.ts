@@ -66,10 +66,10 @@ describe("model invocation merge", () => {
   });
 
   it("mergeSubagentSpawnModelSelection parent only copies selection", () => {
-    const merged = mergeSubagentSpawnModelSelection(
-      { maxOutputTokens: 2048 },
-      undefined,
-    ) as Record<string, unknown>;
+    const merged = mergeSubagentSpawnModelSelection({ maxOutputTokens: 2048 }, undefined) as Record<
+      string,
+      unknown
+    >;
     assert.deepEqual(merged, { maxOutputTokens: 2048 });
   });
 });
@@ -142,10 +142,7 @@ describe("mergeSubagentSpawnModelSelection with modelRef (Phase 2)", () => {
       undefined,
       "newProvider/newModel",
     ) as Record<string, unknown>;
-    assert.ok(
-      merged,
-      "expected non-undefined output when modelRef is provided",
-    );
+    assert.ok(merged, "expected non-undefined output when modelRef is provided");
     assert.equal(merged.model, "newProvider/newModel");
   });
 

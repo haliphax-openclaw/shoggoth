@@ -31,9 +31,7 @@ interface WorkflowToolExecutorDeps {
   readonly workingDirectory?: string;
   readonly creds: AgentCredentials;
   readonly orchestratorEnv: NodeJS.ProcessEnv;
-  readonly getAgentIntegrationInvoker: () =>
-    | AgentIntegrationInvoker
-    | undefined;
+  readonly getAgentIntegrationInvoker: () => AgentIntegrationInvoker | undefined;
   readonly getProcessManager: () => ProcessManager | undefined;
   readonly messageToolCtx: MessageToolCtx | undefined;
   readonly memoryConfig: ShoggothMemoryConfig;

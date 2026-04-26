@@ -1,9 +1,6 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import {
-  classifyToolRisk,
-  DEFAULT_TOOL_RISK,
-} from "../../src/hitl/risk-classify";
+import { classifyToolRisk, DEFAULT_TOOL_RISK } from "../../src/hitl/risk-classify";
 import type { HitlRiskTier } from "@shoggoth/shared";
 
 describe("classifyToolRisk", () => {

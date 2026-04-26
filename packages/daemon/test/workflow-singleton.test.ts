@@ -275,9 +275,7 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "start" } as Parameters<
-          typeof mod.executeWorkflowToolCall
-        >[0],
+        { action: "start" } as Parameters<typeof mod.executeWorkflowToolCall>[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 
@@ -289,9 +287,7 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "status" } as Parameters<
-          typeof mod.executeWorkflowToolCall
-        >[0],
+        { action: "status" } as Parameters<typeof mod.executeWorkflowToolCall>[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 
@@ -303,9 +299,7 @@ describe("workflow-singleton", () => {
       const mod = await import("../src/workflow-singleton.js");
 
       const result = await mod.executeWorkflowToolCall(
-        { action: "explode" } as unknown as Parameters<
-          typeof mod.executeWorkflowToolCall
-        >[0],
+        { action: "explode" } as unknown as Parameters<typeof mod.executeWorkflowToolCall>[0],
         { currentDepth: 0, maxDepth: 2 },
       );
 

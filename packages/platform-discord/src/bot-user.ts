@@ -6,10 +6,7 @@ export async function fetchDiscordBotUserId(options: {
   readonly fetchFn?: typeof fetch;
   readonly apiBase?: string;
 }): Promise<string> {
-  const base = (options.apiBase ?? "https://discord.com/api/v10").replace(
-    /\/$/,
-    "",
-  );
+  const base = (options.apiBase ?? "https://discord.com/api/v10").replace(/\/$/, "");
   const fetchFn = options.fetchFn ?? globalThis.fetch.bind(globalThis);
   const res = await fetchFn(`${base}/users/@me`, {
     headers: { Authorization: `Bot ${options.botToken}` },

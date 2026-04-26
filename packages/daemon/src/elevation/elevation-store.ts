@@ -40,18 +40,14 @@ export function createElevationStore(db: Database.Database) {
 
     revoke(grantId: string): boolean {
       const r = db
-        .prepare(
-          `UPDATE elevation_grants SET revoked = 1 WHERE id = ? AND revoked = 0`,
-        )
+        .prepare(`UPDATE elevation_grants SET revoked = 1 WHERE id = ? AND revoked = 0`)
         .run(grantId);
       return r.changes > 0;
     },
 
     revokeAllForSession(sessionId: string): number {
       const r = db
-        .prepare(
-          `UPDATE elevation_grants SET revoked = 1 WHERE session_id = ? AND revoked = 0`,
-        )
+        .prepare(`UPDATE elevation_grants SET revoked = 1 WHERE session_id = ? AND revoked = 0`)
         .run(sessionId);
       return r.changes;
     },

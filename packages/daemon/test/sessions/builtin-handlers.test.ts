@@ -8,9 +8,7 @@ import { register as registerConfig } from "../../src/sessions/builtin-handlers/
 import { register as registerProcman } from "../../src/sessions/builtin-handlers/procman-handlers";
 import { register as registerMessage } from "../../src/sessions/builtin-handlers/message-handler";
 
-function stubCtx(
-  overrides: Partial<BuiltinToolContext> = {},
-): BuiltinToolContext {
+function stubCtx(overrides: Partial<BuiltinToolContext> = {}): BuiltinToolContext {
   return {
     sessionId: "agent:test:discord:channel:123",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,10 +47,9 @@ describe("config.show handler", () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
     const ctx = stubCtx({
-      getAgentIntegrationInvoker:
-        () => async (_sid: string, _op: string, _payload: unknown) => ({
-          some: "config",
-        }),
+      getAgentIntegrationInvoker: () => async (_sid: string, _op: string, _payload: unknown) => ({
+        some: "config",
+      }),
     });
     const result = await reg.execute("config-show", {}, ctx);
     assert.deepStrictEqual(JSON.parse(result.resultJson), { some: "config" });
@@ -62,8 +59,7 @@ describe("config.show handler", () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
     // Dynamically import IntegrationOpError to construct a real instance
-    const { IntegrationOpError } =
-      await import("../../src/control/integration-ops");
+    const { IntegrationOpError } = await import("../../src/control/integration-ops");
     const ctx = stubCtx({
       getAgentIntegrationInvoker: () => async () => {
         throw new IntegrationOpError("FORBIDDEN", "not allowed");
@@ -85,11 +81,7 @@ describe("config.request handler", () => {
   it("returns error when integration invoker is unavailable", async () => {
     const reg = new BuiltinToolRegistry();
     registerConfig(reg);
-    const result = await reg.execute(
-      "config-request",
-      { fragment: "agents" },
-      stubCtx(),
-    );
+    const result = await reg.execute("config-request", { fragment: "agents" }, stubCtx());
     assert.deepStrictEqual(JSON.parse(result.resultJson), {
       error: "config_request_unavailable",
     });
@@ -100,17 +92,12 @@ describe("config.request handler", () => {
     registerConfig(reg);
     let capturedPayload: unknown;
     const ctx = stubCtx({
-      getAgentIntegrationInvoker:
-        () => async (_sid: string, _op: string, payload: unknown) => {
-          capturedPayload = payload;
-          return { ok: true };
-        },
+      getAgentIntegrationInvoker: () => async (_sid: string, _op: string, payload: unknown) => {
+        capturedPayload = payload;
+        return { ok: true };
+      },
     });
-    const result = await reg.execute(
-      "config-request",
-      { fragment: "agents" },
-      ctx,
-    );
+    const result = await reg.execute("config-request", { fragment: "agents" }, ctx);
     assert.deepStrictEqual(JSON.parse(result.resultJson), { ok: true });
     assert.deepStrictEqual(capturedPayload, {
       key: undefined,
@@ -174,8 +161,7 @@ describe("procman handler", () => {
               restartCount: 0,
               lastExitCode: null,
               lastSignal: null,
-              readOutput: (stream: string) =>
-                stream === "stdout" ? "hello" : "",
+              readOutput: (stream: string) => (stream === "stdout" ? "hello" : ""),
             }
           : undefined,
     };
@@ -183,11 +169,7 @@ describe("procman handler", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
-    const result = await reg.execute(
-      "procman",
-      { action: "inspect", id: "proc-1" },
-      ctx,
-    );
+    const result = await reg.execute("procman", { action: "inspect", id: "proc-1" }, ctx);
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.id, "proc-1");
     assert.strictEqual(parsed.recentStdout, "hello");
@@ -216,11 +198,7 @@ describe("procman handler", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getProcessManager: () => mockPm as any,
     });
-    const result = await reg.execute(
-      "procman",
-      { action: "inspect", id: "nope" },
-      ctx,
-    );
+    const result = await reg.execute("procman", { action: "inspect", id: "nope" }, ctx);
     assert.deepStrictEqual(JSON.parse(result.resultJson), {
       error: 'no process with id "nope"',
     });
@@ -267,11 +245,7 @@ describe("message handler", () => {
         },
       },
     });
-    const result = await reg.execute(
-      "message",
-      { action: "send", target: "#general" },
-      ctx,
-    );
+    const result = await reg.execute("message", { action: "send", target: "#general" }, ctx);
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.ok, true);
     assert.strictEqual(parsed.messageId, "msg-1");
@@ -313,9 +287,7 @@ describe("fs-handlers image read", () => {
   it("returns contentParts with image block for .png file", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const imgBytes = Buffer.from([
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      ]);
+      const imgBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
       writeFileSync(join(ws, "test.png"), imgBytes);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
@@ -412,8 +384,7 @@ describe("fs-handlers read truncation", () => {
   it("truncates file content over 50k characters", async () => {
     const ws = makeTmpWorkspace();
     try {
-      const bigContent =
-        "A".repeat(10_000) + "M".repeat(50_000) + "Z".repeat(10_000);
+      const bigContent = "A".repeat(10_000) + "M".repeat(50_000) + "Z".repeat(10_000);
       writeFileSync(join(ws, "big.txt"), bigContent);
       const reg = new BuiltinToolRegistry();
       registerFs(reg);
@@ -423,22 +394,10 @@ describe("fs-handlers read truncation", () => {
       });
       const result = await reg.execute("read", { path: "big.txt" }, ctx);
       const parsed = JSON.parse(result.resultJson);
-      assert.ok(
-        parsed.content.length < bigContent.length,
-        "content should be truncated",
-      );
-      assert.ok(
-        parsed.content.startsWith("A".repeat(10_000)),
-        "should keep first 10k",
-      );
-      assert.ok(
-        parsed.content.endsWith("Z".repeat(10_000)),
-        "should keep last 10k",
-      );
-      assert.ok(
-        parsed.content.includes("[... truncated"),
-        "should include truncation notice",
-      );
+      assert.ok(parsed.content.length < bigContent.length, "content should be truncated");
+      assert.ok(parsed.content.startsWith("A".repeat(10_000)), "should keep first 10k");
+      assert.ok(parsed.content.endsWith("Z".repeat(10_000)), "should keep last 10k");
+      assert.ok(parsed.content.includes("[... truncated"), "should include truncation notice");
     } finally {
       rmSync(ws, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }

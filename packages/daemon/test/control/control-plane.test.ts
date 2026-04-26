@@ -22,10 +22,7 @@ import { ShutdownCoordinator } from "../../src/shutdown";
 import { EventEmitter } from "node:events";
 import type { ChildProcess } from "node:child_process";
 import type { AcpxSpawnFn } from "../../src/acpx/acpx-process-supervisor";
-import {
-  createSessionStore,
-  getSessionContextSegmentId,
-} from "../../src/sessions/session-store";
+import { createSessionStore, getSessionContextSegmentId } from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";
 import { insertSessionToolAutoApprove } from "../../src/hitl/hitl-session-tool-auto-store";
 import { createPendingActionsStore } from "../../src/hitl/pending-actions-store";
@@ -49,8 +46,7 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined)
-    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 
@@ -151,9 +147,7 @@ async function withControlPlaneSession(
       requestId: number;
     }) => boolean;
   },
-  fn: (
-    send: (body: Record<string, unknown>) => Promise<string>,
-  ) => Promise<void>,
+  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-cp-"));
   const sock = join(dir, "c.sock");
@@ -504,10 +498,7 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const listRes = parseResponseLine(lineList);
         assert.equal(listRes.ok, true);
-        assert.equal(
-          (listRes.result as { processes: unknown[] }).processes.length,
-          1,
-        );
+        assert.equal((listRes.result as { processes: unknown[] }).processes.length, 1);
 
         const lineStop = await send({
           v: WIRE_VERSION,
@@ -527,12 +518,8 @@ describe("control plane (unix socket + JSONL)", () => {
         `SELECT action, resource, outcome FROM audit_log WHERE action LIKE 'acpx.%' ORDER BY id`,
       )
       .all() as { action: string; resource: string; outcome: string }[];
-    assert.ok(
-      audits.some((a) => a.action === "acpx.agent_start" && a.outcome === "ok"),
-    );
-    assert.ok(
-      audits.some((a) => a.action === "acpx.agent_stop" && a.outcome === "ok"),
-    );
+    assert.ok(audits.some((a) => a.action === "acpx.agent_start" && a.outcome === "ok"));
+    assert.ok(audits.some((a) => a.action === "acpx.agent_stop" && a.outcome === "ok"));
 
     db.close();
   });
@@ -598,10 +585,7 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const getRes = parseResponseLine(lineGet);
         assert.equal(getRes.ok, true);
-        assert.equal(
-          (getRes.result as { row: { status: string } | null }).row?.status,
-          "approved",
-        );
+        assert.equal((getRes.result as { row: { status: string } | null }).row?.status, "approved");
 
         pending.enqueue({
           id: "hp2",
@@ -630,10 +614,7 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const get2 = parseResponseLine(lineGet2);
         assert.equal(get2.ok, true);
-        assert.equal(
-          (get2.result as { row: { status: string } | null }).row?.status,
-          "denied",
-        );
+        assert.equal((get2.result as { row: { status: string } | null }).row?.status, "denied");
       },
     );
 
@@ -673,9 +654,7 @@ describe("control plane (unix socket + JSONL)", () => {
     const countSessionAuto = () =>
       (
         db
-          .prepare(
-            `SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`,
-          )
+          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
           .get(sid) as { c: number }
       ).c;
 
@@ -721,10 +700,7 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resSess = parseResponseLine(lineSess);
         assert.equal(resSess.ok, true);
-        assert.equal(
-          (resSess.result as { deleted_pending: number }).deleted_pending,
-          1,
-        );
+        assert.equal((resSess.result as { deleted_pending: number }).deleted_pending, 1);
         assert.equal(countSessionAuto(), 1);
       },
     );
@@ -875,22 +851,20 @@ describe("control plane (unix socket + JSONL)", () => {
           payload: {},
         });
         assert.equal(
-          (parseResponseLine(lineList).result as { pending: unknown[] }).pending
-            .length,
+          (parseResponseLine(lineList).result as { pending: unknown[] }).pending.length,
           0,
         );
 
         const sessRows = (
-          db
-            .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve`)
-            .get() as { c: number }
+          db.prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve`).get() as {
+            c: number;
+          }
         ).c;
         assert.equal(sessRows, 0);
 
         assert.equal(autoGate.shouldAutoApprove(sid, "builtin-read"), false);
         const afterConfig = loadLayeredConfig(cfgDir);
-        const after =
-          afterConfig.agents?.list?.["wipeme"]?.hitl?.toolAutoApprove ?? [];
+        const after = afterConfig.agents?.list?.["wipeme"]?.hitl?.toolAutoApprove ?? [];
         assert.deepStrictEqual(after, []);
       },
     );
@@ -923,9 +897,7 @@ describe("control plane (unix socket + JSONL)", () => {
     const countSessionAutoApprove = () =>
       (
         db
-          .prepare(
-            `SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`,
-          )
+          .prepare(`SELECT COUNT(*) AS c FROM hitl_session_tool_auto_approve WHERE session_id = ?`)
           .get("sess-cx") as { c: number }
       ).c;
     assert.equal(countSessionAutoApprove(), 1);
@@ -959,9 +931,7 @@ describe("control plane (unix socket + JSONL)", () => {
 
         // Transcript rows are abandoned (not deleted); old rows remain in SQLite.
         const nAll = db
-          .prepare(
-            `SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ?`,
-          )
+          .prepare(`SELECT COUNT(*) AS c FROM transcript_messages WHERE session_id = ?`)
           .get("sess-cx") as { c: number };
         assert.equal(nAll.c, 1);
 
@@ -1041,13 +1011,9 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const res = parseResponseLine(line);
         assert.equal(res.ok, true);
-        const rows = (
-          res.result as { sessions: { id: string; status: string }[] }
-        ).sessions;
+        const rows = (res.result as { sessions: { id: string; status: string }[] }).sessions;
         assert.ok(rows.length >= 2);
-        assert.ok(
-          rows.some((r) => r.id === "sess-list-a" && r.status === "active"),
-        );
+        assert.ok(rows.some((r) => r.id === "sess-list-a" && r.status === "active"));
 
         const lineF = await send({
           v: WIRE_VERSION,
@@ -1058,26 +1024,14 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resF = parseResponseLine(lineF);
         assert.equal(resF.ok, true);
-        const rowsF = (
-          resF.result as { sessions: { id: string; status: string }[] }
-        ).sessions;
+        const rowsF = (resF.result as { sessions: { id: string; status: string }[] }).sessions;
         assert.ok(rowsF.length >= 1);
         assert.ok(rowsF.every((r) => r.status === "terminated"));
         assert.ok(rowsF.some((r) => r.id === "sess-list-z"));
         assert.ok(!rowsF.some((r) => r.id === "sess-list-a"));
 
-        const alfA = formatAgentSessionUrn(
-          "alf",
-          "discord",
-          "channel",
-          randomUUID(),
-        );
-        const alfB = formatAgentSessionUrn(
-          "alf",
-          "discord",
-          "channel",
-          randomUUID(),
-        );
+        const alfA = formatAgentSessionUrn("alf", "discord", "channel", randomUUID());
+        const alfB = formatAgentSessionUrn("alf", "discord", "channel", randomUUID());
         const bobA = formatAgentSessionUrn(
           "bob",
           "discord",
@@ -1109,8 +1063,7 @@ describe("control plane (unix socket + JSONL)", () => {
         });
         const resAg = parseResponseLine(lineAg);
         assert.equal(resAg.ok, true);
-        const rowsAg = (resAg.result as { sessions: { id: string }[] })
-          .sessions;
+        const rowsAg = (resAg.result as { sessions: { id: string }[] }).sessions;
         const idsAg = new Set(rowsAg.map((r) => r.id));
         assert.ok(idsAg.has(alfA));
         assert.ok(idsAg.has(alfB));
@@ -1131,18 +1084,8 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const sidA = formatAgentSessionUrn(
-      "scoped",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
-    const sidB = formatAgentSessionUrn(
-      "scoped",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
+    const sidA = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
+    const sidB = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
     const sidOther = formatAgentSessionUrn(
       "other",
       "discord",
@@ -1256,18 +1199,8 @@ describe("control plane (unix socket + JSONL)", () => {
     migrate(db, defaultMigrationsDir());
     const sessions = createSessionStore(db);
     const tokens = createSqliteAgentTokenStore(db);
-    const sidA = formatAgentSessionUrn(
-      "scoped",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
-    const sidB = formatAgentSessionUrn(
-      "scoped",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
+    const sidA = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
+    const sidB = formatAgentSessionUrn("scoped", "discord", "channel", randomUUID());
     const sidOther = formatAgentSessionUrn(
       "other",
       "discord",
@@ -1345,10 +1278,7 @@ describe("control plane (unix socket + JSONL)", () => {
           });
           const res = parseResponseLine(line);
           assert.equal(res.ok, true);
-          assert.equal(
-            (res.result as { reply: string }).reply,
-            "AGENT_SEND_OK",
-          );
+          assert.equal((res.result as { reply: string }).reply, "AGENT_SEND_OK");
         },
       );
 
@@ -1667,12 +1597,7 @@ describe("control plane (unix socket + JSONL)", () => {
       "channel",
       SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
     );
-    const childId = formatAgentSessionUrn(
-      "st",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
+    const childId = formatAgentSessionUrn("st", "discord", "channel", randomUUID());
     sessions.create({ id: parentId, workspacePath: "/wp", status: "active" });
     sessions.create({ id: childId, workspacePath: "/wc", status: "active" });
     sessions.update(childId, {
@@ -1739,12 +1664,7 @@ describe("control plane (unix socket + JSONL)", () => {
       "channel",
       SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
     );
-    const childId = formatAgentSessionUrn(
-      "otherp",
-      "discord",
-      "channel",
-      randomUUID(),
-    );
+    const childId = formatAgentSessionUrn("otherp", "discord", "channel", randomUUID());
     sessions.create({ id: callerId, workspacePath: "/w1", status: "active" });
     sessions.create({
       id: otherParent,
@@ -1797,9 +1717,7 @@ describe("control plane (unix socket + JSONL)", () => {
   it("mcp_http_cancel_request forwards to injected cancel hook", async () => {
     if (process.platform !== "linux") return;
 
-    let seen:
-      | { sessionId: string; sourceId: string; requestId: number }
-      | undefined;
+    let seen: { sessionId: string; sourceId: string; requestId: number } | undefined;
     await withControlPlaneSession(
       {
         cancelMcpHttpRequest: (input) => {

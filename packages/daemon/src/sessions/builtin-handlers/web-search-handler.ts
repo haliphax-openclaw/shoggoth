@@ -2,10 +2,7 @@
 // web-search handler — SearXNG-backed web search
 // ---------------------------------------------------------------------------
 
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("web-search", webSearchHandler);
@@ -29,10 +26,7 @@ async function webSearchHandler(
     };
   }
 
-  const count = Math.min(
-    Math.max((args.count as number) ?? config.defaultCount ?? 5, 1),
-    20,
-  );
+  const count = Math.min(Math.max((args.count as number) ?? config.defaultCount ?? 5, 1), 20);
   const categories = (args.categories as string) ?? "general";
   const language = (args.language as string) ?? config.defaultLanguage ?? "en";
   const timeRange = (args.timeRange as string) ?? config.defaultTimeRange;

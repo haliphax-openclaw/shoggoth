@@ -1,13 +1,7 @@
 import { isValidAgentSessionUrn, parseAgentSessionUrn } from "@shoggoth/shared";
 import type { InternalMessage } from "@shoggoth/messaging";
-import {
-  createAgentToAgentBus,
-  type AgentToAgentBus,
-} from "@shoggoth/messaging";
-import {
-  discordCapabilityDescriptor,
-  type MessagingAdapterCapabilities,
-} from "./capabilities";
+import { createAgentToAgentBus, type AgentToAgentBus } from "@shoggoth/messaging";
+import { discordCapabilityDescriptor, type MessagingAdapterCapabilities } from "./capabilities";
 import { createOutboundSender, type OutboundSender } from "./outbound";
 import { createDiscordStreamingOutbound } from "./streaming";
 import {
@@ -18,10 +12,7 @@ import {
 } from "./adapter";
 export type { DiscordReactionAddEvent, DiscordSessionRoute } from "./adapter";
 import type { DiscordInteractionEvent } from "./interaction";
-import {
-  connectDiscordGateway,
-  type DiscordGatewaySession,
-} from "./gateway-client";
+import { connectDiscordGateway, type DiscordGatewaySession } from "./gateway-client";
 import { DISCORD_GATEWAY_INTENTS_DEFAULT } from "./gateway-payload";
 import { createDiscordRestTransport } from "./rest-transport";
 import type { DiscordRestTransport } from "./transport";
@@ -79,8 +70,7 @@ export function parseDiscordRoutesWithMeta(raw: string): {
     const row = j[i];
     if (row === null || typeof row !== "object") continue;
     const o = row as Record<string, unknown>;
-    if (typeof o.channelId !== "string" || typeof o.sessionId !== "string")
-      continue;
+    if (typeof o.channelId !== "string" || typeof o.sessionId !== "string") continue;
     if (!isValidAgentSessionUrn(o.sessionId)) continue;
     const parsed = parseAgentSessionUrn(o.sessionId);
     if (!parsed) continue;
@@ -91,10 +81,7 @@ export function parseDiscordRoutesWithMeta(raw: string): {
       throw new DiscordRoutesConfigurationError(urnCheck.fatal);
     }
     if (urnCheck === "drop") continue;
-    const guildId =
-      o.guildId === undefined || o.guildId === null
-        ? undefined
-        : String(o.guildId);
+    const guildId = o.guildId === undefined || o.guildId === null ? undefined : String(o.guildId);
     routes.push({ channelId: o.channelId, sessionId: o.sessionId, guildId });
   }
   return { routes, inputRowCount: j.length };
@@ -170,9 +157,7 @@ export interface DiscordMessagingRuntime {
    * Channel or thread snowflake used for REST outbound for this session (routes + thread bindings).
    * Optional for test stubs; production bridge always implements this.
    */
-  readonly resolveOutboundChannelIdForSession?: (
-    sessionId: string,
-  ) => string | undefined;
+  readonly resolveOutboundChannelIdForSession?: (sessionId: string) => string | undefined;
   /** Resolve the guild snowflake for a session (routes + thread bindings). */
   readonly resolveGuildIdForSession?: (sessionId: string) => string | undefined;
 }
@@ -190,9 +175,7 @@ export async function startDiscordMessagingIfConfigured(
 
   const routes = opts.routes;
   if (!routes || routes.length === 0) {
-    opts.logger.debug(
-      "discord messaging: token present but no routes configured; bridge disabled",
-    );
+    opts.logger.debug("discord messaging: token present but no routes configured; bridge disabled");
     return undefined;
   }
 
@@ -246,8 +229,7 @@ export async function startDiscordMessagingIfConfigured(
     // Thread channels inherit the guild from the route whose channel spawned the thread.
     // Fall back to any route with a guildId (single-guild setups).
     return (
-      routes.find((r) => r.channelId === ch)?.guildId ??
-      routes.find((r) => r.guildId)?.guildId
+      routes.find((r) => r.channelId === ch)?.guildId ?? routes.find((r) => r.guildId)?.guildId
     );
   };
 
@@ -285,12 +267,7 @@ export async function startDiscordMessagingIfConfigured(
         return;
       }
       const internal = adapter.inboundToInternal(ev);
-      const enriched = applyDiscordTransportEnvelope(
-        internal,
-        ev,
-        bid,
-        ownerUserId,
-      );
+      const enriched = applyDiscordTransportEnvelope(internal, ev, bid, ownerUserId);
       bus.deliver(enriched.sessionId, enriched);
       opts.logger.info("discord.inbound", {
         sessionId: enriched.sessionId,

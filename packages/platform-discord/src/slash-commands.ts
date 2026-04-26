@@ -93,8 +93,7 @@ const GLOBAL_SLASH_COMMANDS = [
   },
   {
     name: "status",
-    description:
-      "Show current session status (provider, model, tokens, turns, compactions)",
+    description: "Show current session status (provider, model, tokens, turns, compactions)",
     options: [
       {
         name: "session_id",
@@ -209,10 +208,7 @@ export interface DiscordInteractionHandlerDeps {
     payload: Record<string, unknown>,
   ) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
   /** Resolve the session URN for a given channel + guild. Returns undefined if no route exists. */
-  readonly resolveSessionForChannel?: (
-    channelId: string,
-    guildId?: string,
-  ) => string | undefined;
+  readonly resolveSessionForChannel?: (channelId: string, guildId?: string) => string | undefined;
 }
 
 /**
@@ -247,14 +243,10 @@ async function handleInteraction(
 
   const controlOp = translateCommandToControlOp(parsed.command);
   if (!controlOp) {
-    await deps.transport.interactionCallback(
-      parsed.interactionId,
-      parsed.interactionToken,
-      {
-        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-        data: { content: `Unknown command: \`${parsed.command.name}\`` },
-      },
-    );
+    await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+      type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+      data: { content: `Unknown command: \`${parsed.command.name}\`` },
+    });
     return;
   }
 
@@ -265,41 +257,27 @@ async function handleInteraction(
   });
 
   if (controlOp.op === "session_abort") {
-    let sessionId =
-      (controlOp.payload.session_id as string | undefined) ?? undefined;
+    let sessionId = (controlOp.payload.session_id as string | undefined) ?? undefined;
     if (!sessionId && deps.resolveSessionForChannel) {
-      const resolved = deps.resolveSessionForChannel(
-        parsed.channelId,
-        parsed.guildId,
-      );
+      const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
       if (resolved) sessionId = resolved;
     }
     let aborted: boolean;
     try {
       aborted = await deps.abortSession(sessionId);
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ Abort failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Abort failed: ${String(err)}` },
+      });
       return;
     }
 
-    const content = aborted
-      ? "✅ Session abort initiated."
-      : "⚠️ No active session turn to abort.";
-    await deps.transport.interactionCallback(
-      parsed.interactionId,
-      parsed.interactionToken,
-      {
-        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-        data: { content },
-      },
-    );
+    const content = aborted ? "✅ Session abort initiated." : "⚠️ No active session turn to abort.";
+    await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+      type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+      data: { content },
+    });
     return;
   }
 
@@ -308,24 +286,16 @@ async function handleInteraction(
       // Resolve session_id from channel if not explicitly provided
       const payload = { ...controlOp.payload };
       if (!payload.session_id && deps.resolveSessionForChannel) {
-        const resolved = deps.resolveSessionForChannel(
-          parsed.channelId,
-          parsed.guildId,
-        );
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
         if (resolved) payload.session_id = resolved;
       }
       if (!payload.session_id) {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-            data: {
-              content:
-                "⚠️ No session bound to this channel. Provide a session_id.",
-            },
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: {
+            content: "⚠️ No session bound to this channel. Provide a session_id.",
           },
-        );
+        });
         return;
       }
       const res = await deps.invokeControlOp(controlOp.op, payload);
@@ -375,23 +345,15 @@ async function handleInteraction(
       } else {
         content = `⚠️ Failed to get status: ${res.error ?? "unknown error"}`;
       }
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ Status failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Status failed: ${String(err)}` },
+      });
     }
     return;
   }
@@ -400,24 +362,16 @@ async function handleInteraction(
     try {
       const payload = { ...controlOp.payload };
       if (!payload.session_id && deps.resolveSessionForChannel) {
-        const resolved = deps.resolveSessionForChannel(
-          parsed.channelId,
-          parsed.guildId,
-        );
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
         if (resolved) payload.session_id = resolved;
       }
       if (!payload.session_id) {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-            data: {
-              content:
-                "⚠️ No session bound to this channel. Provide a session_id or agent_id.",
-            },
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: {
+            content: "⚠️ No session bound to this channel. Provide a session_id or agent_id.",
           },
-        );
+        });
         return;
       }
       const res = await deps.invokeControlOp(controlOp.op, payload);
@@ -426,14 +380,8 @@ async function handleInteraction(
         const r = res.result as Record<string, unknown>;
         const sessionId = r.session_id as string;
         const modelSelection = r.model_selection;
-        const effectiveModels = r.effective_models as Record<
-          string,
-          unknown
-        > | null;
-        const lines: string[] = [
-          `🎯 **Model Configuration**`,
-          `Session: \`${sessionId}\``,
-        ];
+        const effectiveModels = r.effective_models as Record<string, unknown> | null;
+        const lines: string[] = [`🎯 **Model Configuration**`, `Session: \`${sessionId}\``];
         if (modelSelection !== null && modelSelection !== undefined) {
           lines.push(
             `Selection: \`${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}\``,
@@ -455,23 +403,15 @@ async function handleInteraction(
       } else {
         content = `⚠️ Failed to get model: ${res.error ?? "unknown error"}`;
       }
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ Model command failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Model command failed: ${String(err)}` },
+      });
     }
     return;
   }
@@ -486,36 +426,24 @@ async function handleInteraction(
       // Resolve session_id from channel if not explicitly provided
       const payload = { ...controlOp.payload };
       if (!payload.session_id && deps.resolveSessionForChannel) {
-        const resolved = deps.resolveSessionForChannel(
-          parsed.channelId,
-          parsed.guildId,
-        );
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
         if (resolved) payload.session_id = resolved;
       }
       if (!payload.session_id) {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-            data: {
-              content:
-                "⚠️ No session bound to this channel. Provide a session_id.",
-            },
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: {
+            content: "⚠️ No session bound to this channel. Provide a session_id.",
           },
-        );
+        });
         return;
       }
 
       // Compact can take a long time (model summarization call) — defer the response.
       if (isCompact) {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_DEFERRED,
-          },
-        );
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_DEFERRED,
+        });
         try {
           const res = await deps.invokeControlOp(controlOp.op, payload);
           const content = res.ok
@@ -542,23 +470,15 @@ async function handleInteraction(
       const content = res.ok
         ? `✅ \`${controlOp.op}\` completed.`
         : `⚠️ \`${controlOp.op}\` failed: ${res.error ?? "unknown error"}`;
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ \`${controlOp.op}\` failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ \`${controlOp.op}\` failed: ${String(err)}` },
+      });
     }
     return;
   }
@@ -567,24 +487,16 @@ async function handleInteraction(
     try {
       const payload = { ...controlOp.payload };
       if (!payload.session_id && deps.resolveSessionForChannel) {
-        const resolved = deps.resolveSessionForChannel(
-          parsed.channelId,
-          parsed.guildId,
-        );
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
         if (resolved) payload.session_id = resolved;
       }
       if (!payload.session_id) {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-            data: {
-              content:
-                "⚠️ No session bound to this channel. Provide a session_id.",
-            },
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: {
+            content: "⚠️ No session bound to this channel. Provide a session_id.",
           },
-        );
+        });
         return;
       }
       const res = await deps.invokeControlOp(controlOp.op, payload);
@@ -603,61 +515,40 @@ async function handleInteraction(
           if (entries.length === 0) {
             content = "Queue is empty.";
           } else {
-            const lines = entries.map(
-              (e) => `${e.index}. [${e.priority}] ${e.label}`,
-            );
+            const lines = entries.map((e) => `${e.index}. [${e.priority}] ${e.label}`);
             content = `📋 **Queue** (${entries.length} entries)\n${lines.join("\n")}`;
           }
         } else {
           content = `✅ Removed ${r.removed ?? 0} entries.`;
         }
       }
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ Queue failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Queue failed: ${String(err)}` },
+      });
     }
     return;
   }
 
-  if (
-    controlOp.op === "elevation_grant" ||
-    controlOp.op === "elevation_revoke"
-  ) {
+  if (controlOp.op === "elevation_grant" || controlOp.op === "elevation_revoke") {
     try {
       const payload = { ...controlOp.payload };
       if (!payload.session_id && deps.resolveSessionForChannel) {
-        const resolved = deps.resolveSessionForChannel(
-          parsed.channelId,
-          parsed.guildId,
-        );
+        const resolved = deps.resolveSessionForChannel(parsed.channelId, parsed.guildId);
         if (resolved) payload.session_id = resolved;
       }
       if (!payload.session_id && controlOp.op === "elevation_grant") {
-        await deps.transport.interactionCallback(
-          parsed.interactionId,
-          parsed.interactionToken,
-          {
-            type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-            data: {
-              content:
-                "⚠️ No session bound to this channel. Provide a session_id.",
-            },
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+          data: {
+            content: "⚠️ No session bound to this channel. Provide a session_id.",
           },
-        );
+        });
         return;
       }
       const res = await deps.invokeControlOp(controlOp.op, payload);
@@ -673,33 +564,21 @@ async function handleInteraction(
       } else {
         content = `⚠️ \`${controlOp.op}\` failed: ${res.error ?? "unknown error"}`;
       }
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content },
+      });
     } catch (err) {
-      await deps.transport.interactionCallback(
-        parsed.interactionId,
-        parsed.interactionToken,
-        {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content: `⚠️ Elevation failed: ${String(err)}` },
-        },
-      );
+      await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+        type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+        data: { content: `⚠️ Elevation failed: ${String(err)}` },
+      });
     }
     return;
   }
 
-  await deps.transport.interactionCallback(
-    parsed.interactionId,
-    parsed.interactionToken,
-    {
-      type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-      data: { content: `Unhandled operation: \`${controlOp.op}\`` },
-    },
-  );
+  await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+    type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
+    data: { content: `Unhandled operation: \`${controlOp.op}\`` },
+  });
 }

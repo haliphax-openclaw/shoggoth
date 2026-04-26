@@ -27,26 +27,19 @@ export const SHOGGOTH_SESSION_URN_TAIL_SEGMENT_RE = /^[A-Za-z0-9._-]{1,128}$/;
 /**
  * Reserved UUID for the default primary session when bootstrap has no platform-specific session key.
  */
-export const SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID =
-  "00000000-0000-4000-8000-000000000001";
+export const SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID = "00000000-0000-4000-8000-000000000001";
 
 export function assertValidAgentId(agentId: string): void {
   const t = agentId.trim();
   if (!t) throw new Error("agentId must be non-empty");
-  if (t === "." || t === "..")
-    throw new Error(`invalid agentId: ${JSON.stringify(agentId)}`);
+  if (t === "." || t === "..") throw new Error(`invalid agentId: ${JSON.stringify(agentId)}`);
   if (!/^[a-zA-Z0-9._-]+$/.test(t)) {
-    throw new Error(
-      `agentId must match /^[a-zA-Z0-9._-]+$/: ${JSON.stringify(agentId)}`,
-    );
+    throw new Error(`agentId must match /^[a-zA-Z0-9._-]+$/: ${JSON.stringify(agentId)}`);
   }
 }
 
 /** Workspace directory for an agent: `{workspacesRoot}/{agentId}`. */
-export function resolveAgentWorkspacePath(
-  workspacesRoot: string,
-  agentId: string,
-): string {
+export function resolveAgentWorkspacePath(workspacesRoot: string, agentId: string): string {
   assertValidAgentId(agentId);
   const root = workspacesRoot.trim();
   if (!root) throw new Error("workspacesRoot must be non-empty");
@@ -84,8 +77,7 @@ export function parseAgentSessionUrn(id: string): ParsedAgentSessionUrn | null {
   // Minimum 4 segments: agentId, platform, resourceType, leaf
   if (segments.length < 4) return null;
   const [agentId, platform, resourceType, ...tailSegments] = segments;
-  if (!agentId || !platform || !resourceType || tailSegments.length < 1)
-    return null;
+  if (!agentId || !platform || !resourceType || tailSegments.length < 1) return null;
   try {
     assertValidAgentId(agentId);
   } catch {
@@ -142,9 +134,7 @@ export function formatAgentSessionUrn(
   }
   const leaf = sessionLeaf.trim();
   if (!isValidSessionUrnTailSegment(leaf)) {
-    throw new Error(
-      `sessionLeaf must be a valid URN tail segment: ${JSON.stringify(sessionLeaf)}`,
-    );
+    throw new Error(`sessionLeaf must be a valid URN tail segment: ${JSON.stringify(sessionLeaf)}`);
   }
   return `agent:${agentId.trim()}:${plat}:${rt}:${normalizeSessionUrnTailSegment(leaf)}`;
 }
@@ -159,14 +149,10 @@ export function mintSubagentSessionUrnFromParent(
   subUuid?: string,
 ): string {
   const p = parseAgentSessionUrn(parentSessionId);
-  if (!p)
-    throw new Error(
-      `invalid parent session URN: ${JSON.stringify(parentSessionId)}`,
-    );
+  if (!p) throw new Error(`invalid parent session URN: ${JSON.stringify(parentSessionId)}`);
   const parentLeaf = p.uuidChain[p.uuidChain.length - 1]!;
   const subRaw = (subUuid ?? randomUUID()).trim();
-  if (!SHOGGOTH_SESSION_UUID_RE.test(subRaw))
-    throw new Error("invalid subUuid");
+  if (!SHOGGOTH_SESSION_UUID_RE.test(subRaw)) throw new Error("invalid subUuid");
   const sub = subRaw.toLowerCase();
   return `agent:${p.agentId}:${p.platform}:${p.resourceType}:${parentLeaf}:${sub}`;
 }

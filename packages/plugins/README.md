@@ -5,10 +5,7 @@ Plugin system for Shoggoth, built on [`hooks-plugin`](https://www.npmjs.com/pack
 ## Quick Start
 
 ```ts
-import {
-  ShoggothPluginSystem,
-  defineMessagingPlatformPlugin,
-} from "@shoggoth/plugins";
+import { ShoggothPluginSystem, defineMessagingPlatformPlugin } from "@shoggoth/plugins";
 
 const system = new ShoggothPluginSystem();
 
@@ -47,10 +44,7 @@ system.lock();
 
 // Centralized error handling
 system.listenError((event) => {
-  console.error(
-    `Hook ${event.name} failed in plugin ${event.tag}:`,
-    event.error,
-  );
+  console.error(`Hook ${event.name} failed in plugin ${event.tag}:`, event.error);
 });
 ```
 
@@ -206,14 +200,10 @@ export default function createLoggerPlugin(): Plugin<ShoggothHooks> {
     name: "logger",
     hooks: {
       "session.turn.before": async (ctx) => {
-        console.log(
-          `[turn] session=${ctx.sessionId} content=${ctx.userContent}`,
-        );
+        console.log(`[turn] session=${ctx.sessionId} content=${ctx.userContent}`);
       },
       "session.turn.after": async (ctx) => {
-        console.log(
-          `[turn] session=${ctx.sessionId} tokens=${ctx.tokenUsage?.completion}`,
-        );
+        console.log(`[turn] session=${ctx.sessionId} tokens=${ctx.tokenUsage?.completion}`);
       },
     },
   };
@@ -224,10 +214,7 @@ export default function createLoggerPlugin(): Plugin<ShoggothHooks> {
 
 ```json
 {
-  "plugins": [
-    { "path": "./plugins/my-plugin" },
-    { "package": "shoggoth-plugin-logger" }
-  ]
+  "plugins": [{ "path": "./plugins/my-plugin" }, { "package": "shoggoth-plugin-logger" }]
 }
 ```
 

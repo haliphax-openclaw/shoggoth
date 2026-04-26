@@ -45,11 +45,8 @@ export function createToolLoopPolicyAndAudit(options: ToolLoopBridgeOptions): {
       const phase = e.phase;
       if (phase === "policy") {
         const tool = String(e.tool ?? "");
-        const decision = e.decision as
-          | { allow?: boolean; reason?: string }
-          | undefined;
-        const argsJson =
-          typeof e.argsJson === "string" ? e.argsJson : undefined;
+        const decision = e.decision as { allow?: boolean; reason?: string } | undefined;
+        const argsJson = typeof e.argsJson === "string" ? e.argsJson : undefined;
         const allow = Boolean(decision?.allow);
         appendAuditRow(db, {
           source,
@@ -61,10 +58,7 @@ export function createToolLoopPolicyAndAudit(options: ToolLoopBridgeOptions): {
           argsRedactedJson:
             argsJson !== undefined
               ? redactToolArgsJson(argsJson, paths)
-              : redactJsonValue(
-                  { toolCallId: e.toolCallId, reason: decision?.reason },
-                  paths,
-                ),
+              : redactJsonValue({ toolCallId: e.toolCallId, reason: decision?.reason }, paths),
         });
         return;
       }
@@ -107,8 +101,7 @@ export function createToolLoopPolicyAndAudit(options: ToolLoopBridgeOptions): {
         return;
       }
       if (phase === "execute_start") {
-        const argsJson =
-          typeof e.argsJson === "string" ? e.argsJson : undefined;
+        const argsJson = typeof e.argsJson === "string" ? e.argsJson : undefined;
         appendAuditRow(db, {
           source,
           ...pf,
@@ -117,9 +110,7 @@ export function createToolLoopPolicyAndAudit(options: ToolLoopBridgeOptions): {
           resource: String(e.tool ?? ""),
           outcome: "started",
           argsRedactedJson:
-            argsJson !== undefined
-              ? redactToolArgsJson(argsJson, paths)
-              : undefined,
+            argsJson !== undefined ? redactToolArgsJson(argsJson, paths) : undefined,
         });
         return;
       }

@@ -33,21 +33,16 @@ export function registerPlatform(reg: PlatformRegistration): void {
   const id = normalizeId(reg.platformId);
   if (!id) throw new Error("PlatformRegistration.platformId must be non-empty");
   if (!reg.resourceTypes || reg.resourceTypes.length === 0) {
-    throw new Error(
-      "PlatformRegistration.resourceTypes must contain at least one entry",
-    );
+    throw new Error("PlatformRegistration.resourceTypes must contain at least one entry");
   }
-  if (!reg.urnPolicy)
-    throw new Error("PlatformRegistration.urnPolicy is required");
+  if (!reg.urnPolicy) throw new Error("PlatformRegistration.urnPolicy is required");
   if (registry.has(id)) {
     throw new Error(`Platform "${id}" is already registered`);
   }
   registry.set(id, reg);
 }
 
-export function getPlatformRegistration(
-  platformId: string,
-): PlatformRegistration | undefined {
+export function getPlatformRegistration(platformId: string): PlatformRegistration | undefined {
   return registry.get(normalizeId(platformId));
 }
 

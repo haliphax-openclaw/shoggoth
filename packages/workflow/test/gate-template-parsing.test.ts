@@ -60,10 +60,7 @@ describe("gate template parsing", () => {
 
   it("resolves template reference for output field", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(
-      `{{task:2:output}} == "result_value"`,
-      ctx,
-    );
+    const result = evaluateGateCondition(`{{task:2:output}} == "result_value"`, ctx);
     expect(result).toBe(true);
   });
 
@@ -75,10 +72,7 @@ describe("gate template parsing", () => {
 
   it("supports dot notation alongside templates", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(
-      "task.1.success && {{task:2:success}}",
-      ctx,
-    );
+    const result = evaluateGateCondition("task.1.success && {{task:2:success}}", ctx);
     expect(result).toBe(true);
   });
 
@@ -99,10 +93,7 @@ describe("gate template parsing", () => {
 
   it("handles contains with template output", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(
-      `{{task:2:output}} contains "result"`,
-      ctx,
-    );
+    const result = evaluateGateCondition(`{{task:2:output}} contains "result"`, ctx);
     expect(result).toBe(true);
   });
 
@@ -117,10 +108,7 @@ describe("gate template parsing", () => {
 
   it("handles template with logical OR", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(
-      "{{task:3:success}} || {{task:1:success}}",
-      ctx,
-    );
+    const result = evaluateGateCondition("{{task:3:success}} || {{task:1:success}}", ctx);
     expect(result).toBe(true);
   });
 
@@ -185,10 +173,7 @@ describe("gate template parsing", () => {
 
   it("handles whitespace around templates", () => {
     const ctx = buildGateContext(tasks);
-    const result = evaluateGateCondition(
-      "  {{task:1:success}}  &&  {{task:2:success}}  ",
-      ctx,
-    );
+    const result = evaluateGateCondition("  {{task:1:success}}  &&  {{task:2:success}}  ", ctx);
     expect(result).toBe(true);
   });
 });

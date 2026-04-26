@@ -45,8 +45,7 @@ export const MESSAGING_FEATURE = {
   SILENT_REPLIES_CHANNEL_AWARE: "silent_replies_channel_aware",
 } as const;
 
-export type MessagingFeatureId =
-  (typeof MESSAGING_FEATURE)[keyof typeof MESSAGING_FEATURE];
+export type MessagingFeatureId = (typeof MESSAGING_FEATURE)[keyof typeof MESSAGING_FEATURE];
 
 export interface MessagingAdapterCapabilities {
   readonly platform: string;

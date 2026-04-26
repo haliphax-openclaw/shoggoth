@@ -11,10 +11,7 @@ export function createAgentToAgentBus(): AgentToAgentBus {
   const byTarget = new Map<string, Set<AgentToAgentHandler>>();
 
   return {
-    subscribe(
-      targetSessionId: string,
-      handler: AgentToAgentHandler,
-    ): () => void {
+    subscribe(targetSessionId: string, handler: AgentToAgentHandler): () => void {
       let set = byTarget.get(targetSessionId);
       if (!set) {
         set = new Set();
@@ -30,7 +27,7 @@ export function createAgentToAgentBus(): AgentToAgentBus {
     deliver(targetSessionId: string, message: InternalMessage): void {
       const set = byTarget.get(targetSessionId);
       if (!set) return;
-      for (const handler of [...set]) {
+      for (const handler of set) {
         handler(message);
       }
     },

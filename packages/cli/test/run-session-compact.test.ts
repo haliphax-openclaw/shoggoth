@@ -68,9 +68,7 @@ describe("runSessionCompact", () => {
 
     const verify = new Database(dbPath);
     const n = verify
-      .prepare(
-        `SELECT COUNT(*) as c FROM transcript_messages WHERE session_id = ?`,
-      )
+      .prepare(`SELECT COUNT(*) as c FROM transcript_messages WHERE session_id = ?`)
       .get("sess-1") as { c: number };
     assert.equal(n.c, 3);
     verify.close();

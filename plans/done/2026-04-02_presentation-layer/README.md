@@ -87,22 +87,11 @@ Create `packages/daemon/src/presentation/` with:
 ```ts
 interface PlatformAdapter {
   /** Send a text body to the platform. Platform handles splitting, encoding, etc. */
-  sendBody(
-    sessionId: string,
-    body: string,
-    opts?: { replyTo?: string },
-  ): Promise<void>;
+  sendBody(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
   /** Send an error body to the platform. */
-  sendError(
-    sessionId: string,
-    body: string,
-    opts?: { replyTo?: string },
-  ): Promise<void>;
+  sendError(sessionId: string, body: string, opts?: { replyTo?: string }): Promise<void>;
   /** Start a streaming session. Returns a handle for pushing updates. */
-  startStream?(
-    sessionId: string,
-    opts?: { replyTo?: string },
-  ): Promise<StreamHandle>;
+  startStream?(sessionId: string, opts?: { replyTo?: string }): Promise<StreamHandle>;
   /** Send a HITL notice. Platform decides how to render (embed, plain text, etc.). */
   sendHitlNotice(sessionId: string, notice: HitlNoticeData): Promise<void>;
   /** Platform-specific message size limit. */

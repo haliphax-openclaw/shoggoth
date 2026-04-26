@@ -3,14 +3,7 @@
  */
 import { describe, it, beforeEach, afterEach, beforeAll } from "vitest";
 import assert from "node:assert";
-import {
-  chmodSync,
-  chownSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, chownSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { toolRead } from "../src/tools";
@@ -25,26 +18,17 @@ const SHOGGOTH_TEST_GID = 900;
 
 const CI_STRICT_AGENT = process.env.SHOGGOTH_CI_STRICT_AGENT_TESTS === "1";
 
-function requireRootForDac(
-  t: { skip: (m?: string) => void },
-  canDrop: boolean,
-): boolean {
+function requireRootForDac(t: { skip: (m?: string) => void }, canDrop: boolean): boolean {
   if (!canDrop) {
     if (CI_STRICT_AGENT) {
-      assert.fail(
-        "CI requires ability to spawn subprocess as uid/gid 901 (agent pool)",
-      );
+      assert.fail("CI requires ability to spawn subprocess as uid/gid 901 (agent pool)");
     }
-    t.skip(
-      `cannot spawn as uid ${AGENT_TEST_UID} (need root or matching test setup)`,
-    );
+    t.skip(`cannot spawn as uid ${AGENT_TEST_UID} (need root or matching test setup)`);
     return false;
   }
   if (process.getuid() !== 0) {
     if (CI_STRICT_AGENT) {
-      assert.fail(
-        "CI DAC tests must run as root (e.g. container default user)",
-      );
+      assert.fail("CI DAC tests must run as root (e.g. container default user)");
     }
     t.skip("need root to chown file to root for DAC denial");
     return false;
@@ -53,9 +37,7 @@ function requireRootForDac(
 }
 
 /** Exit 0 if read fails with EACCES/EPERM; 2 if read succeeded; 3 other error. */
-async function assertAgentCannotReadAbsolutePath(
-  absPath: string,
-): Promise<void> {
+async function assertAgentCannotReadAbsolutePath(absPath: string): Promise<void> {
   const r = await runAsUser({
     file: process.execPath,
     args: [
@@ -90,15 +72,8 @@ describe("DAC + deny sensitive paths (integration)", () => {
       canDropToAgent = false;
     }
     if (CI_STRICT_AGENT) {
-      assert.strictEqual(
-        process.getuid(),
-        0,
-        "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 requires root",
-      );
-      assert.ok(
-        canDropToAgent,
-        "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 requires uid 901 spawn",
-      );
+      assert.strictEqual(process.getuid(), 0, "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 requires root");
+      assert.ok(canDropToAgent, "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 requires uid 901 spawn");
     }
   });
 
@@ -113,10 +88,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
   });
 
   it("absolute paths outside workspace are rejected (control socket, etc.)", () => {
-    assert.throws(
-      () => resolvePathForRead(ws, "/run/shoggoth/control.sock"),
-      PathEscapeError,
-    );
+    assert.throws(() => resolvePathForRead(ws, "/run/shoggoth/control.sock"), PathEscapeError);
   });
 
   it("kernel DAC blocks agent uid reading root-only file inside workspace", async (t) => {
@@ -134,8 +106,7 @@ describe("DAC + deny sensitive paths (integration)", () => {
           gid: AGENT_TEST_GID,
         }),
       (e: unknown) =>
-        e instanceof Error &&
-        /toolRead failed|EACCES|EPERM/i.test((e as Error).message),
+        e instanceof Error && /toolRead failed|EACCES|EPERM/i.test((e as Error).message),
     );
   });
 

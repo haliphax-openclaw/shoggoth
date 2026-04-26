@@ -1,8 +1,5 @@
 import { describe, test, expect } from "vitest";
-import {
-  parseShoggothPluginBag,
-  resolvePluginMeta,
-} from "../src/shoggoth-manifest";
+import { parseShoggothPluginBag, resolvePluginMeta } from "../src/shoggoth-manifest";
 
 describe("parseShoggothPluginBag", () => {
   test("accepts valid bag with kind and entrypoint", () => {
@@ -35,9 +32,7 @@ describe("parseShoggothPluginBag", () => {
   });
 
   test("throws when entrypoint is empty string", () => {
-    expect(() =>
-      parseShoggothPluginBag({ kind: "general", entrypoint: "" }),
-    ).toThrow();
+    expect(() => parseShoggothPluginBag({ kind: "general", entrypoint: "" })).toThrow();
   });
 
   test("rejects unknown keys (strict)", () => {

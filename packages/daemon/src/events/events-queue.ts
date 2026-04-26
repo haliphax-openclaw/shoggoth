@@ -172,20 +172,14 @@ export function claimPendingEvents(
 }
 
 /** True if this event id was already finished (at-least-once consumer idempotency). */
-export function hasEventProcessingRecord(
-  db: Database.Database,
-  eventId: number,
-): boolean {
+export function hasEventProcessingRecord(db: Database.Database, eventId: number): boolean {
   const r = db
     .prepare("SELECT 1 AS x FROM event_processing_done WHERE event_id = @id")
     .get({ id: eventId }) as { x: number } | undefined;
   return r !== undefined;
 }
 
-export function markEventCompleted(
-  db: Database.Database,
-  eventId: number,
-): void {
+export function markEventCompleted(db: Database.Database, eventId: number): void {
   db.prepare(
     `
     INSERT OR IGNORE INTO event_processing_done (event_id, finished_at)
@@ -211,9 +205,7 @@ export function markEventFailed(
     SELECT attempts, max_attempts FROM events WHERE id = @id
   `,
     )
-    .get({ id: eventId }) as
-    | { attempts: number; max_attempts: number }
-    | undefined;
+    .get({ id: eventId }) as { attempts: number; max_attempts: number } | undefined;
   if (!row) return;
 
   const nextAttempts = row.attempts + 1;

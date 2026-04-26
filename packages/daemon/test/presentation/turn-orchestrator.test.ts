@@ -349,7 +349,7 @@ describe("PresentationTurnOrchestrator — mode-aware attachment handling", () =
       const { downloadInboundAttachments } =
         await import("../../src/presentation/attachment-download.js");
       const codec = makeCodec();
-      const imgBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+      const _imgBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
       // We need to mock ingestAttachmentImage indirectly — the real function
       // will be called. For inline mode the key assertion is that download is NOT called.
       const attachments = [makeAttachment()];
@@ -371,7 +371,7 @@ describe("PresentationTurnOrchestrator — mode-aware attachment handling", () =
       const codec = makeCodec();
       const attachments = [makeAttachment()];
 
-      const turn = await orchestrateAndCaptureBuildTurn({
+      const _turn = await orchestrateAndCaptureBuildTurn({
         mode: "inline",
         attachments,
         codec,

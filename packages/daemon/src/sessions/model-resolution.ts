@@ -49,19 +49,14 @@ const RETRY_DEFAULTS: RetryConfig = {
  * - string: "providerId/model" (FailoverChainEntry)
  * - { providerId: "x", model: "y" } (ShoggothModelFailoverHop from agent overrides)
  */
-function entryToRef(
-  entry: FailoverChainEntry | { providerId: string; model: string },
-): string {
+function entryToRef(entry: FailoverChainEntry | { providerId: string; model: string }): string {
   if (typeof entry === "string") return entry;
-  if ("providerId" in entry && "model" in entry)
-    return `${entry.providerId}/${entry.model}`;
+  if ("providerId" in entry && "model" in entry) return `${entry.providerId}/${entry.model}`;
   return "";
 }
 
 /** Parse 'providerId/model' into its parts. */
-function parseRef(
-  ref: string,
-): { providerId: string; modelName: string } | null {
+function parseRef(ref: string): { providerId: string; modelName: string } | null {
   const slash = ref.indexOf("/");
   if (slash < 1 || slash === ref.length - 1) return null;
   return { providerId: ref.slice(0, slash), modelName: ref.slice(slash + 1) };
@@ -246,14 +241,8 @@ export function resolveBootstrapModelRef(
  * Extract the primary model ref from a session's modelSelection blob.
  * Returns the "providerId/model" string, or undefined if missing/invalid.
  */
-export function getSessionPrimaryModelRef(
-  modelSelection: unknown,
-): string | undefined {
-  if (
-    modelSelection == null ||
-    typeof modelSelection !== "object" ||
-    Array.isArray(modelSelection)
-  )
+export function getSessionPrimaryModelRef(modelSelection: unknown): string | undefined {
+  if (modelSelection == null || typeof modelSelection !== "object" || Array.isArray(modelSelection))
     return undefined;
   const model = (modelSelection as Record<string, unknown>).model;
   if (typeof model !== "string") return undefined;
@@ -266,14 +255,9 @@ export function resolveRetryConfig(
   providerRetry: Partial<RetryConfig> | undefined,
 ): RetryConfig {
   return {
-    maxRetries:
-      providerRetry?.maxRetries ??
-      globalRetry?.maxRetries ??
-      RETRY_DEFAULTS.maxRetries,
+    maxRetries: providerRetry?.maxRetries ?? globalRetry?.maxRetries ?? RETRY_DEFAULTS.maxRetries,
     retryDelayMs:
-      providerRetry?.retryDelayMs ??
-      globalRetry?.retryDelayMs ??
-      RETRY_DEFAULTS.retryDelayMs,
+      providerRetry?.retryDelayMs ?? globalRetry?.retryDelayMs ?? RETRY_DEFAULTS.retryDelayMs,
     retryBackoffMultiplier:
       providerRetry?.retryBackoffMultiplier ??
       globalRetry?.retryBackoffMultiplier ??

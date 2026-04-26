@@ -8,10 +8,7 @@ type SubagentRuntimeHandles = {
 
 const bySession = new Map<string, SubagentRuntimeHandles>();
 
-export function rememberSubagentHandles(
-  sessionId: string,
-  handles: SubagentRuntimeHandles,
-): void {
+export function rememberSubagentHandles(sessionId: string, handles: SubagentRuntimeHandles): void {
   bySession.set(sessionId.trim(), handles);
 }
 

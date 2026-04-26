@@ -1,20 +1,13 @@
-import {
-  DEFAULT_HITL_CONFIG,
-  loadLayeredConfig,
-  type ShoggothConfig,
-} from "@shoggoth/shared";
+import { DEFAULT_HITL_CONFIG, loadLayeredConfig, type ShoggothConfig } from "@shoggoth/shared";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { HitlConfigRef } from "../config-hot-reload";
 
 /** Sorts late in layered merge; holds per-agent hitl.toolAutoApprove after each ♾️ update. */
-export const HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME =
-  "z-hitl-agent-tool-auto-approve.json";
+export const HITL_AGENT_TOOL_AUTO_APPROVE_FILENAME = "z-hitl-agent-tool-auto-approve.json";
 
 /** Build the agents.list fragment for persisting toolAutoApprove across all agents. */
-function buildAgentsFragment(
-  agentToolMap: Record<string, string[]>,
-): Record<string, unknown> {
+function buildAgentsFragment(agentToolMap: Record<string, string[]>): Record<string, unknown> {
   const list: Record<string, unknown> = {};
   for (const [aid, tools] of Object.entries(agentToolMap)) {
     list[aid] = { hitl: { toolAutoApprove: tools } };
@@ -23,9 +16,7 @@ function buildAgentsFragment(
 }
 
 /** Read the current per-agent toolAutoApprove map from the full config. */
-export function readAgentToolAutoApproveMap(
-  config: ShoggothConfig,
-): Record<string, string[]> {
+export function readAgentToolAutoApproveMap(config: ShoggothConfig): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   const list = config.agents?.list;
   if (!list) return out;

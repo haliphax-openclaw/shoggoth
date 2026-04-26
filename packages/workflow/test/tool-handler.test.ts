@@ -19,9 +19,7 @@ function mockServer(overrides: Partial<WorkflowServer> = {}): WorkflowServer {
   } as unknown as WorkflowServer;
 }
 
-function mockControlPlane(
-  overrides: Partial<Record<string, unknown>> = {},
-): ControlPlane {
+function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): ControlPlane {
   return {
     abort: async () => {},
     pause: async () => {},
@@ -44,9 +42,7 @@ function mockControlPlane(
   } as unknown as ControlPlane;
 }
 
-function makeDeps(
-  overrides: Partial<WorkflowToolHandlerDeps> = {},
-): WorkflowToolHandlerDeps {
+function makeDeps(overrides: Partial<WorkflowToolHandlerDeps> = {}): WorkflowToolHandlerDeps {
   return {
     server: mockServer(),
     controlPlane: mockControlPlane(),
@@ -85,10 +81,7 @@ describe("handleWorkflowToolCall", () => {
       );
 
       assert.equal(result.ok, true);
-      assert.deepEqual(
-        (result.data as Record<string, unknown>).workflow_id,
-        "wf-abc",
-      );
+      assert.deepEqual((result.data as Record<string, unknown>).workflow_id, "wf-abc");
       assert.ok(captured);
     });
 
@@ -241,9 +234,7 @@ describe("handleWorkflowToolCall", () => {
   describe("list", () => {
     it("returns workflow summaries", async () => {
       const cp = mockControlPlane({
-        list: async () => [
-          { id: "wf-1", name: "test", statusCounts: {}, createdAt: 0 },
-        ],
+        list: async () => [{ id: "wf-1", name: "test", statusCounts: {}, createdAt: 0 }],
       });
       const result = await handleWorkflowToolCall(
         { action: "list" },

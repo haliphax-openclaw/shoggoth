@@ -1,9 +1,6 @@
 import type { ShoggothAgentEntry, ShoggothConfig } from "./schema.js";
 
-type SubagentSpawnAllowCfgPick = Pick<
-  ShoggothConfig,
-  "subagentSpawnAllow" | "agents"
->;
+type SubagentSpawnAllowCfgPick = Pick<ShoggothConfig, "subagentSpawnAllow" | "agents">;
 
 function perSenderSubagentSpawnAllow(
   cfg: SubagentSpawnAllowCfgPick,

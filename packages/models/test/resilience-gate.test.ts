@@ -34,9 +34,7 @@ describe("ModelResilienceGate with TypeError fetch failures", () => {
       throw new TypeError("fetch failed");
     };
 
-    await expect(
-      gate.executeWithResilience("test-provider", fn),
-    ).rejects.toThrow("fetch failed");
+    await expect(gate.executeWithResilience("test-provider", fn)).rejects.toThrow("fetch failed");
   });
 
   it("should not retry non-fetch TypeErrors", async () => {
@@ -52,9 +50,9 @@ describe("ModelResilienceGate with TypeError fetch failures", () => {
       throw new TypeError("some other error");
     };
 
-    await expect(
-      gate.executeWithResilience("test-provider", fn),
-    ).rejects.toThrow("some other error");
+    await expect(gate.executeWithResilience("test-provider", fn)).rejects.toThrow(
+      "some other error",
+    );
     expect(callCount).toBe(1); // no retries for non-fetch errors
   });
 });

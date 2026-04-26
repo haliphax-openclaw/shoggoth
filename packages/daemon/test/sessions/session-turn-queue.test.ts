@@ -500,9 +500,9 @@ describe("TieredTurnQueue", () => {
       small.enqueue("s1", "user", "u2", async () => {}).catch(() => {});
 
       // Third should be rejected
-      await expect(
-        small.enqueue("s1", "user", "u3", async () => {}),
-      ).rejects.toThrow(TurnQueueFullError);
+      await expect(small.enqueue("s1", "user", "u3", async () => {})).rejects.toThrow(
+        TurnQueueFullError,
+      );
 
       small.clear("s1");
       resolveFirst();
@@ -525,9 +525,9 @@ describe("TieredTurnQueue", () => {
       small.enqueue("s1", "system", "s2", async () => {}).catch(() => {});
 
       // System full, but user still has room
-      await expect(
-        small.enqueue("s1", "system", "s3", async () => {}),
-      ).rejects.toThrow(TurnQueueFullError);
+      await expect(small.enqueue("s1", "system", "s3", async () => {})).rejects.toThrow(
+        TurnQueueFullError,
+      );
 
       // User tier still accepts
       small.enqueue("s1", "user", "u1", async () => {}).catch(() => {});

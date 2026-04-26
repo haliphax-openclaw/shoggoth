@@ -18,9 +18,7 @@ export interface AggregateMcpCatalogResult {
 
 function assertValidSourceId(sourceId: string): void {
   if (!sourceId || sourceId.includes(".")) {
-    throw new Error(
-      `invalid MCP source id (no dots): ${JSON.stringify(sourceId)}`,
-    );
+    throw new Error(`invalid MCP source id (no dots): ${JSON.stringify(sourceId)}`);
   }
 }
 
@@ -44,9 +42,7 @@ export function aggregateMcpCatalogs(
       const ns = namespaced(src.sourceId, t.name);
       const prev = seen.get(ns);
       if (prev !== undefined) {
-        throw new Error(
-          `duplicate aggregated MCP tool name "${ns}" (also from ${prev})`,
-        );
+        throw new Error(`duplicate aggregated MCP tool name "${ns}" (also from ${prev})`);
       }
       seen.set(ns, src.sourceId);
       out.push({

@@ -59,10 +59,7 @@ const shoggothGeminiProviderSchema = z
     id: z.string().min(1),
     kind: z.literal("gemini"),
     /** API origin, e.g. "https://generativelanguage.googleapis.com". */
-    baseUrl: z
-      .string()
-      .min(1)
-      .default("https://generativelanguage.googleapis.com"),
+    baseUrl: z.string().min(1).default("https://generativelanguage.googleapis.com"),
     apiKey: z.string().min(1).optional(),
     apiKeyEnv: z.string().min(1).optional(),
     /** API version path segment. Default "v1beta". */
@@ -99,9 +96,7 @@ export interface GeminiProviderOptions {
   readonly fetchImpl?: FetchLike;
 }
 
-export function createGeminiProvider(
-  options: GeminiProviderOptions,
-): ModelProvider;
+export function createGeminiProvider(options: GeminiProviderOptions): ModelProvider;
 ```
 
 ## Message mapping (`ChatMessage[]` → Gemini `contents`)

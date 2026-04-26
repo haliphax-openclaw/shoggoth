@@ -6,22 +6,12 @@ import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import * as net from "node:net";
 import * as http from "node:http";
-import type {
-  ProcessSpec,
-  ProcessState,
-  HealthCheck,
-  ShutdownConfig,
-} from "./types.js";
+import type { ProcessSpec, ProcessState, HealthCheck, ShutdownConfig } from "./types.js";
 import { RingBuffer } from "./ring-buffer.js";
 
-function log(
-  level: string,
-  msg: string,
-  fields: Record<string, unknown> = {},
-): void {
+function log(level: string, msg: string, fields: Record<string, unknown> = {}): void {
   process.stderr.write(
-    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) +
-      "\n",
+    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) + "\n",
   );
 }
 
@@ -98,9 +88,7 @@ export class ManagedProcess extends EventEmitter {
   // -- Output access --------------------------------------------------------
 
   readOutput(stream: "stdout" | "stderr"): string {
-    return stream === "stdout"
-      ? this._stdoutBuf.readString()
-      : this._stderrBuf.readString();
+    return stream === "stdout" ? this._stdoutBuf.readString() : this._stderrBuf.readString();
   }
 
   writeStdin(data: string | Buffer): void {
@@ -237,9 +225,7 @@ export class ManagedProcess extends EventEmitter {
 
     // Pipe stdout/stderr into ring buffers
     child.stdout?.on("data", (chunk: Buffer) => {
-      this._stdoutBuf.write(
-        typeof chunk === "string" ? Buffer.from(chunk) : chunk,
-      );
+      this._stdoutBuf.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
       this.emit("stdout", chunk);
 
       // stdout-match health check
@@ -257,9 +243,7 @@ export class ManagedProcess extends EventEmitter {
     });
 
     child.stderr?.on("data", (chunk: Buffer) => {
-      this._stderrBuf.write(
-        typeof chunk === "string" ? Buffer.from(chunk) : chunk,
-      );
+      this._stderrBuf.write(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
       this.emit("stderr", chunk);
     });
 
@@ -318,8 +302,7 @@ export class ManagedProcess extends EventEmitter {
 
     // Decide whether to restart
     const policy = this.spec.restart;
-    const shouldRestart =
-      policy.mode === "always" || (policy.mode === "on-failure" && code !== 0);
+    const shouldRestart = policy.mode === "always" || (policy.mode === "on-failure" && code !== 0);
 
     const maxRetries = policy.maxRetries ?? 5;
 
@@ -355,10 +338,7 @@ export class ManagedProcess extends EventEmitter {
     const multiplier = policy.backoffMultiplier ?? 2;
     const maxDelay = policy.maxDelayMs ?? 30000;
 
-    const delay = Math.min(
-      initial * Math.pow(multiplier, this._consecutiveFailures - 1),
-      maxDelay,
-    );
+    const delay = Math.min(initial * Math.pow(multiplier, this._consecutiveFailures - 1), maxDelay);
 
     log("info", "scheduling restart", {
       processId: this.spec.id,
@@ -494,11 +474,7 @@ export class ManagedProcess extends EventEmitter {
     }
   }
 
-  private _probeTcp(
-    port: number,
-    host: string,
-    timeoutMs: number,
-  ): Promise<boolean> {
+  private _probeTcp(port: number, host: string, timeoutMs: number): Promise<boolean> {
     return new Promise((resolve) => {
       const sock = net.createConnection({ port, host, timeout: timeoutMs });
       sock.on("connect", () => {
@@ -516,11 +492,7 @@ export class ManagedProcess extends EventEmitter {
     });
   }
 
-  private _probeHttp(
-    url: string,
-    expectedStatus: number,
-    timeoutMs: number,
-  ): Promise<boolean> {
+  private _probeHttp(url: string, expectedStatus: number, timeoutMs: number): Promise<boolean> {
     return new Promise((resolve) => {
       const req = http.get(url, { timeout: timeoutMs }, (res) => {
         res.resume(); // drain
@@ -534,11 +506,7 @@ export class ManagedProcess extends EventEmitter {
     });
   }
 
-  private _probeExec(
-    command: string,
-    args: string[],
-    timeoutMs: number,
-  ): Promise<boolean> {
+  private _probeExec(command: string, args: string[], timeoutMs: number): Promise<boolean> {
     return new Promise((resolve) => {
       const child = execFile(command, args, { timeout: timeoutMs }, (err) => {
         resolve(!err);

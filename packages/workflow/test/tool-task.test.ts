@@ -30,11 +30,7 @@ function makeAgentTask(id: number, prompt = `do task ${id}`): TaskDef {
   };
 }
 
-function makeToolTask(
-  id: number,
-  tool: string,
-  args?: Record<string, unknown>,
-): TaskDef {
+function makeToolTask(id: number, tool: string, args?: Record<string, unknown>): TaskDef {
   return {
     kind: "tool",
     id,
@@ -90,11 +86,7 @@ function mockToolExecutor(
   const calls: Array<{ tool: string; args: Record<string, unknown> }> = [];
   return {
     calls,
-    async execute(call: {
-      name: string;
-      argsJson: string;
-      toolCallId: string;
-    }) {
+    async execute(call: { name: string; argsJson: string; toolCallId: string }) {
       const args = JSON.parse(call.argsJson) as Record<string, unknown>;
       calls.push({ tool: call.name, args });
       const result = await handler(call.name, args);
@@ -517,16 +509,11 @@ describe("Tool task execution", () => {
     // With concurrency 1, only one task should have started
     // Agent task 1 comes first in the array, so it gets spawned as in_progress
     const wf = orch.getWorkflowStatus()!;
-    const inProgress = wf.tasks.filter(
-      (t) => t.status === "in_progress",
-    ).length;
-    const done = wf.tasks.filter((t) => t.status === "done").length;
+    const inProgress = wf.tasks.filter((t) => t.status === "in_progress").length;
+    const _done = wf.tasks.filter((t) => t.status === "done").length;
     // At most 1 should be in_progress at a time; tool tasks complete synchronously
     // so they transition to done immediately, but concurrency check happens before each
-    assert.ok(
-      inProgress <= 1,
-      `expected at most 1 in_progress, got ${inProgress}`,
-    );
+    assert.ok(inProgress <= 1, `expected at most 1 in_progress, got ${inProgress}`);
   });
 
   it("workflow completes successfully with only tool tasks", async () => {

@@ -28,7 +28,6 @@ function isAllTerminal(wf: TaskList): boolean {
   return wf.tasks.every((t) => t.status === "done" || t.status === "failed");
 }
 
-
 function isPaused(wf: TaskList): boolean {
   return (
     wf.tasks.some((t) => t.status === "paused") ||
@@ -59,10 +58,7 @@ function workflowAgeRef(wf: TaskList): number {
 /**
  * Run retention: prune old completed and paused workflows from disk.
  */
-export function retentionRun(
-  baseDir: string,
-  opts?: RetentionOptions,
-): RetentionSummary {
+export function retentionRun(baseDir: string, opts?: RetentionOptions): RetentionSummary {
   const completedMaxAge = opts?.completedMaxAgeMs ?? COMPLETED_MAX_AGE_MS;
   const pausedMaxAge = opts?.pausedMaxAgeMs ?? PAUSED_MAX_AGE_MS;
   const now = opts?.now ?? Date.now();

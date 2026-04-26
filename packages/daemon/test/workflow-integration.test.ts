@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  initWorkflow,
-  resetWorkflowSingleton,
-} from "../src/workflow-singleton";
+import { initWorkflow, resetWorkflowSingleton } from "../src/workflow-singleton";
 import type { WorkflowSingletonOptions } from "../src/workflow-singleton";
 import type { MessagePoster } from "@shoggoth/workflow";
 

@@ -41,8 +41,7 @@ beforeAll(() => {
   process.env.SHOGGOTH_OPERATOR_TOKEN = "test-op-token";
 });
 afterAll(() => {
-  if (prevOperatorToken === undefined)
-    delete process.env.SHOGGOTH_OPERATOR_TOKEN;
+  if (prevOperatorToken === undefined) delete process.env.SHOGGOTH_OPERATOR_TOKEN;
   else process.env.SHOGGOTH_OPERATOR_TOKEN = prevOperatorToken;
 });
 
@@ -82,9 +81,7 @@ async function withControlPlaneSession(
     stateDb?: Database.Database;
     config?: ShoggothConfig;
   },
-  fn: (
-    send: (body: Record<string, unknown>) => Promise<string>,
-  ) => Promise<void>,
+  fn: (send: (body: Record<string, unknown>) => Promise<string>) => Promise<void>,
 ): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), "shoggoth-sm-"));
   const sock = join(dir, "c.sock");
@@ -175,12 +172,8 @@ async function spawnAndGetModelSelection(
   assert.ok(spawnedSessionId, "subagent session must have been spawned");
   const row = db
     .prepare("SELECT model_selection_json FROM sessions WHERE id = ?")
-    .get(spawnedSessionId) as
-    | { model_selection_json: string | null }
-    | undefined;
-  return row?.model_selection_json
-    ? JSON.parse(row.model_selection_json)
-    : undefined;
+    .get(spawnedSessionId) as { model_selection_json: string | null } | undefined;
+  return row?.model_selection_json ? JSON.parse(row.model_selection_json) : undefined;
 }
 
 describe("subagentModel config resolution", () => {
@@ -204,18 +197,10 @@ describe("subagentModel config resolution", () => {
       modelSelection: { model: "parent/original-model" },
     });
 
-    const sel = await spawnAndGetModelSelection(
-      minimalConfig(sock),
-      db,
-      parentId,
-      {},
-    );
+    const sel = await spawnAndGetModelSelection(minimalConfig(sock), db, parentId, {});
 
     assert.ok(sel && typeof sel === "object");
-    assert.equal(
-      (sel as Record<string, unknown>).model,
-      "parent/original-model",
-    );
+    assert.equal((sel as Record<string, unknown>).model, "parent/original-model");
     db.close();
   });
 
@@ -249,10 +234,7 @@ describe("subagentModel config resolution", () => {
     const sel = await spawnAndGetModelSelection(config, db, parentId, {});
 
     assert.ok(sel && typeof sel === "object");
-    assert.equal(
-      (sel as Record<string, unknown>).model,
-      "provider-a/small-model",
-    );
+    assert.equal((sel as Record<string, unknown>).model, "provider-a/small-model");
     db.close();
   });
 
@@ -291,10 +273,7 @@ describe("subagentModel config resolution", () => {
     const sel = await spawnAndGetModelSelection(config, db, parentId, {});
 
     assert.ok(sel && typeof sel === "object");
-    assert.equal(
-      (sel as Record<string, unknown>).model,
-      "provider-b/agent-specific-model",
-    );
+    assert.equal((sel as Record<string, unknown>).model, "provider-b/agent-specific-model");
     db.close();
   });
 
@@ -335,10 +314,7 @@ describe("subagentModel config resolution", () => {
     });
 
     assert.ok(sel && typeof sel === "object");
-    assert.equal(
-      (sel as Record<string, unknown>).model,
-      "provider-c/spawn-override",
-    );
+    assert.equal((sel as Record<string, unknown>).model, "provider-c/spawn-override");
     db.close();
   });
 
@@ -376,10 +352,7 @@ describe("subagentModel config resolution", () => {
     const sel = await spawnAndGetModelSelection(config, db, parentId, {});
 
     assert.ok(sel && typeof sel === "object");
-    assert.equal(
-      (sel as Record<string, unknown>).model,
-      "provider-x/fallback-model",
-    );
+    assert.equal((sel as Record<string, unknown>).model, "provider-x/fallback-model");
     db.close();
   });
 
@@ -402,12 +375,7 @@ describe("subagentModel config resolution", () => {
       status: "active",
     });
 
-    const sel = await spawnAndGetModelSelection(
-      minimalConfig(sock),
-      db,
-      parentId,
-      {},
-    );
+    const sel = await spawnAndGetModelSelection(minimalConfig(sock), db, parentId, {});
 
     assert.equal(sel, undefined);
     db.close();

@@ -9,11 +9,7 @@ import type { HitlDiscordNoticeRegistry } from "./notice-registry";
 import type { DiscordMessagingRuntime } from "../bridge";
 
 // Re-export presentation-layer symbols so existing consumers (index.ts, tests) keep working.
-export {
-  formatHitlPayloadExcerpt,
-  buildHitlQueuedNoticeLines,
-  HITL_NOTICE_PAYLOAD_MAX_CHARS,
-};
+export { formatHitlPayloadExcerpt, buildHitlQueuedNoticeLines, HITL_NOTICE_PAYLOAD_MAX_CHARS };
 
 export function createDiscordHitlNotifier(input: {
   readonly logger: Logger;
@@ -23,8 +19,7 @@ export function createDiscordHitlNotifier(input: {
   readonly hitlDiscordNoticeRegistry?: HitlDiscordNoticeRegistry;
 }): HitlNotifier {
   const hitlNotifyChannelId = input.env.SHOGGOTH_HITL_NOTIFY_CHANNEL_ID?.trim();
-  const hitlNotifyWebhookUrl =
-    input.env.SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL?.trim();
+  const hitlNotifyWebhookUrl = input.env.SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL?.trim();
   const hitlNotifyDmUserId = input.env.SHOGGOTH_HITL_NOTIFY_DM_USER_ID?.trim();
 
   let dmChannelIdCached: string | undefined;
@@ -102,10 +97,7 @@ export function createDiscordHitlNotifier(input: {
       if (hitlNotifyDmUserId) {
         void resolveDmChannelId()
           .then(async (ch) => {
-            const sent = await input.discord.discordRestTransport.createMessage(
-              ch,
-              { content },
-            );
+            const sent = await input.discord.discordRestTransport.createMessage(ch, { content });
             if (!input.hitlDiscordNoticeRegistry) return;
             await registerDiscordHitlNoticeAndAddReactions({
               transport: input.discord.discordRestTransport,

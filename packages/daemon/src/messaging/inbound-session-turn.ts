@@ -60,10 +60,7 @@ export interface InboundSessionTurnStreaming {
   readonly onStartFailed?: (message: string) => void;
 }
 
-export type InboundSessionTurnInput = Omit<
-  ExecuteSessionAgentTurnInput,
-  "stream"
->;
+export type InboundSessionTurnInput = Omit<ExecuteSessionAgentTurnInput, "stream">;
 
 export interface RunInboundSessionTurnOptions {
   /**
@@ -89,9 +86,7 @@ export interface RunInboundSessionTurnOptions {
    * Send attachments as a follow-up message (used after streaming, where the
    * streamed message cannot carry file attachments).
    */
-  readonly sendAttachments?: (
-    attachments: readonly OutboundAttachment[],
-  ) => Promise<void>;
+  readonly sendAttachments?: (attachments: readonly OutboundAttachment[]) => Promise<void>;
   readonly mcpLifecycle?: {
     readonly onTurnBegin?: () => void;
     readonly onTurnEnd?: () => void;
@@ -105,22 +100,13 @@ export interface RunInboundSessionTurnOptions {
  * Single entry point for an inbound-triggered session agent turn: MCP lifecycle hooks, optional
  * coalesced streaming, {@link executeSessionAgentTurn}, and success/error delivery.
  */
-export async function runInboundSessionTurn(
-  options: RunInboundSessionTurnOptions,
-): Promise<void> {
-  const {
-    streaming,
-    sliceDisplayText,
-    formatAssistantReply,
-    formatErrorReply,
-  } = options;
+export async function runInboundSessionTurn(options: RunInboundSessionTurnOptions): Promise<void> {
+  const { streaming, sliceDisplayText, formatAssistantReply, formatErrorReply } = options;
   const ctx = options.logContext;
 
   options.mcpLifecycle?.onTurnBegin?.();
 
-  let streamSink:
-    | { setFullContent: (body: string) => Promise<void> }
-    | undefined;
+  let streamSink: { setFullContent: (body: string) => Promise<void> } | undefined;
   let streamPusher: ReturnType<typeof createCoalescingStreamPusher> | undefined;
 
   if (streaming) {
@@ -159,10 +145,7 @@ export async function runInboundSessionTurn(
         : undefined,
     });
 
-    const rawBody = formatAssistantReply(
-      turnResult.latestAssistantText,
-      turnResult.failoverMeta,
-    );
+    const rawBody = formatAssistantReply(turnResult.latestAssistantText, turnResult.failoverMeta);
 
     const attachments = turnResult.showAttachments;
 

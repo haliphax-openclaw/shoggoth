@@ -1,12 +1,6 @@
 import { describe, it, beforeAll, afterAll } from "vitest";
 import assert from "node:assert";
-import {
-  mkdirSync,
-  readdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate, defaultMigrationsDir } from "../../src/db/migrate";
@@ -59,9 +53,7 @@ describe("persistence (migrations, WAL, backup)", () => {
     try {
       migrate(db, defaultMigrationsDir());
       const tables = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         .all() as { name: string }[];
       const names = new Set(tables.map((t) => t.name));
       for (const need of [

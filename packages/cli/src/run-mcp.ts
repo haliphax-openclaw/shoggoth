@@ -14,9 +14,7 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
-export function parseMcpCancelCliArgs(
-  argv: string[],
-):
+export function parseMcpCancelCliArgs(argv: string[]):
   | {
       ok: true;
       payload: { session_id: string; source_id: string; request_id: number };
@@ -25,12 +23,7 @@ export function parseMcpCancelCliArgs(
   const sessionId = argv[0]?.trim();
   const sourceId = argv[1]?.trim();
   const requestIdRaw = argv[2]?.trim();
-  if (
-    !sessionId ||
-    !sourceId ||
-    requestIdRaw === undefined ||
-    requestIdRaw === ""
-  ) {
+  if (!sessionId || !sourceId || requestIdRaw === undefined || requestIdRaw === "") {
     return {
       ok: false,
       message: "usage: shoggoth mcp cancel <sessionId> <sourceId> <requestId>",
@@ -83,8 +76,6 @@ export async function runMcpCli(argv: string[]): Promise<void> {
     return;
   }
 
-  console.error(
-    "usage: shoggoth mcp cancel <sessionId> <sourceId> <requestId>",
-  );
+  console.error("usage: shoggoth mcp cancel <sessionId> <sourceId> <requestId>");
   process.exitCode = 1;
 }

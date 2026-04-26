@@ -21,10 +21,7 @@ describe("loadLayeredConfig recursive", () => {
       mkdirSync(join(TMP, "base"), { recursive: true });
       mkdirSync(join(TMP, "dynamic"), { recursive: true });
 
-      writeFileSync(
-        join(TMP, "base", "00-main.json"),
-        JSON.stringify({ logLevel: "info" }),
-      );
+      writeFileSync(join(TMP, "base", "00-main.json"), JSON.stringify({ logLevel: "info" }));
       writeFileSync(
         join(TMP, "dynamic", "90-override.json"),
         JSON.stringify({ logLevel: "debug" }),
@@ -66,10 +63,7 @@ describe("loadLayeredConfig recursive", () => {
   it("works with flat config directory (no subdirectories)", () => {
     setup();
     try {
-      writeFileSync(
-        join(TMP, "00-main.json"),
-        JSON.stringify({ logLevel: "warn" }),
-      );
+      writeFileSync(join(TMP, "00-main.json"), JSON.stringify({ logLevel: "warn" }));
 
       const cfg = loadLayeredConfig(TMP);
       assert.equal(cfg.logLevel, "warn");
@@ -85,14 +79,8 @@ describe("loadLayeredConfig recursive", () => {
       mkdirSync(join(TMP, "dynamic"), { recursive: true });
       writeFileSync(join(TMP, "base", "README.md"), "# not json");
       writeFileSync(join(TMP, "base", ".main.json.swp"), "vim swap garbage");
-      writeFileSync(
-        join(TMP, "dynamic", ".override.json.swp"),
-        "vim swap garbage",
-      );
-      writeFileSync(
-        join(TMP, "base", "00-main.json"),
-        JSON.stringify({ logLevel: "info" }),
-      );
+      writeFileSync(join(TMP, "dynamic", ".override.json.swp"), "vim swap garbage");
+      writeFileSync(join(TMP, "base", "00-main.json"), JSON.stringify({ logLevel: "info" }));
 
       const cfg = loadLayeredConfig(TMP);
       assert.equal(cfg.logLevel, "info");
@@ -106,17 +94,12 @@ describe("loadLayeredConfig recursive", () => {
     try {
       mkdirSync(join(TMP, "base"), { recursive: true });
 
-      writeFileSync(
-        join(TMP, "base", "00-main.json"),
-        JSON.stringify({ logLevel: "info" }),
-      );
+      writeFileSync(join(TMP, "base", "00-main.json"), JSON.stringify({ logLevel: "info" }));
       writeFileSync(join(TMP, "base", "01-bad.json"), "{not valid json!!!");
 
       assert.throws(
         () => loadLayeredConfig(TMP),
-        (err: Error) =>
-          err.message.includes("Invalid JSON") &&
-          err.message.includes("01-bad.json"),
+        (err: Error) => err.message.includes("Invalid JSON") && err.message.includes("01-bad.json"),
       );
     } finally {
       teardown();
@@ -128,10 +111,7 @@ describe("loadLayeredConfig recursive", () => {
     try {
       mkdirSync(join(TMP, "dynamic"), { recursive: true });
 
-      writeFileSync(
-        join(TMP, "dynamic", "00-good.json"),
-        JSON.stringify({ logLevel: "info" }),
-      );
+      writeFileSync(join(TMP, "dynamic", "00-good.json"), JSON.stringify({ logLevel: "info" }));
       writeFileSync(join(TMP, "dynamic", "01-bad.json"), "{not valid json!!!");
       writeFileSync(
         join(TMP, "dynamic", "02-override.json"),
@@ -150,10 +130,7 @@ describe("loadLayeredConfig recursive", () => {
     try {
       mkdirSync(join(TMP, "dynamic"), { recursive: true });
 
-      writeFileSync(
-        join(TMP, "dynamic", "00-good.json"),
-        JSON.stringify({ logLevel: "info" }),
-      );
+      writeFileSync(join(TMP, "dynamic", "00-good.json"), JSON.stringify({ logLevel: "info" }));
       // Valid JSON but invalid schema (logLevel must be a known string)
       writeFileSync(
         join(TMP, "dynamic", "01-bad-schema.json"),

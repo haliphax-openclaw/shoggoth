@@ -3,10 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { IntegrationOpError } from "../../control/integration-ops";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("config-show", configShow);

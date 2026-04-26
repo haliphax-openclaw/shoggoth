@@ -54,9 +54,7 @@ export type HitlAutoApproveGate = {
   enableSessionTool(sessionId: string, toolName: string): void;
   enableAgentTool(agentId: string, toolName: string): void;
   shouldAutoApprove(sessionId: string, toolName: string): boolean;
-  clearAutoApproveMemory?(input: {
-    readonly agents: "all" | readonly string[];
-  }): void;
+  clearAutoApproveMemory?(input: { readonly agents: "all" | readonly string[] }): void;
 };
 
 // ── Health ────────────────────────────────────────────────────────────────────
@@ -78,7 +76,4 @@ export interface DependencyProbe {
 // ── Notices ──────────────────────────────────────────────────────────────────
 
 /** Function signature matching daemon's `daemonNotice(key, vars)`. */
-export type NoticeResolver = (
-  key: string,
-  vars?: Record<string, string>,
-) => string;
+export type NoticeResolver = (key: string, vars?: Record<string, string>) => string;

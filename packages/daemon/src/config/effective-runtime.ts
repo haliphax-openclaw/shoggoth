@@ -21,51 +21,27 @@ function envPositiveInt(key: string): number | undefined {
 
 /** Env overrides layered config when the env var is set (non-empty). */
 export function resolveDrainTimeoutMs(cfg: ShoggothConfig): number {
-  return (
-    envPositiveInt("SHOGGOTH_DRAIN_TIMEOUT_MS") ??
-    cfg.runtime?.drainTimeoutMs ??
-    30_000
-  );
+  return envPositiveInt("SHOGGOTH_DRAIN_TIMEOUT_MS") ?? cfg.runtime?.drainTimeoutMs ?? 30_000;
 }
 
 export function resolveBootStaleClaimMs(cfg: ShoggothConfig): number {
-  return (
-    envInt("SHOGGOTH_STALE_CLAIM_MS") ??
-    cfg.runtime?.bootStaleClaimMs ??
-    120_000
-  );
+  return envInt("SHOGGOTH_STALE_CLAIM_MS") ?? cfg.runtime?.bootStaleClaimMs ?? 120_000;
 }
 
 export function resolveHeartbeatIntervalMs(cfg: ShoggothConfig): number {
-  return (
-    envPositiveInt("SHOGGOTH_HEARTBEAT_MS") ??
-    cfg.runtime?.heartbeatIntervalMs ??
-    5_000
-  );
+  return envPositiveInt("SHOGGOTH_HEARTBEAT_MS") ?? cfg.runtime?.heartbeatIntervalMs ?? 5_000;
 }
 
 export function resolveCronTickIntervalMs(cfg: ShoggothConfig): number {
-  return (
-    envPositiveInt("SHOGGOTH_CRON_TICK_MS") ??
-    cfg.runtime?.cronTickIntervalMs ??
-    10_000
-  );
+  return envPositiveInt("SHOGGOTH_CRON_TICK_MS") ?? cfg.runtime?.cronTickIntervalMs ?? 10_000;
 }
 
 export function resolveHeartbeatBatchSize(cfg: ShoggothConfig): number {
-  return (
-    envPositiveInt("SHOGGOTH_HEARTBEAT_BATCH") ??
-    cfg.runtime?.heartbeatBatchSize ??
-    32
-  );
+  return envPositiveInt("SHOGGOTH_HEARTBEAT_BATCH") ?? cfg.runtime?.heartbeatBatchSize ?? 32;
 }
 
 export function resolveHeartbeatConcurrency(cfg: ShoggothConfig): number {
-  return (
-    envPositiveInt("SHOGGOTH_HEARTBEAT_CONCURRENCY") ??
-    cfg.runtime?.heartbeatConcurrency ??
-    4
-  );
+  return envPositiveInt("SHOGGOTH_HEARTBEAT_CONCURRENCY") ?? cfg.runtime?.heartbeatConcurrency ?? 4;
 }
 
 /** `SHOGGOTH_CONFIG_HOT_RELOAD=0` disables; else `runtime.configHotReload: false` disables. */
@@ -86,9 +62,7 @@ export function resolveShoggothAgentId(cfg: ShoggothConfig): string {
  * Model endpoint health probe base URL. Env `ANTHROPIC_BASE_URL` (origin) is checked first for
  * Anthropic-style stacks; then `OPENAI_BASE_URL` / `OLLAMA_HOST`, then config.
  */
-export function resolveModelHealthProbeBaseUrl(
-  cfg: ShoggothConfig,
-): string | undefined {
+export function resolveModelHealthProbeBaseUrl(cfg: ShoggothConfig): string | undefined {
   const anthropic = process.env.ANTHROPIC_BASE_URL?.trim();
   if (anthropic) return anthropic;
   const openai = process.env.OPENAI_BASE_URL?.trim();
@@ -105,9 +79,7 @@ export function resolveModelHealthProbeBaseUrl(
 /**
  * Model endpoint health probe API key. Env vars checked first, then config.
  */
-export function resolveModelHealthProbeApiKey(
-  cfg: ShoggothConfig,
-): string | undefined {
+export function resolveModelHealthProbeApiKey(cfg: ShoggothConfig): string | undefined {
   const anthropic = process.env.ANTHROPIC_API_KEY?.trim();
   if (anthropic) return anthropic;
   const openai = process.env.OPENAI_API_KEY?.trim();
@@ -118,18 +90,14 @@ export function resolveModelHealthProbeApiKey(
 /**
  * Embeddings endpoint base URL from config.
  */
-export function resolveEmbeddingsHealthProbeBaseUrl(
-  cfg: ShoggothConfig,
-): string | undefined {
+export function resolveEmbeddingsHealthProbeBaseUrl(cfg: ShoggothConfig): string | undefined {
   return cfg.memory?.embeddings?.openaiBaseUrl?.trim() || undefined;
 }
 
 /**
  * Embeddings endpoint API key from config.
  */
-export function resolveEmbeddingsHealthProbeApiKey(
-  cfg: ShoggothConfig,
-): string | undefined {
+export function resolveEmbeddingsHealthProbeApiKey(cfg: ShoggothConfig): string | undefined {
   return cfg.memory?.embeddings?.apiKey?.trim() || undefined;
 }
 
@@ -151,18 +119,9 @@ export function mergeOrchestratorEnv(
     const cur = base[key];
     if (cur === undefined || cur === "") base[key] = val;
   };
-  setIfEmpty(
-    "SHOGGOTH_HITL_NOTIFY_CHANNEL_ID",
-    d?.hitlNotifyChannelId as string | undefined,
-  );
-  setIfEmpty(
-    "SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL",
-    d?.hitlNotifyWebhookUrl as string | undefined,
-  );
-  setIfEmpty(
-    "SHOGGOTH_HITL_NOTIFY_DM_USER_ID",
-    d?.hitlNotifyDmUserId as string | undefined,
-  );
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_CHANNEL_ID", d?.hitlNotifyChannelId as string | undefined);
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_WEBHOOK_URL", d?.hitlNotifyWebhookUrl as string | undefined);
+  setIfEmpty("SHOGGOTH_HITL_NOTIFY_DM_USER_ID", d?.hitlNotifyDmUserId as string | undefined);
   if (d?.hitlReplyInSession === false) {
     setIfEmpty("SHOGGOTH_HITL_REPLY_IN_SESSION", "0");
   }
@@ -171,12 +130,8 @@ export function mergeOrchestratorEnv(
   if (d?.streamMinIntervalMs != null) {
     setIfEmpty("SHOGGOTH_STREAM_MIN_MS", String(d.streamMinIntervalMs));
   }
-  setIfEmpty(
-    "SHOGGOTH_PLATFORM_OWNER_USER_ID",
-    d?.ownerUserId as string | undefined,
-  );
-  if (r?.mcpLogServerMessages === true)
-    setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
+  setIfEmpty("SHOGGOTH_PLATFORM_OWNER_USER_ID", d?.ownerUserId as string | undefined);
+  if (r?.mcpLogServerMessages === true) setIfEmpty("SHOGGOTH_MCP_LOG_SERVER_MESSAGES", "1");
   setIfEmpty("SHOGGOTH_AGENT_ID", r?.agentId);
   const memEmb = cfg.memory?.embeddings;
   setIfEmpty("SHOGGOTH_MEMORY_OPENAI_BASE_URL", memEmb?.openaiBaseUrl);
@@ -187,10 +142,7 @@ export function mergeOrchestratorEnv(
  * Effective tool call timeout for a session: per-agent `agents.list.<id>.toolCallTimeoutMs` wins,
  * then env `SHOGGOTH_TOOL_CALL_TIMEOUT_MS`, then `runtime.toolCallTimeoutMs`, then default 10 min.
  */
-export function resolveToolCallTimeoutMs(
-  cfg: ShoggothConfig,
-  sessionId: string,
-): number {
+export function resolveToolCallTimeoutMs(cfg: ShoggothConfig, sessionId: string): number {
   const agentId = resolveAgentIdFromSessionId(sessionId);
   if (agentId) {
     const entry = cfg.agents?.list?.[agentId];

@@ -36,10 +36,7 @@ export function resolveContextLevel(
  * Validate that a string is a valid context level. Returns the typed value or throws.
  */
 export function validateContextLevel(value: unknown): ContextLevel {
-  if (
-    typeof value !== "string" ||
-    !(CONTEXT_LEVELS as readonly string[]).includes(value)
-  ) {
+  if (typeof value !== "string" || !(CONTEXT_LEVELS as readonly string[]).includes(value)) {
     throw new Error(
       `Invalid context level "${String(value)}"; must be one of: ${CONTEXT_LEVELS.join(", ")}`,
     );

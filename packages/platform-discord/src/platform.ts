@@ -403,7 +403,7 @@ export async function startDiscordPlatform(
             })(),
             formatAttachmentMetadata,
             buildTurn: async () => {
-              const mcpCtx = await mcpRuntime.resolveContext(msg.sessionId);
+              const _mcpCtx = await mcpRuntime.resolveContext(msg.sessionId);
               return {
                 db: opts.db,
                 sessionId: msg.sessionId,

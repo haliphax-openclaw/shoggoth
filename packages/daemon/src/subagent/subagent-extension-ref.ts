@@ -38,8 +38,6 @@ export const subagentRuntimeExtensionRef: {
   current: undefined,
 };
 
-export function setSubagentRuntimeExtension(
-  ext: SubagentRuntimeExtension | undefined,
-): void {
+export function setSubagentRuntimeExtension(ext: SubagentRuntimeExtension | undefined): void {
   subagentRuntimeExtensionRef.current = ext;
 }

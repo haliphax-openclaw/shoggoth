@@ -47,9 +47,7 @@ function parseResetToMs(value: string | undefined): number | undefined {
   return undefined;
 }
 
-function parseAnthropicOpenAI(
-  headers: Record<string, string | undefined>,
-): ParsedRateLimitHeaders {
+function parseAnthropicOpenAI(headers: Record<string, string | undefined>): ParsedRateLimitHeaders {
   return {
     requestLimit: num(headers["x-ratelimit-limit-requests"]),
     requestsRemaining: num(headers["x-ratelimit-remaining-requests"]),
@@ -61,9 +59,7 @@ function parseAnthropicOpenAI(
   };
 }
 
-function parseGemini(
-  headers: Record<string, string | undefined>,
-): ParsedRateLimitHeaders {
+function parseGemini(headers: Record<string, string | undefined>): ParsedRateLimitHeaders {
   return {
     requestLimit: num(headers["x-ratelimit-limit"]),
     requestsRemaining: num(headers["x-ratelimit-remaining"]),
@@ -72,17 +68,12 @@ function parseGemini(
   };
 }
 
-function parseGeneric(
-  headers: Record<string, string | undefined>,
-): ParsedRateLimitHeaders {
+function parseGeneric(headers: Record<string, string | undefined>): ParsedRateLimitHeaders {
   // Try detailed headers first (Anthropic/OpenAI style), fall back to simple (Gemini style)
   const result: ParsedRateLimitHeaders = {
-    requestLimit:
-      num(headers["x-ratelimit-limit-requests"]) ??
-      num(headers["x-ratelimit-limit"]),
+    requestLimit: num(headers["x-ratelimit-limit-requests"]) ?? num(headers["x-ratelimit-limit"]),
     requestsRemaining:
-      num(headers["x-ratelimit-remaining-requests"]) ??
-      num(headers["x-ratelimit-remaining"]),
+      num(headers["x-ratelimit-remaining-requests"]) ?? num(headers["x-ratelimit-remaining"]),
     requestResetMs:
       parseResetToMs(headers["x-ratelimit-reset-requests"]) ??
       parseResetToMs(headers["x-ratelimit-reset"]),

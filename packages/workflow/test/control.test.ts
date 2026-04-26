@@ -31,9 +31,7 @@ function makeTmpDir(): string {
 function makeTask(
   id: number,
   prompt = `do task ${id}`,
-  opts: Partial<
-    Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">
-  > = {},
+  opts: Partial<Pick<TaskDef, "failureBehavior" | "failureNotification" | "runtimeLimitMs">> = {},
 ): TaskDef {
   return {
     kind: "agent",
@@ -138,14 +136,7 @@ async function setupWorkflow(
   const msgAdapter = mockMessageAdapter();
   const statusManager = new StatusManager(msgAdapter);
 
-  const orch = new Orchestrator(
-    spawner,
-    poller,
-    notifier,
-    statusManager,
-    undefined,
-    killer,
-  );
+  const orch = new Orchestrator(spawner, poller, notifier, statusManager, undefined, killer);
   const orchOpts = defaultOpts(baseDir);
   const wfId = await orch.start(tasks, graphDsl, orchOpts);
 
@@ -174,10 +165,7 @@ async function setupWorkflow(
 }
 
 /** Create a persisted-only workflow (no active orchestrator) for disk-based tests. */
-function createPersistedWorkflow(
-  baseDir: string,
-  overrides?: Partial<TaskList>,
-): TaskList {
+function createPersistedWorkflow(baseDir: string, overrides?: Partial<TaskList>): TaskList {
   const wf: TaskList = {
     id: "wf-persisted-1",
     name: "test-workflow",
@@ -222,7 +210,7 @@ describe("ControlPlane", () => {
 
   describe("abort", () => {
     it("kills all active tasks, marks non-terminal as failed, and persists", async () => {
-      const { cp, orch, wfId, killer, pollResults } = await setupWorkflow(
+      const { cp, orch, wfId, killer } = await setupWorkflow(
         baseDir,
         [makeTask(1), makeTask(2), makeTask(3)],
         "1,2>3",
@@ -274,19 +262,8 @@ describe("ControlPlane", () => {
       const msgAdapter = mockMessageAdapter();
       const statusManager = new StatusManager(msgAdapter);
 
-      const orch = new Orchestrator(
-        spawner,
-        poller,
-        notifier,
-        statusManager,
-        undefined,
-        killer,
-      );
-      const wfId = await orch.start(
-        [makeTask(1), makeTask(2)],
-        "1 2",
-        defaultOpts(baseDir),
-      );
+      const orch = new Orchestrator(spawner, poller, notifier, statusManager, undefined, killer);
+      const wfId = await orch.start([makeTask(1), makeTask(2)], "1 2", defaultOpts(baseDir));
 
       const orchestrators = new Map<string, Orchestrator>();
       orchestrators.set(wfId, orch);
@@ -321,11 +298,7 @@ describe("ControlPlane", () => {
       await orch.tick();
 
       const task2Spawned = spawner.calls.find((c) => c.taskId === 2);
-      assert.equal(
-        task2Spawned,
-        undefined,
-        "task 2 should not be spawned while paused",
-      );
+      assert.equal(task2Spawned, undefined, "task 2 should not be spawned while paused");
     });
 
     it("persists state after pausing", async () => {
@@ -350,7 +323,7 @@ describe("ControlPlane", () => {
 
   describe("resume", () => {
     it("resumes a paused orchestrator and spawns ready tasks", async () => {
-      const { cp, orch, wfId, spawner, pollResults } = await setupWorkflow(
+      const { cp, orch, wfId, pollResults } = await setupWorkflow(
         baseDir,
         [makeTask(1), makeTask(2)],
         "1>2",
@@ -412,11 +385,7 @@ describe("ControlPlane", () => {
 
   describe("status", () => {
     it("returns current task states from active orchestrator", async () => {
-      const { cp, wfId, pollResults } = await setupWorkflow(
-        baseDir,
-        [makeTask(1), makeTask(2)],
-        "1>2",
-      );
+      const { cp, wfId } = await setupWorkflow(baseDir, [makeTask(1), makeTask(2)], "1>2");
 
       const result = await cp.status(wfId);
 
@@ -499,11 +468,7 @@ describe("ControlPlane", () => {
 
   describe("post", () => {
     it("reposts the current status message", async () => {
-      const { cp, wfId, msgAdapter } = await setupWorkflow(
-        baseDir,
-        [makeTask(1)],
-        "1",
-      );
+      const { cp, wfId, msgAdapter } = await setupWorkflow(baseDir, [makeTask(1)], "1");
 
       // Initial status was posted during start
       const initialPostCount = msgAdapter.posted.length;
@@ -527,11 +492,7 @@ describe("ControlPlane", () => {
 
   describe("edit", () => {
     it("updates allowed fields on a pending task", async () => {
-      const { cp, orch, wfId } = await setupWorkflow(
-        baseDir,
-        [makeTask(1), makeTask(2)],
-        "1>2",
-      );
+      const { cp, orch, wfId } = await setupWorkflow(baseDir, [makeTask(1), makeTask(2)], "1>2");
 
       // Task 2 is pending — should be editable
       await cp.edit(wfId, 2, {
@@ -547,11 +508,7 @@ describe("ControlPlane", () => {
     });
 
     it("updates failureBehavior and failureNotification", async () => {
-      const { cp, orch, wfId } = await setupWorkflow(
-        baseDir,
-        [makeTask(1), makeTask(2)],
-        "1>2",
-      );
+      const { cp, orch, wfId } = await setupWorkflow(baseDir, [makeTask(1), makeTask(2)], "1>2");
 
       await cp.edit(wfId, 2, {
         failureBehavior: "abort",
@@ -570,18 +527,11 @@ describe("ControlPlane", () => {
       const { cp, wfId } = await setupWorkflow(baseDir, [makeTask(1)], "1");
 
       // Task 1 is in_progress (spawned immediately)
-      await assert.rejects(
-        () => cp.edit(wfId, 1, { prompt: "nope" }),
-        /in.progress/i,
-      );
+      await assert.rejects(() => cp.edit(wfId, 1, { prompt: "nope" }), /in.progress/i);
     });
 
     it("persists changes to disk immediately", async () => {
-      const { cp, wfId } = await setupWorkflow(
-        baseDir,
-        [makeTask(1), makeTask(2)],
-        "1>2",
-      );
+      const { cp, wfId } = await setupWorkflow(baseDir, [makeTask(1), makeTask(2)], "1>2");
 
       await cp.edit(wfId, 2, { prompt: "persisted prompt" });
 
@@ -599,19 +549,13 @@ describe("ControlPlane", () => {
         killer: mockKillAdapter(),
       });
 
-      await assert.rejects(
-        () => cp.edit("nonexistent", 1, { prompt: "x" }),
-        /not found/i,
-      );
+      await assert.rejects(() => cp.edit("nonexistent", 1, { prompt: "x" }), /not found/i);
     });
 
     it("throws for unknown task ID", async () => {
       const { cp, wfId } = await setupWorkflow(baseDir, [makeTask(1)], "1");
 
-      await assert.rejects(
-        () => cp.edit(wfId, 99, { prompt: "x" }),
-        /task.*not found/i,
-      );
+      await assert.rejects(() => cp.edit(wfId, 99, { prompt: "x" }), /task.*not found/i);
     });
   });
 
@@ -628,10 +572,7 @@ describe("ControlPlane", () => {
       await orch.tick();
 
       const wfBefore = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfBefore.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "failed",
-      );
+      assert.equal(wfBefore.tasks.find((t) => t.taskDef.id === 1)!.status, "failed");
 
       // Retry task 1
       await cp.retry(wfId, 1);
@@ -665,35 +606,20 @@ describe("ControlPlane", () => {
       await orch.tick();
 
       const wfBefore = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfBefore.tasks.find((t) => t.taskDef.id === 2)!.status,
-        "failed",
-      );
-      assert.equal(
-        wfBefore.tasks.find((t) => t.taskDef.id === 3)!.status,
-        "failed",
-      );
+      assert.equal(wfBefore.tasks.find((t) => t.taskDef.id === 2)!.status, "failed");
+      assert.equal(wfBefore.tasks.find((t) => t.taskDef.id === 3)!.status, "failed");
 
       // Retry task 1 — downstream blocked tasks should also be reset
       await cp.retry(wfId, 1);
 
       const wfAfter = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status,
-        "pending",
-      );
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status, "pending");
     });
 
     it("cascade resets completed downstream tasks when cascade=true", async () => {
-      const { cp, orch, wfId, spawner, pollResults } = await setupWorkflow(
+      const { orch, pollResults } = await setupWorkflow(
         baseDir,
         [makeTask(1), makeTask(2), makeTask(3)],
         "1>2>3",
@@ -713,7 +639,7 @@ describe("ControlPlane", () => {
     });
 
     it("cascade=true resets done downstream tasks to pending", async () => {
-      const { cp, orch, wfId, spawner, pollResults } = await setupWorkflow(
+      const { cp, orch, wfId, pollResults } = await setupWorkflow(
         baseDir,
         [makeTask(1), makeTask(2), makeTask(3)],
         "1>2>3",
@@ -746,18 +672,9 @@ describe("ControlPlane", () => {
       await cp.retry(wfId, 1, true);
 
       const wfAfter = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status,
-        "pending",
-      );
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status, "pending");
     });
 
     it("resumes the orchestrator if it was paused", async () => {
@@ -778,11 +695,7 @@ describe("ControlPlane", () => {
     });
 
     it("persists state after retry", async () => {
-      const { cp, orch, wfId, pollResults } = await setupWorkflow(
-        baseDir,
-        [makeTask(1)],
-        "1",
-      );
+      const { cp, orch, wfId, pollResults } = await setupWorkflow(baseDir, [makeTask(1)], "1");
 
       pollResults.set("session-1", { status: "failed", error: "boom" });
       await orch.tick();
@@ -814,7 +727,7 @@ describe("ControlPlane", () => {
     });
 
     it("resets a done task to pending when retried", async () => {
-      const { cp, orch, wfId, spawner, pollResults } = await setupWorkflow(
+      const { cp, orch, wfId, pollResults } = await setupWorkflow(
         baseDir,
         [makeTask(1), makeTask(2)],
         "1>2",
@@ -825,10 +738,7 @@ describe("ControlPlane", () => {
       await orch.tick();
 
       const wfBefore = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfBefore.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "done",
-      );
+      assert.equal(wfBefore.tasks.find((t) => t.taskDef.id === 1)!.status, "done");
 
       // Retry the done task
       await cp.retry(wfId, 1);
@@ -861,18 +771,9 @@ describe("ControlPlane", () => {
       await cp.retry(wfId, 1, true);
 
       const wfAfter = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status,
-        "pending",
-      );
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status,
-        "pending",
-      );
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status, "pending");
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 3)!.status, "pending");
     });
 
     it("retrying a done task without cascade leaves downstream done tasks intact", async () => {
@@ -892,15 +793,9 @@ describe("ControlPlane", () => {
       await cp.retry(wfId, 1);
 
       const wfAfter = orch.getWorkflowStatus()!;
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status,
-        "pending",
-      );
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 1)!.status, "pending");
       // Task 2 should remain done (no cascade, not failed)
-      assert.equal(
-        wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status,
-        "done",
-      );
+      assert.equal(wfAfter.tasks.find((t) => t.taskDef.id === 2)!.status, "done");
     });
 
     it("rejects retry for in_progress tasks", async () => {
@@ -911,11 +806,7 @@ describe("ControlPlane", () => {
     });
 
     it("rejects retry for pending tasks", async () => {
-      const { cp, wfId } = await setupWorkflow(
-        baseDir,
-        [makeTask(1), makeTask(2)],
-        "1>2",
-      );
+      const { cp, wfId } = await setupWorkflow(baseDir, [makeTask(1), makeTask(2)], "1>2");
 
       // Task 2 is pending (blocked by task 1)
       await assert.rejects(() => cp.retry(wfId, 2), /not retriable/i);

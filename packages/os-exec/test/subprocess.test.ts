@@ -34,11 +34,7 @@ describe("runAsUser (drop-priv spawn)", () => {
       });
       // If we get here, the environment allows setuid — skip assertion
     } catch (e: unknown) {
-      assert.ok(
-        e instanceof Error &&
-          "code" in e &&
-          (e as NodeJS.ErrnoException).code === "EPERM",
-      );
+      assert.ok(e instanceof Error && "code" in e && (e as NodeJS.ErrnoException).code === "EPERM");
     }
   });
 });

@@ -1,10 +1,7 @@
 import type Database from "better-sqlite3";
 import { execSync } from "node:child_process";
 import type { ShoggothConfig } from "@shoggoth/shared";
-import {
-  resolveAgentPlatformConfig,
-  resolveAgentWorkspacePath,
-} from "@shoggoth/shared";
+import { resolveAgentPlatformConfig, resolveAgentWorkspacePath } from "@shoggoth/shared";
 import { createSessionStore } from "./sessions/session-store";
 import { ensureAgentWorkspaceLayout } from "./workspaces/agent-workspace-layout";
 import { resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
@@ -27,9 +24,7 @@ interface BootstrapMainSessionOptions {
  * Backward-compatible: if no agents are configured, falls back to bootstrapping
  * a single "main" agent using `config.runtime?.agentId`.
  */
-export async function bootstrapMainSession(
-  opts: BootstrapMainSessionOptions,
-): Promise<void> {
+export async function bootstrapMainSession(opts: BootstrapMainSessionOptions): Promise<void> {
   const log = getLogger("bootstrap");
   const { db, config } = opts;
 
@@ -70,15 +65,9 @@ async function bootstrapAgent(
   const dir = resolveAgentWorkspacePath(wsRoot, agentId);
 
   // Resolve session id from the agent's first platform route
-  const agentPlatform = agentEntry
-    ? resolveAgentPlatformConfig(agentEntry, platform)
-    : undefined;
-  const firstRoute = (
-    agentPlatform?.routes as Array<{ sessionId?: string }> | undefined
-  )?.[0];
-  const id =
-    firstRoute?.sessionId?.trim() ||
-    resolveBootstrapPrimarySessionUrn(agentId, platform);
+  const agentPlatform = agentEntry ? resolveAgentPlatformConfig(agentEntry, platform) : undefined;
+  const firstRoute = (agentPlatform?.routes as Array<{ sessionId?: string }> | undefined)?.[0];
+  const id = firstRoute?.sessionId?.trim() || resolveBootstrapPrimarySessionUrn(agentId, platform);
 
   // Resolve agent UID/GID for the session row (must happen before workspace creation)
   let runtimeUid: number;

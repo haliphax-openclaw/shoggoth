@@ -27,10 +27,7 @@ function makeTaskDef(id: number, prompt = `task ${id}`): TaskDef {
   };
 }
 
-function makeTaskState(
-  id: number,
-  status: TaskState["status"] = "pending",
-): TaskState {
+function makeTaskState(id: number, status: TaskState["status"] = "pending"): TaskState {
   return { taskDef: makeTaskDef(id), status };
 }
 

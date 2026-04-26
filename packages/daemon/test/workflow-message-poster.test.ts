@@ -13,19 +13,14 @@ describe("createDaemonMessagePoster", () => {
 
     await poster.post("channel-456", "Hello from workflow");
 
-    expect(mockSendBody).toHaveBeenCalledWith(
-      "channel-456",
-      "Hello from workflow",
-    );
+    expect(mockSendBody).toHaveBeenCalledWith("channel-456", "Hello from workflow");
     expect(mockLogger.debug).toHaveBeenCalledWith("message task posted", {
       target: "channel-456",
     });
   });
 
   it("should handle sendBody failures gracefully", async () => {
-    const mockSendBody = vi
-      .fn()
-      .mockRejectedValue(new Error("Permission denied"));
+    const mockSendBody = vi.fn().mockRejectedValue(new Error("Permission denied"));
     const mockLogger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
 
     const poster = createDaemonMessagePoster({

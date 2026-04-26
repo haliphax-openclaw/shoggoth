@@ -1,10 +1,7 @@
 import { ModelHttpError } from "./errors";
 import { anthropicImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
-import {
-  stripXmlThinkingTags,
-  ThinkingStreamNormalizer,
-} from "./thinking-normalize";
+import { stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
 import type {
   ChatContentPart,
   ChatMessage,
@@ -24,14 +21,8 @@ export type AnthropicMessagesAuthStyle = "x-api-key" | "bearer";
 
 /** Extract usage metadata from an Anthropic Messages API response. */
 function extractAnthropicUsage(json: unknown): ModelUsage | undefined {
-  const u = (
-    json as { usage?: { input_tokens?: number; output_tokens?: number } }
-  ).usage;
-  if (
-    !u ||
-    typeof u.input_tokens !== "number" ||
-    typeof u.output_tokens !== "number"
-  )
+  const u = (json as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
+  if (!u || typeof u.input_tokens !== "number" || typeof u.output_tokens !== "number")
     return undefined;
   return { inputTokens: u.input_tokens, outputTokens: u.output_tokens };
 }
@@ -80,9 +71,7 @@ function trimSlash(u: string): string {
 function sanitizeAnthropicToolNameBase(name: string): string {
   let s = name.replace(/[^a-zA-Z0-9_-]/g, "_");
   if (s.length === 0) s = "tool";
-  return s.length > ANTHROPIC_TOOL_NAME_MAX
-    ? s.slice(0, ANTHROPIC_TOOL_NAME_MAX)
-    : s;
+  return s.length > ANTHROPIC_TOOL_NAME_MAX ? s.slice(0, ANTHROPIC_TOOL_NAME_MAX) : s;
 }
 
 /**
@@ -129,9 +118,7 @@ function normalizeAnthropicInputSchema(
     return p;
   }
   const props =
-    typeof p.properties === "object" &&
-    p.properties !== null &&
-    !Array.isArray(p.properties)
+    typeof p.properties === "object" && p.properties !== null && !Array.isArray(p.properties)
       ? (p.properties as Record<string, unknown>)
       : {};
   const out: Record<string, unknown> = { type: "object", properties: props };
@@ -187,13 +174,10 @@ function mapOpenAIToolsToAnthropic(
 ): unknown[] {
   return tools.map((t) => {
     const anthropicName =
-      openAiToAnthropicName.get(t.function.name) ??
-      sanitizeAnthropicToolNameBase(t.function.name);
+      openAiToAnthropicName.get(t.function.name) ?? sanitizeAnthropicToolNameBase(t.function.name);
     return {
       name: anthropicName,
-      ...(t.function.description !== undefined
-        ? { description: t.function.description }
-        : {}),
+      ...(t.function.description !== undefined ? { description: t.function.description } : {}),
       input_schema: normalizeAnthropicInputSchema(t.function.parameters),
     };
   });
@@ -299,8 +283,7 @@ export function mapChatMessagesToAnthropicPayload(
             );
           }
           const anthropicToolName =
-            openAiToAnthropicToolName?.get(tc.name) ??
-            sanitizeAnthropicToolNameBase(tc.name);
+            openAiToAnthropicToolName?.get(tc.name) ?? sanitizeAnthropicToolNameBase(tc.name);
           blocks.push({
             type: "tool_use",
             id: tc.id,
@@ -358,9 +341,7 @@ function contentBlocksToModelOutput(
     const b = block as Record<string, unknown>;
     const type = b.type;
     if (type === "text" && typeof b.text === "string") {
-      textParts.push(
-        thinkingFormat === "xml-tags" ? stripXmlThinkingTags(b.text) : b.text,
-      );
+      textParts.push(thinkingFormat === "xml-tags" ? stripXmlThinkingTags(b.text) : b.text);
     } else if (type === "tool_use") {
       const id = typeof b.id === "string" ? b.id : "";
       const name = typeof b.name === "string" ? b.name : "";
@@ -368,18 +349,12 @@ function contentBlocksToModelOutput(
       try {
         argsStr = JSON.stringify(b.input ?? {});
       } catch {
-        throw new ModelHttpError(
-          502,
-          "tool_use input not JSON-serializable",
-          "",
-        );
+        throw new ModelHttpError(502, "tool_use input not JSON-serializable", "");
       }
       if (id && name) {
         const openAiName = anthropicToOpenAiToolName?.get(name) ?? name;
         const strippedArgs =
-          thinkingFormat === "xml-tags"
-            ? stripXmlThinkingTags(argsStr)
-            : argsStr;
+          thinkingFormat === "xml-tags" ? stripXmlThinkingTags(argsStr) : argsStr;
         toolCalls.push({ id, name: openAiName, arguments: strippedArgs });
       }
     }
@@ -436,9 +411,7 @@ export async function consumeAnthropicMessagesStream(
   const blocks = new Map<number, AnthropicBlockState>();
   const toolCallsByIndex: { index: number; call: ChatToolCall }[] = [];
   const thinkNorm =
-    options.thinkingFormat === "xml-tags"
-      ? new ThinkingStreamNormalizer()
-      : undefined;
+    options.thinkingFormat === "xml-tags" ? new ThinkingStreamNormalizer() : undefined;
 
   const finalizeToolBlock = (
     index: number,
@@ -460,19 +433,12 @@ export async function consumeAnthropicMessagesStream(
     try {
       argsStr = JSON.stringify(parsed ?? {});
     } catch {
-      throw new ModelHttpError(
-        502,
-        "tool_use streamed input not JSON-serializable",
-        "",
-      );
+      throw new ModelHttpError(502, "tool_use streamed input not JSON-serializable", "");
     }
     if (state.id && state.name) {
-      const openAiName =
-        options.anthropicToOpenAiToolName?.get(state.name) ?? state.name;
+      const openAiName = options.anthropicToOpenAiToolName?.get(state.name) ?? state.name;
       const strippedArgs =
-        options.thinkingFormat === "xml-tags"
-          ? stripXmlThinkingTags(argsStr)
-          : argsStr;
+        options.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(argsStr) : argsStr;
       toolCallsByIndex.push({
         index,
         call: { id: state.id, name: openAiName, arguments: strippedArgs },
@@ -486,11 +452,7 @@ export async function consumeAnthropicMessagesStream(
     try {
       json = JSON.parse(raw);
     } catch {
-      throw new ModelHttpError(
-        502,
-        "malformed Anthropic SSE data JSON",
-        raw.slice(0, 200),
-      );
+      throw new ModelHttpError(502, "malformed Anthropic SSE data JSON", raw.slice(0, 200));
     }
     if (!json || typeof json !== "object") return;
     const o = json as Record<string, unknown>;
@@ -559,11 +521,7 @@ export async function consumeAnthropicMessagesStream(
       if (!delta) return;
       const dt = delta.type;
 
-      if (
-        dt === "text_delta" &&
-        typeof delta.text === "string" &&
-        delta.text.length > 0
-      ) {
+      if (dt === "text_delta" && typeof delta.text === "string" && delta.text.length > 0) {
         const raw = delta.text;
         let st = blocks.get(index);
         if (!st || st.kind !== "text") {
@@ -589,8 +547,7 @@ export async function consumeAnthropicMessagesStream(
 
       if (dt === "input_json_delta") {
         if (!options.accumulateTools) return;
-        const partial =
-          typeof delta.partial_json === "string" ? delta.partial_json : "";
+        const partial = typeof delta.partial_json === "string" ? delta.partial_json : "";
         let st = blocks.get(index);
         if (!st || st.kind !== "tool_use") {
           st = {
@@ -661,9 +618,7 @@ export async function consumeAnthropicMessagesStream(
 
   while (true) {
     const { done, value } = await reader.read();
-    const chunkText = done
-      ? decoder.decode()
-      : decoder.decode(value, { stream: true });
+    const chunkText = done ? decoder.decode() : decoder.decode(value, { stream: true });
     lineBuf += chunkText;
     let nl: number;
     while ((nl = lineBuf.indexOf("\n")) >= 0) {
@@ -691,11 +646,7 @@ export async function consumeAnthropicMessagesStream(
     );
   }
   if (forbiddenToolUse) {
-    throw new ModelHttpError(
-      502,
-      "unexpected tool_use in non-tool Anthropic message stream",
-      "",
-    );
+    throw new ModelHttpError(502, "unexpected tool_use in non-tool Anthropic message stream", "");
   }
 
   for (const [idx, st] of blocks) {
@@ -709,9 +660,7 @@ export async function consumeAnthropicMessagesStream(
     const flushed = thinkNorm.flush();
     if (flushed.text) {
       // Append to the last text block or create one
-      const lastTextIdx = [...blocks.keys()]
-        .reverse()
-        .find((k) => blocks.get(k)?.kind === "text");
+      const lastTextIdx = [...blocks.keys()].reverse().find((k) => blocks.get(k)?.kind === "text");
       if (lastTextIdx !== undefined) {
         const st = blocks.get(lastTextIdx) as { kind: "text"; text: string };
         st.text += flushed.text;
@@ -734,8 +683,7 @@ export async function consumeAnthropicMessagesStream(
   const toolCalls = toolCallsByIndex.map((x) => x.call);
 
   const usage: ModelUsage | undefined =
-    typeof usageInputTokens === "number" &&
-    typeof usageOutputTokens === "number"
+    typeof usageInputTokens === "number" && typeof usageOutputTokens === "number"
       ? { inputTokens: usageInputTokens, outputTokens: usageOutputTokens }
       : undefined;
 
@@ -757,24 +705,16 @@ export function createAnthropicMessagesProvider(
   const origin = normalizeAnthropicMessagesOrigin(options.baseUrl);
   const url = `${trimSlash(origin)}/v1/messages`;
   const id = options.id;
-  const anthropicVersion =
-    options.anthropicVersion ?? DEFAULT_ANTHROPIC_VERSION;
+  const anthropicVersion = options.anthropicVersion ?? DEFAULT_ANTHROPIC_VERSION;
   const auth: AnthropicMessagesAuthStyle = options.auth ?? "x-api-key";
 
-  async function resilientFetch(
-    targetUrl: string,
-    init: RequestInit,
-  ): Promise<Response> {
+  async function resilientFetch(targetUrl: string, init: RequestInit): Promise<Response> {
     try {
       const gate = getResilienceGate();
       return await gate.executeWithResilience(id, async () => {
         const res = await fetchImpl(targetUrl, init);
         try {
-          const parsed = parseRateLimitHeaders(
-            id,
-            headersToRecord(res.headers),
-            "anthropic",
-          );
+          const parsed = parseRateLimitHeaders(id, headersToRecord(res.headers), "anthropic");
           gate.getOrCreateManager(id).updateCapacity(parsed);
         } catch {
           /* ignore header parse errors */
@@ -800,8 +740,9 @@ export function createAnthropicMessagesProvider(
 
     async complete(input: ModelCompleteInput) {
       const headers = buildAuthHeaders(options.apiKey, anthropicVersion, auth);
-      const { system, messages: anthropicMessages } =
-        mapChatMessagesToAnthropicPayload(input.messages);
+      const { system, messages: anthropicMessages } = mapChatMessagesToAnthropicPayload(
+        input.messages,
+      );
       const wireModel = normalizeAnthropicWireModelId(input.model);
 
       const body: Record<string, unknown> = {
@@ -830,11 +771,7 @@ export function createAnthropicMessagesProvider(
           );
         }
         if (!res.body) {
-          throw new ModelHttpError(
-            502,
-            "missing response body for Anthropic stream",
-            undefined,
-          );
+          throw new ModelHttpError(502, "missing response body for Anthropic stream", undefined);
         }
         const {
           content: streamed,
@@ -853,11 +790,7 @@ export function createAnthropicMessagesProvider(
           );
         }
         if (streamed === null) {
-          throw new ModelHttpError(
-            502,
-            "missing streamed assistant content",
-            "",
-          );
+          throw new ModelHttpError(502, "missing streamed assistant content", "");
         }
         return { content: streamed, usage };
       }
@@ -905,26 +838,21 @@ export function createAnthropicMessagesProvider(
       return { content: outText, usage: extractAnthropicUsage(json) };
     },
 
-    async completeWithTools(
-      input: ModelToolCompleteInput,
-    ): Promise<ModelToolCompleteOutput> {
+    async completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput> {
       const headers = buildAuthHeaders(options.apiKey, anthropicVersion, auth);
       const openAiToAnthropic = buildOpenAiToAnthropicToolNameMap(input.tools);
       const anthropicToOpenAi = invertStringMap(openAiToAnthropic);
-      const { system, messages: anthropicMessages } =
-        mapChatMessagesToAnthropicPayload(input.messages, openAiToAnthropic);
+      const { system, messages: anthropicMessages } = mapChatMessagesToAnthropicPayload(
+        input.messages,
+        openAiToAnthropic,
+      );
 
       if (!input.model) {
-        throw new Error(
-          "Anthropic Messages completeWithTools requires input.model",
-        );
+        throw new Error("Anthropic Messages completeWithTools requires input.model");
       }
 
       const wireModel = normalizeAnthropicWireModelId(input.model);
-      const anthropicTools = mapOpenAIToolsToAnthropic(
-        input.tools,
-        openAiToAnthropic,
-      );
+      const anthropicTools = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
       const body: Record<string, unknown> = {
         model: wireModel,
         max_tokens: input.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
@@ -956,11 +884,7 @@ export function createAnthropicMessagesProvider(
           );
         }
         if (!res.body) {
-          throw new ModelHttpError(
-            502,
-            "missing response body for Anthropic stream",
-            undefined,
-          );
+          throw new ModelHttpError(502, "missing response body for Anthropic stream", undefined);
         }
         const {
           content: outText,
@@ -974,11 +898,7 @@ export function createAnthropicMessagesProvider(
         });
 
         if (toolCalls.length === 0 && (outText === null || outText === "")) {
-          throw new ModelHttpError(
-            502,
-            "missing assistant content and tool_use blocks",
-            "",
-          );
+          throw new ModelHttpError(502, "missing assistant content and tool_use blocks", "");
         }
 
         return { content: outText, toolCalls, usage };
@@ -993,10 +913,7 @@ export function createAnthropicMessagesProvider(
         );
       }
 
-      const text =
-        input.thinkingFormat === "xml-tags"
-          ? stripXmlThinkingTags(rawText)
-          : rawText;
+      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
       let json: unknown;
       try {
         json = JSON.parse(text);

@@ -33,11 +33,7 @@ function makeTask(id: number, prompt = `do task ${id}`): TaskDef {
   };
 }
 
-function makeTaskState(
-  id: number,
-  status: TaskStatus,
-  extra?: Partial<TaskState>,
-): TaskState {
+function makeTaskState(id: number, status: TaskStatus, extra?: Partial<TaskState>): TaskState {
   return {
     taskDef: makeTask(id),
     status,
@@ -45,11 +41,7 @@ function makeTaskState(
   };
 }
 
-function makeWorkflow(
-  id: string,
-  tasks: TaskState[],
-  graphDsl: string,
-): TaskList {
+function makeWorkflow(id: string, tasks: TaskState[], graphDsl: string): TaskList {
   return {
     id,
     name: `workflow-${id}`,
@@ -265,10 +257,7 @@ describe("detectOrphans", () => {
 
     const result = await detectOrphans(wf, poller);
     assert.equal(result.orphanedCount, 0);
-    assert.ok(
-      !pollCalled,
-      "poll should not be called for non-in_progress tasks",
-    );
+    assert.ok(!pollCalled, "poll should not be called for non-in_progress tasks");
   });
 
   it("handles multiple orphaned tasks", async () => {
@@ -372,11 +361,7 @@ describe("detectAndPersistOrphans", () => {
     assert.equal(result.orphanedCount, 0);
 
     const statAfter = fs.statSync(path.join(baseDir, "wf-no-orphan.json"));
-    assert.equal(
-      statBefore.mtimeMs,
-      statAfter.mtimeMs,
-      "file should not be rewritten",
-    );
+    assert.equal(statBefore.mtimeMs, statAfter.mtimeMs, "file should not be rewritten");
   });
 });
 
@@ -391,16 +376,8 @@ describe("concurrent workflow isolation", () => {
   });
 
   it("state files for different workflows do not interfere", () => {
-    const wf1 = makeWorkflow(
-      "wf-iso-1",
-      [makeTaskState(1, "done", { output: "result-1" })],
-      "1",
-    );
-    const wf2 = makeWorkflow(
-      "wf-iso-2",
-      [makeTaskState(1, "failed", { error: "boom" })],
-      "1",
-    );
+    const wf1 = makeWorkflow("wf-iso-1", [makeTaskState(1, "done", { output: "result-1" })], "1");
+    const wf2 = makeWorkflow("wf-iso-2", [makeTaskState(1, "failed", { error: "boom" })], "1");
 
     saveWorkflow(baseDir, wf1);
     saveWorkflow(baseDir, wf2);
@@ -416,11 +393,7 @@ describe("concurrent workflow isolation", () => {
 
   it("saving one workflow does not affect another", () => {
     const wf1 = makeWorkflow("wf-iso-a", [makeTaskState(1, "pending")], "1");
-    const wf2 = makeWorkflow(
-      "wf-iso-b",
-      [makeTaskState(1, "done", { output: "ok" })],
-      "1",
-    );
+    const wf2 = makeWorkflow("wf-iso-b", [makeTaskState(1, "done", { output: "ok" })], "1");
 
     saveWorkflow(baseDir, wf1);
     saveWorkflow(baseDir, wf2);

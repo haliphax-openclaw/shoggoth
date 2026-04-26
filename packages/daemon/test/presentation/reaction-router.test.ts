@@ -71,8 +71,7 @@ describe("routeReaction", () => {
   });
 
   it("returns adhoc when legend matches", () => {
-    const content =
-      "Some text\nReact to choose:\n👍 Approve\n👎 Reject\n\nMore text";
+    const content = "Some text\nReact to choose:\n👍 Approve\n👎 Reject\n\nMore text";
     const now = Date.now();
     const result = routeReaction({
       ...base,

@@ -11,12 +11,13 @@
     "clean": "rm -rf packages/*/dist dist",
     "cli": "node --import tsx/esm packages/cli/src/cli.ts",
     "daemon": "node --import tsx/esm packages/daemon/src/index.ts",
+    "format": "oxfmt --no-error-on-unmatched-pattern .",
+    "lint": "oxlint --fix .",
+    "prepare": "husky || true",
     "reinstall": "rm -rf node_modules **/node_modules && npm ci",
     "test": "vitest run",
     "test:ci-agent-isolation": "SHOGGOTH_CI_STRICT_AGENT_TESTS=1 npx vitest run packages/os-exec",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "prepare": "husky || true",
-    "format": "oxfmt"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
     "tsx": "^4.19.3"

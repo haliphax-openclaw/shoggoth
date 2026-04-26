@@ -16,10 +16,7 @@ export function setNoticeResolver(resolver: NoticeResolver): void {
 }
 
 /** Resolve a notice template. Throws if no resolver has been registered. */
-export function daemonNotice(
-  key: string,
-  vars: Record<string, string> = {},
-): string {
+export function daemonNotice(key: string, vars: Record<string, string> = {}): string {
   if (!_resolver)
     throw new Error(
       "platform-discord: notice resolver not registered; call setNoticeResolver() at startup",

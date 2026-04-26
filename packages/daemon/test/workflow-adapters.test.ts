@@ -6,16 +6,13 @@ import {
   createDaemonKillAdapter,
   createDaemonMessageAdapter,
   type DaemonSpawnAdapterDeps,
-  type DaemonPollAdapterDeps,
 } from "../src/workflow-adapters.js";
 
 // ---------------------------------------------------------------------------
 // Helpers: minimal fakes for daemon internals
 // ---------------------------------------------------------------------------
 
-function fakeSessionManager(
-  overrides: Partial<DaemonSpawnAdapterDeps["sessionManager"]> = {},
-) {
+function fakeSessionManager(overrides: Partial<DaemonSpawnAdapterDeps["sessionManager"]> = {}) {
   return {
     spawn:
       overrides.spawn ??
@@ -142,10 +139,7 @@ describe("createDaemonSpawnAdapter", () => {
     await new Promise((r) => setTimeout(r, 10));
     assert.equal(turn.calls.length, 1);
     const turnInput = turn.calls[0] as Record<string, unknown>;
-    assert.equal(
-      turnInput.sessionId,
-      "agent:main:discord:channel:abc:child-uuid",
-    );
+    assert.equal(turnInput.sessionId, "agent:main:discord:channel:abc:child-uuid");
     assert.equal(turnInput.userContent, "analyze data");
   });
 
@@ -253,9 +247,7 @@ describe("createDaemonPollAdapter", () => {
 
   it("returns done for a terminated session with output in completion map", async () => {
     const rows = new Map([["sess-1", { status: "terminated" }]]);
-    const completionMap = new Map([
-      ["sess-1", { ok: true as const, output: "result text" }],
-    ]);
+    const completionMap = new Map([["sess-1", { ok: true as const, output: "result text" }]]);
     const adapter = createDaemonPollAdapter({
       sessions: fakeSessionStore(rows),
       completionMap,
@@ -279,9 +271,7 @@ describe("createDaemonPollAdapter", () => {
 
   it("returns failed when completion map has an error", async () => {
     const rows = new Map([["sess-1", { status: "terminated" }]]);
-    const completionMap = new Map([
-      ["sess-1", { ok: false as const, error: "model crashed" }],
-    ]);
+    const completionMap = new Map([["sess-1", { ok: false as const, error: "model crashed" }]]);
     const adapter = createDaemonPollAdapter({
       sessions: fakeSessionStore(rows),
       completionMap,

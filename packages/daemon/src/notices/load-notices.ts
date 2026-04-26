@@ -35,16 +35,12 @@ export function loadDaemonNotices(): void {
   for (const name of readdirSync(NOTICES_DIR)) {
     if (!name.endsWith(".md") || name === "README.md") continue;
     const key = name.slice(0, -".md".length);
-    const text = readFileSync(join(NOTICES_DIR, name), "utf8")
-      .replace(/\r\n/g, "\n")
-      .trim();
+    const text = readFileSync(join(NOTICES_DIR, name), "utf8").replace(/\r\n/g, "\n").trim();
     cache.set(key, text);
   }
   const missing = REQUIRED_NOTICE_KEYS.filter((k) => !cache!.get(k));
   if (missing.length) {
-    throw new Error(
-      `Missing or empty daemon notices at startup: ${missing.join(", ")}`,
-    );
+    throw new Error(`Missing or empty daemon notices at startup: ${missing.join(", ")}`);
   }
 }
 
@@ -58,9 +54,6 @@ function noticeText(key: string): string {
 }
 
 /** User-facing copy (operator channels, etc.); same `{{name}}` rules as prompts. */
-export function daemonNotice(
-  key: string,
-  vars: Record<string, string> = {},
-): string {
+export function daemonNotice(key: string, vars: Record<string, string> = {}): string {
   return fillPromptTemplate(noticeText(key), vars);
 }

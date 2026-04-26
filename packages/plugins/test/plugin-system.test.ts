@@ -40,10 +40,7 @@ describe("ShoggothPluginSystem", () => {
     assert.ok(system.lifecycle, "system.lifecycle should be truthy");
 
     for (const name of ALL_HOOK_NAMES) {
-      assert.ok(
-        system.lifecycle[name],
-        `hook "${name}" should exist on lifecycle`,
-      );
+      assert.ok(system.lifecycle[name], `hook "${name}" should exist on lifecycle`);
     }
     // Exactly 14 hooks — no more, no less
     const hookKeys = Object.keys(system.lifecycle);
@@ -78,11 +75,7 @@ describe("ShoggothPluginSystem", () => {
 
     await system.lifecycle["daemon.startup"].emit(fakeCtx);
 
-    assert.strictEqual(
-      received.length,
-      1,
-      "handler should have been called once",
-    );
+    assert.strictEqual(received.length, 1, "handler should have been called once");
     assert.strictEqual(received[0].config, fakeCtx.config);
   });
 
@@ -175,10 +168,7 @@ describe("freezeConfig", () => {
     assert.ok(Object.isFrozen(frozen), "top-level should be frozen");
     // Nested frozen
     assert.ok(Object.isFrozen(frozen.nested), "nested object should be frozen");
-    assert.ok(
-      Object.isFrozen(frozen.nested.deep),
-      "deeply nested object should be frozen",
-    );
+    assert.ok(Object.isFrozen(frozen.nested.deep), "deeply nested object should be frozen");
     assert.ok(Object.isFrozen(frozen.arr), "array should be frozen");
 
     // Mutation should throw in strict mode (ESM is always strict)

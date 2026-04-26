@@ -155,9 +155,7 @@ export function createPendingActionsStore(
     },
 
     getById(id) {
-      const r = selectOne.get({ id }) as
-        | Parameters<typeof rowToPending>[0]
-        | undefined;
+      const r = selectOne.get({ id }) as Parameters<typeof rowToPending>[0] | undefined;
       return r ? rowToPending(r) : undefined;
     },
 
@@ -170,12 +168,8 @@ export function createPendingActionsStore(
 
     listAllPending(limit) {
       const lim =
-        limit === undefined
-          ? DEFAULT_LIST_ALL_PENDING_LIMIT
-          : Math.min(Math.max(1, limit), 10_000);
-      const rows = listAllPendingStmt.all({ limit: lim }) as Parameters<
-        typeof rowToPending
-      >[0][];
+        limit === undefined ? DEFAULT_LIST_ALL_PENDING_LIMIT : Math.min(Math.max(1, limit), 10_000);
+      const rows = listAllPendingStmt.all({ limit: lim }) as Parameters<typeof rowToPending>[0][];
       return rows.map(rowToPending);
     },
 

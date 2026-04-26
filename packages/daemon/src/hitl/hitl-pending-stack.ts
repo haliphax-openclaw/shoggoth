@@ -1,27 +1,17 @@
 import type Database from "better-sqlite3";
-import {
-  createHitlResolutionHub,
-  type HitlResolutionHub,
-} from "./hitl-resolution-hub";
-import {
-  createPendingActionsStore,
-  type PendingActionsStore,
-} from "./pending-actions-store";
+import { createHitlResolutionHub, type HitlResolutionHub } from "./hitl-resolution-hub";
+import { createPendingActionsStore, type PendingActionsStore } from "./pending-actions-store";
 
 export type HitlPendingStack = {
   readonly pending: PendingActionsStore;
   readonly hub: HitlResolutionHub;
-  readonly waitForHitlResolution: (
-    pendingId: string,
-  ) => Promise<"approved" | "denied">;
+  readonly waitForHitlResolution: (pendingId: string) => Promise<"approved" | "denied">;
 };
 
 /**
  * Single-process HITL: SQLite pending rows + in-memory waiters notified when approve/deny/timeout runs.
  */
-export function createHitlPendingResolutionStack(
-  db: Database.Database,
-): HitlPendingStack {
+export function createHitlPendingResolutionStack(db: Database.Database): HitlPendingStack {
   const hub = createHitlResolutionHub();
   const pending = createPendingActionsStore(db, {
     hooks: {

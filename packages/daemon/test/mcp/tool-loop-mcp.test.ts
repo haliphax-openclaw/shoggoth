@@ -58,9 +58,7 @@ describe("tool-loop MCP bridge", () => {
         if (calls++ === 0) {
           return {
             content: null,
-            toolCalls: [
-              { id: "c1", name: "builtin-read", argsJson: '{"path":"a.txt"}' },
-            ],
+            toolCalls: [{ id: "c1", name: "builtin-read", argsJson: '{"path":"a.txt"}' }],
           };
         }
         return { content: null, toolCalls: [] };
@@ -88,9 +86,9 @@ describe("tool-loop MCP bridge", () => {
       toolRuns,
     });
 
-    const row = db
-      .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
-      .get("run-mcp-1") as { status: string } | undefined;
+    const row = db.prepare(`SELECT status FROM tool_runs WHERE id = ?`).get("run-mcp-1") as
+      | { status: string }
+      | undefined;
     assert.equal(row?.status, "completed");
     db.close();
   });

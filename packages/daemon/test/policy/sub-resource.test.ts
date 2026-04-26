@@ -58,10 +58,9 @@ describe("evaluateRules — sub-resource (compound) matching", () => {
   });
 
   it("non-compound resources unchanged: builtin.read allowed by builtin.read", () => {
-    assert.deepStrictEqual(
-      evaluateRules("builtin-read", { allow: ["builtin-read"], deny: [] }),
-      { allow: true },
-    );
+    assert.deepStrictEqual(evaluateRules("builtin-read", { allow: ["builtin-read"], deny: [] }), {
+      allow: true,
+    });
   });
 
   it("bare tool deny blocks all sub-resources: builtin.exec:git denied by deny builtin.exec", () => {
@@ -86,12 +85,7 @@ describe("evaluateRules — sub-resource (compound) matching", () => {
 
   it("mixed rules: allow builtin.exec:git and builtin.read, deny builtin.exec:rm", () => {
     const rules = {
-      allow: [
-        "builtin-exec:git",
-        "builtin-exec:ls",
-        "builtin-read",
-        "builtin-write",
-      ],
+      allow: ["builtin-exec:git", "builtin-exec:ls", "builtin-read", "builtin-write"],
       deny: ["builtin-exec:rm"],
     };
     assert.deepStrictEqual(evaluateRules("builtin-exec:git", rules), {
@@ -117,10 +111,9 @@ describe("evaluateRules — sub-resource (compound) matching", () => {
   });
 
   it("global * still works with compound resources", () => {
-    assert.deepStrictEqual(
-      evaluateRules("builtin-exec:curl", { allow: ["*"], deny: [] }),
-      { allow: true },
-    );
+    assert.deepStrictEqual(evaluateRules("builtin-exec:curl", { allow: ["*"], deny: [] }), {
+      allow: true,
+    });
   });
 
   it("global deny * blocks compound resources", () => {

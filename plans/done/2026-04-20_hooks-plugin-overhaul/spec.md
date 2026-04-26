@@ -29,10 +29,7 @@ interface DaemonStartupCtx {
   readonly config: Readonly<ShoggothConfig>;
   readonly configRef: { readonly current: ShoggothConfig };
   /** Register a named drain function for graceful shutdown. */
-  readonly registerDrain: (
-    name: string,
-    fn: () => void | Promise<void>,
-  ) => void;
+  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
 }
 
 interface DaemonReadyCtx {
@@ -54,10 +51,7 @@ interface PlatformRegisterCtx {
   /** Call to register a platform's URN policy and capabilities. */
   readonly registerPlatform: (reg: PlatformRegistration) => void;
   /** Call to register a platform runtime after connection. */
-  readonly setPlatformRuntime: (
-    platformId: string,
-    runtime: PlatformRuntime,
-  ) => void;
+  readonly setPlatformRuntime: (platformId: string, runtime: PlatformRuntime) => void;
 }
 
 /** Grouped platform dependencies — keeps PlatformStartCtx readable. */
@@ -80,10 +74,7 @@ interface PlatformStartCtx {
   /** Shared daemon dependencies for platform plugins. */
   readonly deps: PlatformDeps;
   /** Register a named drain function for graceful shutdown. */
-  readonly registerDrain: (
-    name: string,
-    fn: () => void | Promise<void>,
-  ) => void;
+  readonly registerDrain: (name: string, fn: () => void | Promise<void>) => void;
   /** Set the subagent runtime extension (runSessionModelTurn, etc.). */
   readonly setSubagentRuntimeExtension: (ext: SubagentRuntimeExtension) => void;
   /** Set the message tool context ref for builtin-message. */
@@ -261,9 +252,7 @@ const REQUIRED_MESSAGING_PLATFORM_HOOKS = [
  * Validates and returns a typed MessagingPlatformPlugin.
  * Throws if any required hook is missing.
  */
-function defineMessagingPlatformPlugin(
-  plugin: MessagingPlatformPlugin,
-): MessagingPlatformPlugin {
+function defineMessagingPlatformPlugin(plugin: MessagingPlatformPlugin): MessagingPlatformPlugin {
   for (const hook of REQUIRED_MESSAGING_PLATFORM_HOOKS) {
     if (typeof plugin.hooks[hook] !== "function") {
       throw new Error(
@@ -284,11 +273,7 @@ Plugin metadata lives in `package.json` under a `shoggothPlugin` property bag. T
 ```ts
 import { z } from "zod";
 
-const pluginKindSchema = z.enum([
-  "messaging-platform",
-  "observability",
-  "general",
-]);
+const pluginKindSchema = z.enum(["messaging-platform", "observability", "general"]);
 
 /** Validates the `shoggothPlugin` property bag from package.json. */
 const shoggothPluginBagSchema = z
@@ -316,9 +301,7 @@ function parseShoggothPluginBag(data: unknown): ShoggothPluginBag {
  * Read a plugin's package.json and extract metadata.
  * Throws if `shoggothPlugin` is missing or invalid.
  */
-function resolvePluginMeta(
-  packageJson: Record<string, unknown>,
-): ShoggothPluginMeta {
+function resolvePluginMeta(packageJson: Record<string, unknown>): ShoggothPluginMeta {
   const bag = parseShoggothPluginBag(packageJson.shoggothPlugin);
   return {
     name: z.string().min(1).parse(packageJson.name),

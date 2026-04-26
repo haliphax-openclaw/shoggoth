@@ -256,13 +256,7 @@ interface ProcessHandle {
   readonly spec: ProcessSpec;
 
   /** Current state. */
-  readonly state:
-    | "starting"
-    | "running"
-    | "exited"
-    | "stopping"
-    | "failed"
-    | "dead";
+  readonly state: "starting" | "running" | "exited" | "stopping" | "failed" | "dead";
 
   /** OS PID (undefined if not yet spawned or already dead). */
   readonly pid: number | undefined;
@@ -280,23 +274,14 @@ interface ProcessHandle {
   readonly lastSignal: NodeJS.Signals | null;
 
   /** Read recent stdout/stderr from the ring buffer. */
-  readOutput(
-    stream: "stdout" | "stderr",
-    options?: { tail?: number; since?: number },
-  ): string;
+  readOutput(stream: "stdout" | "stderr", options?: { tail?: number; since?: number }): string;
 
   /** Write to stdin (only if spec.stdio.stdin is true). */
   writeStdin(data: string | Buffer): void;
 
   /** Subscribe to lifecycle events. */
-  on(
-    event: "state-change",
-    listener: (newState: string, oldState: string) => void,
-  ): void;
-  on(
-    event: "exit",
-    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
-  ): void;
+  on(event: "state-change", listener: (newState: string, oldState: string) => void): void;
+  on(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): void;
   on(event: "stdout" | "stderr", listener: (chunk: Buffer) => void): void;
 
   /** Request a graceful stop. Returns a promise that resolves when the process is dead. */
@@ -338,10 +323,7 @@ interface ProcessManager {
   /** Subscribe to manager-level events. */
   on(event: "process-started", listener: (handle: ProcessHandle) => void): void;
   on(event: "process-stopped", listener: (handle: ProcessHandle) => void): void;
-  on(
-    event: "process-failed",
-    listener: (handle: ProcessHandle, error: Error) => void,
-  ): void;
+  on(event: "process-failed", listener: (handle: ProcessHandle, error: Error) => void): void;
 }
 ```
 

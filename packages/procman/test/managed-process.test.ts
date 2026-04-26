@@ -31,10 +31,7 @@ describe("ManagedProcess", () => {
     });
 
     assert.equal(mp.state, "dead");
-    assert.ok(
-      states.includes("running"),
-      "should have transitioned through running",
-    );
+    assert.ok(states.includes("running"), "should have transitioned through running");
     assert.ok(states.includes("dead"), "should have reached dead");
     assert.equal(mp.lastExitCode, 0);
   });
@@ -92,10 +89,7 @@ describe("ManagedProcess", () => {
     });
 
     assert.equal(mp.state, "dead");
-    assert.ok(
-      mp.restartCount >= 1,
-      `should have restarted at least once, got ${mp.restartCount}`,
-    );
+    assert.ok(mp.restartCount >= 1, `should have restarted at least once, got ${mp.restartCount}`);
   });
 
   it("does not restart with never policy", async () => {

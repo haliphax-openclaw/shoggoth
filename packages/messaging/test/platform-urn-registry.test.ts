@@ -3,10 +3,7 @@ import {
   resolveBootstrapPrimarySessionUrn,
   parseFirstChannelIdFromRoutesJson,
 } from "../src/platform-urn-registry";
-import {
-  registerPlatform,
-  clearPlatformRegistry,
-} from "../src/platform-registry";
+import { registerPlatform, clearPlatformRegistry } from "../src/platform-registry";
 import { SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID } from "@shoggoth/shared";
 
 function makePolicy(platformId: string) {
@@ -16,8 +13,7 @@ function makePolicy(platformId: string) {
     assertRoutesDefaultPrimaryUuidMatchesAgent: () => {},
     parseFirstChannelIdFromRoutesJson: (raw: string | undefined) =>
       raw ? JSON.parse(raw).channelId : undefined,
-    resolveBootstrapPrimarySessionUrn: (a: string, p: string) =>
-      `agent:${a}:${p}:custom-primary`,
+    resolveBootstrapPrimarySessionUrn: (a: string, p: string) => `agent:${a}:${p}:custom-primary`,
   };
 }
 
@@ -62,18 +58,12 @@ describe("platform-urn-registry (via new platform-registry)", () => {
         resourceTypes: ["channel"],
         urnPolicy: makePolicy("test"),
       });
-      const ch = parseFirstChannelIdFromRoutesJson(
-        "test",
-        JSON.stringify({ channelId: "ch123" }),
-      );
+      const ch = parseFirstChannelIdFromRoutesJson("test", JSON.stringify({ channelId: "ch123" }));
       expect(ch).toBe("ch123");
     });
 
     it("returns undefined for unregistered platform", () => {
-      const ch = parseFirstChannelIdFromRoutesJson(
-        "nope",
-        JSON.stringify({ channelId: "ch" }),
-      );
+      const ch = parseFirstChannelIdFromRoutesJson("nope", JSON.stringify({ channelId: "ch" }));
       expect(ch).toBeUndefined();
     });
 

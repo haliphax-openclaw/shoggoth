@@ -1,9 +1,4 @@
-export const IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
+export const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 export const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",

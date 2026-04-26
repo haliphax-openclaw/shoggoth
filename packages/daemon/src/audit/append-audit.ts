@@ -16,10 +16,7 @@ export interface AppendAuditRowInput {
   readonly argsRedactedJson?: string;
 }
 
-export function appendAuditRow(
-  db: Database.Database,
-  row: AppendAuditRowInput,
-): void {
+export function appendAuditRow(db: Database.Database, row: AppendAuditRowInput): void {
   db.prepare(
     `INSERT INTO audit_log (
       source, principal_kind, principal_id, session_id, agent_id,

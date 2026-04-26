@@ -1,9 +1,6 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import {
-  discordInteractionToCommand,
-  type DiscordInteractionEvent,
-} from "../src/interaction";
+import { discordInteractionToCommand, type DiscordInteractionEvent } from "../src/interaction";
 
 describe("discordInteractionToCommand", () => {
   it("parses an APPLICATION_COMMAND interaction with no options", () => {

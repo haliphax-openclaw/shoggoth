@@ -42,10 +42,7 @@ export function resolvePlatformConfig(
 }
 
 /** Check if a platform is enabled in config. */
-export function isPlatformEnabled(
-  cfg: ShoggothConfig,
-  platformId: string,
-): boolean {
+export function isPlatformEnabled(cfg: ShoggothConfig, platformId: string): boolean {
   const pc = resolvePlatformConfig(cfg, platformId);
   if (!pc) return false;
   return pc.enabled !== false; // default true if present

@@ -126,10 +126,7 @@ describe("effective agent config for session", () => {
       ...base,
       agents: { list: { alice: { displayName: "A" } } },
     };
-    assert.equal(
-      formatAgentIdentityPrefix(cfg, sid),
-      `**${SHOGGOTH_AGENT_DEFAULT_EMOJI} A:**\n`,
-    );
+    assert.equal(formatAgentIdentityPrefix(cfg, sid), `**${SHOGGOTH_AGENT_DEFAULT_EMOJI} A:**\n`);
   });
 
   it("formatAgentIdentityPrefix includes bold emoji and displayName", () => {

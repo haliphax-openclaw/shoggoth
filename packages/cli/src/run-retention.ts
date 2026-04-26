@@ -11,9 +11,7 @@ interface RunRetentionOptions {
   readonly configDir: string;
 }
 
-export async function runRetentionCli(
-  options: RunRetentionOptions,
-): Promise<void> {
+export async function runRetentionCli(options: RunRetentionOptions): Promise<void> {
   const config = loadLayeredConfig(options.configDir);
   const dir = defaultMigrationsDir();
   assertMigrationsDirReadable(dir);

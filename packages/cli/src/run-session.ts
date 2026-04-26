@@ -1,13 +1,5 @@
-import {
-  invokeControlRequest,
-  resolveSessionTargetFromCliArg,
-} from "@shoggoth/daemon/lib";
-import {
-  loadLayeredConfig,
-  LAYOUT,
-  resolveEffectiveModelsConfig,
-  VERSION,
-} from "@shoggoth/shared";
+import { invokeControlRequest, resolveSessionTargetFromCliArg } from "@shoggoth/daemon/lib";
+import { loadLayeredConfig, LAYOUT, resolveEffectiveModelsConfig, VERSION } from "@shoggoth/shared";
 import { runSessionCompact } from "./run-session-compact";
 import { formatModelResult } from "./format-model-result";
 
@@ -24,10 +16,7 @@ function socketPathFromEnv(configPath: string): string {
   return config.socketPath;
 }
 
-function resolveSessionTargetOrExit(
-  configDir: string,
-  raw: string,
-): string | null {
+function resolveSessionTargetOrExit(configDir: string, raw: string): string | null {
   const config = loadLayeredConfig(configDir);
   try {
     return resolveSessionTargetFromCliArg(raw, config);
@@ -111,9 +100,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
       listOpts = parsed;
     } catch (e) {
       console.error(e instanceof Error ? e.message : String(e));
-      console.error(
-        "usage: shoggoth session list [status] [--agent <agentId>]",
-      );
+      console.error("usage: shoggoth session list [status] [--agent <agentId>]");
       process.exitCode = 1;
       return;
     }
@@ -145,9 +132,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
     const rawTarget = tokens[0]?.trim();
     const message = tokens.slice(1).join(" ").trim();
     if (!rawTarget || !message) {
-      console.error(
-        "usage: shoggoth session send <sessionUrn|agentId> [--silent] <message...>",
-      );
+      console.error("usage: shoggoth session send <sessionUrn|agentId> [--silent] <message...>");
       process.exitCode = 1;
       return;
     }
@@ -185,8 +170,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    const models =
-      resolveEffectiveModelsConfig(config, sessionId) ?? config.models;
+    const models = resolveEffectiveModelsConfig(config, sessionId) ?? config.models;
     const out = await runSessionCompact({
       stateDbPath: config.stateDbPath,
       models,
@@ -348,9 +332,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
     } else if (argv[2] && argv[2] !== "--clear") {
       const ref = argv[2].trim();
       if (!ref.includes("/")) {
-        console.error(
-          "model_selection must be in provider/model format (e.g. openai/gpt-4o)",
-        );
+        console.error("model_selection must be in provider/model format (e.g. openai/gpt-4o)");
         process.exitCode = 1;
         return;
       }
@@ -365,9 +347,7 @@ export async function runSessionCli(argv: string[]): Promise<void> {
     if (res.ok) {
       console.log(formatModelResult(res as Record<string, unknown>));
     } else {
-      console.error(
-        `Failed: ${(res as Record<string, unknown>).error ?? "unknown error"}`,
-      );
+      console.error(`Failed: ${(res as Record<string, unknown>).error ?? "unknown error"}`);
       process.exitCode = 1;
     }
     return;

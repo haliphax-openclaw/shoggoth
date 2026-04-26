@@ -5,10 +5,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert";
 import Database from "better-sqlite3";
 import { defaultMigrationsDir, migrate } from "../../src/db/migrate";
-import {
-  resolveMemoryScanRoots,
-  runMemoryBuiltin,
-} from "../../src/memory/builtin-memory-tools";
+import { resolveMemoryScanRoots, runMemoryBuiltin } from "../../src/memory/builtin-memory-tools";
 import type { FetchLike } from "@shoggoth/models";
 
 describe("builtin memory tools", () => {
@@ -90,16 +87,8 @@ describe("builtin memory tools", () => {
     const ws = mkdtempSync(join(tmpdir(), "shog-mem-emb-"));
     const mem = join(ws, "memory");
     mkdirSync(mem);
-    writeFileSync(
-      join(mem, "apples.md"),
-      "# Apples\n\nred round fruit alpha\n",
-      "utf8",
-    );
-    writeFileSync(
-      join(mem, "boats.md"),
-      "# Boats\n\nsailing vessel beta\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "apples.md"), "# Apples\n\nred round fruit alpha\n", "utf8");
+    writeFileSync(join(mem, "boats.md"), "# Boats\n\nsailing vessel beta\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -118,10 +107,7 @@ describe("builtin memory tools", () => {
         const body = init.body != null ? JSON.parse(String(init.body)) : {};
         const inp = String((body as { input?: string }).input ?? "");
         // Query embedding biased toward "apple" dimension
-        const vec =
-          inp.includes("alpha") || inp.includes("fruit")
-            ? [1, 0, 0]
-            : [0, 1, 0];
+        const vec = inp.includes("alpha") || inp.includes("fruit") ? [1, 0, 0] : [0, 1, 0];
         return new Response(
           JSON.stringify({
             data: [{ embedding: vec, index: 0, object: "embedding" }],
@@ -146,10 +132,7 @@ describe("builtin memory tools", () => {
       },
       fetchImpl: mockFetch,
     });
-    assert.ok(
-      embeddingPosts >= 1,
-      "ingest should request embeddings for documents",
-    );
+    assert.ok(embeddingPosts >= 1, "ingest should request embeddings for documents");
 
     const sr = await runMemoryBuiltin({
       originalName: "memory-search",
@@ -224,11 +207,7 @@ describe("builtin memory tools", () => {
       },
       fetchImpl: mockFetch,
     });
-    assert.equal(
-      searchPosts,
-      1,
-      "search still requests query embedding when enabled",
-    );
+    assert.equal(searchPosts, 1, "search still requests query embedding when enabled");
     const j = JSON.parse(sr.resultJson) as { hits: { body: string }[] };
     assert.equal(j.hits.length, 1);
     assert.match(j.hits[0]!.body, /uniqueq/);
@@ -347,10 +326,7 @@ describe("builtin memory tools", () => {
       env,
       fetchImpl: mockFetch,
     });
-    assert.ok(
-      posts > firstPosts,
-      "content change should trigger a new embedding request",
-    );
+    assert.ok(posts > firstPosts, "content change should trigger a new embedding request");
 
     db.close();
   });
@@ -366,11 +342,7 @@ describe("memory.search — relevance scores", () => {
     const mem = join(ws, "memory");
     mkdirSync(mem);
     writeFileSync(join(mem, "a.md"), "# A\n\nscoreword once\n", "utf8");
-    writeFileSync(
-      join(mem, "b.md"),
-      "# B\n\nscoreword scoreword scoreword many\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "b.md"), "# B\n\nscoreword scoreword scoreword many\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -433,11 +405,7 @@ describe("memory.search — relevance scores", () => {
       hits: { score?: number; body: string }[];
     };
     assert.equal(j.hits.length, 1);
-    assert.equal(
-      j.hits[0]!.score,
-      undefined,
-      "score should not be present by default",
-    );
+    assert.equal(j.hits[0]!.score, undefined, "score should not be present by default");
     assert.ok(j.hits[0]!.body, "body should still be present");
     db.close();
   });
@@ -480,10 +448,7 @@ describe("memory.search — relevance scores", () => {
       env: { ...process.env },
     });
     const j = JSON.parse(sr.resultJson) as { hits: { score: number }[] };
-    assert.ok(
-      j.hits.length <= 1,
-      "high min_score should filter weaker matches",
-    );
+    assert.ok(j.hits.length <= 1, "high min_score should filter weaker matches");
     db.close();
   });
 });
@@ -494,16 +459,8 @@ describe("memory.search — path prefix filter", () => {
     const mem = join(ws, "memory");
     mkdirSync(join(mem, "alpha"), { recursive: true });
     mkdirSync(join(mem, "beta"), { recursive: true });
-    writeFileSync(
-      join(mem, "alpha", "a.md"),
-      "# A\n\npathkeyword data\n",
-      "utf8",
-    );
-    writeFileSync(
-      join(mem, "beta", "b.md"),
-      "# B\n\npathkeyword data\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "alpha", "a.md"), "# A\n\npathkeyword data\n", "utf8");
+    writeFileSync(join(mem, "beta", "b.md"), "# B\n\npathkeyword data\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -661,10 +618,7 @@ describe("memory.search — date range filters", () => {
       env: { ...process.env },
     });
     const j = JSON.parse(sr.resultJson) as { error: string };
-    assert.ok(
-      j.error.includes("earlier"),
-      `expected validation error, got: ${j.error}`,
-    );
+    assert.ok(j.error.includes("earlier"), `expected validation error, got: ${j.error}`);
     db.close();
   });
 
@@ -682,10 +636,7 @@ describe("memory.search — date range filters", () => {
       env: { ...process.env },
     });
     const j = JSON.parse(sr.resultJson) as { error: string };
-    assert.ok(
-      j.error.includes("invalid"),
-      `expected date parse error, got: ${j.error}`,
-    );
+    assert.ok(j.error.includes("invalid"), `expected date parse error, got: ${j.error}`);
     db.close();
   });
 });
@@ -737,11 +688,7 @@ describe("memory.search — snippet mode", () => {
       j.hits[0]!.snippet!.includes("**rollback**"),
       "snippet should highlight matched term",
     );
-    assert.equal(
-      j.hits[0]!.body,
-      undefined,
-      "body should be omitted in snippet mode",
-    );
+    assert.equal(j.hits[0]!.body, undefined, "body should be omitted in snippet mode");
     db.close();
   });
 
@@ -749,11 +696,7 @@ describe("memory.search — snippet mode", () => {
     const ws = mkdtempSync(join(tmpdir(), "shog-snip-body-"));
     const mem = join(ws, "memory");
     mkdirSync(mem);
-    writeFileSync(
-      join(mem, "doc.md"),
-      "# Doc\n\nshort rollback note\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "doc.md"), "# Doc\n\nshort rollback note\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -786,10 +729,7 @@ describe("memory.search — snippet mode", () => {
     };
     assert.equal(j.hits.length, 1);
     assert.ok(j.hits[0]!.snippet, "snippet should be present");
-    assert.ok(
-      j.hits[0]!.body,
-      "body should also be present when include_body=true",
-    );
+    assert.ok(j.hits[0]!.body, "body should also be present when include_body=true");
     db.close();
   });
 
@@ -797,11 +737,7 @@ describe("memory.search — snippet mode", () => {
     const ws = mkdtempSync(join(tmpdir(), "shog-snip-tag-"));
     const mem = join(ws, "memory");
     mkdirSync(mem);
-    writeFileSync(
-      join(mem, "doc.md"),
-      "# Doc\n\ncustom highlight test\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "doc.md"), "# Doc\n\ncustom highlight test\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
@@ -872,14 +808,8 @@ describe("memory.search — snippet mode", () => {
     });
     const j = JSON.parse(sr.resultJson) as { hits: { snippet?: string }[] };
     assert.equal(j.hits.length, 1);
-    assert.ok(
-      j.hits[0]!.snippet!.includes("nohighlight"),
-      "term should be present",
-    );
-    assert.ok(
-      !j.hits[0]!.snippet!.includes("**"),
-      "should not contain default highlight markers",
-    );
+    assert.ok(j.hits[0]!.snippet!.includes("nohighlight"), "term should be present");
+    assert.ok(!j.hits[0]!.snippet!.includes("**"), "should not contain default highlight markers");
     db.close();
   });
 });
@@ -916,10 +846,7 @@ describe("memory.ingest — report parameter", () => {
     };
     assert.equal(j.changed, 2);
     assert.equal(j.rootsScanned, 1);
-    assert.ok(
-      Array.isArray(j.files),
-      "files array should be present when report=true",
-    );
+    assert.ok(Array.isArray(j.files), "files array should be present when report=true");
     assert.equal(j.files!.length, 2);
     assert.ok(
       j.files!.every((f) => f.status === "added"),
@@ -952,11 +879,7 @@ describe("memory.ingest — report parameter", () => {
       files?: unknown;
     };
     assert.equal(j.changed, 1);
-    assert.equal(
-      j.files,
-      undefined,
-      "files should not be present when report is not requested",
-    );
+    assert.equal(j.files, undefined, "files should not be present when report is not requested");
     db.close();
   });
 
@@ -1036,10 +959,7 @@ describe("memory.ingest — report parameter", () => {
       files?: unknown[];
     };
     assert.equal(j.changed, 0);
-    assert.ok(
-      Array.isArray(j.files),
-      "files should be an empty array, not omitted",
-    );
+    assert.ok(Array.isArray(j.files), "files should be an empty array, not omitted");
     assert.equal(j.files!.length, 0);
     db.close();
   });
@@ -1117,11 +1037,7 @@ describe("memory.ingest — selective ingest", () => {
     mkdirSync(join(mem, "docs"), { recursive: true });
     writeFileSync(join(mem, "src", "main.md"), "# Main\n\nmain\n", "utf8");
     writeFileSync(join(mem, "src", "main.test.md"), "# Test\n\ntest\n", "utf8");
-    writeFileSync(
-      join(mem, "docs", "readme.md"),
-      "# Readme\n\nreadme\n",
-      "utf8",
-    );
+    writeFileSync(join(mem, "docs", "readme.md"), "# Readme\n\nreadme\n", "utf8");
 
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");

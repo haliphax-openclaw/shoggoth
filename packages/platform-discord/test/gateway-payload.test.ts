@@ -115,10 +115,7 @@ describe("discordInteractionCreateToEvent", () => {
     assert.strictEqual(ev!.guildId, "g-1");
     assert.strictEqual(ev!.userId, "user-1");
     assert.strictEqual(ev!.data.name, "abort");
-    assert.strictEqual(
-      ev!.data.options?.[0]?.value,
-      "agent:main:discord:channel:abc",
-    );
+    assert.strictEqual(ev!.data.options?.[0]?.value, "agent:main:discord:channel:abc");
   });
 
   it("maps DM interaction (user at top level, no member)", () => {
@@ -138,10 +135,7 @@ describe("discordInteractionCreateToEvent", () => {
   it("returns null for missing required fields", () => {
     assert.strictEqual(discordInteractionCreateToEvent(null), null);
     assert.strictEqual(discordInteractionCreateToEvent({}), null);
-    assert.strictEqual(
-      discordInteractionCreateToEvent({ id: "x", token: "t", type: 2 }),
-      null,
-    );
+    assert.strictEqual(discordInteractionCreateToEvent({ id: "x", token: "t", type: 2 }), null);
     // Missing user
     assert.strictEqual(
       discordInteractionCreateToEvent({

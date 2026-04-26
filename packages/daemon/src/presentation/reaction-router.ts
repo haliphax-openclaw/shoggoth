@@ -17,9 +17,7 @@ const LEGEND_HEADER_RE = /^react to choose:\s*$/im;
  * and each subsequent line is `<emoji> <label>` until a blank line or end of message.
  * Returns null if no legend found.
  */
-export function parseReactionLegend(
-  messageContent: string,
-): ParsedReactionLegend | null {
+export function parseReactionLegend(messageContent: string): ParsedReactionLegend | null {
   const match = LEGEND_HEADER_RE.exec(messageContent);
   if (!match) return null;
 
@@ -85,14 +83,8 @@ export interface ReactionRouteInput {
  * 5. If no legend and reaction is NOT in global set → discard
  */
 export function routeReaction(input: ReactionRouteInput): ReactionRouteResult {
-  const {
-    emoji,
-    messageContent,
-    messageTimestamp,
-    nowMs,
-    maxAgeMinutes,
-    globalPassthrough,
-  } = input;
+  const { emoji, messageContent, messageTimestamp, nowMs, maxAgeMinutes, globalPassthrough } =
+    input;
 
   // 1. Age check
   const ageMs = nowMs - messageTimestamp;

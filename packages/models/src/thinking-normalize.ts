@@ -12,10 +12,7 @@ const OPEN_TAGS = ["<thinking>", "<think>"];
 /** Closing tags recognized as thinking block ends. */
 const CLOSE_TAGS = ["</thinking>", "</think>"];
 /** Max buffer needed to identify the longest tag. */
-const MAX_TAG_LEN = Math.max(
-  ...OPEN_TAGS.map((t) => t.length),
-  ...CLOSE_TAGS.map((t) => t.length),
-);
+const MAX_TAG_LEN = Math.max(...OPEN_TAGS.map((t) => t.length), ...CLOSE_TAGS.map((t) => t.length));
 
 function isOpenTag(buf: string): boolean {
   return OPEN_TAGS.includes(buf);
@@ -66,10 +63,7 @@ export class ThinkingStreamNormalizer {
               result.thinking = this.thinkingContent;
               this.thinkingContent = "";
             }
-          } else if (
-            !couldBeTag(this.buffer) ||
-            this.buffer.length >= MAX_TAG_LEN
-          ) {
+          } else if (!couldBeTag(this.buffer) || this.buffer.length >= MAX_TAG_LEN) {
             // Not a prefix of any known tag, or exceeded max length
             if (this.state === "buffering-tag") {
               this.textContent += this.buffer;
@@ -129,8 +123,7 @@ export class ThinkingStreamNormalizer {
 }
 
 /** Regex matching both `<thinking>` and `<think>` tag variants. */
-const THINKING_BLOCK_RE =
-  /<(?:thinking|think)>([\s\S]*?)<\/(?:thinking|think)>/g;
+const THINKING_BLOCK_RE = /<(?:thinking|think)>([\s\S]*?)<\/(?:thinking|think)>/g;
 
 /**
  * Extracts thinking blocks from content that uses XML-style tags.
@@ -138,9 +131,7 @@ const THINKING_BLOCK_RE =
  * Returns an array of ChatContentPart if thinking tags are found,
  * otherwise returns the original string unchanged.
  */
-export function extractXmlThinkingBlocks(
-  content: string,
-): string | ChatContentPart[] {
+export function extractXmlThinkingBlocks(content: string): string | ChatContentPart[] {
   const regex = new RegExp(THINKING_BLOCK_RE.source, THINKING_BLOCK_RE.flags);
 
   if (!regex.test(content)) {

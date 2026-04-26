@@ -1,17 +1,11 @@
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import {
-  createInboundMessage,
-  type MessageExtensions,
-  type InternalMessage,
-} from "../src/model";
+import { createInboundMessage, type MessageExtensions, type InternalMessage } from "../src/model";
 
 describe("Internal message model", () => {
   it("creates inbound message with metadata and extensions", () => {
     const ext: MessageExtensions = {
-      attachments: [
-        { id: "a1", url: "https://cdn.example/f.png", filename: "f.png" },
-      ],
+      attachments: [{ id: "a1", url: "https://cdn.example/f.png", filename: "f.png" }],
       threadId: "thread-9",
       replyToMessageId: "msg-parent",
       reactions: [{ emoji: "👍", count: 2 }],

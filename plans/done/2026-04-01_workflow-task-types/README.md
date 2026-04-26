@@ -64,12 +64,7 @@ interface MessageTaskDef extends TaskDefBase {
   channel?: string;
 }
 
-type TaskDef =
-  | AgentTaskDef
-  | ToolTaskDef
-  | GateTaskDef
-  | TransformTaskDef
-  | MessageTaskDef;
+type TaskDef = AgentTaskDef | ToolTaskDef | GateTaskDef | TransformTaskDef | MessageTaskDef;
 ```
 
 ### Task Execution by Kind

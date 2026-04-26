@@ -9,15 +9,11 @@ describe("createLogger", () => {
   beforeEach(() => {
     chunks = [];
     origWrite = process.stderr.write.bind(process.stderr);
-    const write = vi.fn(
-      (chunk: string | Uint8Array, _enc?: unknown, cb?: () => void) => {
-        chunks.push(
-          typeof chunk === "string" ? chunk : Buffer.from(chunk).toString(),
-        );
-        cb?.();
-        return true;
-      },
-    );
+    const write = vi.fn((chunk: string | Uint8Array, _enc?: unknown, cb?: () => void) => {
+      chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
+      cb?.();
+      return true;
+    });
     process.stderr.write = write as typeof process.stderr.write;
   });
 

@@ -1,19 +1,9 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import {
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  toolExecExtended,
-  getExecSession,
-  removeExecSession,
-} from "../src/tools";
+import { toolExecExtended, getExecSession, removeExecSession } from "../src/tools";
 import type { ExecForegroundResult, ExecBackgroundResult } from "../src/tools";
 
 describe("toolExecExtended", () => {
@@ -126,9 +116,7 @@ describe("toolExecExtended", () => {
         creds,
       );
       assert.equal(r.kind, "foreground");
-      assert.ok(
-        (r as ExecForegroundResult).output?.includes("hello from stdin"),
-      );
+      assert.ok((r as ExecForegroundResult).output?.includes("hello from stdin"));
     });
 
     it("works with jq-style piping", async () => {
@@ -654,11 +642,7 @@ describe("toolExecExtended", () => {
 
   describe("BASH_ENV and bash shell", () => {
     it("sets BASH_ENV to workspace .bashrc", async () => {
-      const r = await toolExecExtended(
-        ws,
-        { command: "echo $BASH_ENV" },
-        creds,
-      );
+      const r = await toolExecExtended(ws, { command: "echo $BASH_ENV" }, creds);
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(
@@ -674,29 +658,15 @@ describe("toolExecExtended", () => {
 
     it("runs commands via /bin/bash, not /bin/sh", async () => {
       // BASH_VERSION is only set by bash, not sh
-      const r = await toolExecExtended(
-        ws,
-        { command: "echo ${BASH_VERSION:-not_bash}" },
-        creds,
-      );
+      const r = await toolExecExtended(ws, { command: "echo ${BASH_VERSION:-not_bash}" }, creds);
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
-      assert.ok(
-        !fg.output?.includes("not_bash"),
-        "should be running under bash, not sh",
-      );
+      assert.ok(!fg.output?.includes("not_bash"), "should be running under bash, not sh");
     });
 
     it("sources .bashrc via BASH_ENV when it exists", async () => {
-      writeFileSync(
-        join(ws, ".bashrc"),
-        "export CUSTOM_FROM_BASHRC=hello_from_rc\n",
-      );
-      const r = await toolExecExtended(
-        ws,
-        { command: "echo $CUSTOM_FROM_BASHRC" },
-        creds,
-      );
+      writeFileSync(join(ws, ".bashrc"), "export CUSTOM_FROM_BASHRC=hello_from_rc\n");
+      const r = await toolExecExtended(ws, { command: "echo $CUSTOM_FROM_BASHRC" }, creds);
       assert.equal(r.kind, "foreground");
       const fg = r as ExecForegroundResult;
       assert.ok(

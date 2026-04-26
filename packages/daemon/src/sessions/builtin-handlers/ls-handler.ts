@@ -4,10 +4,7 @@
 
 import { realpathSync } from "node:fs";
 import { runAsUser, resolvePathForRead } from "@shoggoth/os-exec";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 
 export function register(registry: BuiltinToolRegistry): void {
@@ -135,16 +132,10 @@ async function lsHandler(
   const userPath = String(args.path ?? ".");
   const all = args.all === true;
   const recursive = args.recursive === true;
-  const maxDepth =
-    typeof args.maxDepth === "number"
-      ? Math.max(1, Math.min(args.maxDepth, 20))
-      : 5;
+  const maxDepth = typeof args.maxDepth === "number" ? Math.max(1, Math.min(args.maxDepth, 20)) : 5;
   const glob = typeof args.glob === "string" ? args.glob : "";
   const stat = args.stat === true;
-  const limit =
-    typeof args.limit === "number"
-      ? Math.max(1, Math.min(args.limit, 500))
-      : 500;
+  const limit = typeof args.limit === "number" ? Math.max(1, Math.min(args.limit, 500)) : 500;
 
   // Resolve and sandbox-check the target directory
   const resolvedPath = resolveUserPath(ctx, userPath);

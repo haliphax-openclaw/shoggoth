@@ -198,9 +198,7 @@ describe("runToolLoop HITL (shared pending store + resolution hub)", () => {
     assert.ok(denied);
     assert.match(denied!.content, /hitl_denied/);
     const deniedAudits = db
-      .prepare(
-        `SELECT action, outcome FROM audit_log WHERE action = 'hitl.denied'`,
-      )
+      .prepare(`SELECT action, outcome FROM audit_log WHERE action = 'hitl.denied'`)
       .all() as { action: string; outcome: string }[];
     assert.equal(deniedAudits.length, 1);
     db.close();

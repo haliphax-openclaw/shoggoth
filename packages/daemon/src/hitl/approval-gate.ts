@@ -8,9 +8,6 @@ const TIER_RANK: Record<HitlRiskTier, number> = {
 };
 
 /** True when classified risk is strictly above what the effective bypass allows. */
-export function requiresHumanApproval(
-  tier: HitlRiskTier,
-  bypassUpTo: HitlRiskTier,
-): boolean {
+export function requiresHumanApproval(tier: HitlRiskTier, bypassUpTo: HitlRiskTier): boolean {
   return TIER_RANK[tier] > TIER_RANK[bypassUpTo];
 }

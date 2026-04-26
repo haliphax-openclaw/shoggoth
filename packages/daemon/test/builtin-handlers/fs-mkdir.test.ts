@@ -45,11 +45,7 @@ describe("builtin-fs mkdir action", () => {
 
   it("creates a single directory", async () => {
     const ctx = stubCtx(workspace);
-    const result = await registry.execute(
-      "fs",
-      { action: "mkdir", path: "newdir" },
-      ctx,
-    );
+    const result = await registry.execute("fs", { action: "mkdir", path: "newdir" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -77,9 +73,7 @@ describe("builtin-fs mkdir action", () => {
 
   it("fails for nested path without recursive: true", async () => {
     const ctx = stubCtx(workspace);
-    await assert.rejects(() =>
-      registry.execute("fs", { action: "mkdir", path: "x/y/z" }, ctx),
-    );
+    await assert.rejects(() => registry.execute("fs", { action: "mkdir", path: "x/y/z" }, ctx));
   });
 
   it("succeeds silently when directory already exists", async () => {
@@ -87,11 +81,7 @@ describe("builtin-fs mkdir action", () => {
     // Create it first
     await registry.execute("fs", { action: "mkdir", path: "existing" }, ctx);
     // Create again — should not throw
-    const result = await registry.execute(
-      "fs",
-      { action: "mkdir", path: "existing" },
-      ctx,
-    );
+    const result = await registry.execute("fs", { action: "mkdir", path: "existing" }, ctx);
     const parsed = JSON.parse(result.resultJson);
     assert.strictEqual(parsed.ok, true);
   });

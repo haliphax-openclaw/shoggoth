@@ -9,9 +9,7 @@ export const openaiImageBlockCodec: ImageBlockCodec = {
   supportsImageInput: true,
 
   encode(block: ImageBlock): unknown {
-    const url = block.url
-      ? block.url
-      : `data:${block.mediaType};base64,${block.base64}`;
+    const url = block.url ? block.url : `data:${block.mediaType};base64,${block.base64}`;
     return { type: "image_url", image_url: { url } };
   },
 
@@ -103,9 +101,7 @@ export const geminiImageBlockCodec: ImageBlockCodec = {
 
   encode(block: ImageBlock): unknown {
     if (!block.base64) {
-      throw new Error(
-        "Gemini codec requires base64 data; URL-only ImageBlock is not supported.",
-      );
+      throw new Error("Gemini codec requires base64 data; URL-only ImageBlock is not supported.");
     }
     return { inlineData: { mimeType: block.mediaType, data: block.base64 } };
   },

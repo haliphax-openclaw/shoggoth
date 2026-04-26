@@ -92,9 +92,9 @@ describe("runToolLoop HITL", () => {
     });
 
     assert.deepStrictEqual(executed, ["builtin-exec"]);
-    const tr = db
-      .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
-      .get("run-hitl-ok") as { status: string } | undefined;
+    const tr = db.prepare(`SELECT status FROM tool_runs WHERE id = ?`).get("run-hitl-ok") as
+      | { status: string }
+      | undefined;
     assert.equal(tr?.status, "completed");
     db.close();
   });
@@ -185,9 +185,9 @@ describe("runToolLoop HITL", () => {
     assert.equal(pushed[0]!.toolCallId, "tc-exec-2");
     assert.match(pushed[0]!.content, /hitl_denied/);
 
-    const tr = db
-      .prepare(`SELECT status FROM tool_runs WHERE id = ?`)
-      .get("run-hitl-deny") as { status: string } | undefined;
+    const tr = db.prepare(`SELECT status FROM tool_runs WHERE id = ?`).get("run-hitl-deny") as
+      | { status: string }
+      | undefined;
     assert.equal(tr?.status, "completed");
     db.close();
   });

@@ -1,16 +1,12 @@
 import { describe, it, vi } from "vitest";
 
-
 vi.mock("../src/workspaces/agent-workspace-layout", () => ({
   ensureAgentWorkspaceLayout: async () => {},
   resolveAgentTemplateDir: () => "/tmp/templates",
 }));
 
 vi.mock("node:child_process", async () => {
-  const actual =
-    await vi.importActual<typeof import("node:child_process")>(
-      "node:child_process",
-    );
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
   return {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,10 +35,9 @@ function stubLogger() {
     msg: string;
     fields?: Record<string, unknown>;
   }> = [];
-  const log =
-    (level: string) => (msg: string, fields?: Record<string, unknown>) => {
-      logs.push({ level, msg, fields });
-    };
+  const log = (level: string) => (msg: string, fields?: Record<string, unknown>) => {
+    logs.push({ level, msg, fields });
+  };
   const logger = {
     debug: log("debug"),
     info: log("info"),
@@ -115,18 +110,11 @@ describe("bootstrapMainSession", () => {
       await bootstrapMainSession({ db, config: makeConfig() });
 
       const store = createSessionStore(db);
-      const session = store.getById(
-        "agent:main:discord:channel:1234567890123456789",
-      );
+      const session = store.getById("agent:main:discord:channel:1234567890123456789");
       assert.ok(session, "session should exist");
-      assert.equal(
-        session!.id,
-        "agent:main:discord:channel:1234567890123456789",
-      );
+      assert.equal(session!.id, "agent:main:discord:channel:1234567890123456789");
 
-      const created = stub.logs.find(
-        (l) => l.msg === "bootstrap.agent.session_created",
-      );
+      const created = stub.logs.find((l) => l.msg === "bootstrap.agent.session_created");
       assert.ok(created, "should log session creation");
 
       db.close();
@@ -151,9 +139,7 @@ describe("bootstrapMainSession", () => {
       setRootLogger(stub.logger as any);
       await bootstrapMainSession({ db, config: makeConfig() });
 
-      const exists = stub.logs.find(
-        (l) => l.msg === "bootstrap.agent.session_exists",
-      );
+      const exists = stub.logs.find((l) => l.msg === "bootstrap.agent.session_exists");
       assert.ok(exists, "should log session exists");
       assert.ok(
         !stub.logs.find((l) => l.msg === "bootstrap.agent.session_created"),
@@ -188,9 +174,7 @@ describe("bootstrapMainSession", () => {
       await bootstrapMainSession({ db, config: makeConfig() });
 
       // Session should still be created even if others exist
-      const session = store.getById(
-        "agent:main:discord:channel:1234567890123456789",
-      );
+      const session = store.getById("agent:main:discord:channel:1234567890123456789");
       assert.ok(session, "should still create the session");
 
       db.close();
@@ -212,9 +196,7 @@ describe("bootstrapMainSession", () => {
 
       const store = createSessionStore(db);
       // Platform is derived from agent bindings (discord)
-      const session = store.getById(
-        "agent:main:discord:channel:1234567890123456789",
-      );
+      const session = store.getById("agent:main:discord:channel:1234567890123456789");
       assert.ok(session, "should derive platform from agent bindings");
 
       db.close();
@@ -239,9 +221,7 @@ describe("bootstrapMainSession", () => {
       setRootLogger(stub.logger as any);
       await bootstrapMainSession({ db, config: cfg });
 
-      const warn = stub.logs.find(
-        (l) => l.msg === "bootstrap.agent.no_platforms",
-      );
+      const warn = stub.logs.find((l) => l.msg === "bootstrap.agent.no_platforms");
       assert.ok(warn, "should warn about missing platform bindings");
       assert.equal(warn!.level, "warn");
 
@@ -267,8 +247,7 @@ describe("bootstrapMainSession", () => {
                   routes: [
                     {
                       channelId: "1111111111111111111",
-                      sessionId:
-                        "agent:main:discord:channel:1111111111111111111",
+                      sessionId: "agent:main:discord:channel:1111111111111111111",
                       guildId: "9876543210987654321",
                     },
                   ],
@@ -281,8 +260,7 @@ describe("bootstrapMainSession", () => {
                   routes: [
                     {
                       channelId: "2222222222222222222",
-                      sessionId:
-                        "agent:developer:discord:channel:2222222222222222222",
+                      sessionId: "agent:developer:discord:channel:2222222222222222222",
                       guildId: "9876543210987654321",
                     },
                   ],
@@ -307,9 +285,7 @@ describe("bootstrapMainSession", () => {
         "developer session should exist",
       );
 
-      const created = stub.logs.filter(
-        (l) => l.msg === "bootstrap.agent.session_created",
-      );
+      const created = stub.logs.filter((l) => l.msg === "bootstrap.agent.session_created");
       assert.equal(created.length, 2, "should create both sessions");
 
       db.close();

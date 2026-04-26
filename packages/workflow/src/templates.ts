@@ -52,10 +52,7 @@ export function validateTemplateRefs(
  * Substitutes `{{task:N:output}}` with the task's output and
  * `{{task:N:success}}` with "true"/"false" based on status.
  */
-export function resolveTemplates(
-  prompt: string,
-  tasks: Map<number, TaskState>,
-): string {
+export function resolveTemplates(prompt: string, tasks: Map<number, TaskState>): string {
   TEMPLATE_RE.lastIndex = 0;
   return prompt.replace(TEMPLATE_RE, (fullMatch, idStr, kind) => {
     const taskId = Number(idStr);

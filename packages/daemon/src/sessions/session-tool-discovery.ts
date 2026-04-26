@@ -3,15 +3,9 @@
 // ---------------------------------------------------------------------------
 
 import type Database from "better-sqlite3";
-import type {
-  AggregatedTool,
-  AggregateMcpCatalogResult,
-} from "@shoggoth/mcp-integration";
+import type { AggregatedTool, AggregateMcpCatalogResult } from "@shoggoth/mcp-integration";
 import { parseAgentSessionUrn, type ShoggothConfig } from "@shoggoth/shared";
-import {
-  openAiToolsFromCatalog,
-  type SessionMcpToolContext,
-} from "./session-mcp-tool-context";
+import { openAiToolsFromCatalog, type SessionMcpToolContext } from "./session-mcp-tool-context";
 import { mcpToolsForToolLoop } from "../mcp/tool-loop-mcp";
 import type { SessionMcpContextFinalizer } from "./session-mcp-runtime";
 
@@ -38,9 +32,7 @@ export function getSessionToolState(
   sessionId: string,
 ): Map<string, boolean> {
   const rows = db
-    .prepare(
-      `SELECT tool_id, enabled FROM session_tool_state WHERE session_id = ?`,
-    )
+    .prepare(`SELECT tool_id, enabled FROM session_tool_state WHERE session_id = ?`)
     .all(sessionId) as Array<{ tool_id: string; enabled: number }>;
   const map = new Map<string, boolean>();
   for (const r of rows) {
@@ -49,13 +41,8 @@ export function getSessionToolState(
   return map;
 }
 
-export function clearSessionToolState(
-  db: Database.Database,
-  sessionId: string,
-): void {
-  db.prepare(`DELETE FROM session_tool_state WHERE session_id = ?`).run(
-    sessionId,
-  );
+export function clearSessionToolState(db: Database.Database, sessionId: string): void {
+  db.prepare(`DELETE FROM session_tool_state WHERE session_id = ?`).run(sessionId);
 }
 
 export function setSessionToolState(
@@ -138,15 +125,12 @@ const DISCOVER_TOOL_INPUT_SCHEMA = {
     },
     list: {
       type: "boolean",
-      description:
-        "When true, list all available tools with their current state.",
+      description: "When true, list all available tools with their current state.",
     },
   },
 };
 
-function buildDiscoverToolDescriptor(
-  collapsedTools: readonly AggregatedTool[],
-): AggregatedTool {
+function buildDiscoverToolDescriptor(collapsedTools: readonly AggregatedTool[]): AggregatedTool {
   let description = DISCOVER_TOOL_BASE_DESCRIPTION;
   if (collapsedTools.length > 0) {
     const catalog = collapsedTools
@@ -168,10 +152,7 @@ export function createToolDiscoveryFinalizer(
   config: ShoggothConfig,
   db: Database.Database,
 ): SessionMcpContextFinalizer {
-  return (
-    ctx: SessionMcpToolContext,
-    sessionId: string,
-  ): SessionMcpToolContext => {
+  return (ctx: SessionMcpToolContext, sessionId: string): SessionMcpToolContext => {
     const resolved = resolveToolDiscoveryConfig(config, sessionId);
     if (!resolved.enabled) return ctx;
 
@@ -202,12 +183,8 @@ export function createToolDiscoveryFinalizer(
     const discoverTool = buildDiscoverToolDescriptor(collapsedTools);
 
     // Add discover tool to the enabled set (avoid duplicate)
-    const hasDiscover = enabledTools.some(
-      (t) => t.namespacedName === "builtin-discover",
-    );
-    const advertisedTools = hasDiscover
-      ? enabledTools
-      : [...enabledTools, discoverTool];
+    const hasDiscover = enabledTools.some((t) => t.namespacedName === "builtin-discover");
+    const advertisedTools = hasDiscover ? enabledTools : [...enabledTools, discoverTool];
 
     const advertisedAggregated: AggregateMcpCatalogResult = {
       tools: advertisedTools,

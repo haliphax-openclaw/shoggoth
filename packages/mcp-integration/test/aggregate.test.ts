@@ -26,11 +26,7 @@ describe("aggregateMcpCatalogs", () => {
     assert.ok(read);
     assert.equal(read?.originalName, "read");
     const payload = toMcpToolsListPayload(agg);
-    assert.ok(
-      payload.tools.some(
-        (t) => t.name === "a-read" && t.inputSchema.properties,
-      ),
-    );
+    assert.ok(payload.tools.some((t) => t.name === "a-read" && t.inputSchema.properties));
   });
 
   it("rejects duplicate aggregated names", () => {

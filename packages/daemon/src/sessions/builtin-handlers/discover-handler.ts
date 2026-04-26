@@ -2,10 +2,7 @@
 // builtin-discover — dynamic tool enable/disable/list/reset
 // ---------------------------------------------------------------------------
 
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import {
   getSessionToolState,
   setSessionToolState,
@@ -77,11 +74,7 @@ async function discoverHandler(
   }
 
   // Signal refresh needed if any state changed
-  if (
-    applied.enabled.length > 0 ||
-    applied.disabled.length > 0 ||
-    applied.reset
-  ) {
+  if (applied.enabled.length > 0 || applied.disabled.length > 0 || applied.reset) {
     toolRefreshNeeded.set(ctx.sessionId, true);
   }
 

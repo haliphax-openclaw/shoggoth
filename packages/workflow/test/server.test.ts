@@ -18,11 +18,7 @@ function makeTmpDir(): string {
   return dir;
 }
 
-function makeTask(
-  id: number,
-  kind: "agent" | "tool" = "agent",
-  prompt = `do task ${id}`,
-): TaskDef {
+function makeTask(id: number, kind: "agent" | "tool" = "agent", prompt = `do task ${id}`): TaskDef {
   if (kind === "tool") {
     return {
       kind: "tool",
@@ -128,11 +124,7 @@ describe("WorkflowServer", () => {
 
     it("passes the executor returned by factory to Orchestrator", async () => {
       const mockExecutor: ToolExecutor = {
-        async execute(call: {
-          name: string;
-          argsJson: string;
-          toolCallId: string;
-        }) {
+        async execute(call: { name: string; argsJson: string; toolCallId: string }) {
           return {
             resultJson: JSON.stringify({ output: `executed ${call.name}` }),
           };
@@ -273,10 +265,7 @@ describe("WorkflowServer", () => {
       callOrder.push("orchestrator-created");
 
       // Verify factory was called before orchestrator was created
-      assert.ok(
-        callOrder.indexOf("factory") <
-          callOrder.indexOf("orchestrator-created"),
-      );
+      assert.ok(callOrder.indexOf("factory") < callOrder.indexOf("orchestrator-created"));
     });
   });
 });

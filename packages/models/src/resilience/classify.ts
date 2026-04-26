@@ -1,7 +1,4 @@
-export type ErrorClassification =
-  | "retryable"
-  | "rate_limited"
-  | "non_retryable";
+export type ErrorClassification = "retryable" | "rate_limited" | "non_retryable";
 
 const RETRYABLE_STATUSES = new Set([408, 500, 502, 503, 504]);
 const RETRYABLE_NETWORK_CODES = new Set([
@@ -11,10 +8,7 @@ const RETRYABLE_NETWORK_CODES = new Set([
   "FETCH_FAILED",
 ]);
 
-export function classifyModelError(
-  status: number,
-  code?: string,
-): ErrorClassification {
+export function classifyModelError(status: number, code?: string): ErrorClassification {
   if (code && RETRYABLE_NETWORK_CODES.has(code)) {
     return "retryable";
   }

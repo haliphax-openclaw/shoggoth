@@ -10,10 +10,7 @@ import assert from "node:assert/strict";
  */
 
 // We test via the tool handler since that's the entry point agents use.
-import {
-  handleWorkflowToolCall,
-  type WorkflowToolHandlerDeps,
-} from "../src/tool-handler.js";
+import { handleWorkflowToolCall, type WorkflowToolHandlerDeps } from "../src/tool-handler.js";
 import type { WorkflowServer } from "../src/server.js";
 import type { ControlPlane } from "../src/control.js";
 import type { TaskList, DependencyGraph } from "../src/types.js";
@@ -88,9 +85,7 @@ function makeWorkflow(overrides: Partial<TaskList> = {}): TaskList {
   };
 }
 
-function mockControlPlane(
-  overrides: Partial<Record<string, unknown>> = {},
-): ControlPlane {
+function mockControlPlane(overrides: Partial<Record<string, unknown>> = {}): ControlPlane {
   return {
     abort: async () => {},
     pause: async () => {},
@@ -105,9 +100,7 @@ function mockControlPlane(
   } as unknown as ControlPlane;
 }
 
-function makeDeps(
-  overrides: Partial<WorkflowToolHandlerDeps> = {},
-): WorkflowToolHandlerDeps {
+function makeDeps(overrides: Partial<WorkflowToolHandlerDeps> = {}): WorkflowToolHandlerDeps {
   return {
     server: mockServer(),
     controlPlane: mockControlPlane(),
@@ -125,8 +118,7 @@ describe("name passthrough", () => {
     let capturedName: string | undefined;
     const server = mockServer({
       start: async (_tasks, _graph, opts) => {
-        capturedName = (opts as unknown as Record<string, unknown>)
-          .name as string;
+        capturedName = (opts as unknown as Record<string, unknown>).name as string;
         return "wf-named";
       },
     });
@@ -149,8 +141,7 @@ describe("name passthrough", () => {
     let capturedName: string | undefined;
     const server = mockServer({
       start: async (_tasks, _graph, opts) => {
-        capturedName = (opts as unknown as Record<string, unknown>)
-          .name as string;
+        capturedName = (opts as unknown as Record<string, unknown>).name as string;
         return "wf-default";
       },
     });
@@ -177,10 +168,7 @@ describe("graph serialization in status", () => {
       status: async () => makeWorkflow(),
     });
     const deps = makeDeps({ controlPlane: cp as unknown as ControlPlane });
-    const result = await handleWorkflowToolCall(
-      { action: "status", workflow_id: "wf-test" },
-      deps,
-    );
+    const result = await handleWorkflowToolCall({ action: "status", workflow_id: "wf-test" }, deps);
 
     assert.equal(result.ok, true);
     const data = result.data as Record<string, unknown>;

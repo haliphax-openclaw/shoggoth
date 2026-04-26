@@ -67,7 +67,7 @@ export class ShutdownCoordinator {
     }, timeout);
 
     try {
-      for (const { name, fn } of [...this.drains]) {
+      for (const { name, fn } of this.drains) {
         if (timedOut) break;
         const left = deadline - Date.now();
         if (left <= 0) {
@@ -78,10 +78,7 @@ export class ShutdownCoordinator {
           await Promise.race([
             Promise.resolve(fn()),
             new Promise<never>((_, reject) =>
-              setTimeout(
-                () => reject(new Error("drain deadline")),
-                Math.max(1, left),
-              ),
+              setTimeout(() => reject(new Error("drain deadline")), Math.max(1, left)),
             ),
           ]);
           log.debug("drain complete", { drain: name });
@@ -96,9 +93,7 @@ export class ShutdownCoordinator {
       clearTimeout(timer);
     }
 
-    const reason = timedOut
-      ? `shutdown_timeout:${signal}`
-      : `shutdown:${signal}`;
+    const reason = timedOut ? `shutdown_timeout:${signal}` : `shutdown:${signal}`;
     try {
       await this.opts.markInterruptedRunsFailed?.(reason);
     } catch (e) {

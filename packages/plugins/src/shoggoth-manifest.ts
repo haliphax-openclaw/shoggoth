@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-const pluginKindSchema = z.enum([
-  "messaging-platform",
-  "observability",
-  "general",
-]);
+const pluginKindSchema = z.enum(["messaging-platform", "observability", "general"]);
 
 /** Validates the `shoggothPlugin` property bag from package.json. */
 export const shoggothPluginBagSchema = z
@@ -32,9 +28,7 @@ export function parseShoggothPluginBag(data: unknown): ShoggothPluginBag {
  * Read a plugin's package.json and extract metadata.
  * Throws if `shoggothPlugin` is missing or invalid.
  */
-export function resolvePluginMeta(
-  packageJson: Record<string, unknown>,
-): ShoggothPluginMeta {
+export function resolvePluginMeta(packageJson: Record<string, unknown>): ShoggothPluginMeta {
   const bag = parseShoggothPluginBag(packageJson.shoggothPlugin);
   return {
     name: z.string().min(1).parse(packageJson.name),

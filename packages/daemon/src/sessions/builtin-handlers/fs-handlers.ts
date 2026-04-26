@@ -4,15 +4,9 @@
 
 import { extname } from "node:path";
 import { toolRead, toolReadBinary, toolWrite } from "@shoggoth/os-exec";
-import {
-  IMAGE_EXTENSION_TO_MIME,
-  MAX_IMAGE_BLOCK_BYTES,
-} from "@shoggoth/shared";
+import { IMAGE_EXTENSION_TO_MIME, MAX_IMAGE_BLOCK_BYTES } from "@shoggoth/shared";
 import type { ChatContentPart } from "@shoggoth/models";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { resolveUserPath } from "../builtin-tool-registry";
 import { truncateToolOutput } from "./truncate-output";
 import { checkAgentsMdGate } from "../agents-md-gate";
@@ -40,11 +34,7 @@ async function readHandler(
         }),
       };
     }
-    const buf = await toolReadBinary(
-      ctx.workspacePath,
-      resolvedPath,
-      ctx.creds,
-    );
+    const buf = await toolReadBinary(ctx.workspacePath, resolvedPath, ctx.creds);
     if (buf.length > MAX_IMAGE_BLOCK_BYTES) {
       const sizeMB = (buf.length / (1024 * 1024)).toFixed(1);
       return {
@@ -80,10 +70,6 @@ async function writeHandler(
   const path = String(args.path ?? "");
   const content = String(args.content ?? "");
   const resolvedPath = resolveUserPath(ctx, path);
-  await toolWrite(
-    ctx.workspacePath,
-    { path: resolvedPath, content, mkdirp: true },
-    ctx.creds,
-  );
+  await toolWrite(ctx.workspacePath, { path: resolvedPath, content, mkdirp: true }, ctx.creds);
   return { resultJson: JSON.stringify({ ok: true, path }) };
 }

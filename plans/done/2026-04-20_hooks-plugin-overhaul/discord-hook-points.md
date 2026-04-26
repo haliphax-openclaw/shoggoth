@@ -172,8 +172,7 @@ const subagentExt = {
   runSessionModelTurn: discordPlatform.runSessionModelTurn,
   subscribeSubagentSession: discordPlatform.subscribeSubagentSession,
   registerPlatformThreadBinding: dm.registerPlatformThreadBinding,
-  announcePersistentSubagentSessionEnded:
-    discordPlatform.announcePersistentSubagentSessionEnded,
+  announcePersistentSubagentSessionEnded: discordPlatform.announcePersistentSubagentSessionEnded,
 };
 setSubagentRuntimeExtension(subagentExt);
 ```

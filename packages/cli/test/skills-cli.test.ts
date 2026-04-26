@@ -11,10 +11,7 @@ import {
   formatSkillsSearchJson,
 } from "../src/skills-cli";
 
-function cfg(
-  configDirectory: string,
-  skills: ShoggothConfig["skills"],
-): ShoggothConfig {
+function cfg(configDirectory: string, skills: ShoggothConfig["skills"]): ShoggothConfig {
   return {
     logLevel: "info",
     stateDbPath: "/tmp/x.db",
@@ -88,9 +85,7 @@ describe("skills-cli", () => {
     const c = cfg(d, { scanRoots: [sd], disabledIds: [] });
 
     // Search by query
-    const byQuery = JSON.parse(
-      formatSkillsSearchJson(c, { query: "weather" }),
-    ) as {
+    const byQuery = JSON.parse(formatSkillsSearchJson(c, { query: "weather" })) as {
       id: string;
       tags: string[];
       category: string | null;
@@ -105,9 +100,9 @@ describe("skills-cli", () => {
     assert.ok(byQuery[0]!.score > 0);
 
     // Search by category
-    const byCat = JSON.parse(
-      formatSkillsSearchJson(c, { category: "dev-tools" }),
-    ) as { id: string }[];
+    const byCat = JSON.parse(formatSkillsSearchJson(c, { category: "dev-tools" })) as {
+      id: string;
+    }[];
     assert.strictEqual(byCat.length, 1);
     assert.strictEqual(byCat[0]!.id, "github");
 

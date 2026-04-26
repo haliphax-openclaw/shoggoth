@@ -30,25 +30,15 @@ export interface SearchQuery {
 }
 
 export interface MessageToolTransport {
-  createMessage(
-    channelId: string,
-    body: CreateMessageBody,
-  ): Promise<{ readonly id: string }>;
+  createMessage(channelId: string, body: CreateMessageBody): Promise<{ readonly id: string }>;
   createMessageWithFiles(
     channelId: string,
     body: CreateMessageBody,
     files: readonly MessageUploadFile[],
   ): Promise<{ readonly id: string }>;
-  editMessage(
-    channelId: string,
-    messageId: string,
-    body: EditMessageBody,
-  ): Promise<void>;
+  editMessage(channelId: string, messageId: string, body: EditMessageBody): Promise<void>;
   deleteMessage(channelId: string, messageId: string): Promise<void>;
-  getMessage(
-    channelId: string,
-    messageId: string,
-  ): Promise<Record<string, unknown>>;
+  getMessage(channelId: string, messageId: string): Promise<Record<string, unknown>>;
   getChannelMessages(
     channelId: string,
     query: ChannelMessagesQuery,
@@ -62,16 +52,8 @@ export interface MessageToolTransport {
     },
   ): Promise<{ readonly id: string }>;
   deleteChannel(channelId: string): Promise<void>;
-  createMessageReaction(
-    channelId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<void>;
-  deleteMessageReaction(
-    channelId: string,
-    messageId: string,
-    emoji: string,
-  ): Promise<void>;
+  createMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
+  deleteMessageReaction(channelId: string, messageId: string, emoji: string): Promise<void>;
   getMessageReactions(
     channelId: string,
     messageId: string,

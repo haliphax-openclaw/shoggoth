@@ -8,12 +8,7 @@ import {
 } from "../src/image-codec";
 import type { ImageBlock, ModelCapabilities } from "../src/types";
 
-const MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-] as const;
+const MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 
 function base64Block(mediaType: string): ImageBlock {
   return { type: "image", mediaType, base64: "AAAA" };
@@ -68,9 +63,7 @@ describe("openaiImageBlockCodec", () => {
   });
 
   it("decode returns null for non-image parts", () => {
-    expect(
-      openaiImageBlockCodec.decode({ type: "text", text: "hi" }),
-    ).toBeNull();
+    expect(openaiImageBlockCodec.decode({ type: "text", text: "hi" })).toBeNull();
     expect(openaiImageBlockCodec.decode("string")).toBeNull();
     expect(openaiImageBlockCodec.decode(null)).toBeNull();
     expect(openaiImageBlockCodec.decode(42)).toBeNull();
@@ -96,10 +89,7 @@ describe("anthropicImageBlockCodec", () => {
 
   it("encodes URL-only block with source.type url", () => {
     const block = urlBlock("image/png");
-    const wire = anthropicImageBlockCodec.encode(block) as Record<
-      string,
-      unknown
-    >;
+    const wire = anthropicImageBlockCodec.encode(block) as Record<string, unknown>;
     expect(wire).toEqual({
       type: "image",
       source: { type: "url", url: "https://example.com/img.png" },
@@ -108,10 +98,7 @@ describe("anthropicImageBlockCodec", () => {
 
   it("prefers URL when both base64 and url are present", () => {
     const block = bothBlock("image/jpeg");
-    const wire = anthropicImageBlockCodec.encode(block) as Record<
-      string,
-      unknown
-    >;
+    const wire = anthropicImageBlockCodec.encode(block) as Record<string, unknown>;
     expect(wire).toEqual({
       type: "image",
       source: { type: "url", url: "https://example.com/img.png" },
@@ -119,9 +106,7 @@ describe("anthropicImageBlockCodec", () => {
   });
 
   it("decode returns null for non-image parts", () => {
-    expect(
-      anthropicImageBlockCodec.decode({ type: "text", text: "hi" }),
-    ).toBeNull();
+    expect(anthropicImageBlockCodec.decode({ type: "text", text: "hi" })).toBeNull();
     expect(anthropicImageBlockCodec.decode("string")).toBeNull();
     expect(anthropicImageBlockCodec.decode(null)).toBeNull();
   });
@@ -146,9 +131,7 @@ describe("geminiImageBlockCodec", () => {
 
   it("throws on URL-only block (no base64)", () => {
     const block = urlBlock("image/png");
-    expect(() => geminiImageBlockCodec.encode(block)).toThrow(
-      /requires base64/,
-    );
+    expect(() => geminiImageBlockCodec.encode(block)).toThrow(/requires base64/);
   });
 
   it("encodes block with both base64 and url using base64", () => {
@@ -175,9 +158,7 @@ describe("getImageBlockCodec", () => {
   });
 
   it("returns anthropic codec", () => {
-    expect(getImageBlockCodec("anthropic-messages")).toBe(
-      anthropicImageBlockCodec,
-    );
+    expect(getImageBlockCodec("anthropic-messages")).toBe(anthropicImageBlockCodec);
   });
 
   it("returns gemini codec", () => {
@@ -197,64 +178,43 @@ describe("wrapCodecWithCapabilities", () => {
 
   it("returns original codec when imageInput is true", () => {
     const capabilities: ModelCapabilities = { imageInput: true };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(wrapped).toBe(openaiImageBlockCodec);
   });
 
   it("returns original codec when imageInput is undefined", () => {
     const capabilities: ModelCapabilities = {};
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(wrapped).toBe(openaiImageBlockCodec);
   });
 
   it("returns wrapped codec when imageInput is false", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(wrapped).not.toBe(openaiImageBlockCodec);
   });
 
   it("throws when encoding with imageInput: false", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(() => wrapped.encode(block)).toThrow(/does not support image input/);
   });
 
   it("preserves supportsUrl from original codec", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(wrapped.supportsUrl).toBe(true);
   });
 
   it("sets supportsImageInput to false when wrapped", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     expect(wrapped.supportsImageInput).toBe(false);
   });
 
   it("delegates decode to original codec", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      openaiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(openaiImageBlockCodec, capabilities);
     const wire = {
       type: "image_url",
       image_url: { url: "data:image/png;base64,AAAA" },
@@ -264,19 +224,13 @@ describe("wrapCodecWithCapabilities", () => {
 
   it("works with anthropic codec", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      anthropicImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(anthropicImageBlockCodec, capabilities);
     expect(() => wrapped.encode(block)).toThrow(/does not support image input/);
   });
 
   it("works with gemini codec", () => {
     const capabilities: ModelCapabilities = { imageInput: false };
-    const wrapped = wrapCodecWithCapabilities(
-      geminiImageBlockCodec,
-      capabilities,
-    );
+    const wrapped = wrapCodecWithCapabilities(geminiImageBlockCodec, capabilities);
     expect(() => wrapped.encode(block)).toThrow(/does not support image input/);
   });
 });

@@ -30,9 +30,7 @@ export async function loadPluginFromDirectory(
   const packageJson = JSON.parse(raw) as Record<string, unknown>;
 
   if (!packageJson.shoggothPlugin) {
-    throw new Error(
-      `Plugin at "${rootDir}" package.json is missing the "shoggothPlugin" property`,
-    );
+    throw new Error(`Plugin at "${rootDir}" package.json is missing the "shoggothPlugin" property`);
   }
 
   const meta = resolvePluginMeta(packageJson);

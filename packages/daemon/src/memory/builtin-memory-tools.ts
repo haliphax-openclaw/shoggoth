@@ -8,7 +8,6 @@ import {
   searchMemoryWithOptionalEmbedding,
   upsertMemoryEmbedding,
   extractSnippet,
-  type MemoryHit,
   type MemorySearchFilters,
   type IngestOptions,
 } from "./memory-index";
@@ -28,10 +27,7 @@ const MAX_SNIPPET_CHARS = 1000;
 const MAX_REPORT_FILES = 200;
 
 /** Resolve configured memory roots: workspace-relative paths only. Absolute paths are skipped. */
-export function resolveMemoryScanRoots(
-  workspacePath: string,
-  paths: readonly string[],
-): string[] {
+export function resolveMemoryScanRoots(workspacePath: string, paths: readonly string[]): string[] {
   const out: string[] = [];
   for (const p of paths) {
     if (isAbsolute(p)) continue;
@@ -41,10 +37,7 @@ export function resolveMemoryScanRoots(
   return out;
 }
 
-function sourcePathUnderMemoryRoots(
-  sourcePath: string,
-  roots: string[],
-): boolean {
+function sourcePathUnderMemoryRoots(sourcePath: string, roots: string[]): boolean {
   for (const r of roots) {
     const root = r.endsWith("/") ? r.slice(0, -1) : r;
     if (sourcePath === root) return true;
@@ -62,17 +55,12 @@ async function syncMemoryEmbeddingsAfterIngest(input: {
   readonly fetchImpl?: FetchLike;
   readonly runtimeOpenaiBaseUrl?: string | undefined;
 }): Promise<void> {
-  const { db, absoluteRoots, memory, env, fetchImpl, runtimeOpenaiBaseUrl } =
-    input;
+  const { db, absoluteRoots, memory, env, fetchImpl, runtimeOpenaiBaseUrl } = input;
   if (!memory.embeddings.enabled || absoluteRoots.length === 0) return;
 
   const modelId = resolveMemoryEmbeddingModelId(memory);
   const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
-  const baseUrl = resolveMemoryEmbeddingBaseUrl(
-    env,
-    memory,
-    runtimeOpenaiBaseUrl,
-  );
+  const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
 
   const all = db
     .prepare(
@@ -85,17 +73,13 @@ async function syncMemoryEmbeddingsAfterIngest(input: {
     contentSha256: string;
   }[];
 
-  const docs = all.filter((d) =>
-    sourcePathUnderMemoryRoots(d.sourcePath, absoluteRoots),
-  );
+  const docs = all.filter((d) => sourcePathUnderMemoryRoots(d.sourcePath, absoluteRoots));
   const selectEmbSha = db.prepare(
     `SELECT content_sha256 AS h FROM memory_embeddings WHERE document_id = @id AND model_id = @model`,
   );
 
   for (const d of docs) {
-    const row = selectEmbSha.get({ id: d.id, model: modelId }) as
-      | { h: string | null }
-      | undefined;
+    const row = selectEmbSha.get({ id: d.id, model: modelId }) as { h: string | null } | undefined;
     const prev = row?.h ?? null;
     if (prev !== null && prev === d.contentSha256) continue;
 
@@ -149,16 +133,10 @@ export async function runMemoryBuiltin(input: {
 
     // Selective ingest: paths (include globs) and exclude globs.
     const rawPaths = Array.isArray(args.paths) ? (args.paths as unknown[]) : [];
-    const includePaths = rawPaths
-      .map((p) => String(p).trim())
-      .filter((p) => p.length > 0);
+    const includePaths = rawPaths.map((p) => String(p).trim()).filter((p) => p.length > 0);
 
-    const rawExclude = Array.isArray(args.exclude)
-      ? (args.exclude as unknown[])
-      : [];
-    const excludePaths = rawExclude
-      .map((p) => String(p).trim())
-      .filter((p) => p.length > 0);
+    const rawExclude = Array.isArray(args.exclude) ? (args.exclude as unknown[]) : [];
+    const excludePaths = rawExclude.map((p) => String(p).trim()).filter((p) => p.length > 0);
 
     const ingestOpts: IngestOptions | undefined =
       includePaths.length > 0 || excludePaths.length > 0
@@ -166,9 +144,7 @@ export async function runMemoryBuiltin(input: {
         : undefined;
 
     const result =
-      roots.length === 0
-        ? { changed: 0, files: [] }
-        : ingestMemoryRoots(db, roots, ingestOpts);
+      roots.length === 0 ? { changed: 0, files: [] } : ingestMemoryRoots(db, roots, ingestOpts);
 
     await syncMemoryEmbeddingsAfterIngest({
       db,
@@ -186,8 +162,7 @@ export async function runMemoryBuiltin(input: {
     };
 
     if (roots.length === 0) {
-      response.message =
-        "no configured memory paths exist on disk for this session";
+      response.message = "no configured memory paths exist on disk for this session";
     }
 
     if (report) {
@@ -274,17 +249,10 @@ export async function runMemoryBuiltin(input: {
     // Snippet options.
     const snippetMode = args.snippet === true;
     let snippetChars = DEFAULT_SNIPPET_CHARS;
-    if (
-      typeof args.snippet_chars === "number" &&
-      Number.isFinite(args.snippet_chars)
-    ) {
-      snippetChars = Math.min(
-        MAX_SNIPPET_CHARS,
-        Math.max(20, Math.floor(args.snippet_chars)),
-      );
+    if (typeof args.snippet_chars === "number" && Number.isFinite(args.snippet_chars)) {
+      snippetChars = Math.min(MAX_SNIPPET_CHARS, Math.max(20, Math.floor(args.snippet_chars)));
     }
-    const highlightTag =
-      typeof args.highlight_tag === "string" ? args.highlight_tag : "**";
+    const highlightTag = typeof args.highlight_tag === "string" ? args.highlight_tag : "**";
     // When snippet mode is on, body is omitted unless include_body is explicitly true.
     const includeBody = snippetMode ? args.include_body === true : true;
 
@@ -300,11 +268,7 @@ export async function runMemoryBuiltin(input: {
     if (memory.embeddings.enabled) {
       try {
         const apiKey = resolveMemoryEmbeddingApiKey(memory, env);
-        const baseUrl = resolveMemoryEmbeddingBaseUrl(
-          env,
-          memory,
-          runtimeOpenaiBaseUrl,
-        );
+        const baseUrl = resolveMemoryEmbeddingBaseUrl(env, memory, runtimeOpenaiBaseUrl);
         queryEmbedding = await fetchOpenAiCompatibleTextEmbedding({
           baseUrl,
           apiKey,
@@ -347,9 +311,7 @@ export async function runMemoryBuiltin(input: {
 
       if (includeBody) {
         out.body =
-          hit.body.length > MAX_BODY_CHARS
-            ? `${hit.body.slice(0, MAX_BODY_CHARS - 1)}…`
-            : hit.body;
+          hit.body.length > MAX_BODY_CHARS ? `${hit.body.slice(0, MAX_BODY_CHARS - 1)}…` : hit.body;
       }
 
       if (includeScores) {

@@ -57,10 +57,7 @@ export function redactToolArgsJson(
 /**
  * Redact arbitrary JSON-serializable value (e.g. audit metadata objects).
  */
-export function redactJsonValue(
-  value: unknown,
-  jsonPaths: readonly string[],
-): string {
+export function redactJsonValue(value: unknown, jsonPaths: readonly string[]): string {
   if (jsonPaths.length === 0) {
     return JSON.stringify(value);
   }

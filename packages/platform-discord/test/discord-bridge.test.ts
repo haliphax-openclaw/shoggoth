@@ -76,9 +76,7 @@ describe("discord-bridge", () => {
   it("parseDiscordRoutesJson accepts channel snowflake session URNs", () => {
     const sid = "agent:main:discord:channel:1487579255616573533";
     const routes = parseDiscordRoutesJson(
-      JSON.stringify([
-        { guildId: "g", channelId: "1487579255616573533", sessionId: sid },
-      ]),
+      JSON.stringify([{ guildId: "g", channelId: "1487579255616573533", sessionId: sid }]),
     );
     assert.equal(routes.length, 1);
     assert.equal(routes[0]!.sessionId, sid);
@@ -146,8 +144,7 @@ describe("discord-bridge", () => {
           routes: [
             {
               channelId: "ch",
-              sessionId:
-                "agent:wrong:discord:channel:00000000-0000-4000-8000-000000000001",
+              sessionId: "agent:wrong:discord:channel:00000000-0000-4000-8000-000000000001",
             },
           ],
           routeGuard,

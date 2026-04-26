@@ -24,10 +24,7 @@ describe("splitDiscordMessage", () => {
     const text = line.repeat(25); // 25 * 91 = 2275 chars
     const result = splitDiscordMessage(text, 200);
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 200,
-        `chunk length ${chunk.length} exceeds 200`,
-      );
+      assert.ok(chunk.length <= 200, `chunk length ${chunk.length} exceeds 200`);
     }
     // Reassembled content should match original
     assert.strictEqual(result.join(""), text);
@@ -39,10 +36,7 @@ describe("splitDiscordMessage", () => {
     const text = Array.from({ length: 250 }, () => word).join(" "); // 250*10 + 249 = 2749
     const result = splitDiscordMessage(text, 200);
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 200,
-        `chunk length ${chunk.length} exceeds 200`,
-      );
+      assert.ok(chunk.length <= 200, `chunk length ${chunk.length} exceeds 200`);
     }
     // Content preserved (spaces at split points become trailing)
     const joined = result.join("");
@@ -53,10 +47,7 @@ describe("splitDiscordMessage", () => {
     const text = "a".repeat(500);
     const result = splitDiscordMessage(text, 200);
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 200,
-        `chunk length ${chunk.length} exceeds 200`,
-      );
+      assert.ok(chunk.length <= 200, `chunk length ${chunk.length} exceeds 200`);
     }
     assert.strictEqual(result.join(""), text);
   });
@@ -68,15 +59,10 @@ describe("splitDiscordMessage", () => {
 
     // Find the chunk that starts the code block
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _fenceOpeners = result.filter(
-      (c) => c.includes("```") && !c.includes("```\n" + "x"),
-    );
+    const _fenceOpeners = result.filter((c) => c.includes("```") && !c.includes("```\n" + "x"));
     // Every chunk should fit
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 100,
-        `chunk length ${chunk.length} exceeds 100`,
-      );
+      assert.ok(chunk.length <= 100, `chunk length ${chunk.length} exceeds 100`);
     }
 
     // At least one chunk should end with ``` (closing a split code block)
@@ -84,13 +70,8 @@ describe("splitDiscordMessage", () => {
       (c, i) => i < result.length - 1 && c.trimEnd().endsWith("```"),
     );
     // At least one non-first chunk should start with ``` (reopening)
-    const hasReopeningFence = result.some(
-      (c, i) => i > 0 && c.startsWith("```"),
-    );
-    assert.ok(
-      hasClosingFence || result.length === 1,
-      "expected a closing fence on a split chunk",
-    );
+    const hasReopeningFence = result.some((c, i) => i > 0 && c.startsWith("```"));
+    assert.ok(hasClosingFence || result.length === 1, "expected a closing fence on a split chunk");
     assert.ok(
       hasReopeningFence || result.length === 1,
       "expected a reopening fence on a continuation chunk",
@@ -125,10 +106,7 @@ describe("splitDiscordMessage", () => {
     assert.ok(result[1].startsWith("**"), "second chunk should reopen bold");
 
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 100,
-        `chunk length ${chunk.length} exceeds 100`,
-      );
+      assert.ok(chunk.length <= 100, `chunk length ${chunk.length} exceeds 100`);
     }
   });
 
@@ -137,14 +115,8 @@ describe("splitDiscordMessage", () => {
     const text = `~~${inner}~~`;
     const result = splitDiscordMessage(text, 100);
     assert.ok(result.length > 1);
-    assert.ok(
-      result[0].endsWith("~~"),
-      "first chunk should close strikethrough",
-    );
-    assert.ok(
-      result[1].startsWith("~~"),
-      "second chunk should reopen strikethrough",
-    );
+    assert.ok(result[0].endsWith("~~"), "first chunk should close strikethrough");
+    assert.ok(result[1].startsWith("~~"), "second chunk should reopen strikethrough");
   });
 
   it("handles spoiler across splits", () => {
@@ -159,16 +131,11 @@ describe("splitDiscordMessage", () => {
   it("all chunks fit within maxLength", () => {
     // Stress test with mixed content
     const text = Array.from({ length: 100 }, (_, i) =>
-      i % 5 === 0
-        ? `\`\`\`js\nconsole.log(${i});\n\`\`\`\n`
-        : `Line ${i}: ${"x".repeat(40)}\n`,
+      i % 5 === 0 ? `\`\`\`js\nconsole.log(${i});\n\`\`\`\n` : `Line ${i}: ${"x".repeat(40)}\n`,
     ).join("");
     const result = splitDiscordMessage(text, 300);
     for (const chunk of result) {
-      assert.ok(
-        chunk.length <= 300,
-        `chunk length ${chunk.length} exceeds 300`,
-      );
+      assert.ok(chunk.length <= 300, `chunk length ${chunk.length} exceeds 300`);
     }
   });
 });

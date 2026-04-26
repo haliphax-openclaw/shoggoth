@@ -29,10 +29,7 @@ export function buildGateContext(tasks: Map<number, TaskState>): GateContext {
  * Converts `{{task:N:field}}` syntax to `task.N.field` dot notation.
  */
 function resolveGateTemplates(condition: string): string {
-  return condition.replace(
-    /\{\{task:(\d+):(output|success)\}\}/g,
-    "task.$1.$2",
-  );
+  return condition.replace(/\{\{task:(\d+):(output|success)\}\}/g, "task.$1.$2");
 }
 
 // --- Tokenizer ---
@@ -115,8 +112,7 @@ function tokenize(expr: string): Token[] {
           i++;
         }
       }
-      if (i >= expr.length)
-        throw new Error("Unterminated string literal in gate condition");
+      if (i >= expr.length) throw new Error("Unterminated string literal in gate condition");
       i++;
       tokens.push({ type: "STRING", value: str });
       continue;
@@ -147,9 +143,7 @@ function tokenize(expr: string): Token[] {
       continue;
     }
 
-    throw new Error(
-      `Unexpected character in gate condition: "${expr[i]}" at position ${i}`,
-    );
+    throw new Error(`Unexpected character in gate condition: "${expr[i]}" at position ${i}`);
   }
 
   tokens.push({ type: "EOF", value: "" });
@@ -160,10 +154,7 @@ type Value = string | boolean;
 
 function resolveRef(token: Token, ctx: GateContext): Value {
   const entry = ctx.task.get(token.taskId!);
-  if (!entry)
-    throw new Error(
-      `Gate condition references task ${token.taskId} which has no result`,
-    );
+  if (!entry) throw new Error(`Gate condition references task ${token.taskId} which has no result`);
   if (token.field === "success") return entry.success;
   return entry.output;
 }
@@ -196,8 +187,7 @@ export function evaluateGateCondition(expr: string, ctx: GateContext): boolean {
 
   function expect(type: TokenType): Token {
     const t = advance();
-    if (t.type !== type)
-      throw new Error(`Expected ${type} but got ${t.type} ("${t.value}")`);
+    if (t.type !== type) throw new Error(`Expected ${type} but got ${t.type} ("${t.value}")`);
     return t;
   }
 
@@ -275,16 +265,12 @@ export function evaluateGateCondition(expr: string, ctx: GateContext): boolean {
       return val;
     }
 
-    throw new Error(
-      `Unexpected token in gate condition: ${t.type} ("${t.value}")`,
-    );
+    throw new Error(`Unexpected token in gate condition: ${t.type} ("${t.value}")`);
   }
 
   const result = parseExpr();
   if (peek().type !== "EOF") {
-    throw new Error(
-      `Unexpected trailing tokens in gate condition: "${peek().value}"`,
-    );
+    throw new Error(`Unexpected trailing tokens in gate condition: "${peek().value}"`);
   }
   return toBool(result);
 }

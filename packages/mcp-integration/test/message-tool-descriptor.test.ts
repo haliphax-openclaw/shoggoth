@@ -84,10 +84,7 @@ describe("buildMessageToolDescriptor", () => {
     assert.deepEqual(action && "enum" in action ? action.enum : null, ["post"]);
     assert.equal(d!.inputSchema.properties?.attachments, undefined);
     assert.equal(d!.inputSchema.properties?.reply_to_message_id, undefined);
-    assert.equal(
-      d!.inputSchema.properties?.auto_archive_duration_minutes,
-      undefined,
-    );
+    assert.equal(d!.inputSchema.properties?.auto_archive_duration_minutes, undefined);
     assert.equal(d!.inputSchema.properties?.channel_id, undefined);
     assert.equal(d!.inputSchema.properties?.limit, undefined);
     // New capability fields should also be absent

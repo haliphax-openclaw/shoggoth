@@ -1,10 +1,4 @@
-import {
-  DEFAULT_HITL_CONFIG,
-  loadLayeredConfig,
-  LAYOUT,
-  VERSION,
-  SystemContext,
-} from "@shoggoth/shared";
+import { DEFAULT_HITL_CONFIG, loadLayeredConfig, LAYOUT, VERSION } from "@shoggoth/shared";
 import { routeMcpToolInvocation } from "@shoggoth/mcp-integration";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -626,7 +620,7 @@ void (async () => {
           },
           sessionId,
         }),
-      createMessagePoster: (sessionId: string) =>
+      createMessagePoster: (_sessionId: string) =>
         createDaemonMessagePoster({
           sendBody: async (target: string, body: string) => {
             const adapter = platformAdapterRef.current;
@@ -680,7 +674,7 @@ void (async () => {
           });
         },
       }),
-      createNotificationAdapter: (replyToSessionId: string) => ({
+      createNotificationAdapter: (_replyToSessionId: string) => ({
         async sendNotification(target: string, message: string): Promise<void> {
           const ext = subagentRuntimeExtensionRef.current;
           if (!ext) {

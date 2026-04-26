@@ -30,13 +30,8 @@ export function markProviderFailed(
 }
 
 /** Delete a provider's failure record. */
-export function clearProviderFailure(
-  db: Database.Database,
-  providerId: string,
-): void {
-  db.prepare(
-    "DELETE FROM provider_failures WHERE provider_id = @providerId",
-  ).run({ providerId });
+export function clearProviderFailure(db: Database.Database, providerId: string): void {
+  db.prepare("DELETE FROM provider_failures WHERE provider_id = @providerId").run({ providerId });
 }
 
 /** Get a provider's failure record, or null if none exists. */

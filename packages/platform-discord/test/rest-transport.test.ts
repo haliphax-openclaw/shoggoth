@@ -1,9 +1,6 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert";
-import {
-  createDiscordRestTransport,
-  discordRestRateLimitPolicy,
-} from "../src/rest-transport";
+import { createDiscordRestTransport, discordRestRateLimitPolicy } from "../src/rest-transport";
 
 describe("Discord REST transport", () => {
   let calls: { url: string; init: RequestInit }[];
@@ -77,13 +74,10 @@ describe("Discord REST transport", () => {
       calls.push({ url: String(url), init: init ?? {} });
       n++;
       if (n === 1) {
-        return new Response(
-          JSON.stringify({ retry_after: 0.01, message: "rate limited" }),
-          {
-            status: 429,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+        return new Response(JSON.stringify({ retry_after: 0.01, message: "rate limited" }), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       return new Response(JSON.stringify({ id: "msg-after-retry" }), {
         status: 201,

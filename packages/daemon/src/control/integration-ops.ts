@@ -1214,7 +1214,7 @@ export async function handleIntegrationControlOp(
       // Poll loop — yield execution between checks.
       while (Date.now() < deadline) {
         await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-        for (const sid of [...remaining]) {
+        for (const sid of remaining) {
           const resolved = resolveSessionStatus(sid);
           if (resolved) {
             if (includeResults) {

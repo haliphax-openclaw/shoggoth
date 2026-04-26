@@ -18,22 +18,14 @@ function sseBody(chunks: string[]): ReadableStream<Uint8Array> {
   });
 }
 
-function jsonResponse(
-  body: unknown,
-  headers?: Record<string, string>,
-  status = 200,
-): Response {
+function jsonResponse(body: unknown, headers?: Record<string, string>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
 }
 
-function sseResponse(
-  chunks: string[],
-  headers?: Record<string, string>,
-  status = 200,
-): Response {
+function sseResponse(chunks: string[], headers?: Record<string, string>, status = 200): Response {
   return new Response(sseBody(chunks), {
     status,
     headers: { "Content-Type": "text/event-stream; charset=utf-8", ...headers },
@@ -48,35 +40,35 @@ function acceptedResponse(): Response {
  * Captures GET request headers from mocked fetch calls.
  * Returns a list of headers objects for each GET request made.
  */
-function capturedGetHeaders(
-  mockFn: ReturnType<typeof vi.fn>,
-): Record<string, string>[] {
-  return mockFn.mock.calls
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .filter(([_url, init]: [string, RequestInit]) => init?.method === "GET")
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .map(([_url, init]: [string, RequestInit]) => {
-      const h = init?.headers;
-      if (!h) return {};
-      if (h instanceof Headers) {
+function capturedGetHeaders(mockFn: ReturnType<typeof vi.fn>): Record<string, string>[] {
+  return (
+    mockFn.mock.calls
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .filter(([_url, init]: [string, RequestInit]) => init?.method === "GET")
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(([_url, init]: [string, RequestInit]) => {
+        const h = init?.headers;
+        if (!h) return {};
+        if (h instanceof Headers) {
+          const out: Record<string, string> = {};
+          h.forEach((v, k) => {
+            out[k] = v;
+          });
+          return out;
+        }
+        if (Array.isArray(h)) {
+          const out: Record<string, string> = {};
+          for (const [k, v] of h) out[k] = v;
+          return out;
+        }
+        // Plain object — lowercase keys for consistency
         const out: Record<string, string> = {};
-        h.forEach((v, k) => {
-          out[k] = v;
-        });
+        for (const [k, v] of Object.entries(h as Record<string, string>)) {
+          out[k.toLowerCase()] = v;
+        }
         return out;
-      }
-      if (Array.isArray(h)) {
-        const out: Record<string, string> = {};
-        for (const [k, v] of h) out[k] = v;
-        return out;
-      }
-      // Plain object — lowercase keys for consistency
-      const out: Record<string, string> = {};
-      for (const [k, v] of Object.entries(h as Record<string, string>)) {
-        out[k.toLowerCase()] = v;
-      }
-      return out;
-    });
+      })
+  );
 }
 
 describe("standing GET SSE Last-Event-ID resumption", () => {
@@ -131,9 +123,7 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
             jsonrpc: "2.0",
             id: body.id,
             result: {
-              tools: [
-                { name: "t", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }],
             },
           });
         }
@@ -245,9 +235,7 @@ describe("standing GET SSE Last-Event-ID resumption", () => {
             jsonrpc: "2.0",
             id: body.id,
             result: {
-              tools: [
-                { name: "t", inputSchema: { type: "object", properties: {} } },
-              ],
+              tools: [{ name: "t", inputSchema: { type: "object", properties: {} } }],
             },
           });
         }

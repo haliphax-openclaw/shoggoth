@@ -5,9 +5,7 @@ import type { AuthenticatedPrincipal } from "@shoggoth/authn";
  */
 export type AuditLogSource = "cli_operator_token" | "agent" | "system";
 
-export function auditSourceForPrincipal(
-  principal: AuthenticatedPrincipal,
-): AuditLogSource {
+export function auditSourceForPrincipal(principal: AuthenticatedPrincipal): AuditLogSource {
   if (principal.kind === "system") return "system";
   if (principal.kind === "agent") return "agent";
   return "cli_operator_token";

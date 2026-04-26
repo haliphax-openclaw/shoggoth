@@ -9,9 +9,7 @@ import {
   openMcpTcpClient,
 } from "../src/mcp-jsonrpc-transport";
 
-const mockServerPath = fileURLToPath(
-  new URL("fixtures/mock-mcp-server.mjs", import.meta.url),
-);
+const mockServerPath = fileURLToPath(new URL("fixtures/mock-mcp-server.mjs", import.meta.url));
 
 describe("mcp-jsonrpc-transport (stdio)", () => {
   it("initializes, lists tools, and calls echo", async () => {

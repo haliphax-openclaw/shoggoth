@@ -38,9 +38,7 @@ At least one of `base64` or `url` must be present. When both are present, the co
 `ChatMessage.content` becomes a union:
 
 ```ts
-export type ChatContentPart =
-  | { readonly type: "text"; readonly text: string }
-  | ImageBlock;
+export type ChatContentPart = { readonly type: "text"; readonly text: string } | ImageBlock;
 
 export interface ChatMessage {
   readonly role: ChatRole;
@@ -252,11 +250,7 @@ function parseTranscriptContent(raw: string): string | ChatContentPart[] {
   if (raw.startsWith("[")) {
     try {
       const parsed = JSON.parse(raw);
-      if (
-        Array.isArray(parsed) &&
-        parsed.length > 0 &&
-        typeof parsed[0]?.type === "string"
-      ) {
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0]?.type === "string") {
         return parsed as ChatContentPart[];
       }
     } catch {
@@ -278,12 +272,7 @@ Image blocks in compacted transcript segments are replaced with `[image omitted]
 Shared constants (in `@shoggoth/shared`):
 
 ```ts
-export const IMAGE_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
+export const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 export const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",

@@ -98,11 +98,7 @@ class TieredTurnQueue {
   ): number;
 
   /** Remove the first `count` entries from a priority tier (or all). */
-  removeByCount(
-    sessionId: string,
-    priority: TurnPriority | "all",
-    count: number,
-  ): number;
+  removeByCount(sessionId: string, priority: TurnPriority | "all", count: number): number;
 
   /** Clear all queued entries for a session (optionally filtered by priority). */
   clear(sessionId: string, priority?: TurnPriority): number;

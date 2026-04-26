@@ -6,14 +6,9 @@ import { EventEmitter } from "node:events";
 import type { ProcessSpec, ProcessOwner } from "./types.js";
 import { ManagedProcess } from "./managed-process.js";
 
-function log(
-  level: string,
-  msg: string,
-  fields: Record<string, unknown> = {},
-): void {
+function log(level: string, msg: string, fields: Record<string, unknown> = {}): void {
   process.stderr.write(
-    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) +
-      "\n",
+    JSON.stringify({ level, msg, ...fields, ts: new Date().toISOString() }) + "\n",
   );
 }
 
@@ -107,8 +102,7 @@ export class ProcessManager extends EventEmitter {
   listByOwner(owner: Partial<ProcessOwner>): ManagedProcess[] {
     return this.list().filter((mp) => {
       if (owner.kind != null && mp.spec.owner.kind !== owner.kind) return false;
-      if (owner.scopeId != null && mp.spec.owner.scopeId !== owner.scopeId)
-        return false;
+      if (owner.scopeId != null && mp.spec.owner.scopeId !== owner.scopeId) return false;
       return true;
     });
   }

@@ -10,8 +10,7 @@ export const SHOGGOTH_CONTROL_SOCKET_ENV = "SHOGGOTH_CONTROL_SOCKET" as const;
 export const SHOGGOTH_SESSION_ID_ENV = "SHOGGOTH_SESSION_ID" as const;
 
 /** ACP workspace root (same as binding key); optional hint for agent tooling. */
-export const SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV =
-  "SHOGGOTH_ACPX_WORKSPACE_ROOT" as const;
+export const SHOGGOTH_ACPX_WORKSPACE_ROOT_ENV = "SHOGGOTH_ACPX_WORKSPACE_ROOT" as const;
 
 export interface AcpxWorkspaceBinding {
   /** Root path acpx uses for the subagent workspace (normalized path recommended). */
@@ -28,8 +27,6 @@ export function findBindingForAcpxWorkspace(
 }
 
 /** Mint a binding record (callers validate uniqueness). */
-export function createAcpxBinding(
-  input: AcpxWorkspaceBinding,
-): AcpxWorkspaceBinding {
+export function createAcpxBinding(input: AcpxWorkspaceBinding): AcpxWorkspaceBinding {
   return { ...input };
 }

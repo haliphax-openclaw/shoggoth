@@ -10,9 +10,7 @@ import {
   openMcpStdioClient,
 } from "../src/mcp-jsonrpc-transport";
 
-const mockServerPath = fileURLToPath(
-  new URL("fixtures/mock-mcp-server.mjs", import.meta.url),
-);
+const mockServerPath = fileURLToPath(new URL("fixtures/mock-mcp-server.mjs", import.meta.url));
 
 describe("connectMcpStdioSession via procman", () => {
   it("spawns via ProcessManager, lists tools, and calls echo", async () => {
@@ -50,22 +48,14 @@ describe("connectMcpStdioSession via procman", () => {
 
       // Process should be registered in procman
       const before = pm.listByOwner({ kind: "mcp-server" });
-      assert.equal(
-        before.length,
-        1,
-        "expected 1 mcp-server process registered",
-      );
+      assert.equal(before.length, 1, "expected 1 mcp-server process registered");
 
       await mcpInitializeSession(session);
       await session.close();
 
       // After close, the process should be removed from procman
       const after = pm.listByOwner({ kind: "mcp-server" });
-      assert.equal(
-        after.length,
-        0,
-        "expected 0 mcp-server processes after close",
-      );
+      assert.equal(after.length, 0, "expected 0 mcp-server processes after close");
     } finally {
       await pm.stopAll();
     }

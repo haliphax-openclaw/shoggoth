@@ -4,11 +4,7 @@
 
 import { realpathSync } from "node:fs";
 import { relative } from "node:path";
-import {
-  resolvePathForRead,
-  resolvePathForWrite,
-  runAsUser,
-} from "@shoggoth/os-exec";
+import { resolvePathForRead, resolvePathForWrite, runAsUser } from "@shoggoth/os-exec";
 import type {
   BuiltinToolRegistry,
   BuiltinToolContext,
@@ -81,10 +77,7 @@ function isValidMode(mode: string): boolean {
 // Action implementations
 // ---------------------------------------------------------------------------
 
-async function doMove(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doMove(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   if (!args.dest) throw new Error("`dest` is required for move");
   const src = resolveDst(ctx, args.path);
   const dst = resolveDst(ctx, args.dest);
@@ -109,10 +102,7 @@ async function doMove(
   };
 }
 
-async function doCopy(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doCopy(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   if (!args.dest) throw new Error("`dest` is required for copy");
   const src = resolveSrc(ctx, args.path);
   const dst = resolveDst(ctx, args.dest);
@@ -138,10 +128,7 @@ async function doCopy(
   };
 }
 
-async function doDelete(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doDelete(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   const src = resolveDst(ctx, args.path);
   const recursive = args.recursive === true;
 
@@ -185,10 +172,7 @@ async function doDelete(
   };
 }
 
-async function doStat(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doStat(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   const src = resolveSrc(ctx, args.path);
 
   const script = [
@@ -234,10 +218,7 @@ async function doStat(
   };
 }
 
-async function doChmod(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doChmod(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   if (!args.mode) throw new Error("`mode` is required for chmod");
   if (!isValidMode(args.mode)) {
     throw new Error(
@@ -268,10 +249,7 @@ async function doChmod(
 // Main handler dispatch
 // ---------------------------------------------------------------------------
 
-async function doMkdir(
-  ctx: BuiltinToolContext,
-  args: FsArgs,
-): Promise<BuiltinToolResult> {
+async function doMkdir(ctx: BuiltinToolContext, args: FsArgs): Promise<BuiltinToolResult> {
   const dst = resolveDst(ctx, args.path);
   const recursive = args.recursive === true;
 
@@ -328,12 +306,7 @@ async function fsHandler(
   const MUTATING: Set<FsAction> = new Set(["move", "copy", "delete", "mkdir"]);
   if (MUTATING.has(action)) {
     const cwd = ctx.workingDirectory ?? ctx.workspacePath;
-    const gate = checkAgentsMdGate(
-      ctx.db,
-      ctx.sessionId,
-      cwd,
-      ctx.workspacePath,
-    );
+    const gate = checkAgentsMdGate(ctx.db, ctx.sessionId, cwd, ctx.workspacePath);
     if (gate) return { resultJson: JSON.stringify(gate) };
   }
 

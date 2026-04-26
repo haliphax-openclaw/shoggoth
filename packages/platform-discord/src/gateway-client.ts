@@ -181,8 +181,7 @@ export async function connectDiscordGateway(
    * be driven by the message handler.
    */
   function openConnection(resume: boolean): Promise<void> {
-    const url =
-      resume && resumeGatewayUrl ? resumeGatewayUrl : defaultGatewayUrl;
+    const url = resume && resumeGatewayUrl ? resumeGatewayUrl : defaultGatewayUrl;
     const socket = WS(url);
     ws = socket;
     heartbeatAcked = true;
@@ -231,9 +230,7 @@ export async function connectDiscordGateway(
           if (!handshakeComplete) {
             handshakeComplete = true;
             clearTimeout(handshakeTimeout);
-            reject(
-              new Error("Discord gateway WebSocket closed during handshake"),
-            );
+            reject(new Error("Discord gateway WebSocket closed during handshake"));
           }
           if (!reconnectScheduled) {
             reconnectScheduled = true;
@@ -251,9 +248,7 @@ export async function connectDiscordGateway(
 
       socket.addEventListener("message", (ev: MessageEvent) => {
         const raw =
-          typeof ev.data === "string"
-            ? ev.data
-            : new TextDecoder().decode(ev.data as ArrayBuffer);
+          typeof ev.data === "string" ? ev.data : new TextDecoder().decode(ev.data as ArrayBuffer);
         let msg: GatewayPayload;
         try {
           msg = JSON.parse(raw) as GatewayPayload;
@@ -268,9 +263,7 @@ export async function connectDiscordGateway(
           helloReceived = true;
           const hello = msg.d as { heartbeat_interval?: number };
           const interval =
-            typeof hello.heartbeat_interval === "number"
-              ? hello.heartbeat_interval
-              : 41_250;
+            typeof hello.heartbeat_interval === "number" ? hello.heartbeat_interval : 41_250;
           startHeartbeat(interval);
           if (resume && sessionId) {
             sendResume();

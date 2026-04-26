@@ -27,9 +27,7 @@ function ensureMetaTable(db: Database.Database): void {
 }
 
 function loadMigrationsFromDir(migrationsDir: string): MigrationInfo[] {
-  const names = readdirSync(migrationsDir).filter((n) =>
-    MIGRATION_FILE.test(n),
-  );
+  const names = readdirSync(migrationsDir).filter((n) => MIGRATION_FILE.test(n));
   const out: MigrationInfo[] = [];
   for (const filename of names) {
     const m = MIGRATION_FILE.exec(filename);
@@ -57,10 +55,7 @@ function appliedVersions(db: Database.Database): Set<number> {
   return new Set(rows.map((r) => r.version));
 }
 
-export function migrate(
-  db: Database.Database,
-  migrationsDir: string,
-): MigrateResult {
+export function migrate(db: Database.Database, migrationsDir: string): MigrateResult {
   ensureMetaTable(db);
   const migrations = loadMigrationsFromDir(migrationsDir);
   const done = appliedVersions(db);
@@ -70,9 +65,10 @@ export function migrate(
     if (done.has(m.version)) continue;
     const txn = db.transaction(() => {
       db.exec(m.sql);
-      db.prepare(
-        "INSERT INTO _schema_migrations (version, name) VALUES (@version, @name)",
-      ).run({ version: m.version, name: m.name });
+      db.prepare("INSERT INTO _schema_migrations (version, name) VALUES (@version, @name)").run({
+        version: m.version,
+        name: m.name,
+      });
     });
     txn.immediate();
     appliedVersionsNow.push(m.version);

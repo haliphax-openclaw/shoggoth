@@ -8,10 +8,7 @@ export {
   type AgentTokenRecord,
   type AgentTokenStore,
 } from "./agent-token";
-export {
-  validateOperatorToken,
-  hashOperatorTokenOpaque,
-} from "./operator-token";
+export { validateOperatorToken, hashOperatorTokenOpaque } from "./operator-token";
 export type {
   AuthSource,
   OperatorPrincipal,
@@ -19,10 +16,7 @@ export type {
   SystemPrincipal,
   AuthenticatedPrincipal,
 } from "./principal";
-export {
-  resolveAuthenticatedPrincipal,
-  type ResolveAuthContext,
-} from "./resolve-auth";
+export { resolveAuthenticatedPrincipal, type ResolveAuthContext } from "./resolve-auth";
 export {
   WIRE_VERSION,
   parseRequestLine,
@@ -33,8 +27,4 @@ export {
   type WireResponse,
   type WireErrorBody,
 } from "./wire";
-export type {
-  WireAuth,
-  WireAuthOperatorToken,
-  WireAuthAgent,
-} from "./wire-auth";
+export type { WireAuth, WireAuthOperatorToken, WireAuthAgent } from "./wire-auth";

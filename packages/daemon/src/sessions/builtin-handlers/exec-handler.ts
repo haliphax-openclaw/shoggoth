@@ -3,10 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { toolExec, toolExecExtended, toolPoll } from "@shoggoth/os-exec";
-import type {
-  BuiltinToolRegistry,
-  BuiltinToolContext,
-} from "../builtin-tool-registry";
+import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
 import { truncateToolOutput } from "./truncate-output";
 
 export function register(registry: BuiltinToolRegistry): void {
@@ -55,9 +52,7 @@ async function execHandlerInner(
   if (hasExtended) {
     // Convert argv to a shell command string for toolExecExtended
     const command = (argv as string[])
-      .map((a) =>
-        /[^a-zA-Z0-9_\-./=:]/.test(a) ? `'${a.replace(/'/g, "'\\''")}'` : a,
-      )
+      .map((a) => (/[^a-zA-Z0-9_\-./=:]/.test(a) ? `'${a.replace(/'/g, "'\\''")}'` : a))
       .join(" ");
     const r = await toolExecExtended(
       ctx.workspacePath,
@@ -70,18 +65,13 @@ async function execHandlerInner(
           args.env && typeof args.env === "object"
             ? (args.env as Record<string, string>)
             : undefined,
-        splitStreams:
-          typeof args.splitStreams === "boolean"
-            ? args.splitStreams
-            : undefined,
-        maxOutput:
-          typeof args.maxOutput === "number" ? args.maxOutput : undefined,
+        splitStreams: typeof args.splitStreams === "boolean" ? args.splitStreams : undefined,
+        maxOutput: typeof args.maxOutput === "number" ? args.maxOutput : undefined,
         truncation:
           typeof args.truncation === "string"
             ? (args.truncation as "head" | "tail" | "both")
             : undefined,
-        background:
-          typeof args.background === "boolean" ? args.background : undefined,
+        background: typeof args.background === "boolean" ? args.background : undefined,
         yieldMs: typeof args.yieldMs === "number" ? args.yieldMs : undefined,
       },
       ctx.creds,
@@ -117,12 +107,7 @@ async function execHandlerInner(
       }),
     };
   }
-  const r = await toolExec(
-    ctx.workspacePath,
-    argv as string[],
-    ctx.creds,
-    execCwd(ctx),
-  );
+  const r = await toolExec(ctx.workspacePath, argv as string[], ctx.creds, execCwd(ctx));
   return {
     resultJson: JSON.stringify({
       exitCode: r.exitCode,

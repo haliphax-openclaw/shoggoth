@@ -16,24 +16,13 @@ describe("agent-to-agent policy", () => {
 
   it("denies cross-agent when merged allow is empty", () => {
     assert.equal(
-      crossAgentSessionSendAllowed(
-        { agentToAgent: { allow: [] } },
-        "alice",
-        "bob",
-      ),
+      crossAgentSessionSendAllowed({ agentToAgent: { allow: [] } }, "alice", "bob"),
       false,
     );
   });
 
   it("allows any cross-agent target when * is present", () => {
-    assert.equal(
-      crossAgentSessionSendAllowed(
-        { agentToAgent: { allow: ["*"] } },
-        "a",
-        "b",
-      ),
-      true,
-    );
+    assert.equal(crossAgentSessionSendAllowed({ agentToAgent: { allow: ["*"] } }, "a", "b"), true);
   });
 
   it("allows only listed targets from global allow", () => {

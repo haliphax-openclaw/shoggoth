@@ -1,9 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "vitest";
-import {
-  MemoryAgentTokenStore,
-  mintAgentCredentialRaw,
-} from "../src/agent-token";
+import { MemoryAgentTokenStore, mintAgentCredentialRaw } from "../src/agent-token";
 import { resolveAuthenticatedPrincipal } from "../src/resolve-auth";
 
 describe("resolveAuthenticatedPrincipal", () => {

@@ -55,11 +55,7 @@ describe("Message task integration with all task types", () => {
     };
 
     const toolExecutor: ToolExecutor = {
-      execute: async (call: {
-        name: string;
-        argsJson: string;
-        toolCallId: string;
-      }) => {
+      execute: async (call: { name: string; argsJson: string; toolCallId: string }) => {
         executedTasks.push(`tool:${call.name}`);
         return {
           resultJson: JSON.stringify({ output: `tool-output-${call.name}` }),
@@ -256,9 +252,6 @@ describe("Message task integration with all task types", () => {
 
     assert.ok(orchestrator.isComplete());
     assert.equal(postedMessages.length, 1);
-    assert.equal(
-      postedMessages[0].message,
-      "Results: Agent=agent-output, Tool=tool-output",
-    );
+    assert.equal(postedMessages[0].message, "Results: Agent=agent-output, Tool=tool-output");
   });
 });

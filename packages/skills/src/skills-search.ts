@@ -74,18 +74,10 @@ export function searchSkills(
   skills: readonly SkillRecord[],
   params: SkillSearchParams = {},
 ): SkillSearchResult[] {
-  const {
-    query = null,
-    tags = [],
-    category = null,
-    limit = 10,
-    offset = 0,
-  } = params;
+  const { query = null, tags = [], category = null, limit = 10, offset = 0 } = params;
 
   const normalizedQuery = query?.trim().toLowerCase() ?? null;
-  const normalizedTags = tags
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 0);
+  const normalizedTags = tags.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0);
   const normalizedCategory = category?.trim().toLowerCase() ?? null;
 
   const results: SkillSearchResult[] = [];

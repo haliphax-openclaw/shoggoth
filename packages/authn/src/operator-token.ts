@@ -11,10 +11,7 @@ export function hashOperatorTokenOpaque(token: string): Buffer {
 /**
  * Compare presented token to configured secret using SHA-256 + timingSafeEqual.
  */
-export function validateOperatorToken(
-  configuredSecret: string,
-  presentedToken: string,
-): boolean {
+export function validateOperatorToken(configuredSecret: string, presentedToken: string): boolean {
   const a = hashOperatorTokenOpaque(configuredSecret);
   const b = hashOperatorTokenOpaque(presentedToken);
   if (a.length !== b.length) return false;

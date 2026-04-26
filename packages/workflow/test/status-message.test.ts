@@ -1,15 +1,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import type {
-  TaskList,
-  TaskState,
-  TaskDef,
-  DependencyGraph,
-} from "../src/types.js";
-import {
-  formatStatusMessage,
-  formatSummaryMessage,
-} from "../src/status-message.js";
+import type { TaskList, TaskState, TaskDef, DependencyGraph } from "../src/types.js";
+import { formatStatusMessage, formatSummaryMessage } from "../src/status-message.js";
 
 // --- Helpers ---
 
@@ -32,11 +24,7 @@ function makeTask(
   return { taskDef: makeDef(id, prompt), status, ...opts };
 }
 
-function makeWorkflow(
-  name: string,
-  tasks: TaskState[],
-  graph: DependencyGraph,
-): TaskList {
+function makeWorkflow(name: string, tasks: TaskState[], graph: DependencyGraph): TaskList {
   return {
     id: "wf-1",
     name,
@@ -50,11 +38,7 @@ function makeWorkflow(
 describe("formatStatusMessage", () => {
   it("formats a simple pending task with no deps", () => {
     const graph: DependencyGraph = new Map([[1, new Set()]]);
-    const wf = makeWorkflow(
-      "test-wf",
-      [makeTask(1, "Do something", "pending")],
-      graph,
-    );
+    const wf = makeWorkflow("test-wf", [makeTask(1, "Do something", "pending")], graph);
     const msg = formatStatusMessage(wf);
     assert.ok(msg.includes("**Task workflow:** test-wf"));
     assert.ok(msg.includes("⏳ 1 - Do something"));

@@ -11,10 +11,7 @@ import {
   type McpStreamableHttpSession,
 } from "@shoggoth/mcp-integration";
 import { getProcessManager } from "../process-manager-singleton";
-import type {
-  ShoggothMcpConfig,
-  ShoggothMcpServerEntry,
-} from "@shoggoth/shared";
+import type { ShoggothMcpConfig, ShoggothMcpServerEntry } from "@shoggoth/shared";
 import type { ExternalMcpInvoke } from "./tool-loop-mcp";
 
 type EffectiveMcpPoolScope = "global" | "per_session";
@@ -106,11 +103,7 @@ export async function connectShoggothMcpServers(
     sessions.set(s.id, session);
   }
 
-  const external: ExternalMcpInvoke = async ({
-    sourceId,
-    originalName,
-    argsJson,
-  }) => {
+  const external: ExternalMcpInvoke = async ({ sourceId, originalName, argsJson }) => {
     const session = sessions.get(sourceId);
     if (!session) {
       return {
@@ -144,9 +137,7 @@ export async function connectShoggothMcpServers(
       return true;
     },
     close: async () => {
-      await Promise.all(
-        [...sessions.values()].map((x) => x.close().catch(() => {})),
-      );
+      await Promise.all([...sessions.values()].map((x) => x.close().catch(() => {})));
     },
   };
 

@@ -79,11 +79,7 @@ export class WorkflowServer {
   }
 
   /** Start a new workflow. Returns the workflow ID. */
-  async start(
-    tasks: TaskDef[],
-    graphDsl: string,
-    opts: OrchestratorOptions,
-  ): Promise<string> {
+  async start(tasks: TaskDef[], graphDsl: string, opts: OrchestratorOptions): Promise<string> {
     const orch = new Orchestrator(
       this.opts.spawner,
       this.opts.poller,

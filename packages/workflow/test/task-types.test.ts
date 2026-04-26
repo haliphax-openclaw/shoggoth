@@ -3,11 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import type {
-  TaskDef,
-  TransformTaskDef,
-  MessageTaskDef,
-} from "../src/types.js";
+import type { TaskDef, TransformTaskDef, MessageTaskDef } from "../src/types.js";
 import {
   Orchestrator,
   type SpawnAdapter,
@@ -45,11 +41,7 @@ function makeTransformTask(id: number, template: string): TransformTaskDef {
   };
 }
 
-function makeMessageTask(
-  id: number,
-  message: string,
-  channel?: string,
-): MessageTaskDef {
+function makeMessageTask(id: number, message: string, channel?: string): MessageTaskDef {
   return {
     kind: "message",
     id,
@@ -166,10 +158,7 @@ describe("Transform tasks", () => {
 
     const tasks: TaskDef[] = [
       makeAgentTask(1),
-      makeTransformTask(
-        2,
-        "Result: {{task:1:output}}, success: {{task:1:success}}",
-      ),
+      makeTransformTask(2, "Result: {{task:1:output}}, success: {{task:1:success}}"),
     ];
     await orch.start(tasks, "1>2", defaultOpts(baseDir));
 
@@ -293,9 +282,7 @@ describe("Message tasks", () => {
       poster,
     );
 
-    const tasks: TaskDef[] = [
-      makeMessageTask(1, "targeted message", "custom:channel:123"),
-    ];
+    const tasks: TaskDef[] = [makeMessageTask(1, "targeted message", "custom:channel:123")];
     await orch.start(tasks, "1", defaultOpts(baseDir));
 
     assert.equal(poster.calls.length, 1);

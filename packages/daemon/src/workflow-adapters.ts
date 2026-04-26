@@ -92,9 +92,7 @@ export interface DaemonSpawnAdapterDeps {
   readonly contextLevel?: ContextLevel;
 }
 
-export function createDaemonSpawnAdapter(
-  deps: DaemonSpawnAdapterDeps,
-): SpawnAdapter & {
+export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAdapter & {
   completionMap: CompletionMap;
   abortTask: (sessionKey: string) => void;
 } {
@@ -181,9 +179,7 @@ export interface DaemonPollAdapterDeps {
   readonly completionMap: CompletionMap;
 }
 
-export function createDaemonPollAdapter(
-  deps: DaemonPollAdapterDeps,
-): PollAdapter {
+export function createDaemonPollAdapter(deps: DaemonPollAdapterDeps): PollAdapter {
   return {
     async poll(sessionKey: string): Promise<PollResult> {
       const row = deps.sessions.getById(sessionKey);
@@ -228,9 +224,7 @@ export interface DaemonKillAdapterDeps {
   readonly requestTurnAbort?: (sessionId: string) => boolean;
 }
 
-export function createDaemonKillAdapter(
-  deps: DaemonKillAdapterDeps,
-): KillAdapter {
+export function createDaemonKillAdapter(deps: DaemonKillAdapterDeps): KillAdapter {
   return {
     async kill(sessionKey: string): Promise<void> {
       deps.requestTurnAbort?.(sessionKey);
@@ -258,9 +252,7 @@ export interface DaemonMessageAdapterDeps {
   readonly sessionId: string;
 }
 
-export function createDaemonMessageAdapter(
-  deps: DaemonMessageAdapterDeps,
-): MessageAdapter {
+export function createDaemonMessageAdapter(deps: DaemonMessageAdapterDeps): MessageAdapter {
   log.debug("adapter created", { sessionId: deps.sessionId });
   return {
     async postMessage(content: string): Promise<{ messageId: string }> {
@@ -360,9 +352,7 @@ interface DaemonMessagePosterDeps {
   readonly logger: ReturnType<typeof getLogger>;
 }
 
-export function createDaemonMessagePoster(
-  deps: DaemonMessagePosterDeps,
-): MessagePoster {
+export function createDaemonMessagePoster(deps: DaemonMessagePosterDeps): MessagePoster {
   const logger = adaptLogger(deps.logger);
   return {
     async post(target: string, message: string): Promise<void> {
@@ -400,9 +390,7 @@ interface WorkflowNotifierDeps {
   readonly logger: ReturnType<typeof getLogger>;
 }
 
-export function createWorkflowNotifier(
-  deps: WorkflowNotifierDeps,
-): NotifyAdapter {
+export function createWorkflowNotifier(deps: WorkflowNotifierDeps): NotifyAdapter {
   const logger = adaptLogger(deps.logger);
 
   return {
@@ -418,9 +406,7 @@ export function createWorkflowNotifier(
         return;
       }
 
-      const status = success
-        ? "✅ completed successfully"
-        : "❌ completed with failures";
+      const status = success ? "✅ completed successfully" : "❌ completed with failures";
       const message = `**Workflow ${status}:** \`${workflowId}\``;
 
       try {
@@ -468,12 +454,8 @@ interface DaemonToolExecutorFactoryDeps {
   readonly getAgentIntegrationInvoker: () =>
     | import("./control/integration-invoke").AgentIntegrationInvoker
     | undefined;
-  readonly getProcessManager: () =>
-    | import("@shoggoth/procman").ProcessManager
-    | undefined;
-  readonly messageToolCtx:
-    | import("./sessions/builtin-tool-registry").MessageToolCtx
-    | undefined;
+  readonly getProcessManager: () => import("@shoggoth/procman").ProcessManager | undefined;
+  readonly messageToolCtx: import("./sessions/builtin-tool-registry").MessageToolCtx | undefined;
   readonly memoryConfig: import("@shoggoth/shared").ShoggothMemoryConfig;
   readonly runtimeOpenaiBaseUrl: string | undefined;
   readonly imageBlockCodec?: import("@shoggoth/models").ImageBlockCodec;
@@ -493,9 +475,7 @@ export function createDaemonToolExecutorFactory(
       | import("./sessions/session-mcp-tool-context").SessionMcpToolContext
       | undefined;
     let contextPromise:
-      | Promise<
-          import("./sessions/session-mcp-tool-context").SessionMcpToolContext
-        >
+      | Promise<import("./sessions/session-mcp-tool-context").SessionMcpToolContext>
       | undefined;
 
     const getContext = async () => {
@@ -527,8 +507,7 @@ export function createDaemonToolExecutorFactory(
             env: deps.env,
             workspacePath: deps.workspacePath,
             workingDirectory:
-              createSessionStore(deps.db).getById(sessionId)
-                ?.workingDirectory ?? undefined,
+              createSessionStore(deps.db).getById(sessionId)?.workingDirectory ?? undefined,
             creds: deps.creds,
             orchestratorEnv: deps.orchestratorEnv,
             getAgentIntegrationInvoker: deps.getAgentIntegrationInvoker,
@@ -576,8 +555,7 @@ export function createDaemonToolExecutorFactory(
 
 interface DaemonToolExecutorDeps {
   readonly getToolContext: () => Promise<
-    | import("./sessions/session-mcp-tool-context").SessionMcpToolContext
-    | undefined
+    import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined
   >;
   readonly logger: ReturnType<typeof getLogger>;
 }
@@ -586,9 +564,7 @@ interface DaemonToolExecutorDeps {
  * Creates a ToolExecutor with lazy-loaded context.
  * Used for workflow tool tasks where context may not be available at construction time.
  */
-export function createDaemonToolExecutor(
-  deps: DaemonToolExecutorDeps,
-): ToolExecutor {
+export function createDaemonToolExecutor(deps: DaemonToolExecutorDeps): ToolExecutor {
   const logger = adaptLogger(deps.logger);
 
   return {
@@ -614,8 +590,7 @@ export function createDaemonToolExecutor(
           tool: name,
           toolCallId,
         });
-        if (!context.external)
-          throw new Error("no external MCP transport available");
+        if (!context.external) throw new Error("no external MCP transport available");
         const routed = routeMcpToolInvocation(context.aggregated, name);
         if ("error" in routed) throw new Error(routed.error);
         const result = await context.external({
@@ -654,8 +629,7 @@ export function createDaemonToolExecutor(
 interface WorkflowToolExecutorAdapterDeps {
   readonly sessionId?: string;
   readonly getToolContext: () => Promise<
-    | import("./sessions/session-mcp-tool-context").SessionMcpToolContext
-    | undefined
+    import("./sessions/session-mcp-tool-context").SessionMcpToolContext | undefined
   >;
   readonly logger: ReturnType<typeof getLogger>;
 }
@@ -664,9 +638,7 @@ interface WorkflowToolExecutorAdapterDeps {
  * Creates a custom adapter with a different interface for workflow tool execution.
  * This adapter converts from the custom interface to the SessionMcpToolContext interface.
  */
-export function createWorkflowToolExecutorAdapter(
-  deps: WorkflowToolExecutorAdapterDeps,
-) {
+export function createWorkflowToolExecutorAdapter(deps: WorkflowToolExecutorAdapterDeps) {
   const logger = adaptLogger(deps.logger);
 
   return {
@@ -696,8 +668,7 @@ export function createWorkflowToolExecutorAdapter(
         const toolCallId = `workflow-${randomUUID()}`;
         const argsJson = JSON.stringify(args);
 
-        if (!context.external)
-          throw new Error("no external MCP transport available");
+        if (!context.external) throw new Error("no external MCP transport available");
         const routed = routeMcpToolInvocation(context.aggregated, toolName);
         if ("error" in routed) throw new Error(routed.error);
         const result = await context.external({

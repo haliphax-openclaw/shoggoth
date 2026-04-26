@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  ReactionQueue,
-  type QueuedReaction,
-} from "../../src/presentation/reaction-queue";
+import { ReactionQueue, type QueuedReaction } from "../../src/presentation/reaction-queue";
 
 function makeReaction(overrides: Partial<QueuedReaction> = {}): QueuedReaction {
   return {

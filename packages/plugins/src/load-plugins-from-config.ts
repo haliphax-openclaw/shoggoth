@@ -19,17 +19,11 @@ export interface LoadedPluginRef {
   readonly manifestName: string;
 }
 
-export function resolveLocalPluginPath(
-  pathStr: string,
-  configDirectory: string,
-): string {
+export function resolveLocalPluginPath(pathStr: string, configDirectory: string): string {
   return isAbsolute(pathStr) ? pathStr : resolve(configDirectory, pathStr);
 }
 
-export function resolveNpmPluginRoot(
-  packageName: string,
-  resolveFromFile: string,
-): string {
+export function resolveNpmPluginRoot(packageName: string, resolveFromFile: string): string {
   const require = createRequire(resolveFromFile);
   const pkgJsonPath = require.resolve(`${packageName}/package.json`);
   return dirname(pkgJsonPath);

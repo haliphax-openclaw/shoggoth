@@ -67,14 +67,8 @@ function fixtureTextThenToolStream(): string[] {
 describe("normalizeAnthropicWireModelId", () => {
   it("strips through the first slash for vendor-prefixed ids", () => {
     assert.equal(normalizeAnthropicWireModelId("acme/auto"), "auto");
-    assert.equal(
-      normalizeAnthropicWireModelId("acme/claude-sonnet-4.5"),
-      "claude-sonnet-4.5",
-    );
-    assert.equal(
-      normalizeAnthropicWireModelId("claude-sonnet-4.5"),
-      "claude-sonnet-4.5",
-    );
+    assert.equal(normalizeAnthropicWireModelId("acme/claude-sonnet-4.5"), "claude-sonnet-4.5");
+    assert.equal(normalizeAnthropicWireModelId("claude-sonnet-4.5"), "claude-sonnet-4.5");
   });
 
   it("only removes the first segment when multiple slashes remain", () => {
@@ -112,18 +106,14 @@ describe("mapChatMessagesToAnthropicPayload", () => {
       { role: "tool", toolCallId: "tu_1", content: "out" },
       { role: "user", content: "next" },
     ];
-    const { system, messages: out } =
-      mapChatMessagesToAnthropicPayload(messages);
+    const { system, messages: out } = mapChatMessagesToAnthropicPayload(messages);
     assert.equal(system, "A\n\nB");
     assert.equal((out[0] as { role: string }).role, "user");
     assert.equal((out[1] as { role: string }).role, "assistant");
     const userTool = out[2] as { role: string; content: unknown[] };
     assert.equal(userTool.role, "user");
     assert.equal(userTool.content[0]?.type, "tool_result");
-    assert.equal(
-      (userTool.content[0] as { tool_use_id: string }).tool_use_id,
-      "tu_1",
-    );
+    assert.equal((userTool.content[0] as { tool_use_id: string }).tool_use_id, "tu_1");
   });
 
   it("throws ModelHttpError on invalid tool arguments JSON", () => {
@@ -398,12 +388,9 @@ describe("createAnthropicMessagesProvider", () => {
     });
 
     await assert.rejects(
-      () =>
-        p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
+      () => p.complete({ model: "m", messages: [{ role: "user", content: "x" }] }),
       (e: unknown) =>
-        e instanceof ModelHttpError &&
-        e.status === 429 &&
-        String(e.bodySnippet).includes("rate"),
+        e instanceof ModelHttpError && e.status === 429 && String(e.bodySnippet).includes("rate"),
     );
   });
 
@@ -439,8 +426,7 @@ describe("createAnthropicMessagesProvider", () => {
   });
 
   it("completeWithTools streams text, onTextDelta, and split tool input JSON", async () => {
-    const fetchImpl = async () =>
-      anthropicSseResponse(fixtureTextThenToolStream());
+    const fetchImpl = async () => anthropicSseResponse(fixtureTextThenToolStream());
 
     const p = createAnthropicMessagesProvider({
       id: "a",

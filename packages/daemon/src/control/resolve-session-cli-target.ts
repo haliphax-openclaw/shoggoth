@@ -13,10 +13,7 @@ import { resolveBootstrapPrimarySessionUrn } from "@shoggoth/messaging";
  *
  * Platform is derived from the target agent's platform bindings in `agents.list.<agentId>.platforms`.
  */
-export function resolveSessionTargetFromCliArg(
-  raw: string,
-  cfg: ShoggothConfig,
-): string {
+export function resolveSessionTargetFromCliArg(raw: string, cfg: ShoggothConfig): string {
   const t = raw.trim();
   if (!t) {
     throw new Error("session or agent id must be non-empty");

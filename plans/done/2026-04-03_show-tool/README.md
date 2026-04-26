@@ -88,9 +88,7 @@ interface OutboundAttachment {
   readonly data: Buffer;
 }
 
-function extractShowBlocks(
-  turnToolResults: readonly TranscriptMessageRow[],
-): OutboundAttachment[];
+function extractShowBlocks(turnToolResults: readonly TranscriptMessageRow[]): OutboundAttachment[];
 ```
 
 ### Platform adapter changes

@@ -1,16 +1,9 @@
 import { describe, it, beforeEach, afterEach } from "vitest";
 import assert from "node:assert";
-import {
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  writeFileSync,
-  readFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { toolWrite } from "../src/tools";
-
 
 describe("toolWrite", () => {
   let ws: string;
@@ -30,11 +23,7 @@ describe("toolWrite", () => {
 
   describe("overwrite (backward compat)", () => {
     it("writes a new file", async () => {
-      const r = await toolWrite(
-        ws,
-        { path: "out.txt", content: "hello\n" },
-        creds,
-      );
+      const r = await toolWrite(ws, { path: "out.txt", content: "hello\n" }, creds);
       assert.equal(readFileSync(join(ws, "out.txt"), "utf8"), "hello\n");
       assert.equal(r.bytesWritten, Buffer.byteLength("hello\n", "utf8"));
     });
@@ -58,62 +47,31 @@ describe("toolWrite", () => {
   describe("append mode", () => {
     it("appends to an existing file", async () => {
       writeFileSync(join(ws, "log.txt"), "line1\n");
-      await toolWrite(
-        ws,
-        { path: "log.txt", content: "line2\n", append: true },
-        creds,
-      );
+      await toolWrite(ws, { path: "log.txt", content: "line2\n", append: true }, creds);
       assert.equal(readFileSync(join(ws, "log.txt"), "utf8"), "line1\nline2\n");
     });
 
     it("creates the file if it doesn't exist", async () => {
-      await toolWrite(
-        ws,
-        { path: "new.log", content: "first\n", append: true },
-        creds,
-      );
+      await toolWrite(ws, { path: "new.log", content: "first\n", append: true }, creds);
       assert.equal(readFileSync(join(ws, "new.log"), "utf8"), "first\n");
     });
 
     it("appends multiple times", async () => {
-      await toolWrite(
-        ws,
-        { path: "multi.log", content: "a\n", append: true },
-        creds,
-      );
-      await toolWrite(
-        ws,
-        { path: "multi.log", content: "b\n", append: true },
-        creds,
-      );
-      await toolWrite(
-        ws,
-        { path: "multi.log", content: "c\n", append: true },
-        creds,
-      );
+      await toolWrite(ws, { path: "multi.log", content: "a\n", append: true }, creds);
+      await toolWrite(ws, { path: "multi.log", content: "b\n", append: true }, creds);
+      await toolWrite(ws, { path: "multi.log", content: "c\n", append: true }, creds);
       assert.equal(readFileSync(join(ws, "multi.log"), "utf8"), "a\nb\nc\n");
     });
 
     it("does not add implicit newlines", async () => {
       writeFileSync(join(ws, "no-nl.txt"), "existing");
-      await toolWrite(
-        ws,
-        { path: "no-nl.txt", content: "-appended", append: true },
-        creds,
-      );
-      assert.equal(
-        readFileSync(join(ws, "no-nl.txt"), "utf8"),
-        "existing-appended",
-      );
+      await toolWrite(ws, { path: "no-nl.txt", content: "-appended", append: true }, creds);
+      assert.equal(readFileSync(join(ws, "no-nl.txt"), "utf8"), "existing-appended");
     });
 
     it("returns correct bytesWritten for append", async () => {
       writeFileSync(join(ws, "log.txt"), "existing\n");
-      const r = await toolWrite(
-        ws,
-        { path: "log.txt", content: "new\n", append: true },
-        creds,
-      );
+      const r = await toolWrite(ws, { path: "log.txt", content: "new\n", append: true }, creds);
       assert.equal(r.bytesWritten, Buffer.byteLength("new\n", "utf8"));
     });
   });
@@ -134,10 +92,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "f.txt"), "utf8"),
-        "aaa\nBBB\nccc\nddd\n",
-      );
+      assert.equal(readFileSync(join(ws, "f.txt"), "utf8"), "aaa\nBBB\nccc\nddd\n");
     });
 
     it("replaces a range of lines", async () => {
@@ -152,10 +107,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "f.txt"), "utf8"),
-        "aaa\nXXX\nYYY\neee\n",
-      );
+      assert.equal(readFileSync(join(ws, "f.txt"), "utf8"), "aaa\nXXX\nYYY\neee\n");
     });
 
     it("deletes lines when content is empty", async () => {
@@ -190,12 +142,7 @@ describe("toolWrite", () => {
 
     it("errors when file does not exist", async () => {
       await assert.rejects(
-        () =>
-          toolWrite(
-            ws,
-            { path: "nope.txt", content: "x", startLine: 1 },
-            creds,
-          ),
+        () => toolWrite(ws, { path: "nope.txt", content: "x", startLine: 1 }, creds),
         /ENOENT|does not exist|no such file/i,
       );
     });
@@ -203,8 +150,7 @@ describe("toolWrite", () => {
     it("errors when startLine is out of range", async () => {
       writeFileSync(join(ws, "f.txt"), "aaa\nbbb\n");
       await assert.rejects(
-        () =>
-          toolWrite(ws, { path: "f.txt", content: "x", startLine: 999 }, creds),
+        () => toolWrite(ws, { path: "f.txt", content: "x", startLine: 999 }, creds),
         /out of range/,
       );
     });
@@ -212,12 +158,7 @@ describe("toolWrite", () => {
     it("errors when endLine is out of range", async () => {
       writeFileSync(join(ws, "f.txt"), "aaa\nbbb\n");
       await assert.rejects(
-        () =>
-          toolWrite(
-            ws,
-            { path: "f.txt", content: "x", startLine: 1, endLine: 999 },
-            creds,
-          ),
+        () => toolWrite(ws, { path: "f.txt", content: "x", startLine: 1, endLine: 999 }, creds),
         /out of range/,
       );
     });
@@ -239,10 +180,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "f.txt"), "utf8"),
-        "aaa\nbbb\nNEW\nccc\n",
-      );
+      assert.equal(readFileSync(join(ws, "f.txt"), "utf8"), "aaa\nbbb\nNEW\nccc\n");
     });
 
     it("inserts before the first line with insertAfter=0", async () => {
@@ -256,10 +194,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "f.txt"), "utf8"),
-        "FIRST\naaa\nbbb\n",
-      );
+      assert.equal(readFileSync(join(ws, "f.txt"), "utf8"), "FIRST\naaa\nbbb\n");
     });
 
     it("inserts multiple lines", async () => {
@@ -273,20 +208,12 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "f.txt"), "utf8"),
-        "aaa\nX\nY\nZ\nbbb\n",
-      );
+      assert.equal(readFileSync(join(ws, "f.txt"), "utf8"), "aaa\nX\nY\nZ\nbbb\n");
     });
 
     it("errors when file does not exist", async () => {
       await assert.rejects(
-        () =>
-          toolWrite(
-            ws,
-            { path: "nope.txt", content: "x", insertAfter: 0 },
-            creds,
-          ),
+        () => toolWrite(ws, { path: "nope.txt", content: "x", insertAfter: 0 }, creds),
         /ENOENT|does not exist|no such file/i,
       );
     });
@@ -294,12 +221,7 @@ describe("toolWrite", () => {
     it("errors when insertAfter is out of range", async () => {
       writeFileSync(join(ws, "f.txt"), "aaa\nbbb\n");
       await assert.rejects(
-        () =>
-          toolWrite(
-            ws,
-            { path: "f.txt", content: "x", insertAfter: 999 },
-            creds,
-          ),
+        () => toolWrite(ws, { path: "f.txt", content: "x", insertAfter: 999 }, creds),
         /out of range/,
       );
     });
@@ -319,10 +241,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "deep/nested/dir/file.txt"), "utf8"),
-        "hello\n",
-      );
+      assert.equal(readFileSync(join(ws, "deep/nested/dir/file.txt"), "utf8"), "hello\n");
       assert.equal(r.dirCreated, true);
     });
 
@@ -336,10 +255,7 @@ describe("toolWrite", () => {
         },
         creds,
       );
-      assert.equal(
-        readFileSync(join(ws, "new/path/log.txt"), "utf8"),
-        "entry\n",
-      );
+      assert.equal(readFileSync(join(ws, "new/path/log.txt"), "utf8"), "entry\n");
     });
 
     it("does not set dirCreated when dirs already exist", async () => {
@@ -509,10 +425,7 @@ describe("toolWrite", () => {
 
   describe("binary file rejection", () => {
     it("rejects line-range replace on binary files", async () => {
-      writeFileSync(
-        join(ws, "bin.dat"),
-        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x0a]),
-      );
+      writeFileSync(join(ws, "bin.dat"), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x0a]));
       await assert.rejects(
         () =>
           toolWrite(
@@ -529,10 +442,7 @@ describe("toolWrite", () => {
     });
 
     it("rejects insertAfter on binary files", async () => {
-      writeFileSync(
-        join(ws, "bin.dat"),
-        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x0a]),
-      );
+      writeFileSync(join(ws, "bin.dat"), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00, 0x0a]));
       await assert.rejects(
         () =>
           toolWrite(

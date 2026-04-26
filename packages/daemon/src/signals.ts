@@ -12,9 +12,7 @@ interface SignalHandlerOptions {
  * Installs handlers for SIGINT/SIGTERM (configurable).
  * Returns a disposer that removes listeners.
  */
-export function installSignalHandlers(
-  options: SignalHandlerOptions,
-): () => void {
+export function installSignalHandlers(options: SignalHandlerOptions): () => void {
   const proc = options.proc ?? process;
   const signals = options.signals ?? (["SIGINT", "SIGTERM"] as SignalName[]);
   const log = getLogger("signals");

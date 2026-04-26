@@ -15,9 +15,7 @@ function findAgentEntry(cfg: ShoggothConfig, agentId: string) {
 }
 
 /** Logical agent id from `agent:<agentId>:…` session URN, or undefined when not parseable. */
-export function resolveAgentIdFromSessionId(
-  sessionId: string,
-): string | undefined {
+export function resolveAgentIdFromSessionId(sessionId: string): string | undefined {
   return parseAgentSessionUrn(sessionId)?.agentId;
 }
 
@@ -90,10 +88,7 @@ export function resolveEffectiveModelsConfig(
         ? [o!.primary]
         : undefined;
 
-  const defaultInvocation = mergeDefaultInvocation(
-    global?.defaultInvocation,
-    o!.defaultInvocation,
-  );
+  const defaultInvocation = mergeDefaultInvocation(global?.defaultInvocation, o!.defaultInvocation);
 
   let compaction = global?.compaction;
   if (o!.compaction != null && Object.keys(o!.compaction).length > 0) {
@@ -103,18 +98,16 @@ export function resolveEffectiveModelsConfig(
         o!.compaction.preserveRecentMessages ??
         g?.preserveRecentMessages ??
         DEFAULT_COMPACTION_PRESERVE,
-      summaryMaxOutputTokens:
-        o!.compaction.summaryMaxOutputTokens ?? g?.summaryMaxOutputTokens,
+      summaryMaxOutputTokens: o!.compaction.summaryMaxOutputTokens ?? g?.summaryMaxOutputTokens,
       model: o!.compaction.model ?? g?.model,
     };
   }
 
   return {
-    ...(global ?? {}),
+    ...global,
     ...(chain && chain.length > 0
       ? {
-          failoverChain:
-            chain as unknown as ShoggothModelsConfig["failoverChain"],
+          failoverChain: chain as unknown as ShoggothModelsConfig["failoverChain"],
         }
       : {}),
     ...(defaultInvocation !== undefined ? { defaultInvocation } : {}),
@@ -131,10 +124,7 @@ export const SHOGGOTH_AGENT_DEFAULT_EMOJI = "🦑";
  * otherwise the agent id. `emoji` defaults to {@link SHOGGOTH_AGENT_DEFAULT_EMOJI} when omitted.
  * No prefix when there is no matching `agents.list` entry or the session URN has no agent id.
  */
-export function formatAgentIdentityPrefix(
-  cfg: ShoggothConfig,
-  sessionId: string,
-): string {
+export function formatAgentIdentityPrefix(cfg: ShoggothConfig, sessionId: string): string {
   const aid = resolveAgentIdFromSessionId(sessionId);
   if (!aid) return "";
   const idKey = aid.trim();
@@ -195,10 +185,7 @@ const DEFAULT_MCP_SERVER_RULES: McpServerRules = { allow: ["*"], deny: [] };
  * Evaluate whether a server id is allowed by the given rules.
  * Deny wins, then allow check, then default-deny.
  */
-export function evaluateMcpServerRules(
-  serverId: string,
-  rules: McpServerRules,
-): boolean {
+export function evaluateMcpServerRules(serverId: string, rules: McpServerRules): boolean {
   // 1. Deny wins
   if (rules.deny.includes(serverId) || rules.deny.includes("*")) return false;
   // 2. Allow check
@@ -226,14 +213,8 @@ export function resolveEffectiveMcpServerRules(
     const globalSubagent = config.agents?.subagentMcp?.serverRules;
     if (globalSubagent) {
       effective = {
-        allow:
-          globalSubagent.allow !== undefined
-            ? globalSubagent.allow
-            : effective.allow,
-        deny:
-          globalSubagent.deny !== undefined
-            ? globalSubagent.deny
-            : effective.deny,
+        allow: globalSubagent.allow !== undefined ? globalSubagent.allow : effective.allow,
+        deny: globalSubagent.deny !== undefined ? globalSubagent.deny : effective.deny,
       };
     }
     // Merge per-agent subagent rules
@@ -241,14 +222,8 @@ export function resolveEffectiveMcpServerRules(
     const perAgentSubagent = entry?.subagentMcp?.serverRules;
     if (perAgentSubagent) {
       effective = {
-        allow:
-          perAgentSubagent.allow !== undefined
-            ? perAgentSubagent.allow
-            : effective.allow,
-        deny:
-          perAgentSubagent.deny !== undefined
-            ? perAgentSubagent.deny
-            : effective.deny,
+        allow: perAgentSubagent.allow !== undefined ? perAgentSubagent.allow : effective.allow,
+        deny: perAgentSubagent.deny !== undefined ? perAgentSubagent.deny : effective.deny,
       };
     }
   } else {

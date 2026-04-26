@@ -67,9 +67,7 @@ describe("createFailoverModelClient", () => {
       { provider: mockProvider("a", "503"), model: "m1" },
       { provider: mockProvider("b", "503"), model: "m2" },
     ]);
-    await assert.rejects(() =>
-      c.complete({ messages: [{ role: "user", content: "x" }] }),
-    );
+    await assert.rejects(() => c.complete({ messages: [{ role: "user", content: "x" }] }));
   });
 
   it("does not failover on 401", async () => {
@@ -197,9 +195,7 @@ describe("createFailoverModelClient", () => {
         ],
         hooks,
       );
-      await assert.rejects(() =>
-        c.complete({ messages: [{ role: "user", content: "x" }] }),
-      );
+      await assert.rejects(() => c.complete({ messages: [{ role: "user", content: "x" }] }));
       assert.deepEqual(exhaustedIds, ["a", "b"]);
     });
 
@@ -230,9 +226,7 @@ describe("createFailoverModelClient", () => {
         ],
         hooks,
       );
-      await assert.rejects(() =>
-        c.complete({ messages: [{ role: "user", content: "x" }] }),
-      );
+      await assert.rejects(() => c.complete({ messages: [{ role: "user", content: "x" }] }));
     });
   });
 });

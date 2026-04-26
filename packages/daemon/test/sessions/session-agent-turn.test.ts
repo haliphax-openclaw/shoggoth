@@ -18,7 +18,7 @@ import { createHitlPendingResolutionStack } from "../../src/hitl/hitl-pending-st
 import { createPolicyEngine } from "../../src/policy/engine";
 import { executeSessionAgentTurn } from "../../src/sessions/session-agent-turn";
 import { buildBuiltinOnlySessionMcpToolContext } from "../../src/sessions/session-mcp-tool-context";
-import { buildSessionSystemContext } from "../../src/sessions/session-system-prompt";
+
 import * as SystemPromptModule from "../../src/sessions/session-system-prompt";
 import { createSessionStore } from "../../src/sessions/session-store";
 import { createTranscriptStore } from "../../src/sessions/transcript-store";

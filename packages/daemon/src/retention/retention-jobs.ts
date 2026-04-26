@@ -23,9 +23,7 @@ export function retentionConfigHasRules(
   );
 }
 
-function retentionHasRules(
-  r: ShoggothRetentionConfig | undefined,
-): r is ShoggothRetentionConfig {
+function retentionHasRules(r: ShoggothRetentionConfig | undefined): r is ShoggothRetentionConfig {
   return retentionConfigHasRules(r);
 }
 
@@ -56,9 +54,7 @@ function isPathInsideRoot(rootAbs: string, pathAbs: string): boolean {
 
 async function listInboundFileEntries(
   root: string,
-): Promise<
-  { absPath: string; relPath: string; mtimeMs: number; size: number }[]
-> {
+): Promise<{ absPath: string; relPath: string; mtimeMs: number; size: number }[]> {
   let rootReal: string;
   try {
     rootReal = await realpath(root);
@@ -136,9 +132,7 @@ async function purgeInboundMedia(
   }
 
   const cutoffMs =
-    maxAgeDays != null
-      ? Date.now() - maxAgeDays * 86_400_000
-      : Number.NEGATIVE_INFINITY;
+    maxAgeDays != null ? Date.now() - maxAgeDays * 86_400_000 : Number.NEGATIVE_INFINITY;
 
   let files = await listInboundFileEntries(root);
 
@@ -189,10 +183,7 @@ function purgeTranscriptByAge(db: Database.Database, days: number): number {
   return Number(info.changes);
 }
 
-function purgeTranscriptBySessionCap(
-  db: Database.Database,
-  keepPerSession: number,
-): number {
+function purgeTranscriptBySessionCap(db: Database.Database, keepPerSession: number): number {
   const info = db
     .prepare(
       `
@@ -211,9 +202,9 @@ function purgeTranscriptBySessionCap(
 }
 
 function purgeKvByEntryCap(db: Database.Database, maxEntries: number): number {
-  const workspaces = db
-    .prepare("SELECT DISTINCT workspace FROM kv_store")
-    .all() as { workspace: string }[];
+  const workspaces = db.prepare("SELECT DISTINCT workspace FROM kv_store").all() as {
+    workspace: string;
+  }[];
   let total = 0;
   for (const { workspace } of workspaces) {
     const info = db
@@ -258,14 +249,8 @@ export async function runRetentionJobs(
 
   const mediaRoot = resolve(config.inboundMediaRoot);
 
-  if (
-    rules.inboundMediaMaxAgeDays != null ||
-    rules.inboundMediaMaxTotalBytes != null
-  ) {
-    const { deletedFiles, freedBytes } = await purgeInboundMedia(
-      mediaRoot,
-      rules,
-    );
+  if (rules.inboundMediaMaxAgeDays != null || rules.inboundMediaMaxTotalBytes != null) {
+    const { deletedFiles, freedBytes } = await purgeInboundMedia(mediaRoot, rules);
     inboundMediaDeletedFiles = deletedFiles;
     inboundMediaFreedBytes = freedBytes;
     appendAuditRow(db, {

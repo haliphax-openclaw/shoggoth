@@ -3,11 +3,7 @@ import assert from "node:assert";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  HealthRegistry,
-  createSqliteProbe,
-  createModelEndpointProbe,
-} from "../src/health";
+import { HealthRegistry, createSqliteProbe, createModelEndpointProbe } from "../src/health";
 import { createDiscordProbe } from "@shoggoth/platform-discord";
 
 const origFetch = globalThis.fetch;
@@ -80,9 +76,7 @@ describe("HealthRegistry", () => {
   it("discord probe pass on 200 with user detail", async () => {
     globalThis.fetch = (async (url, init) => {
       assert.equal(String(url), "https://discord.com/api/v10/users/@me");
-      const auth = new Headers(
-        (init as RequestInit).headers as HeadersInit,
-      ).get("Authorization");
+      const auth = new Headers((init as RequestInit).headers as HeadersInit).get("Authorization");
       assert.equal(auth, "Bot t");
       return new Response(JSON.stringify({ username: "rook", id: "42" }), {
         status: 200,
@@ -96,8 +90,7 @@ describe("HealthRegistry", () => {
   });
 
   it("discord probe fail on 401", async () => {
-    globalThis.fetch = (async () =>
-      new Response("", { status: 401 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response("", { status: 401 })) as typeof fetch;
     const p = createDiscordProbe({ getToken: () => "bad" });
     const c = await p.check();
     assert.equal(c.status, "fail");
@@ -142,10 +135,7 @@ describe("HealthRegistry", () => {
         return new Response(null, { status: 405 });
       }
       assert.equal(m, "GET");
-      assert.equal(
-        new Headers((init as RequestInit).headers).get("Accept"),
-        "*/*",
-      );
+      assert.equal(new Headers((init as RequestInit).headers).get("Accept"), "*/*");
       return new Response(null, { status: 200 });
     }) as typeof fetch;
     const p = createModelEndpointProbe({
@@ -168,8 +158,7 @@ describe("HealthRegistry", () => {
   });
 
   it("model probe warn on 401", async () => {
-    globalThis.fetch = (async () =>
-      new Response(null, { status: 401 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response(null, { status: 401 })) as typeof fetch;
     const p = createModelEndpointProbe({
       getBaseUrl: () => "https://api.example.com/v1",
     });
@@ -179,8 +168,7 @@ describe("HealthRegistry", () => {
   });
 
   it("model probe fail on 503", async () => {
-    globalThis.fetch = (async () =>
-      new Response(null, { status: 503 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response(null, { status: 503 })) as typeof fetch;
     const p = createModelEndpointProbe({
       getBaseUrl: () => "https://api.example.com/v1",
     });

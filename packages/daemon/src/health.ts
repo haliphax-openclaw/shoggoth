@@ -1,9 +1,6 @@
 import { access, constants } from "node:fs/promises";
 import { dirname } from "node:path";
-import {
-  setModelMetadataFromProvider,
-  getOpenAIKnownContextWindow,
-} from "./model-metadata";
+import { setModelMetadataFromProvider, getOpenAIKnownContextWindow } from "./model-metadata";
 
 export type HealthStatus = "pass" | "fail" | "warn" | "skipped";
 
@@ -39,8 +36,7 @@ async function probeSqliteFilesystem(dbPath: string): Promise<DependencyCheck> {
       return {
         name,
         status: "pass",
-        detail:
-          "parent directory writable; database file created on first open",
+        detail: "parent directory writable; database file created on first open",
       };
     } catch {
       return {
@@ -93,8 +89,7 @@ export class HealthRegistry {
       c.status === "fail" || (strict && c.status === "warn");
 
     const considered = checks.filter((c) => c.status !== "skipped");
-    const ready =
-      considered.length === 0 ? true : !considered.some(badForReady);
+    const ready = considered.length === 0 ? true : !considered.some(badForReady);
 
     const ok = !checks.some((c) => c.status === "fail");
 
@@ -148,18 +143,13 @@ function stripTrailingSlash(s: string): string {
 function isAnthropicModelProbeBase(normalizedBase: string): boolean {
   const a = process.env.ANTHROPIC_BASE_URL?.trim();
   if (!a) return false;
-  return (
-    stripTrailingSlash(normalizeModelBaseUrl(a)) ===
-    stripTrailingSlash(normalizedBase)
-  );
+  return stripTrailingSlash(normalizeModelBaseUrl(a)) === stripTrailingSlash(normalizedBase);
 }
 
 /** True when the URL is a Google Generative AI endpoint (uses ?key= auth, native /v1beta/models path). */
 function isGoogleGenAI(normalizedBase: string): boolean {
   try {
-    return new URL(normalizedBase).hostname.includes(
-      "generativelanguage.googleapis.com",
-    );
+    return new URL(normalizedBase).hostname.includes("generativelanguage.googleapis.com");
   } catch {
     return false;
   }
@@ -183,8 +173,7 @@ function resolveModelProbeUrl(
 
   if (
     p === "/" &&
-    (isAnthropicModelProbeBase(normalizedBase) ||
-      providerKind === "anthropic-messages")
+    (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages")
   ) {
     return `${u.origin}/`;
   }
@@ -230,10 +219,7 @@ function buildModelProbeAuthHeaders(
   providerKind?: string,
 ): Record<string, string> {
   if (isGoogleGenAI(normalizedBase)) return {};
-  if (
-    isAnthropicModelProbeBase(normalizedBase) ||
-    providerKind === "anthropic-messages"
-  ) {
+  if (isAnthropicModelProbeBase(normalizedBase) || providerKind === "anthropic-messages") {
     return { "x-api-key": apiKey };
   }
   return { Authorization: `Bearer ${apiKey}` };
@@ -248,9 +234,7 @@ async function fetchGeminiModelMetadata(
   apiVersion: string,
   model: string,
   apiKey: string,
-): Promise<
-  { inputTokenLimit?: number; outputTokenLimit?: number } | undefined
-> {
+): Promise<{ inputTokenLimit?: number; outputTokenLimit?: number } | undefined> {
   try {
     const origin = baseUrl.replace(/\/+$/, "");
     const url = `${origin}/${apiVersion}/models/${model}?key=${encodeURIComponent(apiKey)}`;
@@ -266,14 +250,9 @@ async function fetchGeminiModelMetadata(
       outputTokenLimit?: number;
     };
     return {
-      inputTokenLimit:
-        typeof json.inputTokenLimit === "number"
-          ? json.inputTokenLimit
-          : undefined,
+      inputTokenLimit: typeof json.inputTokenLimit === "number" ? json.inputTokenLimit : undefined,
       outputTokenLimit:
-        typeof json.outputTokenLimit === "number"
-          ? json.outputTokenLimit
-          : undefined,
+        typeof json.outputTokenLimit === "number" ? json.outputTokenLimit : undefined,
     };
   } catch {
     return undefined;
@@ -309,27 +288,15 @@ export async function fetchGeminiMetadataForProviders(
     const provider = geminiProviders.get(providerId);
     if (!provider) continue;
 
-    const apiKey =
-      provider.apiKey ??
-      (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined);
+    const apiKey = provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined);
     if (!apiKey) continue;
 
-    const baseUrl =
-      provider.baseUrl ?? "https://generativelanguage.googleapis.com";
+    const baseUrl = provider.baseUrl ?? "https://generativelanguage.googleapis.com";
     const apiVersion = provider.apiVersion ?? "v1beta";
 
-    const meta = await fetchGeminiModelMetadata(
-      baseUrl,
-      apiVersion,
-      model,
-      apiKey,
-    );
+    const meta = await fetchGeminiModelMetadata(baseUrl, apiVersion, model, apiKey);
     if (meta?.inputTokenLimit != null) {
-      const warning = setModelMetadataFromProvider(
-        providerId,
-        model,
-        meta.inputTokenLimit,
-      );
+      const warning = setModelMetadataFromProvider(providerId, model, meta.inputTokenLimit);
       if (warning) logger.warn(warning);
     }
   }
@@ -400,9 +367,7 @@ export async function fetchOpenAIMetadataForProviders(
   logger: { warn(msg: string, meta?: Record<string, unknown>): void },
 ): Promise<void> {
   const openaiProviders = new Map(
-    providers
-      .filter((p) => p.kind === "openai-compatible")
-      .map((p) => [p.id, p]),
+    providers.filter((p) => p.kind === "openai-compatible").map((p) => [p.id, p]),
   );
 
   for (const entry of failoverChain) {
@@ -414,19 +379,13 @@ export async function fetchOpenAIMetadataForProviders(
     if (!provider) continue;
 
     const apiKey =
-      provider.apiKey ??
-      (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined) ??
-      "";
+      provider.apiKey ?? (provider.apiKeyEnv ? env[provider.apiKeyEnv] : undefined) ?? "";
     const baseUrl = provider.baseUrl;
     if (!baseUrl) continue;
 
     const meta = await fetchOpenAIModelMetadata(baseUrl, model, apiKey);
     if (meta?.contextWindow != null) {
-      const warning = setModelMetadataFromProvider(
-        providerId,
-        model,
-        meta.contextWindow,
-      );
+      const warning = setModelMetadataFromProvider(providerId, model, meta.contextWindow);
       if (warning) logger.warn(warning);
     }
   }

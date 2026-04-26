@@ -17,12 +17,8 @@ export interface HitlPendingStore {
   deny(id: string, resolverPrincipal: string): boolean;
   getById(
     id: string,
-  ):
-    | { id: string; sessionId: string; toolName: string; status: string }
-    | undefined;
-  listPendingForSession(
-    sessionId: string,
-  ): readonly {
+  ): { id: string; sessionId: string; toolName: string; status: string } | undefined;
+  listPendingForSession(sessionId: string): readonly {
     id: string;
     sessionId: string;
     toolName: string;
@@ -35,9 +31,7 @@ export interface HitlPendingStore {
  */
 export interface HitlPendingStack {
   readonly pending: HitlPendingStore;
-  readonly waitForHitlResolution: (
-    pendingId: string,
-  ) => Promise<"approved" | "denied">;
+  readonly waitForHitlResolution: (pendingId: string) => Promise<"approved" | "denied">;
 }
 
 /**
@@ -47,9 +41,7 @@ export interface HitlAutoApproveGate {
   enableSessionTool(sessionId: string, toolName: string): void;
   enableAgentTool(agentId: string, toolName: string): void;
   shouldAutoApprove(sessionId: string, toolName: string): boolean;
-  clearAutoApproveMemory?(input: {
-    readonly agents: "all" | readonly string[];
-  }): void;
+  clearAutoApproveMemory?(input: { readonly agents: "all" | readonly string[] }): void;
 }
 
 /**

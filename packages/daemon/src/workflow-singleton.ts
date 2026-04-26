@@ -52,8 +52,7 @@ export function initWorkflow(opts: WorkflowSingletonOptions): {
   mkdirSync(stateDir, { recursive: true });
 
   const createStatusManager = opts.createMessageAdapter
-    ? (sessionId: string) =>
-        new StatusManager(opts.createMessageAdapter!(sessionId))
+    ? (sessionId: string) => new StatusManager(opts.createMessageAdapter!(sessionId))
     : undefined;
 
   server = new WorkflowServer({

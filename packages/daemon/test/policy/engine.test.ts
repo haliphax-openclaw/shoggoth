@@ -19,29 +19,20 @@ describe("policy engine", () => {
   });
 
   it("allow * permits unless denied", () => {
-    assert.deepStrictEqual(
-      evaluateRules("anything", { allow: ["*"], deny: [] }),
-      {
-        allow: true,
-      },
-    );
-    assert.deepStrictEqual(
-      evaluateRules("read", { allow: ["*"], deny: ["read"] }),
-      {
-        allow: false,
-        reason: "explicit_deny",
-      },
-    );
+    assert.deepStrictEqual(evaluateRules("anything", { allow: ["*"], deny: [] }), {
+      allow: true,
+    });
+    assert.deepStrictEqual(evaluateRules("read", { allow: ["*"], deny: ["read"] }), {
+      allow: false,
+      reason: "explicit_deny",
+    });
   });
 
   it("deny * blocks all", () => {
-    assert.deepStrictEqual(
-      evaluateRules("ping", { allow: ["ping"], deny: ["*"] }),
-      {
-        allow: false,
-        reason: "explicit_deny",
-      },
-    );
+    assert.deepStrictEqual(evaluateRules("ping", { allow: ["ping"], deny: ["*"] }), {
+      allow: false,
+      reason: "explicit_deny",
+    });
   });
 
   it("maps operator vs agent principals (DEFAULT_POLICY_CONFIG)", () => {
@@ -252,10 +243,9 @@ describe("evaluateRules – review list", () => {
   });
 
   it("missing review field is backward compatible (allow works)", () => {
-    assert.deepStrictEqual(
-      evaluateRules("builtin-exec", { allow: ["builtin-exec"], deny: [] }),
-      { allow: true },
-    );
+    assert.deepStrictEqual(evaluateRules("builtin-exec", { allow: ["builtin-exec"], deny: [] }), {
+      allow: true,
+    });
   });
 
   it("review with wildcard matches all sub-resources", () => {
@@ -283,10 +273,10 @@ describe("evaluateRules – review list", () => {
 
 describe("redactToolArgsJson", () => {
   it("redacts dot paths", () => {
-    const out = redactToolArgsJson(
-      JSON.stringify({ password: "x", nested: { token: "y" } }),
-      ["password", "nested.token"],
-    );
+    const out = redactToolArgsJson(JSON.stringify({ password: "x", nested: { token: "y" } }), [
+      "password",
+      "nested.token",
+    ]);
     const o = JSON.parse(out!) as {
       password: string;
       nested: { token: string };

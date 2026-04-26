@@ -1,18 +1,10 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import {
-  parseTemplateRefs,
-  validateTemplateRefs,
-  resolveTemplates,
-} from "../src/templates.js";
+import { parseTemplateRefs, validateTemplateRefs, resolveTemplates } from "../src/templates.js";
 import { parseGraph } from "../src/graph.js";
 import type { TaskState, TaskDef } from "../src/types.js";
 
-function makeTaskState(
-  id: number,
-  status: TaskState["status"],
-  output?: string,
-): TaskState {
+function makeTaskState(id: number, status: TaskState["status"], output?: string): TaskState {
   const taskDef: TaskDef = {
     kind: "agent",
     id,

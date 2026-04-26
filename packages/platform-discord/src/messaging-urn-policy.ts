@@ -25,10 +25,7 @@ export function isDiscordSessionUrnTailSegment(seg: string): boolean {
   return SHOGGOTH_SESSION_UUID_RE.test(s) || DISCORD_SNOWFLAKE_RE.test(s);
 }
 
-export type DiscordRouteSessionUrnCheck =
-  | "ok"
-  | "drop"
-  | { readonly fatal: string };
+export type DiscordRouteSessionUrnCheck = "ok" | "drop" | { readonly fatal: string };
 
 /**
  * Validates the session tail for a Discord messaging route: each segment must be a UUID or snowflake;
@@ -45,11 +42,7 @@ export function checkDiscordMessagingRouteSessionUrn(
   if (parsed.uuidChain.length === 1) {
     const leaf = parsed.uuidChain[0]!;
     const ch = channelId.trim();
-    if (
-      DISCORD_SNOWFLAKE_RE.test(leaf) &&
-      DISCORD_SNOWFLAKE_RE.test(ch) &&
-      leaf !== ch
-    ) {
+    if (DISCORD_SNOWFLAKE_RE.test(leaf) && DISCORD_SNOWFLAKE_RE.test(ch) && leaf !== ch) {
       return {
         fatal: `discord route: sessionId leaf ${JSON.stringify(leaf)} must equal channelId ${JSON.stringify(ch)} when both are Discord snowflakes`,
       };
@@ -58,8 +51,7 @@ export function checkDiscordMessagingRouteSessionUrn(
   return "ok";
 }
 
-const DEFAULT_PRIMARY_UUID_LOWER =
-  SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID.toLowerCase();
+const DEFAULT_PRIMARY_UUID_LOWER = SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID.toLowerCase();
 
 export type DiscordDefaultPrimaryMultiAgentGuard = {
   /** Declared agents (from `agents.list`); when non-empty, default-primary UUID routes are validated per entry. */
@@ -162,10 +154,5 @@ export function resolveDiscordBootstrapPrimarySessionUrn(
   if (ch && DISCORD_SNOWFLAKE_RE.test(ch)) {
     return formatAgentSessionUrn(agentId, platform, "channel", ch);
   }
-  return formatAgentSessionUrn(
-    agentId,
-    platform,
-    "channel",
-    SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
-  );
+  return formatAgentSessionUrn(agentId, platform, "channel", SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID);
 }

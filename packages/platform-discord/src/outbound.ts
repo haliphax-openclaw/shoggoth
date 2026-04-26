@@ -1,16 +1,10 @@
-import type {
-  MessagingAdapterCapabilities,
-  InternalMessage,
-} from "@shoggoth/messaging";
+import type { MessagingAdapterCapabilities, InternalMessage } from "@shoggoth/messaging";
 import type {
   DiscordCreateMessageBody,
   DiscordRestTransport,
   DiscordMessageUploadFile,
 } from "./transport";
-import {
-  formatMessageWithThinking,
-  type ThinkingDisplayMode,
-} from "./thinking-formatter";
+import { formatMessageWithThinking, type ThinkingDisplayMode } from "./thinking-formatter";
 
 export interface OutboundAttachmentFile {
   readonly filename: string;
@@ -37,25 +31,16 @@ export interface OutboundSender {
   ): Promise<SentMessageRef>;
 }
 
-function assertExtensionsAllowed(
-  caps: MessagingAdapterCapabilities,
-  msg: InternalMessage,
-): void {
+function assertExtensionsAllowed(caps: MessagingAdapterCapabilities, msg: InternalMessage): void {
   const x = msg.extensions;
   if (x.attachments?.length && !caps.extensions.attachments) {
-    throw new Error(
-      "Outbound: attachments not supported by this adapter capability set",
-    );
+    throw new Error("Outbound: attachments not supported by this adapter capability set");
   }
   if (x.threadId && !caps.extensions.threads) {
-    throw new Error(
-      "Outbound: threads not supported by this adapter capability set",
-    );
+    throw new Error("Outbound: threads not supported by this adapter capability set");
   }
   if (x.replyToMessageId && !caps.extensions.replies) {
-    throw new Error(
-      "Outbound: replies not supported by this adapter capability set",
-    );
+    throw new Error("Outbound: replies not supported by this adapter capability set");
   }
 }
 
@@ -79,9 +64,7 @@ function toDiscordBody(
   return { content };
 }
 
-export function createOutboundSender(
-  config: OutboundSenderConfig,
-): OutboundSender {
+export function createOutboundSender(config: OutboundSenderConfig): OutboundSender {
   const { capabilities, transport, sessionToChannel, thinkingDisplay } = config;
 
   return {
@@ -92,9 +75,7 @@ export function createOutboundSender(
       assertExtensionsAllowed(capabilities, msg);
       const channelId = sessionToChannel(msg.sessionId);
       if (!channelId) {
-        throw new Error(
-          `Outbound: no Discord channel mapped for session ${msg.sessionId}`,
-        );
+        throw new Error(`Outbound: no Discord channel mapped for session ${msg.sessionId}`);
       }
 
       const files = opts?.attachments;
@@ -111,10 +92,7 @@ export function createOutboundSender(
         return { channelId, messageId: res.id };
       }
 
-      const res = await transport.createMessage(
-        channelId,
-        toDiscordBody(msg, thinkingDisplay),
-      );
+      const res = await transport.createMessage(channelId, toDiscordBody(msg, thinkingDisplay));
       return { channelId, messageId: res.id };
     },
   };
