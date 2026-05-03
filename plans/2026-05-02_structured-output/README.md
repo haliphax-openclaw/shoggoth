@@ -117,4 +117,4 @@ No migration needed. `responseSchema` is optional at every layer. Existing confi
 
 - [`spec.md`](spec.md) — type signatures, interfaces, and code examples
 - [`implementation.md`](implementation.md) — phased implementation steps
-- [`../../research/structured-output.md`](../../research/structured-output.md) — original research findings
+- [`research.md`](research.md) — original research findings
