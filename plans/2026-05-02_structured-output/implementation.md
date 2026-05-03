@@ -25,7 +25,7 @@ Add the shared response validation module that adapters will use to verify schem
 
 - Add `ajv` as a dependency to the models package.
 - Create `response-validation.ts` with `validateResponseSchema` function and associated types (`ValidationSuccess`, `ValidationFailure`, `ValidationResult`).
-- Create `StructuredOutputValidationError` error class for adapters to throw on validation failure.
+- Create `StructuredOutputValidationError` error class. Include `rawContent` and `schema` on the error so the tool loop can build correction feedback without needing the original invocation params.
 - Unit tests: valid JSON passes, invalid JSON structure fails, non-JSON content fails, descriptive error messages include schema path info.
 
 **Files:**
@@ -74,7 +74,37 @@ Implement structured output for Anthropic using the synthetic tool injection pat
 - `packages/models/src/anthropic-messages.ts`
 - `packages/models/src/anthropic-messages.test.ts` (new or extended)
 
-## Phase 5: Workflow integration
+## Phase 5: Tool loop validation retry
+
+Add retry handling to the tool loop so that `StructuredOutputValidationError` from adapters triggers a correction-and-retry cycle instead of killing the session.
+
+- Import `StructuredOutputValidationError` from `@shoggoth/models`.
+- Add `STRUCTURED_OUTPUT_MAX_RETRIES` constant (2 retries, 3 total attempts).
+- Wrap the `model.complete()` call in a try/catch for `StructuredOutputValidationError`.
+- On catch:
+  - Increment attempt counter.
+  - If retries exhausted, re-throw the error (session fails normally).
+  - Record the non-conformant response in the transcript with `structuredOutputValidationFailed` metadata.
+  - Build a correction message containing the validation error and the schema.
+  - Inject the correction via `model.pushSteerMessage` (reuses existing steer infrastructure).
+  - Record the correction in the transcript with `structuredOutputCorrection` metadata.
+  - Log and audit the failed attempt.
+  - `continue` to re-enter the loop and call `model.complete()` again.
+- Reset the attempt counter when a terminal response succeeds (passes validation or has no `responseSchema`).
+- Unit tests:
+  - First attempt fails validation → correction injected → second attempt succeeds.
+  - All 3 attempts fail → error is re-thrown.
+  - Transcript contains failed response + correction + successful response.
+  - Retry counter resets after success.
+  - Non-`StructuredOutputValidationError` exceptions propagate normally (no retry).
+  - Abort signal is respected between retries.
+
+**Files:**
+
+- `packages/daemon/src/sessions/tool-loop.ts`
+- `packages/daemon/test/sessions/tool-loop.test.ts` (new or extended)
+
+## Phase 6: Workflow integration
 
 Expose `responseSchema` through the workflow system so LLM-authored workflow definitions can constrain agent task output.
 

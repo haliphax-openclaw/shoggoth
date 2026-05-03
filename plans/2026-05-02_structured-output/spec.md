@@ -55,6 +55,25 @@ export function validateResponseSchema(
 ): ValidationResult;
 ```
 
+### Structured output validation error — `packages/models/src/response-validation.ts`
+
+```ts
+export class StructuredOutputValidationError extends Error {
+  constructor(
+    message: string,
+    /** The raw non-conformant response content. */
+    public readonly rawContent: string,
+    /** The schema that was violated. */
+    public readonly schema: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "StructuredOutputValidationError";
+  }
+}
+```
+
+The error carries the schema so the tool loop can include it in the correction feedback without needing access to the original `ModelInvocationParams`.
+
 ### Workflow agent task — `packages/workflow/src/types.ts`
 
 ```ts
@@ -279,22 +298,136 @@ export function validateResponseSchema(
 }
 ```
 
-### Integration point
+### Adapter integration point
 
-Validation is called by the adapter (or a thin wrapper around it) after producing the final response content, for Gemini and Anthropic only:
+Validation is called by the adapter after producing the final response content, for Gemini and Anthropic only:
 
 ```ts
 // In adapter post-processing (Gemini and Anthropic)
 if (input.responseSchema && finalContent) {
   const result = validateResponseSchema(finalContent, input.responseSchema.schema);
   if (!result.valid) {
-    // Return structured error — caller decides whether to retry
-    throw new StructuredOutputValidationError(result.error, result.rawContent);
+    throw new StructuredOutputValidationError(
+      result.error,
+      result.rawContent,
+      input.responseSchema.schema,
+    );
   }
 }
 ```
 
 OpenAI skips validation when `strict` is true (the default).
+
+## Tool Loop Retry — `packages/daemon/src/sessions/tool-loop.ts`
+
+The tool loop is the call site that invokes `model.complete()` and decides what to do with the result. It is the natural place for retry logic because it owns the model client, transcript, and audit log.
+
+### Constants
+
+```ts
+/** Maximum number of structured output validation retries before giving up. */
+const STRUCTURED_OUTPUT_MAX_RETRIES = 2;
+```
+
+### Retry logic
+
+The existing terminal-response branch (`turn.toolCalls.length === 0`) is wrapped in validation retry handling:
+
+```ts
+import { StructuredOutputValidationError } from "@shoggoth/models";
+
+// Inside the for (;;) loop, replacing the existing model.complete() + terminal check:
+
+let structuredOutputAttempt = 0;
+
+for (;;) {
+  assertNotAborted(options.turnAbortSignal);
+
+  let turn: { content: string | null; toolCalls: readonly ToolCall[] };
+  try {
+    turn = await Promise.race([options.model.complete(), abortPromise(options.turnAbortSignal)]);
+  } catch (e) {
+    if (e instanceof StructuredOutputValidationError) {
+      structuredOutputAttempt++;
+      log.warn("structured output validation failed", {
+        sessionId: options.sessionId,
+        attempt: structuredOutputAttempt,
+        error: e.message,
+      });
+      options.audit.record({
+        phase: "structured_output_validation_failed",
+        sessionId: options.sessionId,
+        attempt: structuredOutputAttempt,
+        error: e.message,
+      });
+
+      if (structuredOutputAttempt > STRUCTURED_OUTPUT_MAX_RETRIES) {
+        log.error("structured output retries exhausted", {
+          sessionId: options.sessionId,
+          attempts: structuredOutputAttempt,
+        });
+        throw e; // Re-throw — session fails
+      }
+
+      // Record the failed response in the transcript so the model sees it
+      if (options.transcript) {
+        appendTx({
+          role: "assistant",
+          content: e.rawContent,
+          metadata: { structuredOutputValidationFailed: true },
+        });
+      }
+
+      // Inject correction feedback so the model knows what went wrong
+      const correction = [
+        "Your previous response did not conform to the required JSON schema.",
+        `Validation error: ${e.message}`,
+        "Please produce a response that strictly conforms to the schema.",
+        `Schema: ${JSON.stringify(e.schema)}`,
+      ].join("\n");
+
+      options.model.pushSteerMessage?.(correction);
+
+      if (options.transcript) {
+        appendTx({
+          role: "user",
+          content: correction,
+          metadata: { structuredOutputCorrection: true },
+        });
+        emitStats?.({ transcriptMessageCount: getTranscriptCount() });
+      }
+
+      continue; // Re-enter the loop — model.complete() will be called again
+    }
+    throw e; // Not a structured output error — propagate normally
+  }
+
+  if (turn.toolCalls.length === 0) {
+    // Terminal response — reset retry counter for next potential structured output
+    structuredOutputAttempt = 0;
+    if (options.transcript && turn.content) {
+      appendTx({ role: "assistant", content: turn.content });
+      emitStats?.({ transcriptMessageCount: getTranscriptCount() });
+    }
+    break;
+  }
+
+  // ... existing tool call handling (unchanged) ...
+}
+```
+
+### How it works
+
+1. `model.complete()` calls the provider adapter, which calls `completeWithTools` internally.
+2. When the model produces a terminal response (no tool calls) and `responseSchema` is set, the adapter validates the response content.
+3. If validation fails, the adapter throws `StructuredOutputValidationError`.
+4. The tool loop catches the error, records the failed attempt in the transcript, injects a correction message via `pushSteerMessage`, and loops back to `model.complete()`.
+5. The model now sees its failed attempt and the correction feedback in context, giving it the information needed to self-correct.
+6. After `STRUCTURED_OUTPUT_MAX_RETRIES` (2) failed retries, the error is re-thrown and the session fails normally.
+
+### Why `pushSteerMessage`
+
+The tool loop already has `pushSteerMessage` for operator guidance injection. Reusing it for correction feedback avoids adding a new method to the `ModelClient` interface. The correction is a user-role message that the model sees on its next `complete()` call, which is exactly the right semantics — "here's what went wrong, try again."
 
 ## Merge Logic — `packages/models/src/invocation-merge.ts`
 
@@ -404,17 +537,10 @@ if (request.responseSchema) {
 }
 ```
 
-### Handling validation errors
+### Retry sequence (what the transcript looks like after one failed attempt)
 
-```ts
-try {
-  const response = await modelClient.completeWithTools(input);
-  // response.content is guaranteed to be schema-conformant
-} catch (e) {
-  if (e instanceof StructuredOutputValidationError) {
-    // e.message contains the validation error description
-    // e.rawContent contains the non-conformant response
-    // Caller can retry, log, or surface the error
-  }
-}
+```
+[assistant]  {"total_errors": 5}                          ← non-conformant (missing "categories")
+[user]       Your previous response did not conform...     ← correction feedback
+[assistant]  {"total_errors": 5, "categories": [...]}      ← conformant retry
 ```
