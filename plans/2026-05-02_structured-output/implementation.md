@@ -2,14 +2,14 @@
 
 ## Phase 1: Core types and merge logic
 
-Add the `responseSchema` field to the shared type system and teach the invocation merge pipeline to parse, merge, and propagate it. After this phase, any caller that sets `responseSchema` on `ModelInvocationParams` will see it flow through to provider adapters (which won't act on it yet).
+Add the `responseSchema` and `structuredOutputMode` fields to the shared type system and teach the invocation merge pipeline to parse, merge, and propagate them. After this phase, any caller that sets these fields on `ModelInvocationParams` will see them flow through to provider adapters (which won't act on them yet).
 
-- Add `ResponseSchema` interface and `responseSchema` field to `ModelInvocationParams` in the core types.
-- Update `parseModelInvocationFromUnknown` to recognize `responseSchema` from raw JSON.
-- Update `mergeInvocations` to apply overlay-wins semantics for `responseSchema`.
-- Add `"responseSchema"` to `SESSION_INVOCATION_KEYS`.
-- Add `responseSchema` to the Zod config schema (`shoggothModelDefaultInvocationSchema`).
-- Unit tests for parsing, merging, and schema validation.
+- Add `ResponseSchema` interface, `responseSchema` field, and `structuredOutputMode` field to `ModelInvocationParams` in the core types.
+- Update `parseModelInvocationFromUnknown` to recognize `responseSchema` and `structuredOutputMode` from raw JSON.
+- Update `mergeInvocations` to apply overlay-wins semantics for both fields.
+- Add `"responseSchema"` and `"structuredOutputMode"` to `SESSION_INVOCATION_KEYS`.
+- Add both fields to the Zod config schema (`shoggothModelDefaultInvocationSchema`).
+- Unit tests for parsing, merging, and schema validation of both fields.
 
 **Files:**
 
@@ -21,12 +21,16 @@ Add the `responseSchema` field to the shared type system and teach the invocatio
 
 ## Phase 2: Response validation utility
 
-Add the shared response validation module that adapters will use to verify schema conformance. This is independent of any specific adapter and can be tested in isolation.
+Add the shared response validation module that adapters will use to verify schema conformance, plus the mode resolution helper.
 
 - Add `ajv` as a dependency to the models package.
-- Create `response-validation.ts` with `validateResponseSchema` function and associated types (`ValidationSuccess`, `ValidationFailure`, `ValidationResult`).
-- Create `StructuredOutputValidationError` error class. Include `rawContent` and `schema` on the error so the tool loop can build correction feedback without needing the original invocation params.
-- Unit tests: valid JSON passes, invalid JSON structure fails, non-JSON content fails, descriptive error messages include schema path info.
+- Create `response-validation.ts` with:
+  - `validateResponseSchema` function and associated types (`ValidationSuccess`, `ValidationFailure`, `ValidationResult`).
+  - `StructuredOutputValidationError` error class. Include `rawContent` and `schema` on the error so the tool loop can build correction feedback without needing the original invocation params.
+  - `resolveStructuredOutputMode` function that computes `min(configured, adapterCeiling)` to prevent a `"strict"` config from skipping validation on a provider that doesn't guarantee conformance.
+- Unit tests:
+  - Validator: valid JSON passes, invalid JSON structure fails, non-JSON content fails, descriptive error messages include schema path info.
+  - Mode resolution: configured mode is capped by adapter ceiling, undefined config falls back to ceiling, `"none"` is always respected.
 
 **Files:**
 
@@ -36,12 +40,20 @@ Add the shared response validation module that adapters will use to verify schem
 
 ## Phase 3: OpenAI and Gemini adapters
 
-Map `responseSchema` to each provider's native request parameter. Gemini applies post-response validation.
+Map `responseSchema` to each provider's native request parameter. Both adapters use `resolveStructuredOutputMode` to determine behavior.
 
-- OpenAI adapter: when `responseSchema` is present, set `response_format` with `type: "json_schema"` on the request body. Apply after `requestExtras` spread so the typed field wins. No post-validation (provider guarantees conformance with `strict: true`).
-- Gemini adapter: when `responseSchema` is present, set `generationConfig.responseMimeType` to `"application/json"` and pass the schema through `sanitizeSchemaForGemini`. Apply post-response validation using `validateResponseSchema`; throw `StructuredOutputValidationError` on failure.
-- Unit tests for both adapters verifying correct request shape with and without `responseSchema`.
+- OpenAI adapter (ceiling: `"strict"`):
+  - When mode is `"strict"` or `"best-effort"`: set `response_format` with `type: "json_schema"` on the request body. Apply after `requestExtras` spread so the typed field wins.
+  - When mode is `"strict"`: skip post-validation.
+  - When mode is `"best-effort"`: apply post-validation, throw `StructuredOutputValidationError` on failure.
+  - When mode is `"none"`: do not send `response_format`.
+- Gemini adapter (ceiling: `"best-effort"`):
+  - When mode is `"best-effort"`: set `generationConfig.responseMimeType` to `"application/json"` and pass the schema through `sanitizeSchemaForGemini`. Apply post-validation.
+  - When mode is `"none"`: do not send the schema parameter.
+  - A configured `"strict"` is downgraded to `"best-effort"` by `resolveStructuredOutputMode`.
+- Unit tests for both adapters verifying correct request shape with and without `responseSchema`, and correct behavior for each `structuredOutputMode` value.
 - Unit tests for Gemini post-validation integration (mock a non-conformant response, verify error is thrown).
+- Unit tests verifying mode downgrade (e.g., Gemini adapter with `"strict"` config still validates).
 
 **Files:**
 
@@ -52,22 +64,26 @@ Map `responseSchema` to each provider's native request parameter. Gemini applies
 
 ## Phase 4: Anthropic adapter (synthetic tool workaround)
 
-Implement structured output for Anthropic using the synthetic tool injection pattern. This is the most complex adapter change.
+Implement structured output for Anthropic using the synthetic tool injection pattern. Adapter ceiling is `"best-effort"`.
 
 - Define `STRUCTURED_OUTPUT_TOOL_PREFIX` constant and `buildSyntheticTool` helper.
 - Define `isSyntheticToolCall` predicate.
-- In `completeWithTools`: inject the synthetic tool into the tools list when `responseSchema` is present.
+- Use `resolveStructuredOutputMode` with ceiling `"best-effort"`.
+- In `completeWithTools`: when mode is not `"none"`, inject the synthetic tool into the tools list when `responseSchema` is present.
 - Handle three response states:
   - Synthetic-only tool call → terminal, extract arguments as response content.
   - Synthetic + real tool calls → strip synthetic, return only real tool calls.
   - No synthetic call + no real tool calls (text-only response) → force a follow-up call with `tool_choice` set to the synthetic tool, extract arguments.
-- Apply post-response validation using `validateResponseSchema`; throw `StructuredOutputValidationError` on failure.
+- Apply post-validation (mode is always `"best-effort"` or lower for Anthropic); throw `StructuredOutputValidationError` on failure.
+- When mode is `"none"`: skip synthetic tool injection entirely.
 - Unit tests:
   - Synthetic tool is injected into tools list.
   - Terminal detection: synthetic-only response extracts arguments correctly.
   - Mixed response: synthetic is stripped, real tools are returned.
   - Text-only response with schema: forced follow-up call is made.
   - Post-validation integration (mock non-conformant arguments, verify error).
+  - Mode `"none"` skips synthetic tool injection.
+  - Mode `"strict"` is downgraded to `"best-effort"`.
 
 **Files:**
 
@@ -111,7 +127,7 @@ Expose `responseSchema` through the workflow system so LLM-authored workflow def
 - Add `responseSchema` to `AgentTaskDef` in workflow types.
 - Add `response_schema` to the workflow tool descriptor's task item properties.
 - Add `responseSchema` to the orchestrator's `SpawnRequest` interface and pass it through when spawning agent tasks.
-- Update `createDaemonSpawnAdapter` to forward `responseSchema` into the spawned session's `model_selection`.
+- Update `createDaemonSpawnAdapter` to forward `responseSchema` into the spawned session's `model_selection`. (`structuredOutputMode` is inherited from the model config, not set per-task.)
 - Unit tests for task definition parsing, orchestrator spawn request construction, and daemon adapter forwarding.
 
 **Files:**

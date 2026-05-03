@@ -24,30 +24,52 @@ caller (workflow / subagent spawn)
   → model_options.responseSchema
     → mergeSubagentSpawnModelSelection (invocation-merge)
       → session model_selection
-        → ModelInvocationParams.responseSchema
+        → ModelInvocationParams.responseSchema + structuredOutputMode
           → provider adapter (OpenAI / Gemini / Anthropic)
-            → native request parameter
+            → native request parameter (based on mode)
               → response text
-                → post-response validation (Gemini, Anthropic)
+                → post-response validation (when mode ≠ "strict")
                   → on failure: tool loop retry with feedback
 ```
 
-The schema is an optional field at every layer. When absent, behavior is unchanged. When present, each adapter translates it to the provider's native mechanism, a post-response validation step ensures conformance for providers that don't guarantee it, and the tool loop retries with model feedback on validation failure.
+The schema is an optional field at every layer. When absent, behavior is unchanged. When present, each adapter translates it to the provider's native mechanism. The `structuredOutputMode` property controls whether the adapter trusts the provider's conformance guarantee or applies post-validation.
+
+### Structured output mode
+
+A model-level property on `ModelInvocationParams` that tells the adapter what level of structured output support the target model provides. This follows the same pattern as `thinkingFormat` — it's needed because proxy providers (kiro gateway, OpenRouter) route through the OpenAI-compatible adapter but the backend model may be Gemini, Anthropic, or something else entirely.
+
+```ts
+readonly structuredOutputMode?: "strict" | "best-effort" | "none";
+```
+
+- **`"strict"`** — The model/provider guarantees schema conformance. The adapter sends the schema parameter and skips post-validation. (e.g., OpenAI `gpt-4o` with `strict: true`.)
+- **`"best-effort"`** — The model/provider accepts the schema parameter and attempts to conform, but doesn't guarantee it. The adapter sends the schema parameter and applies post-validation + retry. (e.g., Gemini, Anthropic via synthetic tool, proxied models of unknown capability.)
+- **`"none"`** — The model doesn't support structured output. The adapter does not send any schema parameter. If `responseSchema` is set, the system still validates the response (the model may produce conformant JSON via prompt instructions alone) but expectations are lower.
+
+Each adapter has a sensible default when `structuredOutputMode` is unset:
+
+| Adapter            | Default mode    |
+| ------------------ | --------------- |
+| OpenAI (direct)    | `"strict"`      |
+| Gemini (direct)    | `"best-effort"` |
+| Anthropic (direct) | `"best-effort"` |
+
+For proxy configurations (e.g., kiro/auto via the OpenAI-compatible adapter), the operator sets `structuredOutputMode` in the model's invocation config to match the backend's actual capability. When routing through a proxy that serves mixed backends, `"best-effort"` is the safe default.
 
 ### Provider mapping
 
-**OpenAI** — Native `response_format.json_schema`. Set `strict: true` for guaranteed conformance. Straightforward mapping, ~20 lines. No post-validation needed (provider guarantees conformance).
+**OpenAI adapter** — Maps `responseSchema` to `response_format.json_schema`. When `structuredOutputMode` is `"strict"` (the default), sets `strict: true` and skips post-validation. When `"best-effort"`, sends the same parameter but applies post-validation. When `"none"`, does not send `response_format`.
 
-**Gemini** — Native `generationConfig.responseSchema` + `responseMimeType: "application/json"`. The existing `sanitizeSchemaForGemini` helper must also be applied to the response schema. ~20 lines. Post-validation required (provider does not guarantee strict conformance).
+**Gemini adapter** — Maps `responseSchema` to `generationConfig.responseSchema` + `responseMimeType: "application/json"`. The existing `sanitizeSchemaForGemini` helper is applied. Always post-validates (default mode is `"best-effort"`). When `"none"`, does not send the schema parameter.
 
-**Anthropic** — No native support. Uses a synthetic tool workaround:
+**Anthropic adapter** — Uses the synthetic tool workaround:
 
 1. Inject a synthetic tool definition whose `input_schema` matches the desired output schema.
 2. On the final call (when the model is done with real tools), force `tool_choice: { type: "tool", name: "<synthetic>" }`.
 3. If the model returns the synthetic tool call alongside real tool calls: strip the synthetic call, hold its result, feed back real tool results, and continue the loop.
 4. When the model returns _only_ the synthetic tool call: extract the tool arguments as the response content, return empty `toolCalls`.
 
-This is the heaviest adapter lift (~100-150 lines). Post-validation required (synthetic tool arguments are not schema-guaranteed).
+Always post-validates (default mode is `"best-effort"`). When `"none"`, skips synthetic tool injection entirely.
 
 ### Coexistence with tool use
 
@@ -57,13 +79,13 @@ No changes to the tool loop's tool-execution path are needed — the Anthropic a
 
 ### Response validation
 
-For providers that don't guarantee schema conformance (Gemini, Anthropic), a post-response validation step runs after the final model response:
+When `structuredOutputMode` is not `"strict"`, a post-response validation step runs after the final model response:
 
 1. Parse the response content as JSON.
 2. Validate against the provided schema using a JSON Schema validator (e.g., `ajv`).
 3. If validation fails, the adapter throws `StructuredOutputValidationError` with the validation error details and the raw non-conformant content.
 
-OpenAI with `strict: true` is exempt from validation since the provider guarantees conformance.
+When `structuredOutputMode` is `"strict"`, validation is skipped (the provider guarantees conformance).
 
 The validator is a shared utility in `packages/models/src/response-validation.ts` that any adapter can call.
 
@@ -72,7 +94,7 @@ The validator is a shared utility in `packages/models/src/response-validation.ts
 When a provider adapter throws `StructuredOutputValidationError`, the tool loop catches it and retries rather than letting the error kill the session. The retry mechanism works as follows:
 
 1. The tool loop wraps `model.complete()` in a try/catch for `StructuredOutputValidationError`.
-2. On catch, the loop injects a correction message into the model context via `model.pushToolMessage` (or a new `model.pushCorrectionMessage` method) containing the validation error and the original schema, asking the model to produce a conformant response.
+2. On catch, the loop injects a correction message into the model context via `model.pushSteerMessage` containing the validation error and the original schema, asking the model to produce a conformant response.
 3. The loop records the failed attempt in the transcript (the non-conformant response + the correction feedback) so the model sees its mistake in context.
 4. The loop re-invokes `model.complete()`.
 5. A retry counter caps attempts at **2 retries** (3 total attempts). If all attempts fail, the `StructuredOutputValidationError` is re-thrown and the session fails as it would for any unrecoverable model error.
@@ -82,36 +104,40 @@ This approach keeps retry logic centralized in the tool loop rather than scatter
 
 ### Parameter merging
 
-`responseSchema` follows the same overlay semantics as other `ModelInvocationParams` fields: the most specific value wins. A workflow task's `responseSchema` overrides the session default, which overrides the global default. The merge logic in `invocation-merge.ts` and the `SESSION_INVOCATION_KEYS` set are updated to include it.
+`responseSchema` and `structuredOutputMode` follow the same overlay semantics as other `ModelInvocationParams` fields: the most specific value wins. A workflow task's values override the session default, which overrides the global default. The merge logic in `invocation-merge.ts` and the `SESSION_INVOCATION_KEYS` set are updated to include both.
 
 ### Failover
 
-Failover clients (`failover.ts`, `tool-failover.ts`) already spread all `ModelInvocationParams` fields. No structural changes needed. If failover crosses provider boundaries (e.g., OpenAI → Anthropic), the fallback adapter independently handles the schema via its own mechanism (synthetic tool for Anthropic, native for others). Post-validation ensures conformance regardless of which provider ultimately serves the request.
+Failover clients (`failover.ts`, `tool-failover.ts`) already spread all `ModelInvocationParams` fields. No structural changes needed. If failover crosses provider boundaries (e.g., OpenAI → Anthropic), the fallback adapter independently handles the schema via its own mechanism. Post-validation ensures conformance regardless of which provider ultimately serves the request.
+
+Note: when failing over between providers with different `structuredOutputMode` defaults, the mode set on the invocation params travels with the request. If the original target was `"strict"` (OpenAI) and failover lands on Anthropic (default `"best-effort"`), the explicit `"strict"` would skip validation on Anthropic — which is wrong. To handle this correctly, adapters apply `min(configured mode, adapter default)` — an adapter whose default is `"best-effort"` never upgrades to `"strict"` even if the invocation says so. This means `structuredOutputMode: "strict"` is a hint that can be downgraded, not a guarantee override.
 
 ## Testing Strategy
 
 - **Unit tests for each adapter**: Verify that `responseSchema` produces the correct native request shape (OpenAI `response_format`, Gemini `generationConfig`, Anthropic synthetic tool injection).
+- **Adapter mode tests**: Verify each adapter respects `structuredOutputMode` — `"strict"` skips validation, `"best-effort"` validates, `"none"` skips sending the schema parameter. Verify adapters don't upgrade past their default mode.
 - **Anthropic adapter tests**: Verify synthetic tool injection, mixed tool call handling (synthetic + real tools), terminal detection (synthetic-only response), and content extraction from synthetic tool arguments.
-- **Response validation tests**: Verify valid JSON passes, invalid JSON fails with descriptive errors, malformed (non-JSON) content fails, and OpenAI responses skip validation.
+- **Response validation tests**: Verify valid JSON passes, invalid JSON fails with descriptive errors, malformed (non-JSON) content fails, and `"strict"` mode responses skip validation.
 - **Tool loop retry tests**: Verify the loop catches `StructuredOutputValidationError`, injects correction feedback, retries up to the cap, records failed attempts in the transcript, and re-throws after exhausting retries.
-- **Unit tests for merge logic**: Verify `parseModelInvocationFromUnknown` parses `responseSchema`, `mergeInvocations` overlays correctly, and `SESSION_INVOCATION_KEYS` includes it.
+- **Unit tests for merge logic**: Verify `parseModelInvocationFromUnknown` parses `responseSchema` and `structuredOutputMode`, `mergeInvocations` overlays correctly, and `SESSION_INVOCATION_KEYS` includes both.
 - **Unit tests for workflow types**: Verify `responseSchema` round-trips through task definition parsing and the orchestrator's `SpawnRequest`.
-- **Config schema tests**: Verify the Zod schema accepts valid `responseSchema` and rejects malformed ones.
+- **Config schema tests**: Verify the Zod schema accepts valid `responseSchema` / `structuredOutputMode` and rejects malformed ones.
 - **Integration test**: Spawn a subagent with a `responseSchema` via the workflow tool and confirm the spawned session's model invocation includes the schema and the response is validated.
 
 ## Considerations
 
+- **Proxy providers.** When Shoggoth talks to a proxy (kiro gateway, OpenRouter) via the OpenAI-compatible adapter, the backend model varies. `structuredOutputMode` must be set in the model config to match the backend's actual capability. For auto-routing proxies where the backend is unknown, `"best-effort"` is the safe choice — it sends the schema parameter (most proxies pass it through) and validates the response.
 - **Anthropic synthetic tool complexity.** The adapter must handle three states: (a) model returns only real tools → continue normally, (b) model returns synthetic + real tools → strip synthetic, continue with real tools, (c) model returns only synthetic tool → terminal, extract arguments as response. Edge cases around the model calling the synthetic tool prematurely need careful handling.
 - **Streaming.** Structured output with streaming works on all providers (partial JSON tokens). No special handling needed — existing stream consumers already handle JSON content. For Anthropic, the synthetic tool's arguments stream as normal tool-use content blocks.
 - **Validation dependency.** Adding `ajv` (or similar) as a dependency. It's well-established, actively maintained, and small enough for the models package. Alternatively, a lighter validator could be used if the schema subset is constrained.
 - **Retry budget.** 2 retries (3 total attempts) balances reliability against latency. Each retry is a full model invocation, so the cost is non-trivial. The cap prevents runaway loops when a model fundamentally can't produce conformant output for a given schema.
 - **Correction message format.** The feedback injected on retry must be clear enough for the model to understand what went wrong without being so verbose that it crowds the context. Including the specific validation errors (e.g., "missing required field: categories") and the schema itself gives the model the best chance of self-correcting.
-- **Failover across providers.** All three providers now support structured output, so failover works correctly regardless of provider combination. Post-validation ensures consistent guarantees.
+- **Failover mode downgrade.** The `min(configured, adapter default)` rule prevents a `"strict"` setting from accidentally skipping validation on a provider that doesn't guarantee conformance. This is a safety net — in practice, most configs will either omit the mode (use adapter default) or set it explicitly per model.
 - **`requestExtras` overlap.** Callers currently using `requestExtras` to pass `response_format` manually will still work. The typed `responseSchema` field takes precedence if both are set (adapter applies `responseSchema` after spreading `requestExtras`).
 
 ## Migration
 
-No migration needed. `responseSchema` is optional at every layer. Existing configs, sessions, and workflows are unaffected. The feature is purely additive.
+No migration needed. `responseSchema` and `structuredOutputMode` are optional at every layer. Existing configs, sessions, and workflows are unaffected. The feature is purely additive.
 
 ## References
 

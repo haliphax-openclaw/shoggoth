@@ -20,10 +20,50 @@ export interface ModelInvocationParams {
 
   /** Optional JSON schema constraint for the model's final response. */
   readonly responseSchema?: ResponseSchema;
+
+  /**
+   * Structured output capability of the target model.
+   * - `"strict"`: Provider guarantees schema conformance. Skip post-validation.
+   * - `"best-effort"`: Provider accepts schema but doesn't guarantee conformance. Post-validate.
+   * - `"none"`: Model doesn't support structured output. Don't send schema parameter.
+   *
+   * Each adapter has a sensible default when unset (OpenAI: "strict", Gemini/Anthropic: "best-effort").
+   * Set explicitly when using proxy providers (kiro gateway, OpenRouter) where the backend model varies.
+   */
+  readonly structuredOutputMode?: "strict" | "best-effort" | "none";
 }
 ```
 
-`ModelCompleteInput` and `ModelToolCompleteInput` already extend `ModelInvocationParams`, so they inherit `responseSchema` automatically.
+`ModelCompleteInput` and `ModelToolCompleteInput` already extend `ModelInvocationParams`, so they inherit both fields automatically.
+
+### Effective mode resolution — `packages/models/src/response-validation.ts`
+
+Each adapter has a default mode ceiling. The effective mode is the lesser of the configured mode and the adapter's ceiling, preventing a `"strict"` config from skipping validation on a provider that doesn't guarantee conformance.
+
+```ts
+/** Mode strength ordering for min() comparison. */
+const MODE_RANK: Record<string, number> = {
+  none: 0,
+  "best-effort": 1,
+  strict: 2,
+};
+
+export type StructuredOutputMode = "strict" | "best-effort" | "none";
+
+/**
+ * Resolve the effective structured output mode.
+ * Returns the lesser of the configured mode and the adapter's ceiling.
+ */
+export function resolveStructuredOutputMode(
+  configured: StructuredOutputMode | undefined,
+  adapterCeiling: StructuredOutputMode,
+): StructuredOutputMode {
+  const effective = configured ?? adapterCeiling;
+  return (MODE_RANK[effective] ?? 0) <= (MODE_RANK[adapterCeiling] ?? 0)
+    ? effective
+    : adapterCeiling;
+}
+```
 
 ### Response validation result — `packages/models/src/response-validation.ts`
 
@@ -115,12 +155,15 @@ const responseSchemaSchema = z
   })
   .strict()
   .optional();
+
+const structuredOutputModeSchema = z.enum(["strict", "best-effort", "none"]).optional();
 ```
 
 Added to `shoggothModelDefaultInvocationSchema` as:
 
 ```ts
 responseSchema: responseSchemaSchema,
+structuredOutputMode: structuredOutputModeSchema,
 ```
 
 ### Workflow tool descriptor — `packages/workflow/src/tool-descriptor.ts`
@@ -144,10 +187,12 @@ response_schema: {
 
 ### OpenAI — `packages/models/src/openai-compatible.ts`
 
-When `responseSchema` is present, add to the request body:
+Adapter ceiling: `"strict"`.
 
 ```ts
-if (input.responseSchema) {
+const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
+
+if (input.responseSchema && mode !== "none") {
   body.response_format = {
     type: "json_schema",
     json_schema: {
@@ -157,33 +202,54 @@ if (input.responseSchema) {
     },
   };
 }
-```
 
-Applied in `applyOpenAICompatibleRequestExtensions` (or equivalent body-building section), **after** `requestExtras` spread so that the typed field takes precedence.
-
-No post-validation needed — OpenAI with `strict: true` guarantees conformance.
-
-### Gemini — `packages/models/src/gemini.ts`
-
-When `responseSchema` is present, add to `generationConfig`:
-
-```ts
-if (input.responseSchema) {
-  generationConfig.responseMimeType = "application/json";
-  generationConfig.responseSchema = sanitizeSchemaForGemini(input.responseSchema.schema);
+// After receiving final response:
+if (input.responseSchema && mode !== "strict") {
+  const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+  if (!result.valid) {
+    throw new StructuredOutputValidationError(
+      result.error,
+      result.rawContent,
+      input.responseSchema.schema,
+    );
+  }
 }
 ```
 
-Uses the existing `sanitizeSchemaForGemini` helper to strip `additionalProperties`, normalize `const`/`enum`, etc.
+When used with a proxy (kiro gateway, OpenRouter), the operator sets `structuredOutputMode: "best-effort"` in the model config. The adapter still sends `response_format` (most proxies pass it through) but also validates the response.
 
-Post-validation is applied to the final response content (see Response Validation below).
+### Gemini — `packages/models/src/gemini.ts`
+
+Adapter ceiling: `"best-effort"`.
+
+```ts
+const mode = resolveStructuredOutputMode(input.structuredOutputMode, "best-effort");
+
+if (input.responseSchema && mode !== "none") {
+  generationConfig.responseMimeType = "application/json";
+  generationConfig.responseSchema = sanitizeSchemaForGemini(input.responseSchema.schema);
+}
+
+// After receiving final response:
+if (input.responseSchema && mode !== "strict") {
+  const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+  if (!result.valid) {
+    throw new StructuredOutputValidationError(
+      result.error,
+      result.rawContent,
+      input.responseSchema.schema,
+    );
+  }
+}
+```
 
 ### Anthropic — `packages/models/src/anthropic-messages.ts`
+
+Adapter ceiling: `"best-effort"`.
 
 Implements the synthetic tool workaround:
 
 ```ts
-// Constant for the synthetic tool name prefix
 const STRUCTURED_OUTPUT_TOOL_PREFIX = "__structured_output_";
 
 function buildSyntheticTool(responseSchema: ResponseSchema): AnthropicToolDef {
@@ -204,8 +270,10 @@ function isSyntheticToolCall(toolCall: ToolCall): boolean {
 #### Adapter behavior in `completeWithTools`:
 
 ```ts
+const mode = resolveStructuredOutputMode(input.structuredOutputMode, "best-effort");
+
 // 1. Inject synthetic tool into the tools list
-if (input.responseSchema) {
+if (input.responseSchema && mode !== "none") {
   tools = [...tools, buildSyntheticTool(input.responseSchema)];
 }
 
@@ -215,24 +283,27 @@ const syntheticCall = response.toolCalls.find((tc) => isSyntheticToolCall(tc));
 
 if (syntheticCall && realToolCalls.length === 0) {
   // Terminal: model is done, extract structured content
-  return {
-    content: JSON.stringify(syntheticCall.arguments),
-    toolCalls: [],
-  };
+  const content = JSON.stringify(syntheticCall.arguments);
+  // Validate (mode is always "best-effort" or "none" for Anthropic)
+  if (input.responseSchema && mode !== "strict") {
+    const result = validateResponseSchema(content, input.responseSchema.schema);
+    if (!result.valid) {
+      throw new StructuredOutputValidationError(
+        result.error,
+        result.rawContent,
+        input.responseSchema.schema,
+      );
+    }
+  }
+  return { content, toolCalls: [] };
 } else if (syntheticCall && realToolCalls.length > 0) {
   // Mixed: strip synthetic, return only real tool calls
-  // The synthetic result is discarded; the model will call it again
-  // on a subsequent turn when it's truly done.
-  return {
-    content: response.content,
-    toolCalls: realToolCalls,
-  };
+  return { content: response.content, toolCalls: realToolCalls };
 } else {
   // No synthetic call — model is still working with real tools,
   // OR model produced a text response without calling the synthetic tool.
-  // If text-only and responseSchema is set, force the synthetic tool:
-  if (input.responseSchema && response.toolCalls.length === 0) {
-    // Re-invoke with tool_choice forced to the synthetic tool
+  if (input.responseSchema && mode !== "none" && response.toolCalls.length === 0) {
+    // Force the synthetic tool
     const forcedResponse = await this.complete({
       ...input,
       tool_choice: {
@@ -240,20 +311,25 @@ if (syntheticCall && realToolCalls.length === 0) {
         name: `${STRUCTURED_OUTPUT_TOOL_PREFIX}${input.responseSchema.name}`,
       },
     });
-    // Extract from forced response
     const forced = forcedResponse.toolCalls.find((tc) => isSyntheticToolCall(tc));
     if (forced) {
-      return {
-        content: JSON.stringify(forced.arguments),
-        toolCalls: [],
-      };
+      const content = JSON.stringify(forced.arguments);
+      if (mode !== "strict") {
+        const result = validateResponseSchema(content, input.responseSchema.schema);
+        if (!result.valid) {
+          throw new StructuredOutputValidationError(
+            result.error,
+            result.rawContent,
+            input.responseSchema.schema,
+          );
+        }
+      }
+      return { content, toolCalls: [] };
     }
   }
   return response;
 }
 ```
-
-Post-validation is applied to the extracted content (see Response Validation below).
 
 ## Response Validation
 
@@ -297,26 +373,6 @@ export function validateResponseSchema(
   };
 }
 ```
-
-### Adapter integration point
-
-Validation is called by the adapter after producing the final response content, for Gemini and Anthropic only:
-
-```ts
-// In adapter post-processing (Gemini and Anthropic)
-if (input.responseSchema && finalContent) {
-  const result = validateResponseSchema(finalContent, input.responseSchema.schema);
-  if (!result.valid) {
-    throw new StructuredOutputValidationError(
-      result.error,
-      result.rawContent,
-      input.responseSchema.schema,
-    );
-  }
-}
-```
-
-OpenAI skips validation when `strict` is true (the default).
 
 ## Tool Loop Retry — `packages/daemon/src/sessions/tool-loop.ts`
 
@@ -403,7 +459,7 @@ for (;;) {
   }
 
   if (turn.toolCalls.length === 0) {
-    // Terminal response — reset retry counter for next potential structured output
+    // Terminal response — reset retry counter
     structuredOutputAttempt = 0;
     if (options.transcript && turn.content) {
       appendTx({ role: "assistant", content: turn.content });
@@ -419,7 +475,7 @@ for (;;) {
 ### How it works
 
 1. `model.complete()` calls the provider adapter, which calls `completeWithTools` internally.
-2. When the model produces a terminal response (no tool calls) and `responseSchema` is set, the adapter validates the response content.
+2. When the model produces a terminal response (no tool calls) and `responseSchema` is set, the adapter checks `structuredOutputMode`. If the mode is not `"strict"`, it validates the response content.
 3. If validation fails, the adapter throws `StructuredOutputValidationError`.
 4. The tool loop catches the error, records the failed attempt in the transcript, injects a correction message via `pushSteerMessage`, and loops back to `model.complete()`.
 5. The model now sees its failed attempt and the correction feedback in context, giving it the information needed to self-correct.
@@ -433,7 +489,7 @@ The tool loop already has `pushSteerMessage` for operator guidance injection. Re
 
 ### Parsing
 
-`parseModelInvocationFromUnknown` recognizes `responseSchema` from raw JSON input:
+`parseModelInvocationFromUnknown` recognizes both fields from raw JSON input:
 
 ```ts
 if (raw.responseSchema && typeof raw.responseSchema === "object") {
@@ -443,6 +499,13 @@ if (raw.responseSchema && typeof raw.responseSchema === "object") {
     strict: raw.responseSchema.strict != null ? Boolean(raw.responseSchema.strict) : undefined,
   };
 }
+
+if (raw.structuredOutputMode && typeof raw.structuredOutputMode === "string") {
+  const valid = ["strict", "best-effort", "none"];
+  if (valid.includes(raw.structuredOutputMode)) {
+    result.structuredOutputMode = raw.structuredOutputMode as "strict" | "best-effort" | "none";
+  }
+}
 ```
 
 ### Merging
@@ -451,11 +514,12 @@ if (raw.responseSchema && typeof raw.responseSchema === "object") {
 
 ```ts
 responseSchema: overlay.responseSchema ?? base.responseSchema,
+structuredOutputMode: overlay.structuredOutputMode ?? base.structuredOutputMode,
 ```
 
 ### Session keys
 
-Add `"responseSchema"` to the `SESSION_INVOCATION_KEYS` set so `mergeSubagentSpawnModelSelection` handles it correctly during strip/reattach.
+Add `"responseSchema"` and `"structuredOutputMode"` to the `SESSION_INVOCATION_KEYS` set so `mergeSubagentSpawnModelSelection` handles them correctly during strip/reattach.
 
 ## Daemon Spawn Adapter — `packages/daemon/src/workflow-adapters.ts`
 
@@ -466,6 +530,8 @@ if (request.responseSchema) {
   modelSelection.responseSchema = request.responseSchema;
 }
 ```
+
+Note: `structuredOutputMode` is not set per-task — it comes from the model config and is already present in the session's inherited `model_selection`. Tasks only need to set `responseSchema`.
 
 ## Code Examples
 
@@ -535,6 +601,15 @@ if (request.responseSchema) {
     },
   },
 }
+```
+
+### Proxy provider config (kiro gateway)
+
+```yaml
+# In Shoggoth config — model served by kiro gateway (backend varies)
+models:
+  defaultInvocation:
+    structuredOutputMode: "best-effort" # Backend model varies; always validate
 ```
 
 ### Retry sequence (what the transcript looks like after one failed attempt)
