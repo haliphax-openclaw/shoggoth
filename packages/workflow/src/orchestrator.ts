@@ -377,7 +377,9 @@ export class Orchestrator {
   private startStatusTimer(): void {
     if (!this.statusManager || !this.workflow || !this.opts) return;
     this.statusTimer = setInterval(() => {
-      if (!this.workflow || !this.statusManager || !this.dirty) return;
+      if (!this.workflow || !this.statusManager) return;
+      const hasActiveTask = this.workflow.tasks.some((t) => t.status === "in_progress");
+      if (!this.dirty && !hasActiveTask) return;
       this.dirty = false;
       this.statusManager.updateStatus(this.workflow).catch((err) => {
         log.error("status timer updateStatus failed", {
