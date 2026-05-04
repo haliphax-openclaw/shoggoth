@@ -960,32 +960,36 @@ export async function handleIntegrationControlOp(
           promptLen: prompt.length,
         });
         pushSystemContext(childId, "One-shot subagent task spawned by parent session.");
-        const turn = await ext.runSessionModelTurn({
-          sessionId: childId,
-          userContent: prompt,
-          userMetadata: {
-            subagent_one_shot: true,
-            parent_session_id: parentSessionId,
-            respond_to: respondTo,
-            internal: internalDelivery,
-          },
-          systemContext: {
-            kind: "subagent.task",
-            summary:
-              "You are a one-shot subagent. Complete the following task and return the result.",
-            data: {
+        let turn: { latestAssistantText: string; failoverMeta?: unknown };
+        try {
+          turn = await ext.runSessionModelTurn({
+            sessionId: childId,
+            userContent: prompt,
+            userMetadata: {
+              subagent_one_shot: true,
               parent_session_id: parentSessionId,
               respond_to: respondTo,
               internal: internalDelivery,
             },
-          },
-          delivery: { kind: "internal" },
-        });
-        subLog.info("subagent one_shot model turn completed", {
-          childId,
-          replyLen: turn.latestAssistantText?.length ?? 0,
-        });
-        terminatePersistentSubagentSession(sessionManager, childId);
+            systemContext: {
+              kind: "subagent.task",
+              summary:
+                "You are a one-shot subagent. Complete the following task and return the result.",
+              data: {
+                parent_session_id: parentSessionId,
+                respond_to: respondTo,
+                internal: internalDelivery,
+              },
+            },
+            delivery: { kind: "internal" },
+          });
+          subLog.info("subagent one_shot model turn completed", {
+            childId,
+            replyLen: turn.latestAssistantText?.length ?? 0,
+          });
+        } finally {
+          terminatePersistentSubagentSession(sessionManager, childId);
+        }
         ctx.recordIntegrationAudit({
           action: "subagent.spawn_one_shot",
           resource: childId,
