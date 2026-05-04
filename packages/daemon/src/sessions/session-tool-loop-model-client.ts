@@ -231,6 +231,8 @@ export function createSessionToolLoopModelClient(input: {
         thinkingFormat: inv.thinkingFormat,
         reasoningEffort: inv.reasoningEffort,
         requestExtras: inv.requestExtras,
+        responseSchema: inv.responseSchema,
+        structuredOutputMode: inv.structuredOutputMode,
         ...streamOpts,
       });
       degradedAny = degradedAny || out.degraded;
