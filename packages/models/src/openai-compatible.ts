@@ -2,6 +2,11 @@ import { ModelHttpError } from "./errors";
 import { openaiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import {
+  resolveStructuredOutputMode,
+  validateResponseSchema,
+  StructuredOutputValidationError,
+} from "./response-validation";
+import {
   normalizeThinkingBlocks,
   stripXmlThinkingTags,
   ThinkingStreamNormalizer,
@@ -312,6 +317,19 @@ export function createOpenAICompatibleProvider(
       }
       applyOpenAICompatibleRequestExtensions(body, input);
 
+      // Structured output: apply response_format AFTER requestExtras so typed field wins
+      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
+      if (input.responseSchema && mode !== "none") {
+        body.response_format = {
+          type: "json_schema",
+          json_schema: {
+            name: "response",
+            schema: input.responseSchema.schema,
+            strict: mode === "strict",
+          },
+        };
+      }
+
       const res = await resilientFetch(url, {
         method: "POST",
         headers,
@@ -390,6 +408,19 @@ export function createOpenAICompatibleProvider(
       const thinkingFormat = input.thinkingFormat ?? "none";
       const normalized = normalizeThinkingBlocks(content, thinkingFormat);
       const finalContent = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+
+      // Structured output: post-validate when mode is "best-effort"
+      if (input.responseSchema && mode !== "strict" && mode !== "none") {
+        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+        if (!result.valid) {
+          throw new StructuredOutputValidationError(
+            result.error,
+            result.rawContent,
+            input.responseSchema.schema,
+          );
+        }
+      }
+
       return { content: finalContent, usage: extractOpenAIUsage(json) };
     },
 
@@ -413,6 +444,19 @@ export function createOpenAICompatibleProvider(
         body.stream_options = { include_usage: true };
       }
       applyOpenAICompatibleRequestExtensions(body, input);
+
+      // Structured output: apply response_format AFTER requestExtras so typed field wins
+      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
+      if (input.responseSchema && mode !== "none") {
+        body.response_format = {
+          type: "json_schema",
+          json_schema: {
+            name: "response",
+            schema: input.responseSchema.schema,
+            strict: mode === "strict",
+          },
+        };
+      }
 
       const res = await resilientFetch(url, {
         method: "POST",
@@ -528,6 +572,19 @@ export function createOpenAICompatibleProvider(
           : typeof normalized === "string"
             ? normalized
             : JSON.stringify(normalized);
+
+      // Structured output: post-validate when mode is "best-effort"
+      if (input.responseSchema && mode !== "strict" && mode !== "none" && finalContent !== null && toolCalls.length === 0) {
+        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+        if (!result.valid) {
+          throw new StructuredOutputValidationError(
+            result.error,
+            result.rawContent,
+            input.responseSchema.schema,
+          );
+        }
+      }
+
       return {
         content: finalContent,
         toolCalls,

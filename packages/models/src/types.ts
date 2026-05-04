@@ -1,3 +1,9 @@
+/** JSON Schema constraint for the model's final text response. */
+export interface ResponseSchema {
+  /** JSON Schema object describing the desired response shape. */
+  readonly schema: Record<string, unknown>;
+}
+
 export type ChatRole = "system" | "user" | "assistant" | "tool";
 
 /** One function tool call from the model (OpenAI `tool_calls[]` item, flattened). */
@@ -103,6 +109,18 @@ export interface ModelInvocationParams {
   readonly thinkingFormat?: "native" | "xml-tags" | "none";
   /** Shallow-merged into the provider request object after built-in fields (escape hatch). */
   readonly requestExtras?: Record<string, unknown>;
+  /** Optional JSON schema constraint for the model's final response. */
+  readonly responseSchema?: ResponseSchema;
+  /**
+   * Structured output capability of the target model.
+   * - `"strict"`: Provider guarantees schema conformance. Skip post-validation.
+   * - `"best-effort"`: Provider accepts schema but doesn't guarantee conformance. Post-validate.
+   * - `"none"`: Model doesn't support structured output. Don't send schema parameter.
+   *
+   * Each adapter has a sensible default when unset (OpenAI: "strict", Gemini/Anthropic: "best-effort").
+   * Set explicitly when using proxy providers (kiro gateway, OpenRouter) where the backend model varies.
+   */
+  readonly structuredOutputMode?: "strict" | "best-effort" | "none";
 }
 
 export interface ModelToolCompleteInput extends ModelInvocationParams {

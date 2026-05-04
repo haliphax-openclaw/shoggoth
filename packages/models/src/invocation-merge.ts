@@ -1,5 +1,5 @@
 import type { ShoggothModelsConfig } from "@shoggoth/shared";
-import type { ModelInvocationParams, ModelThinkingOptions } from "./types";
+import type { ModelInvocationParams, ModelThinkingOptions, ResponseSchema } from "./types";
 
 function shallowMergeExtras(
   base: Record<string, unknown> | undefined,
@@ -25,6 +25,23 @@ function readThinking(raw: unknown): ModelThinkingOptions | undefined {
   return { enabled: Boolean(t.enabled), budgetTokens };
 }
 
+function readResponseSchema(raw: unknown): ResponseSchema | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  return { schema: o.schema as Record<string, unknown> };
+}
+
+const VALID_STRUCTURED_OUTPUT_MODES = ["strict", "best-effort", "none"] as const;
+type StructuredOutputMode = (typeof VALID_STRUCTURED_OUTPUT_MODES)[number];
+
+function readStructuredOutputMode(raw: unknown): StructuredOutputMode | undefined {
+  if (typeof raw !== "string") return undefined;
+  if ((VALID_STRUCTURED_OUTPUT_MODES as readonly string[]).includes(raw)) {
+    return raw as StructuredOutputMode;
+  }
+  return undefined;
+}
+
 /**
  * Parses `sessions.model_selection` JSON (or subagent `model_options`) for invocation fields.
  * Unknown keys are ignored except `requestExtras` / `extraBody` (either name accepted).
@@ -47,12 +64,16 @@ export function parseModelInvocationFromUnknown(raw: unknown): ModelInvocationPa
     extrasRaw && typeof extrasRaw === "object" && !Array.isArray(extrasRaw)
       ? { ...(extrasRaw as Record<string, unknown>) }
       : undefined;
+  const responseSchema = readResponseSchema(o.responseSchema);
+  const structuredOutputMode = readStructuredOutputMode(o.structuredOutputMode);
   return {
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
     ...(temperature !== undefined ? { temperature } : {}),
     ...(thinking ? { thinking } : {}),
     ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
     ...(requestExtras !== undefined ? { requestExtras } : {}),
+    ...(responseSchema !== undefined ? { responseSchema } : {}),
+    ...(structuredOutputMode !== undefined ? { structuredOutputMode } : {}),
   };
 }
 
@@ -68,6 +89,8 @@ function mergeInvocations(
     thinking: over.thinking ?? base.thinking,
     reasoningEffort: over.reasoningEffort ?? base.reasoningEffort,
     requestExtras: shallowMergeExtras(base.requestExtras, over.requestExtras),
+    responseSchema: over.responseSchema ?? base.responseSchema,
+    structuredOutputMode: over.structuredOutputMode ?? base.structuredOutputMode,
   };
 }
 
@@ -96,6 +119,8 @@ const SESSION_INVOCATION_KEYS = new Set([
   "reasoningEffort",
   "requestExtras",
   "extraBody",
+  "responseSchema",
+  "structuredOutputMode",
 ]);
 
 function stripInvocationKeys(o: Record<string, unknown>): Record<string, unknown> {
@@ -120,6 +145,8 @@ function modelInvocationParamsToSessionJson(p: ModelInvocationParams): Record<st
   if (p.requestExtras !== undefined && Object.keys(p.requestExtras).length > 0) {
     o.requestExtras = { ...p.requestExtras };
   }
+  if (p.responseSchema !== undefined) o.responseSchema = p.responseSchema;
+  if (p.structuredOutputMode !== undefined) o.structuredOutputMode = p.structuredOutputMode;
   return o;
 }
 

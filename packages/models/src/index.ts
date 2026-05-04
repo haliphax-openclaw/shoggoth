@@ -44,6 +44,7 @@ export type {
   ModelInvocationParams,
   ModelThinkingOptions,
   ModelUsage,
+  ResponseSchema,
 } from "./types";
 export {
   estimateTranscriptChars,
@@ -84,6 +85,15 @@ export {
   wrapCodecWithCapabilities,
 } from "./image-codec";
 export { extractXmlThinkingBlocks, normalizeThinkingBlocks } from "./thinking-normalize";
+export {
+  resolveStructuredOutputMode,
+  validateResponseSchema,
+  StructuredOutputValidationError,
+  type StructuredOutputMode,
+  type ValidationSuccess,
+  type ValidationFailure,
+  type ValidationResult,
+} from "./response-validation";
 
 // Resilience layer
 export type {

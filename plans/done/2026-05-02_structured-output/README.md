@@ -1,6 +1,6 @@
 ---
 date: 2026-05-02
-completed: never
+completed: 2026-05-04
 ---
 
 # Structured Output Support
