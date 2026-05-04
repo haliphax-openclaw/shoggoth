@@ -114,6 +114,9 @@ export function createDaemonSpawnAdapter(deps: DaemonSpawnAdapterDeps): SpawnAda
       deps.sessions.update(childId, {
         parentSessionId,
         subagentMode: "one_shot",
+        ...(req.responseSchema
+          ? { modelSelection: { responseSchema: req.responseSchema } }
+          : {}),
       });
 
       // Fire off the model turn without awaiting — poll adapter tracks completion.

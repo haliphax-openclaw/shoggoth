@@ -105,6 +105,14 @@ const workflowToolArgs = {
             description:
               "Optional: reshape task output before downstream consumption. Supports {{self.output}}, {{self.error}}.",
           },
+          response_schema: {
+            type: "object",
+            description: "Optional: constrain the task's final response to this JSON schema.",
+            properties: {
+              schema: { type: "object", description: "JSON Schema object." },
+            },
+            required: ["schema"],
+          },
         },
         required: ["id"],
       },

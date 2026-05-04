@@ -1,6 +1,11 @@
 import { ModelHttpError } from "./errors";
 import { anthropicImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
+import {
+  resolveStructuredOutputMode,
+  validateResponseSchema,
+  StructuredOutputValidationError,
+} from "./response-validation";
 import { stripXmlThinkingTags, ThinkingStreamNormalizer } from "./thinking-normalize";
 import type {
   ChatContentPart,
@@ -14,6 +19,7 @@ import type {
   ModelToolCompleteOutput,
   ModelUsage,
   OpenAIToolFunctionDefinition,
+  ResponseSchema,
 } from "./types";
 import type { FetchLike } from "./openai-compatible";
 
@@ -61,6 +67,29 @@ function applyAnthropicMessagesRequestExtensions(
     Object.assign(body, x);
   }
 }
+/** Synthetic tool name used for structured output workaround. */
+const STRUCTURED_OUTPUT_TOOL_NAME = "__structured_output__";
+
+interface AnthropicToolDef {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+function buildSyntheticTool(responseSchema: ResponseSchema): AnthropicToolDef {
+  return {
+    name: STRUCTURED_OUTPUT_TOOL_NAME,
+    description:
+      "Use this tool to provide your final structured response. " +
+      "Call it with your answer conforming to the schema.",
+    input_schema: responseSchema.schema,
+  };
+}
+
+function isSyntheticToolCall(toolCall: ChatToolCall): boolean {
+  return toolCall.name === STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
 /** Anthropic tool names must match `^[a-zA-Z0-9_-]{1,64}$` (dots/colons from OpenAI/MCP are invalid). */
 const ANTHROPIC_TOOL_NAME_MAX = 64;
 
@@ -839,6 +868,7 @@ export function createAnthropicMessagesProvider(
     },
 
     async completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput> {
+      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "best-effort");
       const headers = buildAuthHeaders(options.apiKey, anthropicVersion, auth);
       const openAiToAnthropic = buildOpenAiToAnthropicToolNameMap(input.tools);
       const anthropicToOpenAi = invertStringMap(openAiToAnthropic);
@@ -852,7 +882,13 @@ export function createAnthropicMessagesProvider(
       }
 
       const wireModel = normalizeAnthropicWireModelId(input.model);
-      const anthropicTools = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
+      const anthropicTools: unknown[] = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
+
+      // 1. Inject synthetic tool into the tools list
+      if (input.responseSchema && mode !== "none") {
+        anthropicTools.push(buildSyntheticTool(input.responseSchema));
+      }
+
       const body: Record<string, unknown> = {
         model: wireModel,
         max_tokens: input.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
@@ -938,6 +974,111 @@ export function createAnthropicMessagesProvider(
           "missing assistant content and tool_use blocks",
           rawText.slice(0, 200),
         );
+      }
+
+      // 2. Structured output: classify tool calls and handle synthetic tool
+      if (input.responseSchema && mode !== "none") {
+        const realToolCalls = toolCalls.filter((tc) => !isSyntheticToolCall(tc));
+        const syntheticCall = toolCalls.find((tc) => isSyntheticToolCall(tc));
+
+        if (syntheticCall && realToolCalls.length === 0) {
+          // Terminal: model is done, extract structured content
+          const structuredContent = JSON.stringify(JSON.parse(syntheticCall.arguments));
+          // Validate (mode is always "best-effort" or "none" for Anthropic)
+          if (mode !== "strict") {
+            const result = validateResponseSchema(structuredContent, input.responseSchema.schema);
+            if (!result.valid) {
+              throw new StructuredOutputValidationError(
+                result.error,
+                result.rawContent,
+                input.responseSchema.schema,
+              );
+            }
+          }
+          return { content: structuredContent, toolCalls: [], usage: extractAnthropicUsage(json) };
+        } else if (syntheticCall && realToolCalls.length > 0) {
+          // Mixed: strip synthetic, return only real tool calls
+          return { content: outText, toolCalls: realToolCalls, usage: extractAnthropicUsage(json) };
+        } else if (!syntheticCall && toolCalls.length === 0) {
+          // No synthetic call and no real tools (text response) → force follow-up
+          // Build a follow-up request with tool_choice targeting the synthetic tool
+          const followUpTools: unknown[] = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
+          followUpTools.push(buildSyntheticTool(input.responseSchema));
+
+          // Build messages: original messages + the text response as assistant + a user nudge
+          const followUpMessages: ChatMessage[] = [
+            ...input.messages,
+            { role: "assistant" as const, content: outText ?? "" },
+            { role: "user" as const, content: "Please provide your response using the __structured_output__ tool." },
+          ];
+          const { system: followUpSystem, messages: followUpAnthropicMessages } =
+            mapChatMessagesToAnthropicPayload(followUpMessages, openAiToAnthropic);
+
+          const followUpBody: Record<string, unknown> = {
+            model: wireModel,
+            max_tokens: input.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
+            messages: followUpAnthropicMessages,
+            stream: false,
+            temperature: input.temperature,
+            tools: followUpTools,
+            tool_choice: { type: "tool", name: STRUCTURED_OUTPUT_TOOL_NAME },
+          };
+          if (followUpSystem !== undefined) followUpBody.system = followUpSystem;
+          applyAnthropicMessagesRequestExtensions(followUpBody, input);
+
+          const followUpRes = await resilientFetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(followUpBody),
+          });
+
+          const followUpRawText = await followUpRes.text();
+          if (!followUpRes.ok) {
+            throw new ModelHttpError(
+              followUpRes.status,
+              followUpRes.statusText || `HTTP ${followUpRes.status}`,
+              parseAnthropicErrorBody(followUpRawText),
+            );
+          }
+
+          const followUpText = input.thinkingFormat === "xml-tags"
+            ? stripXmlThinkingTags(followUpRawText)
+            : followUpRawText;
+          let followUpJson: unknown;
+          try {
+            followUpJson = JSON.parse(followUpText);
+          } catch {
+            throw new ModelHttpError(
+              502,
+              "invalid JSON from Anthropic Messages endpoint",
+              followUpText.slice(0, 200),
+            );
+          }
+
+          const followUpContent = (followUpJson as { content?: unknown }).content;
+          const { toolCalls: followUpToolCalls } = contentBlocksToModelOutput(
+            followUpContent,
+            anthropicToOpenAi,
+            input.thinkingFormat,
+          );
+
+          const forced = followUpToolCalls.find((tc) => isSyntheticToolCall(tc));
+          if (forced) {
+            const structuredContent = forced.arguments;
+            if (mode !== "strict") {
+              const result = validateResponseSchema(structuredContent, input.responseSchema.schema);
+              if (!result.valid) {
+                throw new StructuredOutputValidationError(
+                  result.error,
+                  result.rawContent,
+                  input.responseSchema.schema,
+                );
+              }
+            }
+            return { content: structuredContent, toolCalls: [], usage: extractAnthropicUsage(followUpJson) };
+          }
+        }
+        // else: no synthetic call but has real tool calls — pass through normally
       }
 
       return {

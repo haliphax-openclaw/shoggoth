@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { ShoggothHitlConfig, HitlRiskTier } from "@shoggoth/shared";
 import type { ChatContentPart } from "@shoggoth/models";
+import { StructuredOutputValidationError } from "@shoggoth/models";
 import { classifyToolRisk } from "../hitl/risk-classify";
 import { requiresHumanApproval } from "../hitl/approval-gate";
 import { resolveCompoundResource, type SubResourceExtractorRegistry } from "../policy/sub-resource";
@@ -151,6 +152,9 @@ const buildSchemaMap = (
   return m;
 };
 
+/** Maximum number of structured output validation retries before giving up. */
+const STRUCTURED_OUTPUT_MAX_RETRIES = 2;
+
 const HITL_EXPIRE_POLL_MS = 1000;
 
 const log = getLogger("tool-loop");
@@ -218,12 +222,61 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
     ).cnt;
 
   try {
+    let structuredOutputAttempt = 0;
     for (;;) {
       assertNotAborted(options.turnAbortSignal);
-      const turn = await Promise.race([
-        options.model.complete(),
-        abortPromise(options.turnAbortSignal),
-      ]);
+
+      let turn: { content: string | null; toolCalls: readonly ToolCall[] };
+      try {
+        turn = await Promise.race([
+          options.model.complete(),
+          abortPromise(options.turnAbortSignal),
+        ]);
+      } catch (e) {
+        if (e instanceof StructuredOutputValidationError) {
+          structuredOutputAttempt++;
+          log.warn("structured output validation failed", {
+            sessionId: options.sessionId,
+            attempt: structuredOutputAttempt,
+            error: e.message,
+          });
+          options.audit.record({
+            phase: "structured_output_validation_failed",
+            sessionId: options.sessionId,
+            attempt: structuredOutputAttempt,
+          });
+          if (structuredOutputAttempt > STRUCTURED_OUTPUT_MAX_RETRIES) {
+            log.error("structured output validation retries exhausted", {
+              sessionId: options.sessionId,
+              attempts: structuredOutputAttempt,
+            });
+            throw e;
+          }
+          // Record the non-conformant response in transcript
+          if (options.transcript) {
+            appendTx({
+              role: "assistant",
+              content: e.rawContent,
+              metadata: { structuredOutputValidationFailed: true },
+            });
+            emitStats?.({ transcriptMessageCount: getTranscriptCount() });
+          }
+          // Build and inject correction message
+          const correction = `Your previous response did not conform to the required JSON schema. Error: ${e.message}\n\nPlease retry and ensure your response conforms to the schema:\n${JSON.stringify(e.schema, null, 2)}`;
+          options.model.pushSteerMessage?.(correction);
+          // Record correction in transcript
+          if (options.transcript) {
+            appendTx({
+              role: "user",
+              content: correction,
+              metadata: { structuredOutputCorrection: true },
+            });
+            emitStats?.({ transcriptMessageCount: getTranscriptCount() });
+          }
+          continue;
+        }
+        throw e;
+      }
 
       if (turn.toolCalls.length === 0) {
         if (options.transcript && turn.content) {
@@ -233,6 +286,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<void> {
           });
           emitStats?.({ transcriptMessageCount: getTranscriptCount() });
         }
+        // Reset retry counter on successful terminal response
+        structuredOutputAttempt = 0;
         break;
       }
 

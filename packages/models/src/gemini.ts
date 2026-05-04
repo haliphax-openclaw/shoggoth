@@ -2,6 +2,11 @@ import { ModelHttpError } from "./errors";
 import { geminiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import {
+  resolveStructuredOutputMode,
+  validateResponseSchema,
+  StructuredOutputValidationError,
+} from "./response-validation";
+import {
   normalizeThinkingBlocks,
   stripXmlThinkingTags,
   ThinkingStreamNormalizer,
@@ -586,9 +591,19 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
 
       const body: Record<string, unknown> = { contents };
       if (systemInstruction !== undefined) body.systemInstruction = systemInstruction;
-      const genConfig = buildGenerationConfig(input);
-      if (genConfig) body.generationConfig = genConfig;
+      const genConfig = buildGenerationConfig(input) ?? {};
+      body.generationConfig = genConfig;
       applyGeminiRequestExtensions(body, input);
+
+      // Structured output: add responseSchema to generationConfig
+      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "best-effort");
+      if (input.responseSchema && mode !== "none") {
+        genConfig.responseMimeType = "application/json";
+        genConfig.responseSchema = sanitizeSchemaForGemini(input.responseSchema.schema);
+      }
+
+      // Remove empty generationConfig to keep request clean
+      if (Object.keys(genConfig).length === 0) delete body.generationConfig;
 
       const url = endpointUrl(input.model, input.stream === true);
       const res = await resilientFetch(url, {
@@ -663,9 +678,23 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
           text.slice(0, 200),
         );
       }
+      const finalContent =
+        typeof content === "string" ? content : content === null ? "" : JSON.stringify(content);
+
+      // Structured output: post-validate when mode is "best-effort"
+      if (input.responseSchema && mode !== "strict" && mode !== "none") {
+        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+        if (!result.valid) {
+          throw new StructuredOutputValidationError(
+            result.error,
+            result.rawContent,
+            input.responseSchema.schema,
+          );
+        }
+      }
+
       return {
-        content:
-          typeof content === "string" ? content : content === null ? "" : JSON.stringify(content),
+        content: finalContent,
         usage: extractGeminiUsage(json),
       };
     },
@@ -683,9 +712,19 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
       const body: Record<string, unknown> = { contents };
       if (systemInstruction !== undefined) body.systemInstruction = systemInstruction;
       if (geminiTools) body.tools = geminiTools;
-      const genConfig = buildGenerationConfig(input);
-      if (genConfig) body.generationConfig = genConfig;
+      const genConfig = buildGenerationConfig(input) ?? {};
+      body.generationConfig = genConfig;
       applyGeminiRequestExtensions(body, input);
+
+      // Structured output: add responseSchema to generationConfig
+      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "best-effort");
+      if (input.responseSchema && mode !== "none") {
+        genConfig.responseMimeType = "application/json";
+        genConfig.responseSchema = sanitizeSchemaForGemini(input.responseSchema.schema);
+      }
+
+      // Remove empty generationConfig to keep request clean
+      if (Object.keys(genConfig).length === 0) delete body.generationConfig;
 
       const url = endpointUrl(input.model, input.stream === true);
       const res = await resilientFetch(url, {
@@ -755,9 +794,23 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
           text.slice(0, 200),
         );
       }
+      const finalContent =
+        typeof content === "string" ? content : content === null ? null : JSON.stringify(content);
+
+      // Structured output: post-validate when mode is "best-effort"
+      if (input.responseSchema && mode !== "strict" && mode !== "none" && finalContent !== null && toolCalls.length === 0) {
+        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+        if (!result.valid) {
+          throw new StructuredOutputValidationError(
+            result.error,
+            result.rawContent,
+            input.responseSchema.schema,
+          );
+        }
+      }
+
       return {
-        content:
-          typeof content === "string" ? content : content === null ? null : JSON.stringify(content),
+        content: finalContent,
         toolCalls,
         usage: extractGeminiUsage(json),
       };

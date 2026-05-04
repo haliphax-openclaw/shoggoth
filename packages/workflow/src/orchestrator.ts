@@ -18,6 +18,8 @@ export interface SpawnRequest {
   replyTo: string;
   timeoutMs: number;
   workflowId?: string;
+  /** Optional response schema forwarded to the spawned session's model selection. */
+  responseSchema?: { schema: Record<string, unknown> };
 }
 
 export interface PollResult {
@@ -831,6 +833,7 @@ export class Orchestrator {
           replyTo: opts.replyTo,
           timeoutMs: task.taskDef.runtimeLimitMs ?? opts.runtimeLimitMs,
           workflowId: this.workflow?.id,
+          ...(task.taskDef.responseSchema ? { responseSchema: task.taskDef.responseSchema } : {}),
         });
 
         task.status = "in_progress";

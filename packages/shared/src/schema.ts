@@ -116,6 +116,15 @@ const shoggothModelThinkingSchema = z
   })
   .strict();
 
+const responseSchemaSchema = z
+  .object({
+    schema: z.record(z.string(), z.unknown()),
+  })
+  .strict()
+  .optional();
+
+const structuredOutputModeSchema = z.enum(["strict", "best-effort", "none"]).optional();
+
 const shoggothModelDefaultInvocationSchema = z
   .object({
     maxOutputTokens: z.number().int().positive().optional(),
@@ -123,6 +132,8 @@ const shoggothModelDefaultInvocationSchema = z
     thinking: shoggothModelThinkingSchema.optional(),
     reasoningEffort: z.string().min(1).optional(),
     requestExtras: z.record(z.string(), z.unknown()).optional(),
+    responseSchema: responseSchemaSchema,
+    structuredOutputMode: structuredOutputModeSchema,
   })
   .strict();
 

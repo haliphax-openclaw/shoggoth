@@ -23,6 +23,9 @@ interface TaskInput {
   message?: string;
   channel?: string;
   output_template?: string;
+  response_schema?: {
+    schema: Record<string, unknown>;
+  };
 }
 
 export interface WorkflowToolArgs {
@@ -109,7 +112,12 @@ function toTaskDefs(inputs: TaskInput[]): TaskDef[] {
     switch (kind) {
       case "agent": {
         const prompt = requireField(t.prompt, `tasks[${t.id}].prompt (required for agent task)`);
-        return { ...base, kind: "agent" as const, prompt };
+        return {
+          ...base,
+          kind: "agent" as const,
+          prompt,
+          ...(t.response_schema ? { responseSchema: t.response_schema } : {}),
+        };
       }
       case "tool": {
         const tool = requireField(t.tool, `tasks[${t.id}].tool (required for tool task)`);

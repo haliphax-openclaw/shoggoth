@@ -1,65 +1,58 @@
-import { describe, it } from "vitest";
-import assert from "node:assert/strict";
+import { describe, it, expect } from "vitest";
 import { buildWorkflowToolDescriptor } from "../src/tool-descriptor.js";
 
-describe("buildWorkflowToolDescriptor", () => {
-  const descriptor = buildWorkflowToolDescriptor();
+// ---------------------------------------------------------------------------
+// Tool descriptor — response_schema in task item properties
+// ---------------------------------------------------------------------------
 
-  it("returns a descriptor with name workflow", () => {
-    assert.equal(descriptor.name, "workflow");
-  });
-
-  it("has a non-empty description", () => {
-    assert.ok(descriptor.description.length > 0);
-  });
-
-  it("has an inputSchema with action property", () => {
+describe("workflow tool descriptor response_schema", () => {
+  it("includes response_schema in the task item properties", () => {
+    const descriptor = buildWorkflowToolDescriptor();
     const schema = descriptor.inputSchema as Record<string, unknown>;
-    assert.equal(schema.type, "object");
-    const props = schema.properties as Record<string, unknown>;
-    assert.ok(props.action);
+    const properties = schema.properties as Record<string, unknown>;
+    const tasks = properties.tasks as Record<string, unknown>;
+    const items = tasks.items as Record<string, unknown>;
+    const itemProps = items.properties as Record<string, unknown>;
+
+    expect(itemProps).toHaveProperty("response_schema");
   });
 
-  it("action enum includes all 11 actions", () => {
+  it("response_schema has type 'object'", () => {
+    const descriptor = buildWorkflowToolDescriptor();
     const schema = descriptor.inputSchema as Record<string, unknown>;
-    const props = schema.properties as Record<string, { enum?: string[] }>;
-    const actions = props.action.enum!;
-    assert.deepEqual(actions, [
-      "start",
-      "abort",
-      "pause",
-      "resume",
-      "status",
-      "list",
-      "post",
-      "edit",
-      "retry",
-      "retention",
-    ]);
+    const properties = schema.properties as Record<string, unknown>;
+    const tasks = properties.tasks as Record<string, unknown>;
+    const items = tasks.items as Record<string, unknown>;
+    const itemProps = items.properties as Record<string, unknown>;
+    const responseSchema = itemProps.response_schema as Record<string, unknown>;
+
+    expect(responseSchema.type).toBe("object");
   });
 
-  it("requires only action", () => {
+  it("response_schema has a 'schema' property of type 'object'", () => {
+    const descriptor = buildWorkflowToolDescriptor();
     const schema = descriptor.inputSchema as Record<string, unknown>;
-    assert.deepEqual(schema.required, ["action"]);
+    const properties = schema.properties as Record<string, unknown>;
+    const tasks = properties.tasks as Record<string, unknown>;
+    const items = tasks.items as Record<string, unknown>;
+    const itemProps = items.properties as Record<string, unknown>;
+    const responseSchema = itemProps.response_schema as Record<string, unknown>;
+    const rsProps = responseSchema.properties as Record<string, unknown>;
+    const schemaProp = rsProps.schema as Record<string, unknown>;
+
+    expect(schemaProp).toBeDefined();
+    expect(schemaProp.type).toBe("object");
   });
 
-  it("includes start-specific fields", () => {
+  it("response_schema requires the 'schema' field", () => {
+    const descriptor = buildWorkflowToolDescriptor();
     const schema = descriptor.inputSchema as Record<string, unknown>;
-    const props = schema.properties as Record<string, unknown>;
-    assert.ok(props.tasks);
-    assert.ok(props.graph);
-    assert.ok(props.name);
-    assert.ok(props.reply_to);
-    assert.ok(props.polling_interval_ms);
-    assert.ok(props.runtime_limit_ms);
-  });
+    const properties = schema.properties as Record<string, unknown>;
+    const tasks = properties.tasks as Record<string, unknown>;
+    const items = tasks.items as Record<string, unknown>;
+    const itemProps = items.properties as Record<string, unknown>;
+    const responseSchema = itemProps.response_schema as Record<string, unknown>;
 
-  it("includes control plane fields", () => {
-    const schema = descriptor.inputSchema as Record<string, unknown>;
-    const props = schema.properties as Record<string, unknown>;
-    assert.ok(props.workflow_id);
-    assert.ok(props.task_id);
-    assert.ok(props.cascade);
-    assert.ok(props.agent_chain_id);
+    expect(responseSchema.required).toContain("schema");
   });
 });

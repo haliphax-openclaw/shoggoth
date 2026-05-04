@@ -34,6 +34,10 @@ interface TaskDefBase {
 export interface AgentTaskDef extends TaskDefBase {
   kind: "agent";
   prompt: string;
+  /** Optional: constrain the agent's final response to this JSON schema. */
+  responseSchema?: {
+    schema: Record<string, unknown>;
+  };
 }
 
 /** Tool task — invokes an MCP tool directly (Phase 2). */
