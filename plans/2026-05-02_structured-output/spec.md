@@ -7,8 +7,6 @@
 ```ts
 /** JSON Schema constraint for the model's final text response. */
 export interface ResponseSchema {
-  /** Schema name (required by OpenAI; used as synthetic tool name for Anthropic). */
-  readonly name: string;
   /** JSON Schema object describing the desired response shape. */
   readonly schema: Record<string, unknown>;
 }
@@ -122,7 +120,6 @@ export interface AgentTaskDef extends TaskDefBase {
 
   /** Optional: constrain the agent's final response to this JSON schema. */
   responseSchema?: {
-    name: string;
     schema: Record<string, unknown>;
   };
 }
@@ -146,7 +143,6 @@ export interface SpawnRequest {
 ```ts
 const responseSchemaSchema = z
   .object({
-    name: z.string().min(1),
     schema: z.record(z.string(), z.unknown()),
   })
   .strict()
@@ -171,10 +167,9 @@ response_schema: {
   type: "object",
   description: "Optional: constrain the task's final response to this JSON schema.",
   properties: {
-    name: { type: "string", description: "Schema name identifier." },
     schema: { type: "object", description: "JSON Schema object." },
   },
-  required: ["name", "schema"],
+  required: ["schema"],
 },
 ```
 
@@ -184,7 +179,7 @@ response_schema: {
 
 Adapter ceiling: `"strict"`.
 
-The `strict` property on the OpenAI `json_schema` request parameter is derived from the resolved `structuredOutputMode`, not from the `ResponseSchema` interface. When the mode resolves to `"strict"`, the adapter tells OpenAI to enforce strict conformance; otherwise it sends the schema as a hint without the guarantee.
+The `strict` property on the OpenAI `json_schema` request parameter is derived from the resolved `structuredOutputMode`. The `name` field required by the OpenAI API is generated internally by the adapter (a constant like `"response"`) since it has no semantic meaning.
 
 ```ts
 const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
@@ -193,7 +188,7 @@ if (input.responseSchema && mode !== "none") {
   body.response_format = {
     type: "json_schema",
     json_schema: {
-      name: input.responseSchema.name,
+      name: "response",
       schema: input.responseSchema.schema,
       strict: mode === "strict",
     },
@@ -244,14 +239,14 @@ if (input.responseSchema && mode !== "strict") {
 
 Adapter ceiling: `"best-effort"`.
 
-Implements the synthetic tool workaround:
+Implements the synthetic tool workaround. The synthetic tool name is generated internally by the adapter using a constant prefix.
 
 ```ts
-const STRUCTURED_OUTPUT_TOOL_PREFIX = "__structured_output_";
+const STRUCTURED_OUTPUT_TOOL_NAME = "__structured_output__";
 
 function buildSyntheticTool(responseSchema: ResponseSchema): AnthropicToolDef {
   return {
-    name: `${STRUCTURED_OUTPUT_TOOL_PREFIX}${responseSchema.name}`,
+    name: STRUCTURED_OUTPUT_TOOL_NAME,
     description:
       "Use this tool to provide your final structured response. " +
       "Call it with your answer conforming to the schema.",
@@ -260,7 +255,7 @@ function buildSyntheticTool(responseSchema: ResponseSchema): AnthropicToolDef {
 }
 
 function isSyntheticToolCall(toolCall: ToolCall): boolean {
-  return toolCall.name.startsWith(STRUCTURED_OUTPUT_TOOL_PREFIX);
+  return toolCall.name === STRUCTURED_OUTPUT_TOOL_NAME;
 }
 ```
 
@@ -305,7 +300,7 @@ if (syntheticCall && realToolCalls.length === 0) {
       ...input,
       tool_choice: {
         type: "tool",
-        name: `${STRUCTURED_OUTPUT_TOOL_PREFIX}${input.responseSchema.name}`,
+        name: STRUCTURED_OUTPUT_TOOL_NAME,
       },
     });
     const forced = forcedResponse.toolCalls.find((tc) => isSyntheticToolCall(tc));
@@ -491,7 +486,6 @@ The tool loop already has `pushSteerMessage` for operator guidance injection. Re
 ```ts
 if (raw.responseSchema && typeof raw.responseSchema === "object") {
   result.responseSchema = {
-    name: String(raw.responseSchema.name),
     schema: raw.responseSchema.schema as Record<string, unknown>,
   };
 }
@@ -540,7 +534,6 @@ Note: `structuredOutputMode` is not set per-task — it comes from the model con
   kind: "agent",
   prompt: "Analyze the error logs and return a summary.",
   response_schema: {
-    name: "error_summary",
     schema: {
       type: "object",
       properties: {
@@ -574,7 +567,6 @@ Note: `structuredOutputMode` is not set per-task — it comes from the model con
   prompt: "List the top 5 files by size in the project.",
   model_options: {
     responseSchema: {
-      name: "file_list",
       schema: {
         type: "object",
         properties: {
