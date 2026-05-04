@@ -8,6 +8,10 @@
  * 4. Fallback: unparseable session URN falls back to the global pool.
  * 5. shutdown() closes all per-agent pools.
  * 6. Three-tier context merging: global + per-agent + per-session tools are merged.
+ * 7. Per-agent idle eviction — after notifyTurnEnd with no subsequent turn, agent pool evicted.
+ * 8. Per-agent idle eviction — notifyTurnBegin cancels pending per-agent idle timer.
+ * 9. Per-agent idle eviction — two sessions sharing agent pool: eviction only when both idle.
+ * 10. shutdown() clears per-agent idle timers.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createSessionMcpRuntime } from "../../src/sessions/session-mcp-runtime";
@@ -344,5 +348,217 @@ describe("per-agent MCP pool scope", () => {
     expect(ctx.external).toBeDefined();
 
     await runtime.shutdown();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7–10. Per-agent idle eviction (Phase 5)
+// ---------------------------------------------------------------------------
+
+/** Build a config with per-agent servers and a short idle timeout. */
+function configWithPerAgentIdleTimeout(
+  workspacePath: string,
+  servers: ShoggothMcpServerEntry[],
+  idleMs = 5000,
+): ShoggothConfig {
+  const cfg = defaultConfig(workspacePath);
+  cfg.mcp = {
+    ...cfg.mcp,
+    servers,
+    poolScope: "global",
+    perInstanceIdleTimeoutMs: idleMs,
+  };
+  return cfg;
+}
+
+describe("per-agent MCP pool idle eviction", () => {
+  let tmp: string;
+  let db: Database.Database;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    tmp = mkdtempSync(join(tmpdir(), "shoggoth-mcp-per-agent-idle-"));
+    const dbPath = join(tmp, "s.db");
+    db = new Database(dbPath);
+    db.pragma("foreign_keys = ON");
+    migrate(db, defaultMigrationsDir());
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    closeTestDb(db, tmp);
+  });
+
+  // -----------------------------------------------------------------------
+  // 7. Per-agent idle eviction — notifyTurnEnd evicts agent pool after timeout
+  // -----------------------------------------------------------------------
+  it("notifyTurnEnd with no subsequent notifyTurnBegin evicts the per-agent pool after timeout", async () => {
+    const mockMcp = createMockConnectMcp();
+    const idleMs = 5000;
+    const config = configWithPerAgentIdleTimeout(tmp, [perAgentServer()], idleMs);
+
+    const runtime = await createSessionMcpRuntime({
+      config,
+      env: process.env,
+      db,
+      deps: { connectShoggothMcpServers: mockMcp.connectShoggothMcpServers },
+    });
+
+    const [sess] = sessionsForAgent("idle-agent");
+
+    // Resolve context to trigger the per-agent pool connect
+    await runtime.resolveContext(sess);
+    const perAgentConnects = mockMcp.connectCalls.filter((c) => c.serverIds.includes("agent-mcp"));
+    expect(perAgentConnects).toHaveLength(1);
+
+    // End turn — should schedule per-agent idle timer
+    runtime.notifyTurnEnd(sess);
+
+    // Advance past the idle timeout
+    vi.advanceTimersByTime(idleMs + 100);
+
+    // The per-agent pool should have been evicted (close called).
+    // This FAILS because the current runtime does not schedule idle eviction for per-agent pools.
+    const perAgentCloseIdx = mockMcp.connectCalls.findIndex((c) =>
+      c.serverIds.includes("agent-mcp"),
+    );
+    expect(mockMcp.closeFns[perAgentCloseIdx]).toHaveBeenCalled();
+
+    // Resolving context again should trigger a fresh per-agent connect
+    await runtime.resolveContext(sess);
+    const perAgentConnects2 = mockMcp.connectCalls.filter((c) => c.serverIds.includes("agent-mcp"));
+    expect(perAgentConnects2).toHaveLength(2);
+
+    await runtime.shutdown();
+  });
+
+  // -----------------------------------------------------------------------
+  // 8. Per-agent idle eviction — notifyTurnBegin cancels pending timer
+  // -----------------------------------------------------------------------
+  it("notifyTurnBegin cancels a pending per-agent idle timer", async () => {
+    const mockMcp = createMockConnectMcp();
+    const idleMs = 5000;
+    const config = configWithPerAgentIdleTimeout(tmp, [perAgentServer()], idleMs);
+
+    const runtime = await createSessionMcpRuntime({
+      config,
+      env: process.env,
+      db,
+      deps: { connectShoggothMcpServers: mockMcp.connectShoggothMcpServers },
+    });
+
+    const [sess] = sessionsForAgent("cancel-agent");
+
+    await runtime.resolveContext(sess);
+
+    // End turn → schedules per-agent idle timer
+    runtime.notifyTurnEnd(sess);
+
+    // Advance partway
+    vi.advanceTimersByTime(idleMs - 1000);
+
+    // Begin a new turn → should cancel the per-agent idle timer.
+    // This FAILS because notifyTurnBegin only cancels per-session timers currently.
+    runtime.notifyTurnBegin(sess);
+
+    // Advance well past the original timeout
+    vi.advanceTimersByTime(idleMs * 2);
+
+    // Per-agent pool should NOT have been evicted
+    const perAgentCloseIdx = mockMcp.connectCalls.findIndex((c) =>
+      c.serverIds.includes("agent-mcp"),
+    );
+    expect(mockMcp.closeFns[perAgentCloseIdx]).not.toHaveBeenCalled();
+
+    await runtime.shutdown();
+  });
+
+  // -----------------------------------------------------------------------
+  // 9. Two sessions sharing agent pool: eviction only when both idle
+  // -----------------------------------------------------------------------
+  it("two sessions sharing per-agent pool: eviction only fires when all sessions for that agent are idle", async () => {
+    const mockMcp = createMockConnectMcp();
+    const idleMs = 5000;
+    const config = configWithPerAgentIdleTimeout(tmp, [perAgentServer()], idleMs);
+
+    const runtime = await createSessionMcpRuntime({
+      config,
+      env: process.env,
+      db,
+      deps: { connectShoggothMcpServers: mockMcp.connectShoggothMcpServers },
+    });
+
+    const [sess1, sess2] = sessionsForAgent("shared-agent");
+
+    await runtime.resolveContext(sess1);
+    await runtime.resolveContext(sess2);
+
+    // End turn for sess1
+    runtime.notifyTurnEnd(sess1);
+
+    // Advance partway
+    vi.advanceTimersByTime(idleMs - 1000);
+
+    // sess2 starts a turn — should keep the per-agent pool alive.
+    // This FAILS because the runtime doesn't track per-agent idle across sessions.
+    runtime.notifyTurnBegin(sess2);
+
+    // Advance past original timeout
+    vi.advanceTimersByTime(idleMs * 2);
+
+    // Per-agent pool should NOT have been evicted (sess2 is still active)
+    const perAgentCloseIdx = mockMcp.connectCalls.findIndex((c) =>
+      c.serverIds.includes("agent-mcp"),
+    );
+    expect(mockMcp.closeFns[perAgentCloseIdx]).not.toHaveBeenCalled();
+
+    // Now end sess2's turn
+    runtime.notifyTurnEnd(sess2);
+
+    // Advance past timeout
+    vi.advanceTimersByTime(idleMs + 100);
+
+    // NOW the per-agent pool should be evicted
+    expect(mockMcp.closeFns[perAgentCloseIdx]).toHaveBeenCalled();
+
+    await runtime.shutdown();
+  });
+
+  // -----------------------------------------------------------------------
+  // 10. shutdown() clears per-agent idle timers
+  // -----------------------------------------------------------------------
+  it("shutdown clears per-agent idle timers so eviction callback does not fire", async () => {
+    const mockMcp = createMockConnectMcp();
+    const idleMs = 5000;
+    const config = configWithPerAgentIdleTimeout(tmp, [perAgentServer()], idleMs);
+
+    const runtime = await createSessionMcpRuntime({
+      config,
+      env: process.env,
+      db,
+      deps: { connectShoggothMcpServers: mockMcp.connectShoggothMcpServers },
+    });
+
+    const [sess] = sessionsForAgent("shutdown-agent");
+
+    await runtime.resolveContext(sess);
+
+    // End turn — schedules per-agent idle timer
+    runtime.notifyTurnEnd(sess);
+
+    // Shutdown before the timer fires — should clear the timer.
+    // This FAILS because shutdown() doesn't clear per-agent idle timers (they don't exist yet).
+    await runtime.shutdown();
+
+    // Advance past the timeout — the eviction callback should NOT fire
+    vi.advanceTimersByTime(idleMs * 2);
+
+    // The pool was closed by shutdown, but the idle eviction callback should not
+    // have fired (no double-close or errors from stale timer).
+    // close is called once by shutdown, not again by the timer.
+    const perAgentCloseIdx = mockMcp.connectCalls.findIndex((c) =>
+      c.serverIds.includes("agent-mcp"),
+    );
+    expect(mockMcp.closeFns[perAgentCloseIdx]).toHaveBeenCalledTimes(1);
   });
 });
