@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -577,6 +577,34 @@ describe("Integration: status message lifecycle", () => {
   });
   afterEach(() => {
     fs.rmSync(baseDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  });
+
+  it("updates status post for in_progress tasks even when dirty is false", async () => {
+    vi.useFakeTimers();
+    try {
+      const s = await setup(baseDir, [makeTask(1)], "1");
+
+      // Task 1 is in_progress after start. The orchestrator set dirty=true during spawn.
+      // Start polling (which starts the status timer).
+      s.orch.startPolling();
+
+      // First timer tick: dirty=true, so status updates. Reset dirty.
+      await vi.advanceTimersByTimeAsync(s.orch.getWorkflowStatus()!.pollingIntervalMs);
+      const editsAfterFirst = s.msgAdapter.edited.length;
+      assert.ok(editsAfterFirst >= 1, "should have edited at least once from dirty flag");
+
+      // Second timer tick: dirty is now false, but task 1 is still in_progress.
+      // Before the fix, this would skip the update. After the fix, it should still update.
+      await vi.advanceTimersByTimeAsync(s.orch.getWorkflowStatus()!.pollingIntervalMs);
+      assert.ok(
+        s.msgAdapter.edited.length > editsAfterFirst,
+        "should continue editing status while tasks are in_progress even when dirty is false",
+      );
+
+      s.orch.stopPolling();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("posts initial status, edits on tick, and posts summary on completion", async () => {
