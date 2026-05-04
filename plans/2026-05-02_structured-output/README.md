@@ -42,7 +42,7 @@ A model-level property on `ModelInvocationParams` that tells the adapter what le
 readonly structuredOutputMode?: "strict" | "best-effort" | "none";
 ```
 
-- **`"strict"`** — The model/provider guarantees schema conformance. The adapter sends the schema parameter and skips post-validation. (e.g., OpenAI `gpt-4o` with `strict: true`.)
+- **`"strict"`** — The model/provider guarantees schema conformance. The adapter sends the schema parameter and skips post-validation. (e.g., direct OpenAI `gpt-4o`.)
 - **`"best-effort"`** — The model/provider accepts the schema parameter and attempts to conform, but doesn't guarantee it. The adapter sends the schema parameter and applies post-validation + retry. (e.g., Gemini, Anthropic via synthetic tool, proxied models of unknown capability.)
 - **`"none"`** — The model doesn't support structured output. The adapter does not send any schema parameter. If `responseSchema` is set, the system still validates the response (the model may produce conformant JSON via prompt instructions alone) but expectations are lower.
 
@@ -58,7 +58,7 @@ For proxy configurations (e.g., kiro/auto via the OpenAI-compatible adapter), th
 
 ### Provider mapping
 
-**OpenAI adapter** — Maps `responseSchema` to `response_format.json_schema`. When `structuredOutputMode` is `"strict"` (the default), sets `strict: true` and skips post-validation. When `"best-effort"`, sends the same parameter but applies post-validation. When `"none"`, does not send `response_format`.
+**OpenAI adapter** — Maps `responseSchema` to `response_format.json_schema`. The OpenAI-specific `strict` flag on the request is derived from the resolved mode: `true` when mode is `"strict"` (the default), `false` when `"best-effort"`. When `"strict"`, skips post-validation. When `"best-effort"`, sends the same parameter but applies post-validation. When `"none"`, does not send `response_format`.
 
 **Gemini adapter** — Maps `responseSchema` to `generationConfig.responseSchema` + `responseMimeType: "application/json"`. The existing `sanitizeSchemaForGemini` helper is applied. Always post-validates (default mode is `"best-effort"`). When `"none"`, does not send the schema parameter.
 

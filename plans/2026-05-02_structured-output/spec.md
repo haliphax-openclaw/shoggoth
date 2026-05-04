@@ -11,8 +11,6 @@ export interface ResponseSchema {
   readonly name: string;
   /** JSON Schema object describing the desired response shape. */
   readonly schema: Record<string, unknown>;
-  /** When true, the provider enforces strict conformance (OpenAI only). Defaults to true. */
-  readonly strict?: boolean;
 }
 
 export interface ModelInvocationParams {
@@ -126,7 +124,6 @@ export interface AgentTaskDef extends TaskDefBase {
   responseSchema?: {
     name: string;
     schema: Record<string, unknown>;
-    strict?: boolean;
   };
 }
 ```
@@ -151,7 +148,6 @@ const responseSchemaSchema = z
   .object({
     name: z.string().min(1),
     schema: z.record(z.string(), z.unknown()),
-    strict: z.boolean().optional(),
   })
   .strict()
   .optional();
@@ -177,7 +173,6 @@ response_schema: {
   properties: {
     name: { type: "string", description: "Schema name identifier." },
     schema: { type: "object", description: "JSON Schema object." },
-    strict: { type: "boolean", description: "Enforce strict conformance (OpenAI only)." },
   },
   required: ["name", "schema"],
 },
@@ -189,6 +184,8 @@ response_schema: {
 
 Adapter ceiling: `"strict"`.
 
+The `strict` property on the OpenAI `json_schema` request parameter is derived from the resolved `structuredOutputMode`, not from the `ResponseSchema` interface. When the mode resolves to `"strict"`, the adapter tells OpenAI to enforce strict conformance; otherwise it sends the schema as a hint without the guarantee.
+
 ```ts
 const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
 
@@ -198,7 +195,7 @@ if (input.responseSchema && mode !== "none") {
     json_schema: {
       name: input.responseSchema.name,
       schema: input.responseSchema.schema,
-      strict: input.responseSchema.strict ?? true,
+      strict: mode === "strict",
     },
   };
 }
@@ -216,7 +213,7 @@ if (input.responseSchema && mode !== "strict") {
 }
 ```
 
-When used with a proxy (kiro gateway, OpenRouter), the operator sets `structuredOutputMode: "best-effort"` in the model config. The adapter still sends `response_format` (most proxies pass it through) but also validates the response.
+When used with a proxy (kiro gateway, OpenRouter), the operator sets `structuredOutputMode: "best-effort"` in the model config. The adapter still sends `response_format` (most proxies pass it through) but with `strict: false`, and also validates the response.
 
 ### Gemini — `packages/models/src/gemini.ts`
 
@@ -438,7 +435,7 @@ for (;;) {
       const correction = [
         "Your previous response did not conform to the required JSON schema.",
         `Validation error: ${e.message}`,
-        "Please produce a response that strictly conforms to the schema.",
+        "Please produce a response that conforms to the schema.",
         `Schema: ${JSON.stringify(e.schema)}`,
       ].join("\n");
 
@@ -496,7 +493,6 @@ if (raw.responseSchema && typeof raw.responseSchema === "object") {
   result.responseSchema = {
     name: String(raw.responseSchema.name),
     schema: raw.responseSchema.schema as Record<string, unknown>,
-    strict: raw.responseSchema.strict != null ? Boolean(raw.responseSchema.strict) : undefined,
   };
 }
 
@@ -565,7 +561,6 @@ Note: `structuredOutputMode` is not set per-task — it comes from the model con
       required: ["total_errors", "categories"],
       additionalProperties: false,
     },
-    strict: true,
   },
 }
 ```
