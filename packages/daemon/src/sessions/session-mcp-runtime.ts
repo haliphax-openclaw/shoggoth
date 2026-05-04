@@ -382,7 +382,15 @@ export async function createSessionMcpRuntime(
     if (!inflight) {
       inflight = (async () => {
         try {
-          const { pool, external } = await connectMcpPool(perSessionServers, mcpConnectOpts);
+          // When the session belongs to a known agent, run per-session MCP
+          // servers under that agent's identity (uid/gid/workspacePath).
+          const perSessionConnectOpts: ConnectShoggothMcpPoolOptions = agentId
+            ? {
+                ...mcpConnectOpts,
+                agentContext: resolveAgentMcpContext(opts.db, agentId, workspacesRoot),
+              }
+            : { ...mcpConnectOpts };
+          const { pool, external } = await connectMcpPool(perSessionServers, perSessionConnectOpts);
           const unregister = registerMcpHttpCancelHandler(
             sessionId,
             (sourceId, requestId) => pool.cancelMcpRequest?.(sourceId, requestId) ?? false,
