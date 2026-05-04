@@ -61,11 +61,23 @@ export type McpServerPool = {
   readonly close: () => Promise<void>;
 };
 
+/** Agent identity and workspace context for scoped MCP server processes. */
+export interface AgentMcpContext {
+  /** POSIX UID for the agent (from session row or bootstrap). */
+  readonly uid: number;
+  /** POSIX GID for the agent (from session row or bootstrap). */
+  readonly gid: number;
+  /** Absolute path to the agent's workspace directory. */
+  readonly workspacePath: string;
+}
+
 export type ConnectShoggothMcpPoolOptions = {
   readonly onMcpServerMessage?: (input: {
     sourceId: string;
     msg: McpStreamableHttpServerMessage;
   }) => void;
+  /** When provided, stdio MCP servers are spawned under this agent's identity. */
+  readonly agentContext?: AgentMcpContext;
 };
 
 /**
@@ -81,14 +93,24 @@ export async function connectShoggothMcpServers(
   const streamableBySourceId = new Map<string, McpStreamableHttpSession>();
   const onPoolMessage = options?.onMcpServerMessage;
 
+  const agentCtx = options?.agentContext;
+
   for (const s of servers) {
+    // Build env: agent workspace as HOME, then server config env on top
+    const baseEnv = agentCtx ? { HOME: agentCtx.workspacePath, ...s.env } : s.env;
+
+    // Resolve cwd: server config cwd takes precedence, then agent workspace, then undefined
+    const cwd = s.cwd ?? agentCtx?.workspacePath;
+
     const session =
       s.transport === "stdio"
         ? await openMcpStdioClient({
             command: s.command,
             args: s.args,
-            cwd: s.cwd,
-            env: s.env,
+            cwd,
+            env: baseEnv,
+            uid: agentCtx?.uid,
+            gid: agentCtx?.gid,
             processManager: getProcessManager(),
           })
         : s.transport === "tcp"
