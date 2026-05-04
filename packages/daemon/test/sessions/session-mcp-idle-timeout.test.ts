@@ -41,7 +41,7 @@ function configWithPerSessionMcp(workspacePath: string, idleMs = 5000): Shoggoth
     ...cfg.mcp,
     servers: [perSessionServer()],
     poolScope: "per_session",
-    perSessionIdleTimeoutMs: idleMs,
+    perInstanceIdleTimeoutMs: idleMs,
   };
   return cfg;
 }

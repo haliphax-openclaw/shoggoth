@@ -1,6 +1,6 @@
 import type { McpSourceCatalog } from "@shoggoth/mcp-integration";
 import type Database from "better-sqlite3";
-import { SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS, type ShoggothConfig } from "@shoggoth/shared";
+import { SHOGGOTH_DEFAULT_MCP_INSTANCE_IDLE_MS, type ShoggothConfig } from "@shoggoth/shared";
 import { getLogger } from "../logging";
 import {
   connectShoggothMcpServers,
@@ -189,9 +189,9 @@ export async function createSessionMcpRuntime(
 
   function resolvePerSessionMcpIdleMs(): number {
     if (perSessionServers.length === 0) return 0;
-    const v = opts.config.mcp?.perSessionIdleTimeoutMs;
+    const v = opts.config.mcp?.perInstanceIdleTimeoutMs;
     if (v === 0) return 0;
-    if (v === undefined) return SHOGGOTH_DEFAULT_PER_SESSION_MCP_IDLE_MS;
+    if (v === undefined) return SHOGGOTH_DEFAULT_MCP_INSTANCE_IDLE_MS;
     return v;
   }
 

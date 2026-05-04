@@ -708,7 +708,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const cfg = defaultConfig(tmp);
     cfg.mcp = {
       poolScope: "per_session",
-      perSessionIdleTimeoutMs: 40,
+      perInstanceIdleTimeoutMs: 40,
       servers: [{ id: "s1", transport: "stdio", command: "true", args: [] }],
     };
 
@@ -794,7 +794,7 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     const cfg = defaultConfig(tmp);
     cfg.mcp = {
       poolScope: "per_session",
-      perSessionIdleTimeoutMs: 0,
+      perInstanceIdleTimeoutMs: 0,
       servers: [{ id: "s1", transport: "stdio", command: "true", args: [] }],
     };
 

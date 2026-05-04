@@ -14,7 +14,7 @@ import { getProcessManager } from "../process-manager-singleton";
 import type { ShoggothMcpConfig, ShoggothMcpServerEntry } from "@shoggoth/shared";
 import type { ExternalMcpInvoke } from "./tool-loop-mcp";
 
-type EffectiveMcpPoolScope = "global" | "per_session";
+type EffectiveMcpPoolScope = "global" | "per_agent" | "per_session";
 
 /** Resolve `entry.poolScope ?? "inherit"` then map `inherit` → top-level `mcp.poolScope`. */
 function effectiveMcpPoolScope(
@@ -26,24 +26,29 @@ function effectiveMcpPoolScope(
   return p;
 }
 
-/** Split configured servers by effective pool scope (global vs per Shoggoth session). */
+/** Split configured servers by effective pool scope (global, per-agent, or per-session). */
 export function partitionMcpServersByEffectiveScope(
   servers: readonly ShoggothMcpServerEntry[],
   topLevelPoolScope: ShoggothMcpConfig["poolScope"],
 ): {
   globalServers: ShoggothMcpServerEntry[];
+  perAgentServers: ShoggothMcpServerEntry[];
   perSessionServers: ShoggothMcpServerEntry[];
 } {
   const globalServers: ShoggothMcpServerEntry[] = [];
+  const perAgentServers: ShoggothMcpServerEntry[] = [];
   const perSessionServers: ShoggothMcpServerEntry[] = [];
   for (const s of servers) {
-    if (effectiveMcpPoolScope(s, topLevelPoolScope) === "global") {
+    const scope = effectiveMcpPoolScope(s, topLevelPoolScope);
+    if (scope === "global") {
       globalServers.push(s);
+    } else if (scope === "per_agent") {
+      perAgentServers.push(s);
     } else {
       perSessionServers.push(s);
     }
   }
-  return { globalServers, perSessionServers };
+  return { globalServers, perAgentServers, perSessionServers };
 }
 
 export type McpServerPool = {
