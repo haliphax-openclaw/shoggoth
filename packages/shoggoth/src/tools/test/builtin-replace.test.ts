@@ -58,7 +58,7 @@ describe("builtin-replace dry-run mode (RED PHASE)", () => {
       );
     });
 
-    it("should not modify file when dryRun is false (normal mode)", async () => {
+    it("should modify file when dryRun is false (normal mode)", async () => {
       const ctx = stubCtx(workspace);
       const testFile = join(workspace, "test.txt");
       const originalContent =
@@ -75,16 +75,16 @@ describe("builtin-replace dry-run mode (RED PHASE)", () => {
       // Verify changes were reported
       assert.ok(parsed.changesMade > 0, "Should report changes were made");
 
-      // RED PHASE: This should fail - expecting file TO be modified
+      // GREEN PHASE: This should pass - expecting file TO be modified
       const currentContent = readFileSync(testFile, "utf-8");
-      assert.strictEqual(
+      assert.notStrictEqual(
         currentContent,
         originalContent,
-        "RED PHASE: This should fail - expecting file TO be modified when dryRun is false",
+        "GREEN PHASE: This should pass - expecting file TO be modified when dryRun is false",
       );
     });
 
-    it("should not modify file when dryRun is omitted (defaults to false)", async () => {
+    it("should modify file when dryRun is omitted (defaults to false)", async () => {
       const ctx = stubCtx(workspace);
       const testFile = join(workspace, "test.txt");
       const originalContent = "line 1: TODO: fix this\nline 2: regular text\n";
@@ -100,12 +100,12 @@ describe("builtin-replace dry-run mode (RED PHASE)", () => {
       // Verify changes were reported (default is dryRun: false)
       assert.ok(parsed.changesMade > 0, "Should report changes were made");
 
-      // RED PHASE: This should fail - expecting file TO be modified
+      // GREEN PHASE: This should pass - expecting file TO be modified
       const currentContent = readFileSync(testFile, "utf-8");
-      assert.strictEqual(
+      assert.notStrictEqual(
         currentContent,
         originalContent,
-        "RED PHASE: This should fail - expecting file TO be modified when dryRun defaults to false",
+        "GREEN PHASE: This should pass - expecting file TO be modified when dryRun defaults to false",
       );
     });
   });
