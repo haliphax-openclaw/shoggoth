@@ -86,7 +86,7 @@ This document outlines the implementation phases for the builtin tool enhancemen
 - `packages/shoggoth/src/tools/builtin-search-replace.ts` (modify)
 - `packages/shoggoth/src/tools/index.ts` (update registration)
 - `docs/tools/builtin-search.md` (new)
-- `docs/tools/builtin-search-replace.md` (update with new parameter naming)
+- `docs/tools/builtin-search-replace.md` (update)
 
 ### Implementation Steps
 
@@ -120,10 +120,9 @@ export const builtinSearch: ToolDefinition = {
 ```typescript
 // packages/shoggoth/src/tools/builtin-search-replace.ts
 // Use 'path' consistently across both tools
-// BREAKING: Remove 'file' parameter support
 inputSchema: {
   properties: {
-    path: { type: "string" }, // Use 'path' (breaking: remove 'file')
+    path: { type: "string" }, // Use 'path' instead of 'file'
     pattern: { type: "string" },
     replacement: { type: "string" },
     // ... other params
@@ -152,8 +151,8 @@ export const builtinTools = [
 - [ ] Test search respects context lines
 - [ ] Test search respects max results
 - [ ] Test replace maintains old behavior
-- [ ] **Verify `file` parameter no longer works** (breaking change)
-- [ ] Verify only `path` parameter is supported
+- [ ] Verify `path` parameter works correctly
+- [ ] Ensure no `file` parameter support
 
 ---
 
@@ -438,7 +437,7 @@ execute: async (params) => {
 
 ### Focus
 
-Comprehensive documentation for all new and modified tools to ensure users can effectively adopt the new features.
+Comprehensive documentation for all new and modified tools to ensure developers can effectively use the new features.
 
 ### Tasks
 
@@ -467,7 +466,6 @@ Comprehensive documentation for all new and modified tools to ensure users can e
 
 - [ ] Verify all documentation builds correctly
 - [ ] Check code examples work as documented
-- [ ] Update API reference to reflect new parameters
 - [ ] Ensure all tool signatures match actual implementation
 - [ ] Proofread for consistency in terminology and examples
 
@@ -476,7 +474,6 @@ Comprehensive documentation for all new and modified tools to ensure users can e
 - Each tool doc should have: description, parameters table, examples, error handling, and edge cases
 - API reference should be machine-readable (OpenAPI-like) where applicable
 - Examples should be copy-paste ready and demonstrate real use cases
-- Clearly document breaking changes (`file` → `path`)
 
 ---
 
@@ -487,7 +484,7 @@ Recommended order for maximum efficiency:
 1. **Phase 3** - Easy, foundational improvement (better errors)
 2. **Phase 1** - Straightforward enhancement (read formatting)
 3. **Phase 2a** - Create new search tool
-4. **Phase 2b** - Modify replace tool (parameter naming consistency, breaking change)
+4. **Phase 2b** - Modify replace tool (parameter naming consistency)
 5. **Phase 5** - Build on replace tool (dry-run)
 6. **Phase 6** - Build on replace tool (line operations)
 7. **Phase 4** - Can be done anytime (standalone)
@@ -498,8 +495,7 @@ Recommended order for maximum efficiency:
 ## Release Strategy
 
 - Release all phases together as a single version bump
-- Document all breaking changes clearly in release notes
-- Provide migration guide for `file` → `path` parameter change
+- Document all changes in release notes (no migration guide needed)
 - Update all examples and documentation
 
 ---
@@ -509,7 +505,6 @@ Recommended order for maximum efficiency:
 - All changes are additive (new parameters)
 - Can revert individual phases if issues arise
 - No database or config migrations required
-- Breaking change (`file` → `path`) requires coordination
 
 ---
 
@@ -518,10 +513,8 @@ Recommended order for maximum efficiency:
 1. Update all user-facing documentation (Phase 7)
 2. Add examples to tool references
 3. Update API documentation
-4. Write blog post/announcement for release
-5. Gather user feedback after release
-6. Monitor error logs for new error patterns
-7. Update CHANGELOG.md with all changes
+4. Monitor error logs for new error patterns
+5. Update CHANGELOG.md with all changes
 
 ---
 
@@ -582,7 +575,6 @@ Expected: "newKey: newVal\nkey3: val3\n"
   - [ ] Error handling examples
 
 - [ ] **`builtin-search-replace` / `builtin-replace`:**
-  - [ ] Document breaking change: `file` parameter removed
   - [ ] New `path` parameter documentation
   - [ ] Dry-run mode examples
   - [ ] Line-level operations examples
@@ -596,18 +588,11 @@ Expected: "newKey: newVal\nkey3: val3\n"
 
 ### Cross-Cutting Documentation
 
-- [ ] **Migration guide:**
-  - [ ] Document breaking change (`file` → `path`)
-  - [ ] Show before/after code examples
-  - [ ] Explain impact on existing usage
-  - [ ] Provide clear migration instructions
-
 - [ ] **API reference:**
   - [ ] All new parameters listed
   - [ ] Default values documented
   - [ ] Type information
   - [ ] Constraints and limits
-  - [ ] Breaking changes clearly marked
 
 - [ ] **Examples repository:**
   - [ ] Real-world scenarios for each feature

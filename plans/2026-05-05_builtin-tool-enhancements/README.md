@@ -36,7 +36,8 @@ Current builtin tools have several pain points identified through developer feed
 - Replacing existing tools with entirely new abstractions
 - Adding completely unrelated features not mentioned in the issue
 - Deprecation strategy (not used in this project)
-- Backwards compatibility for inconsistent parameter naming (`file` → `path`)
+- Backwards compatibility concerns (internal project, no external users yet)
+- Migration guides or breaking change documentation
 
 ## Implementation Phases
 
@@ -70,8 +71,6 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Create new `builtin-search` tool for search-only functionality
 - Modify `builtin-search-replace` to keep only replace functionality
 - Rename `file` parameter to `path` across both tools for consistency
-- **Breaking change:** Remove `file` parameter support, use `path` only
-- Update documentation to reflect new structure
 
 **Files to Touch:**
 
@@ -86,7 +85,6 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Verify replace functionality retained in modified tool
 - Ensure API consistency between both tools
 - Verify `path` parameter works correctly
-- **Note:** `file` parameter will no longer be supported
 
 ### Phase 3: Improved Regex Error Messages
 
@@ -219,17 +217,15 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Comprehensive documentation (Phase 7) completed
 - Negative testing confirms robust error handling
 - All examples are copy-paste ready and work as documented
-- **Breaking changes accepted:** `file` parameter removed in favor of `path`
 
 ## Risk Assessment
 
-| Risk                                    | Likelihood | Impact | Mitigation                                                 |
-| --------------------------------------- | ---------- | ------ | ---------------------------------------------------------- |
-| Breaking existing usage patterns        | Medium     | Medium | Document breaking changes clearly, provide migration guide |
-| Complex line-number handling bugs       | Medium     | Medium | Extensive unit tests, edge case coverage                   |
-| Performance regression with large files | Low        | Medium | Add streaming or chunked processing if needed              |
-| Multiline string escaping issues        | Medium     | Low    | Thorough testing with various delimiters                   |
-| Documentation gaps or confusion         | Medium     | Low    | Peer review of docs, testing examples with first users     |
+| Risk                                    | Likelihood | Impact | Mitigation                                             |
+| --------------------------------------- | ---------- | ------ | ------------------------------------------------------ |
+| Complex line-number handling bugs       | Medium     | Medium | Extensive unit tests, edge case coverage               |
+| Performance regression with large files | Low        | Medium | Add streaming or chunked processing if needed          |
+| Multiline string escaping issues        | Medium     | Low    | Thorough testing with various delimiters               |
+| Documentation gaps or confusion         | Medium     | Low    | Peer review of docs, testing examples with first users |
 
 ## Dependencies
 
