@@ -47,6 +47,24 @@ test("renders Markdown table as Unicode box-drawing code block", () => {
   console.log("--- end ---");
 });
 
+test("inline code in table cells is not stripped", () => {
+  const md2 = [
+    "| Command | Description |",
+    "|---|---|",
+    "| `git add` | Stage changes |",
+    "| `git commit -m` | Commit with message |",
+    "| `git push` | Push to remote |",
+    "",
+  ].join("\n");
+  const result = mdTableToAscii(md2);
+  // Should contain the inline code content, not empty cells
+  expect(result).toContain("git add");
+  expect(result).toContain("git commit -m");
+  expect(result).toContain("git push");
+  expect(result).toContain("Stage changes");
+  expect(result).toContain("Push to remote");
+});
+
 test("no table → pass-through unchanged", () => {
   const input = "Just some text, no table here.";
   expect(mdTableToAscii(input)).toBe(input);
