@@ -6,15 +6,34 @@ import { rmSync } from "node:fs";
  *
  * SQLite WAL mode creates `-wal` and `-shm` sidecar files that may not be
  * fully flushed when `db.close()` returns. A concurrent `rmSync` can then
- * hit `ENOTEMPTY` if a sidecar file appears mid-traversal. Checkpointing
- * with TRUNCATE before close eliminates the race.
+ * hit `ENOTEMPTY` if a sidecar file appears mid-traversal.
+ *
+ * Checkpointing with TRUNCATE before close eliminates most races, but some
+ * tests still hit ENOTEMPTY on rare occasions. This function retries with
+ * exponential backoff when that happens.
  */
-export function closeTestDb(db: Database.Database, tmpDir: string): void {
+export async function closeTestDb(db: Database.Database, tmpDir: string): Promise<void> {
   try {
     db.pragma("wal_checkpoint(TRUNCATE)");
   } catch {
     // DB may already be in DELETE journal mode or closed — ignore.
   }
   db.close();
-  rmSync(tmpDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+
+  // Retry with exponential backoff if ENOTEMPTY occurs (SQLite WAL/SHM race)
+  let attempt = 0;
+  while (attempt < 5) {
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+      break;
+    } catch (err) {
+      if (attempt === 4 || !String(err).includes("ENOTEMPTY")) {
+        // Not ENOTEMPTY or max attempts — rethrow
+        throw err;
+      }
+      attempt++;
+      // Wait longer each retry (100ms, 200ms, 400ms, 800ms)
+      await new Promise((r) => setTimeout(r, 100 * attempt));
+    }
+  }
 }

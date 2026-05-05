@@ -298,8 +298,8 @@ describe("startDiscordPlatform", { concurrency: false }, () => {
     });
   }
 
-  afterEach(() => {
-    closeTestDb(db, tmp);
+  afterEach(async () => {
+    await closeTestDb(db, tmp);
   });
 
   it("runs tool loop and sends Discord reply with degraded banner", async () => {
