@@ -45,9 +45,7 @@ function okJsonResponse(content: string) {
   );
 }
 
-function okToolCallResponse(
-  calls: Array<{ id: string; name: string; arguments: string }>,
-) {
+function okToolCallResponse(calls: Array<{ id: string; name: string; arguments: string }>) {
   return new Response(
     JSON.stringify({
       choices: [

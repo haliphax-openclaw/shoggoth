@@ -205,9 +205,7 @@ describe("runToolLoop structured output validation retry", () => {
     assert.equal(failedMsg.role, "assistant");
     assert.equal(failedMsg.content, BAD_CONTENT);
     const failedMeta =
-      typeof failedMsg.metadata === "string"
-        ? JSON.parse(failedMsg.metadata)
-        : failedMsg.metadata;
+      typeof failedMsg.metadata === "string" ? JSON.parse(failedMsg.metadata) : failedMsg.metadata;
     assert.equal(failedMeta.structuredOutputValidationFailed, true);
 
     // Second: correction user message

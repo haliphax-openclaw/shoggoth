@@ -798,7 +798,13 @@ export function createGeminiProvider(options: GeminiProviderOptions): ModelProvi
         typeof content === "string" ? content : content === null ? null : JSON.stringify(content);
 
       // Structured output: post-validate when mode is "best-effort"
-      if (input.responseSchema && mode !== "strict" && mode !== "none" && finalContent !== null && toolCalls.length === 0) {
+      if (
+        input.responseSchema &&
+        mode !== "strict" &&
+        mode !== "none" &&
+        finalContent !== null &&
+        toolCalls.length === 0
+      ) {
         const result = validateResponseSchema(finalContent, input.responseSchema.schema);
         if (!result.valid) {
           throw new StructuredOutputValidationError(

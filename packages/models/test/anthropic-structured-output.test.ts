@@ -115,10 +115,15 @@ describe("Anthropic structured output — synthetic tool injection", () => {
       responseSchema: RESPONSE_SCHEMA,
     });
 
-    const body = JSON.parse(capturedBody ?? "{}") as { tools?: { name: string; input_schema?: unknown }[] };
+    const body = JSON.parse(capturedBody ?? "{}") as {
+      tools?: { name: string; input_schema?: unknown }[];
+    };
     assert.ok(body.tools, "tools should be present in request body");
     const syntheticTool = body.tools.find((t) => t.name === "__structured_output__");
-    assert.ok(syntheticTool, "synthetic __structured_output__ tool should be injected into tools list");
+    assert.ok(
+      syntheticTool,
+      "synthetic __structured_output__ tool should be injected into tools list",
+    );
     assert.deepStrictEqual(
       syntheticTool.input_schema,
       TEST_SCHEMA,
@@ -179,10 +184,18 @@ describe("Anthropic structured output — terminal detection (synthetic-only)", 
 
     // The synthetic tool call should be treated as terminal: content is the JSON arguments,
     // and toolCalls should be empty (no real tool calls to execute).
-    assert.equal(out.toolCalls.length, 0, "toolCalls should be empty when only synthetic tool is called");
+    assert.equal(
+      out.toolCalls.length,
+      0,
+      "toolCalls should be empty when only synthetic tool is called",
+    );
     assert.ok(out.content, "content should contain the structured output");
     const parsed = JSON.parse(out.content!);
-    assert.deepStrictEqual(parsed, structuredData, "content should be the synthetic tool arguments as JSON");
+    assert.deepStrictEqual(
+      parsed,
+      structuredData,
+      "content should be the synthetic tool arguments as JSON",
+    );
   });
 });
 
@@ -193,11 +206,7 @@ describe("Anthropic structured output — terminal detection (synthetic-only)", 
 describe("Anthropic structured output — mixed response", () => {
   it("strips synthetic tool call and returns only real tool calls", async () => {
     const fetchImpl = async () =>
-      mixedToolResponse(
-        { name: "Alice", count: 5 },
-        "read_file",
-        { path: "/tmp/test.txt" },
-      );
+      mixedToolResponse({ name: "Alice", count: 5 }, "read_file", { path: "/tmp/test.txt" });
 
     const p = createAnthropicMessagesProvider({
       id: "anth",
@@ -214,7 +223,11 @@ describe("Anthropic structured output — mixed response", () => {
 
     // The synthetic call should be stripped; only the real tool call should remain.
     assert.equal(out.toolCalls.length, 1, "should have exactly 1 real tool call");
-    assert.equal(out.toolCalls[0]!.name, "read_file", "the remaining tool call should be the real one");
+    assert.equal(
+      out.toolCalls[0]!.name,
+      "read_file",
+      "the remaining tool call should be the real one",
+    );
     // The synthetic tool call (__structured_output__) should NOT appear in toolCalls
     const syntheticCall = out.toolCalls.find((tc) => tc.name === "__structured_output__");
     assert.equal(syntheticCall, undefined, "synthetic tool call should be stripped from toolCalls");
@@ -256,7 +269,11 @@ describe("Anthropic structured output — text-only response forces follow-up", 
     });
 
     // Should have made a second call to force the synthetic tool
-    assert.equal(callCount, 2, "should make a follow-up call when model returns text-only with responseSchema");
+    assert.equal(
+      callCount,
+      2,
+      "should make a follow-up call when model returns text-only with responseSchema",
+    );
 
     // The follow-up call should use tool_choice targeting the synthetic tool
     const body = JSON.parse(secondCallBody ?? "{}") as {
@@ -441,7 +458,10 @@ describe("Anthropic structured output — strict downgrade", () => {
     const body = JSON.parse(capturedBody ?? "{}") as { tools?: { name: string }[] };
     assert.ok(body.tools, "tools should be present");
     const syntheticTool = body.tools.find((t) => t.name === "__structured_output__");
-    assert.ok(syntheticTool, "synthetic tool should be injected even when strict is configured (downgraded to best-effort)");
+    assert.ok(
+      syntheticTool,
+      "synthetic tool should be injected even when strict is configured (downgraded to best-effort)",
+    );
   });
 
   it("strict mode downgraded to best-effort still throws on non-conformant response", async () => {

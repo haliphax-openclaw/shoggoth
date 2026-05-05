@@ -128,20 +128,18 @@ describe("resolveStructuredOutputMode", () => {
 // ---------------------------------------------------------------------------
 describe("StructuredOutputValidationError", () => {
   it("is an instance of Error", () => {
-    const err = new StructuredOutputValidationError(
-      "validation failed",
-      '{"bad": true}',
-      { type: "object", properties: { good: { type: "string" } }, required: ["good"] },
-    );
+    const err = new StructuredOutputValidationError("validation failed", '{"bad": true}', {
+      type: "object",
+      properties: { good: { type: "string" } },
+      required: ["good"],
+    });
     assert.ok(err instanceof Error);
   });
 
   it('has name "StructuredOutputValidationError"', () => {
-    const err = new StructuredOutputValidationError(
-      "validation failed",
-      '{"bad": true}',
-      { type: "object" },
-    );
+    const err = new StructuredOutputValidationError("validation failed", '{"bad": true}', {
+      type: "object",
+    });
     assert.equal(err.name, "StructuredOutputValidationError");
   });
 

@@ -347,7 +347,7 @@ export async function startDiscordPlatform(
         // If streaming is enabled, post the placeholder ("…") BEFORE starting the
         // typing indicator. Discord cancels typing when a bot posts a message, so
         // posting the placeholder inside withTypingIndicator would kill the indicator.
-        let preStartedStreamHandle: { setFullContent: (text: string) => Promise<void> } | undefined;
+        let preStartedStreamHandle: import("@shoggoth/daemon/lib").StreamHandle | undefined;
         if (streamEnabled()) {
           const streamingOutbound = opts.discord.streamingForSession(msg.sessionId);
           if (streamingOutbound) {
@@ -355,6 +355,7 @@ export async function startDiscordPlatform(
               const raw = await streamingOutbound.start();
               preStartedStreamHandle = {
                 setFullContent: (text: string) => raw.setFullContent(text),
+                pushUpdate: (text: string) => raw.pushUpdate(text),
               };
             } catch (e) {
               opts.logger.warn("discord.platform.stream_start_failed", {

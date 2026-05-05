@@ -961,13 +961,19 @@ export function createAnthropicMessagesProvider(
             return { content: outText, toolCalls: realToolCalls, usage };
           } else if (!syntheticCall && toolCalls.length === 0) {
             // Text-only response with schema → force follow-up (non-streaming)
-            const followUpTools: unknown[] = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
+            const followUpTools: unknown[] = mapOpenAIToolsToAnthropic(
+              input.tools,
+              openAiToAnthropic,
+            );
             followUpTools.push(buildSyntheticTool(input.responseSchema));
 
             const followUpMessages: ChatMessage[] = [
               ...input.messages,
               { role: "assistant" as const, content: outText ?? "" },
-              { role: "user" as const, content: "Please provide your response using the __structured_output__ tool." },
+              {
+                role: "user" as const,
+                content: "Please provide your response using the __structured_output__ tool.",
+              },
             ];
             const { system: followUpSystem, messages: followUpAnthropicMessages } =
               mapChatMessagesToAnthropicPayload(followUpMessages, openAiToAnthropic);
@@ -999,9 +1005,10 @@ export function createAnthropicMessagesProvider(
               );
             }
 
-            const followUpText = input.thinkingFormat === "xml-tags"
-              ? stripXmlThinkingTags(followUpRawText)
-              : followUpRawText;
+            const followUpText =
+              input.thinkingFormat === "xml-tags"
+                ? stripXmlThinkingTags(followUpRawText)
+                : followUpRawText;
             let followUpJson: unknown;
             try {
               followUpJson = JSON.parse(followUpText);
@@ -1024,7 +1031,10 @@ export function createAnthropicMessagesProvider(
             if (forced) {
               const structuredContent = forced.arguments;
               if (mode !== "strict") {
-                const result = validateResponseSchema(structuredContent, input.responseSchema.schema);
+                const result = validateResponseSchema(
+                  structuredContent,
+                  input.responseSchema.schema,
+                );
                 if (!result.valid) {
                   throw new StructuredOutputValidationError(
                     result.error,
@@ -1033,7 +1043,11 @@ export function createAnthropicMessagesProvider(
                   );
                 }
               }
-              return { content: structuredContent, toolCalls: [], usage: extractAnthropicUsage(followUpJson) };
+              return {
+                content: structuredContent,
+                toolCalls: [],
+                usage: extractAnthropicUsage(followUpJson),
+              };
             }
           }
         }
@@ -1103,14 +1117,20 @@ export function createAnthropicMessagesProvider(
         } else if (!syntheticCall && toolCalls.length === 0) {
           // No synthetic call and no real tools (text response) → force follow-up
           // Build a follow-up request with tool_choice targeting the synthetic tool
-          const followUpTools: unknown[] = mapOpenAIToolsToAnthropic(input.tools, openAiToAnthropic);
+          const followUpTools: unknown[] = mapOpenAIToolsToAnthropic(
+            input.tools,
+            openAiToAnthropic,
+          );
           followUpTools.push(buildSyntheticTool(input.responseSchema));
 
           // Build messages: original messages + the text response as assistant + a user nudge
           const followUpMessages: ChatMessage[] = [
             ...input.messages,
             { role: "assistant" as const, content: outText ?? "" },
-            { role: "user" as const, content: "Please provide your response using the __structured_output__ tool." },
+            {
+              role: "user" as const,
+              content: "Please provide your response using the __structured_output__ tool.",
+            },
           ];
           const { system: followUpSystem, messages: followUpAnthropicMessages } =
             mapChatMessagesToAnthropicPayload(followUpMessages, openAiToAnthropic);
@@ -1142,9 +1162,10 @@ export function createAnthropicMessagesProvider(
             );
           }
 
-          const followUpText = input.thinkingFormat === "xml-tags"
-            ? stripXmlThinkingTags(followUpRawText)
-            : followUpRawText;
+          const followUpText =
+            input.thinkingFormat === "xml-tags"
+              ? stripXmlThinkingTags(followUpRawText)
+              : followUpRawText;
           let followUpJson: unknown;
           try {
             followUpJson = JSON.parse(followUpText);
@@ -1176,7 +1197,11 @@ export function createAnthropicMessagesProvider(
                 );
               }
             }
-            return { content: structuredContent, toolCalls: [], usage: extractAnthropicUsage(followUpJson) };
+            return {
+              content: structuredContent,
+              toolCalls: [],
+              usage: extractAnthropicUsage(followUpJson),
+            };
           }
         }
         // else: no synthetic call but has real tool calls — pass through normally

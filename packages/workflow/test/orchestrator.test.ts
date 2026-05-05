@@ -3,7 +3,12 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Orchestrator } from "../src/orchestrator.js";
-import type { SpawnRequest, SpawnAdapter, PollAdapter, NotifyAdapter } from "../src/orchestrator.js";
+import type {
+  SpawnRequest,
+  SpawnAdapter,
+  PollAdapter,
+  NotifyAdapter,
+} from "../src/orchestrator.js";
 import type { AgentTaskDef } from "../src/types.js";
 
 // ---------------------------------------------------------------------------
@@ -21,7 +26,9 @@ function makeSpawner(capturedRequests: SpawnRequest[]): SpawnAdapter {
   };
 }
 
-function makePoller(results: Map<string, { status: "running" | "done" | "failed"; output?: string }>): PollAdapter {
+function makePoller(
+  results: Map<string, { status: "running" | "done" | "failed"; output?: string }>,
+): PollAdapter {
   return {
     async poll(sessionKey: string) {
       return results.get(sessionKey) ?? { status: "running" };
@@ -50,7 +57,10 @@ describe("Orchestrator SpawnRequest responseSchema", () => {
 
   it("passes responseSchema through SpawnRequest when spawning an agent task", async () => {
     const capturedRequests: SpawnRequest[] = [];
-    const pollResults = new Map<string, { status: "running" | "done" | "failed"; output?: string }>();
+    const pollResults = new Map<
+      string,
+      { status: "running" | "done" | "failed"; output?: string }
+    >();
 
     const spawner = makeSpawner(capturedRequests);
     const poller = makePoller(pollResults);
@@ -100,7 +110,10 @@ describe("Orchestrator SpawnRequest responseSchema", () => {
 
   it("does not include responseSchema in SpawnRequest when task has none", async () => {
     const capturedRequests: SpawnRequest[] = [];
-    const pollResults = new Map<string, { status: "running" | "done" | "failed"; output?: string }>();
+    const pollResults = new Map<
+      string,
+      { status: "running" | "done" | "failed"; output?: string }
+    >();
 
     const spawner = makeSpawner(capturedRequests);
     const poller = makePoller(pollResults);

@@ -574,7 +574,13 @@ export function createOpenAICompatibleProvider(
             : JSON.stringify(normalized);
 
       // Structured output: post-validate when mode is "best-effort"
-      if (input.responseSchema && mode !== "strict" && mode !== "none" && finalContent !== null && toolCalls.length === 0) {
+      if (
+        input.responseSchema &&
+        mode !== "strict" &&
+        mode !== "none" &&
+        finalContent !== null &&
+        toolCalls.length === 0
+      ) {
         const result = validateResponseSchema(finalContent, input.responseSchema.schema);
         if (!result.valid) {
           throw new StructuredOutputValidationError(
