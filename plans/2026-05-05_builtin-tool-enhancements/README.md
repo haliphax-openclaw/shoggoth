@@ -14,7 +14,7 @@ This plan addresses GitHub Issue #29: "Enhance builtin tools for better file edi
 Current builtin tools have several pain points identified through developer feedback:
 
 - `builtin-read` returns files as single-line strings, making output hard to read
-- `builtin-search-replace` combines search and replace in one tool with inconsistent argument naming
+- `builtin-search-replace` combines search and replace in one tool with inconsistent argument naming (`file` vs `path`)
 - Regex errors lack helpful context about what failed
 - Multiline content is difficult to pass to tools
 - No dry-run capability to preview changes
@@ -35,6 +35,7 @@ Current builtin tools have several pain points identified through developer feed
 - Changing the core functionality of existing tools beyond the specified enhancements
 - Replacing existing tools with entirely new abstractions
 - Adding completely unrelated features not mentioned in the issue
+- Deprecation strategy (not used in this project)
 
 ## Implementation Phases
 
@@ -63,25 +64,25 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 
 **Focus:** Separate concerns and normalize APIs
 
-**Tasks:**
+**Approach:**
 
-- Create `packages/shoggoth/src/tools/builtin-search.ts`
-- Modify `packages/shoggoth/src/tools/builtin-search-replace.ts` to keep only replace functionality
+- Create new `builtin-search` tool for search-only functionality
+- Modify `builtin-search-replace` to keep only replace functionality
 - Rename `file` parameter to `path` across both tools for consistency
-- Update documentation
+- Update documentation to reflect new structure
 
 **Files to Touch:**
 
 - `packages/shoggoth/src/tools/builtin-search.ts` (new)
-- `packages/shoggoth/src/tools/builtin-search-replace.ts` (modified)
-- `packages/shoggoth/src/tools/index.ts` (updates)
+- `packages/shoggoth/src/tools/builtin-search-replace.ts` (modify to keep replace only)
+- `packages/shoggoth/src/tools/index.ts` (update registration)
 - Documentation files
 
 **Testing:**
 
 - Verify search functionality in new tool
 - Verify replace functionality retained in modified tool
-- Ensure API consistency
+- Ensure API consistency between both tools
 
 ### Phase 3: Improved Regex Error Messages
 
@@ -92,6 +93,7 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Catch regex compilation errors in both search and replace tools
 - Extract position and context from error messages
 - Format user-friendly error output showing the problematic pattern
+- Provide actionable suggestions for fixing common errors
 
 **Files to Touch:**
 
@@ -112,6 +114,7 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Document or implement JSON array syntax for multiline argv
 - Optionally add `--multiline` flag for raw multiline strings
 - Consider automatic detection of multiline content
+- Provide clear examples for common use cases (commit messages, scripts)
 
 **Files to Touch:**
 
@@ -129,10 +132,11 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 
 **Tasks:**
 
-- Add `--dry-run` or `--preview` flag to `builtin-replace`
+- Add `--dry-run` or `--preview` flag to `builtin-search-replace`
 - Output proposed changes without modifying files
 - Include line numbers and context around replacements
 - Distinguish between "would match" and "would replace"
+- Add safety limits (e.g., warn on >1000 matches)
 
 **Files to Touch:**
 
@@ -143,6 +147,7 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Verify no file modifications in dry-run mode
 - Check output includes clear preview of changes
 - Test with various regex patterns
+- Verify safety limits work correctly
 
 ### Phase 6: Line-Level Operations
 
@@ -150,15 +155,16 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 
 **Tasks:**
 
-- Add `--delete-lines` option to `builtin-search-replace` or create `builtin-delete-lines`
-- Add `--replace-range` option for range-based replacements
+- Add line deletion functionality to `builtin-search-replace` (e.g., `deleteLines` array or `deleteRange`)
+- Add range-based replacement option (`replaceRange`)
 - Consider adding line range support to `builtin-write`
 - Ensure line numbers are 1-indexed and clearly documented
+- Handle edge cases (out-of-range, overlapping, entire file deletion)
 
 **Files to Touch:**
 
 - `packages/shoggoth/src/tools/builtin-search-replace.ts` (new options)
-- `packages/shoggoth/src/tools/builtin-write.ts` (range support)
+- `packages/shoggoth/src/tools/builtin-write.ts` (optional range support)
 - Documentation
 
 **Testing:**
@@ -166,6 +172,7 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - Test line deletion on various files
 - Test range replacements at boundaries
 - Verify error handling for out-of-range operations
+- Test edge cases comprehensively
 
 ### Phase 7: Documentation Updates
 
@@ -175,12 +182,11 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 
 - Update `docs/tools/builtin-read.md` with new flags, output formats, and edge cases
 - Create `docs/tools/builtin-search.md` with full feature documentation and examples
-- Update `docs/tools/builtin-search-replace.md` with deprecation notices for old `file` parameter
-- Create `docs/tools/builtin-replace.md` documenting the renamed tool
+- Update `docs/tools/builtin-search-replace.md` with new parameter names and features
+- Create `docs/tools/builtin-replace.md` documenting the renamed functionality
 - Update `docs/tools/builtin-exec.md` with multiline string usage examples
 - Add documentation for dry-run mode behavior and safety features
 - Document line-level operation syntax, constraints, and examples
-- Create migration guide (`docs/migrations.md`) for parameter renames (`file` → `path`)
 - Update API reference with all new parameters and default values
 - Add usage examples for each new feature
 - Document all error message formats with examples
@@ -190,19 +196,17 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 
 - `docs/tools/builtin-read.md` (update)
 - `docs/tools/builtin-search.md` (new)
-- `docs/tools/builtin-search-replace.md` (update with deprecation notices)
+- `docs/tools/builtin-search-replace.md` (update)
 - `docs/tools/builtin-replace.md` (new)
 - `docs/tools/builtin-exec.md` (update)
-- `docs/migrations.md` (new)
 - `docs/tools/README.md` (update tool listing)
 
 **Testing:**
 
 - Verify all documentation builds correctly
 - Check code examples work as documented
-- Update API reference to reflect new parameters
-- Validate migration guide clarity with real scenarios
 - Ensure all tool signatures match actual implementation
+- Peer review for clarity and completeness
 
 ## Success Criteria
 
@@ -210,18 +214,18 @@ This plan is broken into 7 independent phases, each addressing one enhancement. 
 - All enhancement goals are met
 - Backwards compatibility preserved (no breaking changes)
 - Comprehensive documentation (Phase 7) completed
-- Migration guide clear and actionable
 - Negative testing confirms robust error handling
+- All examples are copy-paste ready and work as documented
 
 ## Risk Assessment
 
-| Risk                                    | Likelihood | Impact | Mitigation                                                           |
-| --------------------------------------- | ---------- | ------ | -------------------------------------------------------------------- |
-| Breaking existing usage patterns        | Low        | Medium | Maintain backwards compatibility, deprecate old params with warnings |
-| Complex line-number handling bugs       | Medium     | Medium | Extensive unit tests, edge case coverage                             |
-| Performance regression with large files | Low        | Medium | Add streaming or chunked processing if needed                        |
-| Multiline string escaping issues        | Medium     | Low    | Thorough testing with various delimiters                             |
-| Documentation gaps or confusion         | Medium     | Low    | Peer review of docs, testing migration guide with first users        |
+| Risk                                    | Likelihood | Impact | Mitigation                                                  |
+| --------------------------------------- | ---------- | ------ | ----------------------------------------------------------- |
+| Breaking existing usage patterns        | Low        | Medium | Maintain backwards compatibility, keep both parameter names |
+| Complex line-number handling bugs       | Medium     | Medium | Extensive unit tests, edge case coverage                    |
+| Performance regression with large files | Low        | Medium | Add streaming or chunked processing if needed               |
+| Multiline string escaping issues        | Medium     | Low    | Thorough testing with various delimiters                    |
+| Documentation gaps or confusion         | Medium     | Low    | Peer review of docs, testing examples with first users      |
 
 ## Dependencies
 
@@ -246,7 +250,7 @@ Target completion: 2.5 weeks (documentation adds half week)
 1. Should line-splitting be the default for `builtin-read`, or remain opt-in?
 2. Should line deletion be a separate tool or an option of `builtin-search-replace`?
 3. What's the best API for specifying line ranges (inclusive/exclusive, 0-indexed vs 1-indexed)?
-4. What's the deprecation timeline for the `file` parameter?
+4. Should the `file` parameter still be supported alongside `path`, or should we commit to `path` only?
 
 ## Next Steps
 

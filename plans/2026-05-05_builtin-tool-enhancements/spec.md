@@ -103,11 +103,11 @@ interface SearchResults {
 }
 ```
 
-### Modified `builtin-replace` Tool (renamed from `builtin-search-replace`)
+### Modified `builtin-search-replace` Tool (rename to `builtin-replace`)
 
 ```typescript
 interface BuiltinReplaceParams {
-  path: string; // File path (renamed from `file`)
+  path: string; // File path (preferred naming)
   pattern: string; // Regex pattern to match
   replacement: string; // Replacement text
   caseSensitive?: boolean; // Default: false
@@ -126,17 +126,13 @@ interface BuiltinReplaceParams {
     replacement: string | string[];
   };
 }
-
-// Deprecated parameter (support for migration):
-interface DeprecatedParams {
-  file?: string; // Use 'path' instead (deprecated, will be removed in next major version)
-}
 ```
 
-### API Consistency
+### Parameter Naming
 
-- Rename `file` parameter to `path` across both tools for consistency
-- Deprecate old `file` parameter with warning, support both temporarily
+- Support both `path` and `file` for backwards compatibility
+- Update documentation to prefer `path` parameter name
+- No deprecation warnings needed (both formats work)
 
 ---
 
@@ -385,16 +381,16 @@ Each tool documentation should follow this structure:
 
 #### `builtin-replace.md` (new)
 
-- Document from Phase 2b rename of `builtin-search-replace`
+- Document standalone replace functionality
 - Explain dry-run mode thoroughly
 - Document line-level operations (`deleteLines`, `replaceRange`)
-- Provide migration guide for `file` → `path` parameter
+- Document both `path` and `file` parameter support
 
-#### `builtin-search-replace.md` (deprecated)
+#### `builtin-search-replace.md` (update)
 
-- Clearly mark as deprecated with `file` → `path` migration instructions
-- Link to `builtin-replace.md` for current documentation
-- Explain deprecation timeline
+- Document as predecessor to `builtin-replace`
+- Clarify relationship between tools
+- Document both parameter naming options
 
 #### `builtin-exec.md`
 
@@ -402,23 +398,10 @@ Each tool documentation should follow this structure:
 - Provide examples with commit messages and scripts
 - Explain shell escaping guidelines
 
-### Migration Guide (`docs/migrations.md`)
-
-Required sections:
-
-- Summary of what changed
-- Parameter renames (`file` → `path`)
-- New features summary
-- Breaking changes (if any)
-- Code examples: before/after
-- Deprecation timeline
-- Rollback instructions (if needed)
-
 ### Testing Documentation
 
 - Verify all code examples in docs work correctly
 - Ensure API reference matches implementation
-- Check migration guide clarity with test scenarios
 - Validate error message documentation
 
 ---
@@ -426,7 +409,7 @@ Required sections:
 ## API Versioning
 
 - All changes are additive or non-breaking
-- Deprecated parameters will be supported for one major version
+- Support both `path` and `file` parameters for backwards compatibility
 - Release notes will document all changes
 
 ---
@@ -457,10 +440,9 @@ Required sections:
 ## Documentation Updates Required
 
 1. Tool reference documentation for each modified/new tool
-2. Migration guide for renamed parameters
-3. Examples for each new feature
-4. Error message reference
-5. API documentation updates
+2. Examples for each new feature
+3. Error message reference
+4. API documentation updates
 
 ---
 
@@ -503,8 +485,8 @@ builtin-search(
 ### Example 3: Replace with Dry Run
 
 ```typescript
-builtin-replace(
-  path: "config.json",
+builtin-search-replace(
+  path: "config.json", // or 'file': 'config.json'
   pattern: "\"debug\": true",
   replacement: "\"debug\": false",
   dryRun: true
@@ -522,7 +504,7 @@ builtin-replace(
 ### Example 4: Range Replacement
 
 ```typescript
-builtin-replace(
+builtin-search-replace(
   path: "Dockerfile",
   replaceRange: {
     start: 1,
@@ -534,6 +516,23 @@ builtin-replace(
 // { replacedLines: 3, modified: true }
 ```
 
+### Example 5: Backwards Compatibility
+
+```typescript
+// Both forms work:
+builtin-search-replace(
+  path: "test.txt",
+  pattern: "old",
+  replacement: "new"
+)
+
+builtin-search-replace(
+  file: "test.txt", // Still supported
+  pattern: "old",
+  replacement: "new"
+)
+```
+
 ---
 
 ## Success Criteria
@@ -542,3 +541,4 @@ builtin-replace(
 - Examples demonstrate real-world usage
 - Error handling is comprehensive
 - Documentation is complete and accurate
+- Backwards compatibility maintained

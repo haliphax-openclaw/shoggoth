@@ -86,7 +86,7 @@ This document outlines the implementation phases for the builtin tool enhancemen
 - `packages/shoggoth/src/tools/builtin-search-replace.ts` (modify)
 - `packages/shoggoth/src/tools/index.ts` (update registration)
 - `docs/tools/builtin-search.md` (new)
-- `docs/tools/builtin-search-replace.md` (update deprecation notice)
+- `docs/tools/builtin-search-replace.md` (update with new parameter naming)
 
 ### Implementation Steps
 
@@ -119,17 +119,16 @@ export const builtinSearch: ToolDefinition = {
 
 ```typescript
 // packages/shoggoth/src/tools/builtin-search-replace.ts
-// Change parameter name from `file` to `path`
+// Use 'path' consistently across both tools
 inputSchema: {
   properties: {
-    path: { type: "string" }, // Was `file`
+    path: { type: "string" }, // Use 'path' instead of 'file'
     pattern: { type: "string" },
     replacement: { type: "string" },
     // ... other params
   },
-  deprecatedParams: {
-    file: "Use 'path' instead"
-  }
+  // Support both 'path' and 'file' for backwards compatibility
+  // Update documentation to prefer 'path'
 }
 ```
 
@@ -154,8 +153,8 @@ export const builtinTools = [
 - [ ] Test search respects context lines
 - [ ] Test search respects max results
 - [ ] Test replace maintains old behavior
-- [ ] Test parameter name migration (`file` → `path`)
-- [ ] Test deprecation warning when using `file`
+- [ ] Test both 'path' and 'file' parameters work
+- [ ] Verify documentation prefers 'path' parameter name
 
 ---
 
@@ -446,12 +445,11 @@ Comprehensive documentation for all new and modified tools to ensure users can e
 
 - Update `docs/tools/builtin-read.md` with new flags, output formats, and edge cases
 - Create `docs/tools/builtin-search.md` with full feature documentation and examples
-- Update `docs/tools/builtin-search-replace.md` with deprecation notices for old `file` parameter
-- Create `docs/tools/builtin-replace.md` documenting the renamed tool
+- Update `docs/tools/builtin-search-replace.md` with new documentation including both `path` and `file` parameter support
+- Create `docs/tools/builtin-replace.md` documenting the standalone replace functionality
 - Update `docs/tools/builtin-exec.md` with multiline string usage examples
 - Add documentation for dry-run mode behavior and safety features
 - Document line-level operation syntax, constraints, and examples
-- Create migration guide (`docs/migrations.md`) for parameter renames (`file` → `path`)
 - Update API reference with all new parameters and default values
 - Add usage examples for each new feature
 - Document all error message formats with examples
@@ -461,10 +459,9 @@ Comprehensive documentation for all new and modified tools to ensure users can e
 
 - `docs/tools/builtin-read.md` (update)
 - `docs/tools/builtin-search.md` (new)
-- `docs/tools/builtin-search-replace.md` (update with deprecation notices)
+- `docs/tools/builtin-search-replace.md` (update)
 - `docs/tools/builtin-replace.md` (new)
 - `docs/tools/builtin-exec.md` (update)
-- `docs/migrations.md` (new)
 - `docs/tools/README.md` (update tool listing)
 
 ### Testing Requirements
@@ -472,14 +469,12 @@ Comprehensive documentation for all new and modified tools to ensure users can e
 - [ ] Verify all documentation builds correctly
 - [ ] Check code examples work as documented
 - [ ] Update API reference to reflect new parameters
-- [ ] Validate migration guide clarity with real scenarios
 - [ ] Ensure all tool signatures match actual implementation
 - [ ] Proofread for consistency in terminology and examples
 
 ### Documentation Standards
 
 - Each tool doc should have: description, parameters table, examples, error handling, and edge cases
-- Migration guide should include: what changed, how to migrate, timeline
 - API reference should be machine-readable (OpenAPI-like) where applicable
 - Examples should be copy-paste ready and demonstrate real use cases
 
@@ -492,7 +487,7 @@ Recommended order for maximum efficiency:
 1. **Phase 3** - Easy, foundational improvement (better errors)
 2. **Phase 1** - Straightforward enhancement (read formatting)
 3. **Phase 2a** - Create new search tool
-4. **Phase 2b** - Modify replace tool (parameter rename)
+4. **Phase 2b** - Modify replace tool (parameter naming consistency)
 5. **Phase 5** - Build on replace tool (dry-run)
 6. **Phase 6** - Build on replace tool (line operations)
 7. **Phase 4** - Can be done anytime (standalone)
@@ -504,15 +499,15 @@ Recommended order for maximum efficiency:
 
 - Release all phases together as a single version bump
 - Document all changes in release notes
-- Provide migration guide if breaking changes exist
-- Consider feature flags for gradual rollout if needed
+- Maintain backwards compatibility for both `path` and `file` parameter names
+- No deprecation strategy needed
 
 ---
 
 ## Rollback Plan
 
 - All changes are additive (new parameters)
-- Old parameters remain functional with deprecation warnings
+- Old parameters remain functional
 - Can revert individual phases if issues arise
 - No database or config migrations required
 
@@ -587,7 +582,7 @@ Expected: "newKey: newVal\nkey3: val3\n"
   - [ ] Error handling examples
 
 - [ ] **`builtin-search-replace` / `builtin-replace`:**
-  - [ ] Deprecation notice for `file` parameter
+  - [ ] Document both `path` and `file` parameter support
   - [ ] New `path` parameter documentation
   - [ ] Dry-run mode examples
   - [ ] Line-level operations examples
@@ -600,12 +595,6 @@ Expected: "newKey: newVal\nkey3: val3\n"
   - [ ] Example with script content
 
 ### Cross-Cutting Documentation
-
-- [ ] **Migration guide:**
-  - [ ] What changed (parameter renames)
-  - [ ] How to migrate (`file` → `path`)
-  - [ ] Timeline for deprecation
-  - [ ] Backwards compatibility notes
 
 - [ ] **API reference:**
   - [ ] All new parameters listed
