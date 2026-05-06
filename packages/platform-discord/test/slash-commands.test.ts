@@ -391,6 +391,10 @@ describe("createDiscordInteractionHandler", () => {
       applicationId: "app-123",
       logger: stubLogger(),
       abortSession: async () => false,
+      invokeControlOp: async () => ({
+        ok: true,
+        result: { effective_models: { providerId: "anthropic", model: "claude-3-5-sonnet" } },
+      }),
       getModelsConfig: async () => ({
         providers: [
           { id: "anthropic", name: "Anthropic" },
@@ -455,6 +459,10 @@ describe("createDiscordInteractionHandler", () => {
       applicationId: "app-123",
       logger: stubLogger(),
       abortSession: async () => false,
+      invokeControlOp: async () => ({
+        ok: true,
+        result: { effective_models: { providerId: "anthropic", model: "claude-3-5-sonnet" } },
+      }),
       getModelsConfig: async () => {
         getModelsConfigCalls.push(Date.now());
         return {
@@ -496,7 +504,11 @@ describe("createDiscordInteractionHandler", () => {
     };
     const selectComponent = actionRow.components[0];
     assert.ok(selectComponent.options, "Expected options array in select component");
-    assert.strictEqual(selectComponent.options.length, 2, "Expected 2 provider options");
+    assert.strictEqual(
+      selectComponent.options.length,
+      3,
+      "Expected 3 options (custom + 2 providers)",
+    );
     assert.ok(
       selectComponent.options.some((opt) => opt.value === "anthropic"),
       "Expected anthropic option",
@@ -515,6 +527,7 @@ describe("createDiscordInteractionHandler", () => {
       applicationId: "app-123",
       logger: stubLogger(),
       abortSession: async () => false,
+      invokeControlOp: async () => ({ ok: true, result: { effective_models: null } }),
       getModelsConfig: async () => ({
         providers: null,
       }),
@@ -556,6 +569,7 @@ describe("createDiscordInteractionHandler", () => {
       applicationId: "app-123",
       logger: stubLogger(),
       abortSession: async () => false,
+      invokeControlOp: async () => ({ ok: true, result: { effective_models: null } }),
       getModelsConfig: async () => ({
         providers: [],
       }),

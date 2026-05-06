@@ -158,6 +158,16 @@ export function discordInteractionCreateToEvent(d: unknown): DiscordInteractionE
   if (typeof userId !== "string") return null;
 
   const rawData = asRecord(o.data);
+
+  // Extract message from the root level of the payload (for MESSAGE_COMPONENT interactions)
+  const message = asRecord(o.message);
+  const extractedMessage = message
+    ? {
+        id: typeof message.id === "string" ? message.id : undefined,
+        content: typeof message.content === "string" ? message.content : undefined,
+      }
+    : undefined;
+
   const data: DiscordInteractionEvent["data"] = {
     name: typeof rawData?.name === "string" ? rawData.name : undefined,
     options: Array.isArray(rawData?.options)
@@ -167,6 +177,12 @@ export function discordInteractionCreateToEvent(d: unknown): DiscordInteractionE
           value: unknown;
         }>)
       : undefined,
+    custom_id: typeof rawData?.custom_id === "string" ? rawData.custom_id : undefined,
+    component_type:
+      typeof rawData?.component_type === "number" ? rawData.component_type : undefined,
+    values: Array.isArray(rawData?.values) ? rawData.values : undefined,
+    components: Array.isArray(rawData?.components) ? rawData.components : undefined,
+    message: extractedMessage,
   };
 
   return {

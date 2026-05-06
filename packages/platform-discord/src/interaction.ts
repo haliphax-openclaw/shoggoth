@@ -6,13 +6,18 @@
 import type { PlatformCommand } from "@shoggoth/daemon/lib";
 
 /** Discord interaction types we care about. */
-const APPLICATION_COMMAND = 2;
+export const APPLICATION_COMMAND = 2;
+export const MESSAGE_COMPONENT = 3;
+export const MODAL_SUBMIT = 5;
+export const INTERACTION_RESPONSE_DEFERRED_UPDATE = 6;
+export const INTERACTION_RESPONSE_UPDATE_MESSAGE = 7;
+export const INTERACTION_RESPONSE_MODAL = 9;
 
 export interface DiscordInteractionEvent {
   readonly kind: "interaction_create";
   readonly id: string;
   readonly token: string;
-  /** Discord interaction type (2 = APPLICATION_COMMAND). */
+  /** Discord interaction type (2 = APPLICATION_COMMAND, 3 = MESSAGE_COMPONENT, 5 = MODAL_SUBMIT). */
   readonly type: number;
   readonly channelId: string;
   readonly guildId?: string;
@@ -24,6 +29,21 @@ export interface DiscordInteractionEvent {
       readonly type: number;
       readonly value: unknown;
     }>;
+    readonly custom_id?: string;
+    readonly values?: readonly string[];
+    readonly component_type?: number;
+    readonly components?: ReadonlyArray<{
+      readonly type: number;
+      readonly components: ReadonlyArray<{
+        readonly type: number;
+        readonly custom_id: string;
+        readonly value: string;
+      }>;
+    }>;
+    readonly message?: {
+      readonly id: string;
+      readonly content?: string;
+    };
   };
 }
 
