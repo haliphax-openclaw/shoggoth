@@ -639,44 +639,7 @@ async function handleInteraction(
         session_id: payload.session_id,
       });
 
-      // If getModelsConfig is not available, fall back to old text response behavior
-      if (!deps.getModelsConfig) {
-        let content: string;
-        if (currentModelRes.ok && currentModelRes.result) {
-          const r = currentModelRes.result as Record<string, unknown>;
-          const sessionId = r.session_id as string;
-          const modelSelection = r.model_selection;
-          const effectiveModels = r.effective_models as Record<string, unknown> | null;
-          const lines: string[] = [`🎯 **Model Configuration**`, `Session: \`${sessionId}\``];
-          if (modelSelection !== null && modelSelection !== undefined) {
-            lines.push(
-              `Selection: \`${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}\``,
-            );
-          } else {
-            lines.push(`Selection: (using default)`);
-          }
-          if (effectiveModels) {
-            const provider = effectiveModels.providerId as string | undefined;
-            const model = effectiveModels.model as string | undefined;
-            if (provider && model) {
-              lines.push(`Effective: \`${provider}/${model}\``);
-            } else {
-              if (provider) lines.push(`Provider: ${provider}`);
-              if (model) lines.push(`Model: ${model}`);
-            }
-          }
-          content = lines.join("\n");
-        } else {
-          content = `⚠️ Failed to get model: ${currentModelRes.error ?? "unknown error"}`;
-        }
-        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
-          type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-          data: { content },
-        });
-        return;
-      }
-
-      // Phase 3 dropdown flow
+      // Extract current provider/model for defaults
       let currentProviderId: string | undefined;
       let currentModel: string | undefined;
 
@@ -690,7 +653,7 @@ async function handleInteraction(
       }
 
       // Get models configuration
-      const modelsConfig = await deps.getModelsConfig();
+      const modelsConfig = deps.getModelsConfig ? await deps.getModelsConfig() : null;
 
       if (!modelsConfig || !modelsConfig.providers || modelsConfig.providers.length === 0) {
         // No providers available - respond with modal for free-text input
