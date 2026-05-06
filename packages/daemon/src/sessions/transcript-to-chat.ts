@@ -1,6 +1,5 @@
 import type Database from "better-sqlite3";
 import type { ChatMessage, ChatToolCall, ChatContentPart, ImageBlockCodec } from "@shoggoth/models";
-import type { TranscriptMessageRow } from "./transcript-store";
 import { createTranscriptStore } from "./transcript-store";
 
 /**
@@ -56,11 +55,6 @@ export function transcriptRowsToModelChatMessages(
       continue;
     }
     if (m.role === "assistant") {
-      const baseMsg: ChatMessage = {
-        role: "assistant",
-        content: "",
-      };
-
       if (m.toolCalls?.length) {
         const toolCalls: ChatToolCall[] = m.toolCalls.map((tc) => ({
           id: tc.id,
@@ -70,23 +64,29 @@ export function transcriptRowsToModelChatMessages(
         }));
         let content = m.content ? parseTranscriptContent(m.content) : m.content;
         content = content != null ? stripThinkingBlocks(content) : content;
-        baseMsg.content = content;
-        baseMsg.toolCalls = toolCalls;
+
+        // Extract reasoningContent from metadata
+        const metadataReasoning = getReasoningContentFromMetadata(m.metadata);
+        const baseMsg: ChatMessage = {
+          role: "assistant",
+          content,
+          toolCalls,
+          ...(metadataReasoning ? { reasoningContent: metadataReasoning } : {}),
+        };
+        out.push(baseMsg);
       } else {
         let content = m.content ? parseTranscriptContent(m.content) : "";
         content = stripThinkingBlocks(content);
-        baseMsg.content = content;
-      }
 
-      // Extract reasoningContent from metadata
-      if (m.metadata && typeof m.metadata === "object") {
-        const meta = m.metadata as { reasoningContent?: string };
-        if (meta.reasoningContent) {
-          baseMsg.reasoningContent = meta.reasoningContent;
-        }
+        // Extract reasoningContent from metadata
+        const metadataReasoning = getReasoningContentFromMetadata(m.metadata);
+        const baseMsg: ChatMessage = {
+          role: "assistant",
+          content,
+          ...(metadataReasoning ? { reasoningContent: metadataReasoning } : {}),
+        };
+        out.push(baseMsg);
       }
-
-      out.push(baseMsg);
       continue;
     }
     if (m.role === "tool" && m.toolCallId) {
@@ -100,6 +100,13 @@ export function transcriptRowsToModelChatMessages(
     }
   }
   return out;
+}
+
+/** Helper to extract reasoningContent from metadata JSON. */
+function getReasoningContentFromMetadata(metadata: unknown): string | undefined {
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const meta = metadata as { reasoningContent?: unknown };
+  return typeof meta.reasoningContent === "string" ? meta.reasoningContent : undefined;
 }
 
 function loadTranscriptPage(
@@ -163,7 +170,7 @@ export function extractLatestTranscriptAssistantText(
   return last;
 }
 
-// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------\
 // Provider capability gating — image block sanitization
 // ---------------------------------------------------------------------------
 
@@ -226,4 +233,19 @@ export function sanitizeTranscriptForProvider(
     if (sanitized === msg.content) return msg;
     return { ...msg, content: sanitized };
   });
+}
+
+export interface TranscriptMessageRow {
+  readonly seq: number;
+  readonly role: string;
+  readonly content: string | null;
+  readonly toolCallId: string | null;
+  readonly toolCalls?: readonly {
+    id: string;
+    name: string;
+    argsJson: string;
+    thoughtSignature?: string;
+  }[];
+  readonly metadata?: unknown;
+  readonly createdAt?: string;
 }
