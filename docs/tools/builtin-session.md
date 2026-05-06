@@ -65,16 +65,17 @@ Spawn and manage subagent sessions. Only available to top-level (non-subagent) s
 
 #### spawn_one_shot / spawn_persistent
 
-| Param                 | Type    | Required | Notes                                  |
-| --------------------- | ------- | -------- | -------------------------------------- |
-| `prompt`              | string  | yes      | Task prompt for the subagent           |
-| `respond_to`          | string  | no       | Where to deliver the result            |
-| `internal`            | boolean | no       | Set `false` to make externally visible |
-| `model_options`       | object  | no       | Override model settings                |
-| `thread_id`           | string  | no       | Platform thread (persistent only)      |
-| `platform_user_id`    | string  | no       | Persistent only                        |
-| `reply_to_message_id` | string  | no       | Persistent only                        |
-| `lifetime_ms`         | number  | no       | Auto-kill timeout (persistent only)    |
+| Param                 | Type    | Required | Notes                                              |
+| --------------------- | ------- | -------- | -------------------------------------------------- |
+| `prompt`              | string  | yes      | Task prompt for the subagent                       |
+| `respond_to`          | string  | no       | Where to deliver the result                        |
+| `internal`            | boolean | no       | Set `false` to make externally visible             |
+| `background`          | boolean | no       | Return immediately without waiting (one_shot only) |
+| `model_options`       | object  | no       | Override model settings                            |
+| `thread_id`           | string  | no       | Platform thread (persistent only)                  |
+| `platform_user_id`    | string  | no       | Persistent only                                    |
+| `reply_to_message_id` | string  | no       | Persistent only                                    |
+| `lifetime_ms`         | number  | no       | Auto-kill timeout (persistent only)                |
 
 #### steer
 
@@ -119,6 +120,12 @@ No additional parameters. Returns info about the current session.
 
 ```json
 { "action": "spawn_one_shot", "prompt": "Summarize the last 5 PRs" }
+```
+
+**Background one-shot (returns immediately):**
+
+```json
+{ "action": "spawn_one_shot", "prompt": "Run the full test suite", "background": true }
 ```
 
 **Persistent subagent in a thread:**

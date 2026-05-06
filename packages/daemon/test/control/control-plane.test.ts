@@ -1411,6 +1411,100 @@ describe("control plane (unix socket + JSONL)", () => {
     db.close();
   });
 
+  it("subagent_spawn one_shot background returns immediately", async () => {
+    if (process.platform !== "linux") return;
+
+    const dir = await mkdtemp(join(tmpdir(), "shoggoth-sub-bg-"));
+    const sock = join(dir, "c.sock");
+    const dbPath = join(dir, "state.db");
+    const db = new Database(dbPath);
+    migrate(db, defaultMigrationsDir());
+    const parentId = formatAgentSessionUrn(
+      "par",
+      "discord",
+      "channel",
+      SHOGGOTH_DEFAULT_PRIMARY_SESSION_UUID,
+    );
+    createSessionStore(db).create({
+      id: parentId,
+      workspacePath: "/tmp/w",
+      status: "active",
+      modelSelection: { model: "gpt-parent", temperature: 0.1 },
+    });
+
+    let turnResolved = false;
+    let resolveModelTurn: (() => void) | undefined;
+    const modelTurnPromise = new Promise<void>((r) => {
+      resolveModelTurn = r;
+    });
+    setSubagentRuntimeExtension({
+      runSessionModelTurn: async () => {
+        // Wait until we explicitly resolve, proving the spawn returned first.
+        await modelTurnPromise;
+        turnResolved = true;
+        return {
+          latestAssistantText: "BG_REPLY",
+          failoverMeta: undefined,
+        };
+      },
+      subscribeSubagentSession: () => () => {},
+      registerPlatformThreadBinding: () => () => {},
+    });
+    try {
+      await withControlPlaneSession(
+        {
+          stateDb: db,
+          config: minimalConfig(sock),
+        },
+        async (send) => {
+          const opAuth = {
+            kind: "operator_token",
+            token: "test-op-token",
+          } as const;
+          const line = await send({
+            v: WIRE_VERSION,
+            id: "bg1",
+            op: "subagent_spawn",
+            auth: opAuth,
+            payload: {
+              parent_session_id: parentId,
+              prompt: "background task",
+              mode: "one_shot",
+              background: true,
+            },
+          });
+          const res = parseResponseLine(line);
+          assert.equal(res.ok, true);
+          const r = res.result as {
+            session_id: string;
+            mode: string;
+            background: boolean;
+            reply?: string;
+          };
+          assert.equal(r.mode, "one_shot");
+          assert.equal(r.background, true);
+          // No reply yet — model turn hasn't completed.
+          assert.equal(r.reply, undefined);
+          assert.equal(turnResolved, false);
+          assert.match(r.session_id, /^agent:par:discord:channel:/);
+
+          // Now let the model turn complete.
+          resolveModelTurn!();
+          // Give the async turn a tick to settle.
+          await new Promise((r) => setTimeout(r, 50));
+          assert.equal(turnResolved, true);
+
+          // Session should be terminated after the background turn completes.
+          const child = createSessionStore(db).getById(r.session_id);
+          assert.equal(child?.status, "terminated");
+        },
+      );
+    } finally {
+      setSubagentRuntimeExtension(undefined);
+    }
+    db.close();
+  });
+
   it("subagent_spawn denied for agent when spawnSubagents false", async () => {
     if (process.platform !== "linux") return;
 

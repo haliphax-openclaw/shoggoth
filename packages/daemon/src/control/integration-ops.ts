@@ -960,6 +960,63 @@ export async function handleIntegrationControlOp(
           promptLen: prompt.length,
         });
         pushSystemContext(childId, "One-shot subagent task spawned by parent session.");
+        const backgroundSpawn = pl.background === true;
+        if (backgroundSpawn) {
+          // Fire-and-forget: run the model turn asynchronously and return immediately.
+          ext
+            .runSessionModelTurn({
+              sessionId: childId,
+              userContent: prompt,
+              userMetadata: {
+                subagent_one_shot: true,
+                parent_session_id: parentSessionId,
+                respond_to: respondTo,
+                internal: internalDelivery,
+              },
+              systemContext: {
+                kind: "subagent.task",
+                summary:
+                  "You are a one-shot subagent. Complete the following task and return the result.",
+                data: {
+                  parent_session_id: parentSessionId,
+                  respond_to: respondTo,
+                  internal: internalDelivery,
+                },
+              },
+              delivery: { kind: "internal" },
+            })
+            .then((turn) => {
+              subLog.info("subagent one_shot (background) model turn completed", {
+                childId,
+                replyLen: turn.latestAssistantText?.length ?? 0,
+              });
+            })
+            .catch((err) => {
+              subLog.warn("subagent one_shot (background) model turn failed", {
+                childId,
+                error: String(err),
+              });
+            })
+            .finally(() => {
+              terminatePersistentSubagentSession(sessionManager, childId);
+            });
+          ctx.recordIntegrationAudit({
+            action: "subagent.spawn_one_shot",
+            resource: childId,
+            outcome: "ok",
+            argsRedactedJson: JSON.stringify({
+              parent_session_id: parentSessionId,
+              background: true,
+            }),
+          });
+          return {
+            session_id: childId,
+            mode: "one_shot",
+            background: true,
+            respond_to: respondTo,
+            internal: internalDelivery,
+          };
+        }
         let turn: { latestAssistantText: string; failoverMeta?: unknown };
         try {
           turn = await ext.runSessionModelTurn({
