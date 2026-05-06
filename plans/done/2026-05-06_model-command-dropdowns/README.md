@@ -1,6 +1,6 @@
 ---
 date: 2026-05-06
-completed: never
+completed: 2026-05-06
 ---
 
 # /model Slash Command — Select Menu Dropdowns
