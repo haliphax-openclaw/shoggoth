@@ -141,6 +141,8 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
           modelSelection: input.modelSelection,
           lightContext: input.lightContext,
           contextLevel: resolvedContextLevel,
+          runtimeUid: agentCreds.uid,
+          runtimeGid: agentCreds.gid,
         });
         // Inherit parent's working directory when spawning a child session.
         if (input.parentSessionId) {
