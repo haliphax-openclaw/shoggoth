@@ -146,6 +146,64 @@ describe("createDiscordInteractionHandler", () => {
     assert.deepStrictEqual(abortCalls, ["agent:main:discord:channel:abc"]);
   });
 
+  it("resolves session from resolveSessionForChannel when channelId is a thread", async () => {
+    const calls: Array<{ method: string; args: unknown[] }> = [];
+    const transport = stubTransport(calls);
+    const invokeOps: Array<{ op: string; payload: Record<string, unknown> }> = [];
+    const handler = createDiscordInteractionHandler({
+      transport,
+      applicationId: "app-123",
+      logger: stubLogger(),
+      abortSession: async () => true,
+      invokeControlOp: async (op, payload) => {
+        invokeOps.push({ op, payload });
+        return {
+          ok: true,
+          result: {
+            session: { id: "thread-session", status: "active", contextSegmentId: "seg-1" },
+            stats: null,
+            model: null,
+            formattedStats: null,
+            queueDepth: null,
+          },
+        };
+      },
+      resolveSessionForChannel: (channelId) => {
+        // Simulates dynamic thread binding resolution
+        if (channelId === "thread-999") return "thread-session";
+        return undefined;
+      },
+    });
+
+    const ev: DiscordInteractionEvent = {
+      kind: "interaction_create",
+      id: "int-thread",
+      token: "tok-thread",
+      type: 2,
+      channelId: "thread-999",
+      guildId: "g-1",
+      userId: "u-1",
+      data: { name: "status" },
+    };
+
+    handler(ev);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Should have invoked session_context_status with the resolved thread session
+    assert.strictEqual(invokeOps.length, 1);
+    assert.strictEqual(invokeOps[0]!.op, "session_context_status");
+    assert.strictEqual(invokeOps[0]!.payload.session_id, "thread-session");
+
+    // Should respond with session status
+    assert.strictEqual(calls.length, 1);
+    const [, , body] = calls[0]!.args as [
+      string,
+      string,
+      { type: number; data: { content: string } },
+    ];
+    assert.ok(body.data.content.includes("thread-session"));
+  });
+
   it("ignores non-APPLICATION_COMMAND interactions", async () => {
     const calls: Array<{ method: string; args: unknown[] }> = [];
     const transport = stubTransport(calls);
