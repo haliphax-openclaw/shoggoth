@@ -95,7 +95,14 @@ export interface DiscordRestTransport {
     interactionToken: string,
     body: {
       readonly type: number;
-      readonly data?: { readonly content: string };
+      readonly data?: {
+        readonly content?: string;
+        readonly flags?: number;
+        readonly components?: ReadonlyArray<Record<string, unknown>>;
+        readonly custom_id?: string;
+        readonly title?: string;
+        readonly choices?: ReadonlyArray<Record<string, unknown>>;
+      };
     },
   ): Promise<void>;
   /** PUT `/applications/{appId}/commands` — register global slash commands. */

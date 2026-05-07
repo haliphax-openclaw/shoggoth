@@ -6,6 +6,12 @@ import type { DiscordRestTransport } from "./transport";
 import type { DiscordInteractionEvent } from "./interaction";
 import { discordInteractionToCommand } from "./interaction";
 import { translateCommandToControlOp } from "@shoggoth/daemon/lib";
+import {
+  buildProviderSelectOptions,
+  buildModelSelectOptions,
+  encodeModelSelectCustomId,
+  decodeModelSelectCustomId,
+} from "./model-select";
 
 /** The set of global slash commands to register. */
 const GLOBAL_SLASH_COMMANDS = [
@@ -119,12 +125,6 @@ const GLOBAL_SLASH_COMMANDS = [
         description: "Agent ID (alternative to session_id)",
         required: false,
       },
-      {
-        name: "model_selection",
-        type: 3,
-        description: "Model ref as provider/model (omit to view current)",
-        required: false,
-      },
     ],
   },
   {
@@ -189,6 +189,18 @@ export async function registerDiscordSlashCommands(opts: {
 const INTERACTION_RESPONSE_CHANNEL_MESSAGE = 4;
 /** Interaction response type 5 = DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE. */
 const INTERACTION_RESPONSE_DEFERRED = 5;
+/** Interaction response type 7 = UPDATE_MESSAGE. */
+const INTERACTION_RESPONSE_UPDATE_MESSAGE = 7;
+/** Interaction response type 9 = MODAL. */
+const INTERACTION_RESPONSE_MODAL = 9;
+/** Component type 1 = ACTION_ROW. */
+const ACTION_ROW = 1;
+/** Component type 3 = STRING_SELECT. */
+const STRING_SELECT = 3;
+/** Component type 4 = TEXT_INPUT. */
+const TEXT_INPUT = 4;
+/** Text input style 1 = SHORT. */
+const TEXT_INPUT_SHORT = 1;
 
 export interface DiscordInteractionHandlerDeps {
   readonly transport: DiscordRestTransport;
@@ -209,6 +221,15 @@ export interface DiscordInteractionHandlerDeps {
   ) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
   /** Resolve the session URN for a given channel + guild. Returns undefined if no route exists. */
   readonly resolveSessionForChannel?: (channelId: string, guildId?: string) => string | undefined;
+  /** Get the models configuration for building provider select menus. */
+  readonly getModelsConfig?: () => Promise<{
+    providers: ReadonlyArray<{
+      id: string;
+      name: string;
+      models?: ReadonlyArray<{ name: string }>;
+    }>;
+    failoverChain?: ReadonlyArray<{ providerId: string; model: string }>;
+  } | null>;
 }
 
 /**
@@ -232,6 +253,265 @@ async function handleInteraction(
   deps: DiscordInteractionHandlerDeps,
   ev: DiscordInteractionEvent,
 ): Promise<void> {
+  // Handle component interactions (type 3) and modal submits (type 5)
+  if (ev.type === 3) {
+    // MESSAGE_COMPONENT interaction
+    const customId = ev.data?.custom_id;
+    if (!customId) {
+      deps.logger.debug("discord.interaction.ignored", {
+        type: ev.type,
+        id: ev.id,
+      });
+      return;
+    }
+
+    const decoded = decodeModelSelectCustomId(customId);
+    if (!decoded) {
+      // Unknown component - ignore
+      deps.logger.debug("discord.interaction.ignored", {
+        type: ev.type,
+        id: ev.id,
+        customId,
+      });
+      return;
+    }
+
+    const { step, sessionId, extra } = decoded;
+
+    if (step === "provider") {
+      const values = ev.data?.values;
+      if (!values || values.length === 0) {
+        return;
+      }
+      const value = values[0];
+
+      if (value === "__custom__") {
+        // Respond with modal for custom input
+        await deps.transport.interactionCallback(ev.id, ev.token, {
+          type: INTERACTION_RESPONSE_MODAL,
+          data: {
+            title: "Enter Model",
+            custom_id: encodeModelSelectCustomId("custom_modal", sessionId),
+            components: [
+              {
+                type: ACTION_ROW,
+                components: [
+                  {
+                    type: TEXT_INPUT,
+                    custom_id: "model_input",
+                    label: "Model (provider/model)",
+                    style: TEXT_INPUT_SHORT,
+                    required: true,
+                    placeholder: "e.g., openai/gpt-4",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+        return;
+      }
+
+      // Real provider selected - show model select
+      if (!deps.getModelsConfig) {
+        // Shouldn't happen if we got here, but handle gracefully
+        return;
+      }
+
+      const modelsConfig = await deps.getModelsConfig();
+      if (!modelsConfig || !modelsConfig.providers) {
+        return;
+      }
+
+      const provider = modelsConfig.providers.find((p) => p.id === value);
+      if (!provider) {
+        return;
+      }
+
+      // Build model options
+      const modelOptions = buildModelSelectOptions({
+        providerId: value,
+        providers: modelsConfig.providers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          models: p.models?.map((m) => ({ id: m.name, name: m.name })) || [],
+        })),
+        failoverChain: (modelsConfig.failoverChain || []).map((e) => ({
+          providerId: e.providerId,
+          modelId: e.model,
+        })),
+      });
+
+      // Rebuild provider options with the newly selected provider highlighted
+      const providerOptions = buildProviderSelectOptions({
+        providers: modelsConfig.providers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          models: p.models?.map((m) => ({ id: m.name, name: m.name })) || [],
+        })),
+        currentProviderId: value,
+      });
+
+      await deps.transport.interactionCallback(ev.id, ev.token, {
+        type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+        data: {
+          content: `🎯 **Model Configuration**\nSession: \`${sessionId}\`\nProvider: ${provider.name}`,
+          components: [
+            {
+              type: ACTION_ROW,
+              components: [
+                {
+                  type: STRING_SELECT,
+                  custom_id: encodeModelSelectCustomId("provider", sessionId),
+                  placeholder: "Select a provider",
+                  options: providerOptions,
+                },
+              ],
+            },
+            {
+              type: ACTION_ROW,
+              components: [
+                {
+                  type: STRING_SELECT,
+                  custom_id: encodeModelSelectCustomId("model", sessionId, value),
+                  placeholder: "Select a model",
+                  options: modelOptions,
+                },
+              ],
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (step === "model") {
+      const values = ev.data?.values;
+      if (!values || values.length === 0) {
+        return;
+      }
+      const selectedModel = values[0];
+      const providerId = extra;
+
+      if (!providerId) {
+        return;
+      }
+
+      const modelSelection = { model: `${providerId}/${selectedModel}` };
+
+      try {
+        const res = await deps.invokeControlOp("session_model", {
+          session_id: sessionId,
+          model_selection: modelSelection,
+        });
+
+        const content = res.ok
+          ? `✅ Model set to \`${providerId}/${selectedModel}\``
+          : `⚠️ Failed to set model: ${res.error ?? "unknown error"}`;
+
+        await deps.transport.interactionCallback(ev.id, ev.token, {
+          type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+          data: {
+            content,
+            components: [],
+          },
+        });
+      } catch (err) {
+        await deps.transport.interactionCallback(ev.id, ev.token, {
+          type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+          data: {
+            content: `⚠️ Failed to set model: ${String(err)}`,
+            components: [],
+          },
+        });
+      }
+      return;
+    }
+
+    // Unknown step - ignore
+    return;
+  }
+
+  if (ev.type === 5) {
+    // MODAL_SUBMIT interaction
+    const customId = ev.data?.custom_id;
+    if (!customId) {
+      deps.logger.debug("discord.interaction.ignored", {
+        type: ev.type,
+        id: ev.id,
+      });
+      return;
+    }
+
+    const decoded = decodeModelSelectCustomId(customId);
+    if (!decoded) {
+      // Unknown modal - ignore
+      deps.logger.debug("discord.interaction.ignored", {
+        type: ev.type,
+        id: ev.id,
+        customId,
+      });
+      return;
+    }
+
+    if (decoded.step !== "custom_modal") {
+      return;
+    }
+
+    // Extract text input value
+    const components = ev.data?.components;
+    if (!components || components.length === 0) {
+      return;
+    }
+
+    const textInput = components[0]?.components?.[0];
+    if (!textInput || !textInput.value) {
+      return;
+    }
+
+    const value = textInput.value;
+
+    // Validate it contains '/'
+    if (!value.includes("/")) {
+      await deps.transport.interactionCallback(ev.id, ev.token, {
+        type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+        data: {
+          content: `⚠️ Invalid model format. Expected \`provider/model\`, got \`${value}\``,
+          components: [],
+        },
+      });
+      return;
+    }
+
+    try {
+      const res = await deps.invokeControlOp("session_model", {
+        session_id: decoded.sessionId,
+        model_selection: { model: value },
+      });
+
+      const content = res.ok
+        ? `✅ Model set to \`${value}\``
+        : `⚠️ Failed to set model: ${res.error ?? "unknown error"}`;
+
+      await deps.transport.interactionCallback(ev.id, ev.token, {
+        type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+        data: {
+          content,
+          components: [],
+        },
+      });
+    } catch (err) {
+      await deps.transport.interactionCallback(ev.id, ev.token, {
+        type: INTERACTION_RESPONSE_UPDATE_MESSAGE,
+        data: {
+          content: `⚠️ Failed to set model: ${String(err)}`,
+          components: [],
+        },
+      });
+    }
+    return;
+  }
+
   const parsed = discordInteractionToCommand(ev);
   if (!parsed) {
     deps.logger.debug("discord.interaction.ignored", {
@@ -374,38 +654,146 @@ async function handleInteraction(
         });
         return;
       }
-      const res = await deps.invokeControlOp(controlOp.op, payload);
-      let content: string;
-      if (res.ok && res.result) {
-        const r = res.result as Record<string, unknown>;
-        const sessionId = r.session_id as string;
-        const modelSelection = r.model_selection;
-        const effectiveModels = r.effective_models as Record<string, unknown> | null;
-        const lines: string[] = [`🎯 **Model Configuration**`, `Session: \`${sessionId}\``];
-        if (modelSelection !== null && modelSelection !== undefined) {
-          lines.push(
-            `Selection: \`${typeof modelSelection === "string" ? modelSelection : JSON.stringify(modelSelection)}\``,
-          );
-        } else {
-          lines.push(`Selection: (using default)`);
-        }
-        if (effectiveModels) {
-          const provider = effectiveModels.providerId as string | undefined;
-          const model = effectiveModels.model as string | undefined;
-          if (provider && model) {
-            lines.push(`Effective: \`${provider}/${model}\``);
-          } else {
-            if (provider) lines.push(`Provider: ${provider}`);
-            if (model) lines.push(`Model: ${model}`);
+
+      // Get current model (read-only, no model_selection in payload)
+      const currentModelRes = await deps.invokeControlOp(controlOp.op, {
+        session_id: payload.session_id,
+      });
+
+      // Extract current provider/model for defaults
+      let currentProviderId: string | undefined;
+      let currentModel: string | undefined;
+
+      if (currentModelRes.ok && currentModelRes.result) {
+        const r = currentModelRes.result as Record<string, unknown>;
+        // Check explicit model_selection override first
+        const modelSel = r.model_selection as Record<string, unknown> | null | undefined;
+        if (modelSel && typeof modelSel.model === "string") {
+          const m = modelSel.model as string;
+          const slashIdx = m.indexOf("/");
+          if (slashIdx > 0) {
+            currentProviderId = m.slice(0, slashIdx);
+            currentModel = m.slice(slashIdx + 1);
           }
         }
-        content = lines.join("\n");
-      } else {
-        content = `⚠️ Failed to get model: ${res.error ?? "unknown error"}`;
+        // Fall back to first failoverChain entry from effective config
+        if (!currentProviderId || !currentModel) {
+          const effectiveModels = r.effective_models as Record<string, unknown> | null;
+          if (effectiveModels) {
+            const chain = effectiveModels.failoverChain as string[] | undefined;
+            if (chain && chain.length > 0) {
+              const first = chain[0];
+              const slashIdx = first.indexOf("/");
+              if (slashIdx > 0) {
+                currentProviderId = first.slice(0, slashIdx);
+                currentModel = first.slice(slashIdx + 1);
+              }
+            }
+          }
+        }
       }
+
+      // Get models configuration
+      const modelsConfig = deps.getModelsConfig ? await deps.getModelsConfig() : null;
+
+      if (!modelsConfig || !modelsConfig.providers || modelsConfig.providers.length === 0) {
+        // No providers available - respond with modal for free-text input
+        await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
+          type: INTERACTION_RESPONSE_MODAL,
+          data: {
+            title: "Enter Model",
+            custom_id: encodeModelSelectCustomId("custom_modal", payload.session_id as string),
+            components: [
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 4, // TEXT_INPUT
+                    custom_id: "model_input",
+                    label: "Model (provider/model)",
+                    style: 1, // SHORT
+                    required: true,
+                    placeholder: "e.g., openai/gpt-4",
+                  },
+                ],
+              },
+            ],
+          },
+        });
+        return;
+      }
+
+      // Build provider select options
+      const providerOptions = buildProviderSelectOptions({
+        providers: modelsConfig.providers.map((p) => ({
+          id: p.id,
+          name: p.name,
+          models: p.models?.map((m) => ({ id: m.name, name: m.name })) || [],
+        })),
+        currentProviderId,
+      });
+
+      // Build current model display
+      const currentModelDisplay =
+        currentProviderId && currentModel ? `\`${currentProviderId}/${currentModel}\`` : "Not set";
+
+      // Respond with both provider and model select menus
+      // Determine which provider to show models for (current or first available)
+      const activeProviderId = currentProviderId || modelsConfig.providers[0]?.id;
+      const modelOptions = activeProviderId
+        ? buildModelSelectOptions({
+            providerId: activeProviderId,
+            providers: modelsConfig.providers.map((p) => ({
+              id: p.id,
+              name: p.name,
+              models: p.models?.map((m) => ({ id: m.name, name: m.name })) || [],
+            })),
+            failoverChain: (modelsConfig.failoverChain || []).map((e) => ({
+              providerId: e.providerId,
+              modelId: e.model,
+            })),
+          })
+        : [];
+
+      const components: Record<string, unknown>[] = [
+        {
+          type: 1,
+          components: [
+            {
+              type: 3, // STRING_SELECT
+              custom_id: encodeModelSelectCustomId("provider", payload.session_id as string),
+              placeholder: "Select a provider",
+              options: providerOptions,
+            },
+          ],
+        },
+      ];
+
+      if (modelOptions.length > 0) {
+        components.push({
+          type: 1,
+          components: [
+            {
+              type: 3, // STRING_SELECT
+              custom_id: encodeModelSelectCustomId(
+                "model",
+                payload.session_id as string,
+                activeProviderId,
+              ),
+              placeholder: "Select a model",
+              options: modelOptions,
+            },
+          ],
+        });
+      }
+
       await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
         type: INTERACTION_RESPONSE_CHANNEL_MESSAGE,
-        data: { content },
+        data: {
+          content: `🎯 **Model Configuration**\nSession: \`${payload.session_id}\`\nCurrent: ${currentModelDisplay}`,
+          flags: 64, // Ephemeral
+          components,
+        },
       });
     } catch (err) {
       await deps.transport.interactionCallback(parsed.interactionId, parsed.interactionToken, {
