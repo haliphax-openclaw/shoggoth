@@ -186,4 +186,38 @@ describe("discord-bridge", () => {
     await runtime!.stop();
     assert.equal(stopped, true);
   });
+
+  it("resolveSessionId checks dynamic thread bindings before static routes", async () => {
+    const runtime = await startDiscordMessagingIfConfigured({
+      logger: stubLogger(),
+      botToken: "token",
+      routes: [{ guildId: "g", channelId: "ch", sessionId: u1 }],
+      routeGuard: { resolvedAgentId: "test" },
+      deps: {
+        connectGateway: async () => ({
+          stop: async () => {},
+          getBotUserId: () => "bot-1",
+        }),
+      },
+    });
+    assert.ok(runtime);
+
+    // Static route resolves
+    assert.equal(runtime!.resolveSessionId("ch", "g"), u1);
+
+    // Unknown channel returns undefined
+    assert.equal(runtime!.resolveSessionId("unknown-thread"), undefined);
+
+    // Register a thread binding
+    const unregister = runtime!.registerPlatformThreadBinding("thread-123", "sub-session-1");
+
+    // Dynamic binding resolves
+    assert.equal(runtime!.resolveSessionId("thread-123"), "sub-session-1");
+
+    // Unregister and it no longer resolves
+    unregister();
+    assert.equal(runtime!.resolveSessionId("thread-123"), undefined);
+
+    await runtime!.stop();
+  });
 });
