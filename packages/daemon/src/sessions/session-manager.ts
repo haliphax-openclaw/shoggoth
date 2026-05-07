@@ -15,6 +15,7 @@ import {
 } from "@shoggoth/shared";
 import type Database from "better-sqlite3";
 import { ensureAgentWorkspaceLayout } from "../workspaces/agent-workspace-layout";
+import { resolveAgentCreds } from "../agent-creds";
 import type { SessionStore } from "./session-store";
 
 export type SpawnSessionResult = {
@@ -83,7 +84,7 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
   const defaultAgentId = options.agentId ?? "main";
   const agentsConfig = options.agentsConfig;
   const config = options.config;
-  const agentCreds = options.agentCreds ?? { uid: 900, gid: 900 };
+  const agentCreds = options.agentCreds ?? resolveAgentCreds();
 
   /** Resolve platform from agent's platform bindings in agentsConfig. */
   function resolveAgentPlatform(agentId: string): string | undefined {
@@ -141,8 +142,6 @@ export function createSessionManager(options: SessionManagerOptions): SessionMan
           modelSelection: input.modelSelection,
           lightContext: input.lightContext,
           contextLevel: resolvedContextLevel,
-          runtimeUid: agentCreds.uid,
-          runtimeGid: agentCreds.gid,
         });
         // Inherit parent's working directory when spawning a child session.
         if (input.parentSessionId) {

@@ -30,9 +30,9 @@ import { parseAgentSessionUrn, resolveAgentWorkspacePath, LAYOUT } from "@shoggo
 import { resolve } from "node:path";
 import { createToolDiscoveryFinalizer } from "./session-tool-discovery";
 import { createElevationToolFinalizer } from "./elevation-tool-finalizer";
+import { resolveAgentCreds } from "../agent-creds";
 
 const log = getLogger("session-mcp");
-
 export type SessionMcpContextFinalizer = (
   ctx: SessionMcpToolContext,
   sessionId: string,
@@ -84,8 +84,7 @@ function buildMcpPoolConnectOptions(
 }
 
 /** Default UID/GID for agent processes when no session row is available. */
-const DEFAULT_AGENT_UID = 900;
-const DEFAULT_AGENT_GID = 900;
+const DEFAULT_AGENT_CREDS = resolveAgentCreds();
 
 /**
  * Resolve agent MCP context (uid, gid, workspacePath) for a given agent ID.
@@ -99,8 +98,8 @@ function resolveAgentMcpContext(
   const workspacePath = resolveAgentWorkspacePath(workspacesRoot, agentId);
 
   // Try to find uid/gid from an existing session for this agent
-  let uid = DEFAULT_AGENT_UID;
-  let gid = DEFAULT_AGENT_GID;
+  let uid = DEFAULT_AGENT_CREDS.uid;
+  let gid = DEFAULT_AGENT_CREDS.gid;
   try {
     const row = db
       .prepare(

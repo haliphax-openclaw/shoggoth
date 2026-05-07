@@ -53,6 +53,7 @@ import {
   updateTranscriptMessageCount,
   incrementTurnCount,
 } from "./session-stats-store";
+import { resolveAgentCreds } from "../agent-creds";
 import { checkContextWindowMismatch } from "./context-window-mismatch";
 import { getModelContextWindowTokens } from "../model-metadata";
 import { getSessionPrimaryModelRef, resolveModel } from "./model-resolution";
@@ -109,8 +110,9 @@ export interface SessionAgentTurnResult {
 }
 
 function sessionCreds(uid?: number, gid?: number): AgentCredentials {
-  const u = uid ?? 900;
-  const g = gid ?? 900;
+  const defaults = resolveAgentCreds();
+  const u = uid ?? defaults.uid;
+  const g = gid ?? defaults.gid;
   return { uid: u, gid: g };
 }
 

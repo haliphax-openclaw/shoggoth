@@ -29,6 +29,7 @@ RUN HASH=$(cat .git-meta/HEAD); \
 FROM node:22-bookworm-slim
 ARG SHOGGOTH_UID=1000
 ARG AGENT_UID=900
+ENV SHOGGOTH_AGENT_UID=${AGENT_UID}
 RUN apt-get update && apt-get install -y --no-install-recommends acl ca-certificates git ripgrep && rm -rf /var/lib/apt/lists/*
 RUN userdel node 2>/dev/null; groupdel node 2>/dev/null; \
   (groupadd --system --gid ${SHOGGOTH_UID} shoggoth || true) \
