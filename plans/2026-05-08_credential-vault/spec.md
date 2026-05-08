@@ -301,6 +301,58 @@ CREATE INDEX IF NOT EXISTS idx_vault_secrets_scope ON vault_secrets(scope);
 }
 ```
 
+### Per-Tool Audit Redaction
+
+The existing `policy.auditRedaction.jsonPaths` applies globally to all tool args/results in audit logs. Adding `"value"` there would over-redact tools like `builtin-kv` that also have a `value` field.
+
+Instead, a new `policy.auditRedaction.toolPaths` map allows per-tool redaction paths that are merged with the global paths when logging that tool's args and results.
+
+```ts
+// Addition to shoggothPolicyConfigSchema.auditRedaction:
+auditRedaction: z.object({
+  /** Global dot paths redacted from all tool args/results in audit logs. */
+  jsonPaths: z.array(z.string()),
+  /**
+   * Per-tool additional redaction paths. Keyed by tool name.
+   * These are merged with jsonPaths when redacting that tool's audit entries.
+   */
+  toolPaths: z.record(z.string(), z.array(z.string())).optional(),
+}).strict(),
+```
+
+Default value in `DEFAULT_POLICY_CONFIG`:
+
+```ts
+auditRedaction: {
+  jsonPaths: ["password", "token", "apiKey", "api_key", "authorization", "secret"],
+  toolPaths: {
+    "builtin-vault": ["value"],
+  },
+},
+```
+
+In `tool-loop-bridge.ts`, the redaction logic changes from:
+
+```ts
+// Before:
+redactToolArgsJson(argsJson, paths);
+```
+
+to:
+
+```ts
+// After:
+const toolPaths = engine.config.auditRedaction.toolPaths?.[toolName] ?? [];
+const effectivePaths = [...paths, ...toolPaths];
+redactToolArgsJson(argsJson, effectivePaths);
+```
+
+This ensures:
+
+- `vault set` args: the `value` field is redacted in the `execute_start` audit row
+- `vault get` results: the `value` field is redacted in the `execute_done` audit row
+- Other tools (e.g., `builtin-kv`): unaffected, their `value` fields remain visible in logs
+
 ### MCP Vault Reference Syntax
 
 ```yaml
@@ -314,7 +366,7 @@ env:
 ### Config Schema Addition
 
 ```ts
-// No new top-level config fields required.
+// No new top-level config fields required for the vault itself.
 // The vault key path is determined by convention:
 //   1. /run/secrets/vault_age_key (Docker secret)
 //   2. /var/lib/shoggoth/daemon/vault.key (auto-generated)
@@ -382,6 +434,18 @@ shoggoth vault rotate-key --new-key /path/to/new-identity.key
 { action: "inject", name: "GITHUB_TOKEN" }
 // → { ok: true, path: "/tmp/.vault/a1b2c3d4", name: "GITHUB_TOKEN",
 //     hint: "Use this path in your command. The file will be consumed on first read." }
+```
+
+### Audit Log Redaction Example
+
+```ts
+// When agent calls: { action: "set", name: "GITHUB_TOKEN", value: "ghp_secret123" }
+// The audit_log row for execute_start contains:
+//   args_redacted_json: '{"action":"set","name":"GITHUB_TOKEN","value":"[REDACTED]"}'
+
+// When agent calls: { action: "get", name: "GITHUB_TOKEN" }
+// The audit_log row for execute_done contains:
+//   args_redacted_json: '{"ok":true,"name":"GITHUB_TOKEN","value":"[REDACTED]","scope":"agent:developer"}'
 ```
 
 ### FIFO Usage in Shell Command

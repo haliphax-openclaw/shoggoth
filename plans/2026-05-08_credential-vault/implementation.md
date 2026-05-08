@@ -54,8 +54,12 @@ Add the `builtin-vault` tool handler so agents can get/set/delete/list credentia
   - `delete`: agent can delete only from own scope
 - Add tool descriptor to the tool discovery catalog
 - Add HITL risk classification: `builtin-vault` → `caution`
-- Audit log every vault access (name + action, never value)
+- **Audit log redaction**: The `value` field must be redacted from both tool args (for `set`) and tool results (for `get`/`resolve`) in audit logs. Cannot use the global `auditRedaction.jsonPaths` because `"value"` would over-redact other tools (e.g., `builtin-kv`). Instead:
+  - Add per-tool audit redaction paths support to the tool loop bridge: a `toolAuditRedaction` map in policy config keyed by tool name, with additional JSON paths to redact for that tool
+  - Register `builtin-vault` with `["value"]` in `toolAuditRedaction`
+  - The tool loop bridge merges global `auditRedaction.jsonPaths` with any tool-specific paths when redacting args/results for that tool
 - Unit tests: all actions, scope enforcement, subagent inherits parent, error cases
+- Unit tests: verify audit rows for `vault get` and `vault set` have `value` redacted
 - Integration test: tool invocation through the tool loop
 
 **Files:**
@@ -63,6 +67,8 @@ Add the `builtin-vault` tool handler so agents can get/set/delete/list credentia
 - `packages/daemon/src/sessions/builtin-handlers/vault-handler.ts`
 - `packages/daemon/src/sessions/builtin-handlers/index.ts` (register)
 - `packages/daemon/src/sessions/builtin-tool-registry.ts` (descriptor)
+- `packages/daemon/src/policy/tool-loop-bridge.ts` (per-tool redaction paths)
+- `packages/shared/src/schema.ts` (add `toolAuditRedaction` to policy schema)
 - `packages/daemon/test/sessions/builtin-handlers/vault-handler.test.ts`
 
 ## Phase 4: FIFO Credential Proxy
