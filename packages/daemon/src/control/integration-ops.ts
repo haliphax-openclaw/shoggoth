@@ -71,7 +71,14 @@ import { pushSystemContext } from "../sessions/system-context-buffer";
 import { pushSteer } from "../sessions/steer-channel";
 import { getTurnQueue } from "../sessions/session-turn-queue-singleton";
 import { MediaGenerationService } from "../media/media-generation-service";
-import { handleVaultSet, handleVaultGet, handleVaultDelete, handleVaultList, handleVaultImport, handleVaultRotateKey } from "./vault-ops.js";
+import {
+  handleVaultSet,
+  handleVaultGet,
+  handleVaultDelete,
+  handleVaultList,
+  handleVaultImport,
+  handleVaultRotateKey,
+} from "./vault-ops.js";
 
 export class IntegrationOpError extends Error {
   constructor(
@@ -2375,7 +2382,5 @@ export async function handleIntegrationControlOp(
 
     default:
       return undefined;
-  }
-}
   }
 }

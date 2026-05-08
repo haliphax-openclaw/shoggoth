@@ -10,6 +10,32 @@ import type { VaultService } from "../vault/vault-service.js";
 const VAULT_PREFIX = "$vault:";
 const VAULT_PREFIX_LEN = VAULT_PREFIX.length;
 
+// Valid credential name pattern: all-uppercase or all-lowercase with digits, underscores, hyphens
+const CREDENTIAL_NAME_PATTERN = /^([A-Z][A-Z0-9_-]*|[a-z][a-z0-9_-]*)$/;
+
+/**
+ * Check if a string value is a vault reference.
+ * Only matches exact $vault:<name> pattern where name is a valid credential identifier.
+ */
+export function isVaultReference(value: string): boolean {
+  if (!value.startsWith(VAULT_PREFIX) || value.length <= VAULT_PREFIX_LEN) {
+    return false;
+  }
+  const name = value.slice(VAULT_PREFIX_LEN);
+  return CREDENTIAL_NAME_PATTERN.test(name);
+}
+
+/**
+ * Extract the credential name from a vault reference.
+ * Returns the name after $vault: or null if not a valid reference.
+ */
+export function extractVaultName(value: string): string | null {
+  if (!isVaultReference(value)) {
+    return null;
+  }
+  return value.slice(VAULT_PREFIX_LEN);
+}
+
 /**
  * Resolve vault references in an MCP server's environment variables.
  *
@@ -25,29 +51,33 @@ const VAULT_PREFIX_LEN = VAULT_PREFIX.length;
  * @param agentId - The connecting agent's ID for scope resolution.
  * @returns A new env map with vault references replaced by plaintext values.
  */
-export function resolveVaultEnv(
+export async function resolveVaultEnv(
   env: Record<string, string>,
   vault: VaultService,
   agentId: string,
-): Record<string, string> {
-  throw new Error("not implemented");
-}
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
 
-/**
- * Check if a string value is a vault reference.
- * Only matches exact $vault:<name> pattern, not partial matches.
- */
-export function isVaultReference(value: string): boolean {
-  return value.startsWith(VAULT_PREFIX) && value.length > VAULT_PREFIX_LEN;
-}
+  for (const [key, value] of Object.entries(env)) {
+    if (isVaultReference(value)) {
+      const name = extractVaultName(value);
+      if (name === null) {
+        result[key] = value;
+        continue;
+      }
 
-/**
- * Extract the credential name from a vault reference.
- * Returns the name after $vault: or null if not a valid reference.
- */
-export function extractVaultName(value: string): string | null {
-  if (!isVaultReference(value)) {
-    return null;
+      const resolved = await vault.resolve(agentId, name);
+      if (resolved !== null) {
+        result[key] = resolved;
+      } else {
+        console.warn(
+          `[vault] Credential "${name}" not found for agent "${agentId}", omitting env var "${key}"`,
+        );
+      }
+    } else {
+      result[key] = value;
+    }
   }
-  return value.slice(VAULT_PREFIX_LEN);
+
+  return result;
 }
