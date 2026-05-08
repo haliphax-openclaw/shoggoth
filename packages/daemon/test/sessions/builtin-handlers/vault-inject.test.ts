@@ -99,11 +99,7 @@ describe("builtin-vault inject", () => {
       creds: { uid: 1000, gid: 1000 },
     });
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "inject", name: "API_KEY" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "inject", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -142,11 +138,7 @@ describe("builtin-vault inject", () => {
       creds: { uid: 1000, gid: 1000 },
     });
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "inject", name: "DATABASE_URL" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "inject", name: "DATABASE_URL" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -174,11 +166,7 @@ describe("builtin-vault inject", () => {
       creds: { uid: 1000, gid: 1000 },
     });
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "inject", name: "NONEXISTENT" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "inject", name: "NONEXISTENT" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -195,7 +183,7 @@ describe("builtin-vault inject", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute("builtin-vault", { action: "inject" }, ctx);
+    const result = await reg.execute("vault", { action: "inject" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "name is required");
@@ -219,7 +207,7 @@ describe("builtin-vault inject", () => {
     });
 
     const result = await reg.execute(
-      "builtin-vault",
+      "vault",
       { action: "inject", name: "API_KEY", timeoutMs: 60000 },
       ctx,
     );
@@ -229,12 +217,7 @@ describe("builtin-vault inject", () => {
     assert.strictEqual(parsed.path, mockFifoPath);
 
     // Verify createSecretFifo was called with custom timeout
-    expect(createSecretFifo).toHaveBeenCalledWith(
-      "secret-with-timeout",
-      1000,
-      1000,
-      60000,
-    );
+    expect(createSecretFifo).toHaveBeenCalledWith("secret-with-timeout", 1000, 1000, 60000);
   });
 
   it("uses agent's UID/GID from context creds", async () => {
@@ -254,18 +237,9 @@ describe("builtin-vault inject", () => {
       creds: { uid: 900, gid: 900 }, // Agent UID/GID
     });
 
-    await reg.execute(
-      "builtin-vault",
-      { action: "inject", name: "API_KEY" },
-      ctx,
-    );
+    await reg.execute("vault", { action: "inject", name: "API_KEY" }, ctx);
 
     // Verify createSecretFifo was called with agent's UID/GID
-    expect(createSecretFifo).toHaveBeenCalledWith(
-      "secret-value",
-      900,
-      900,
-      undefined,
-    );
+    expect(createSecretFifo).toHaveBeenCalledWith("secret-value", 900, 900, undefined);
   });
 });

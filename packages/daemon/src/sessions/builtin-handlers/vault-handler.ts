@@ -8,7 +8,7 @@ import { createSecretFifo } from "../../vault/fifo-proxy";
 import type { VaultService } from "../../vault/vault-service";
 
 export function register(registry: BuiltinToolRegistry): void {
-  registry.register("builtin-vault", vaultHandler);
+  registry.register("vault", vaultHandler);
 }
 
 async function vaultHandler(

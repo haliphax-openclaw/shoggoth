@@ -1,4 +1,4 @@
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, vi } from "vitest";
 import assert from "node:assert";
 import {
   BuiltinToolRegistry,
@@ -84,7 +84,7 @@ describe("builtin-vault get", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "get", name: "API_KEY" }, ctx);
+    const result = await reg.execute("vault", { action: "get", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -112,7 +112,7 @@ describe("builtin-vault get", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "get", name: "API_KEY" }, ctx);
+    const result = await reg.execute("vault", { action: "get", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -134,7 +134,7 @@ describe("builtin-vault get", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "get", name: "NONEXISTENT" }, ctx);
+    const result = await reg.execute("vault", { action: "get", name: "NONEXISTENT" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -148,7 +148,7 @@ describe("builtin-vault get", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute("builtin-vault", { action: "get" }, ctx);
+    const result = await reg.execute("vault", { action: "get" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "name is required");
@@ -174,7 +174,7 @@ describe("builtin-vault set", () => {
     });
 
     const result = await reg.execute(
-      "builtin-vault",
+      "vault",
       { action: "set", name: "API_KEY", value: "secret123" },
       ctx,
     );
@@ -197,11 +197,7 @@ describe("builtin-vault set", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "set", value: "secret123" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "set", value: "secret123" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "name is required");
@@ -213,11 +209,7 @@ describe("builtin-vault set", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "set", name: "API_KEY" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "set", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "value is required");
@@ -242,11 +234,7 @@ describe("builtin-vault delete", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "delete", name: "API_KEY" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "delete", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -272,11 +260,7 @@ describe("builtin-vault delete", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute(
-      "builtin-vault",
-      { action: "delete", name: "NONEXISTENT" },
-      ctx,
-    );
+    const result = await reg.execute("vault", { action: "delete", name: "NONEXISTENT" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -289,7 +273,7 @@ describe("builtin-vault delete", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute("builtin-vault", { action: "delete" }, ctx);
+    const result = await reg.execute("vault", { action: "delete" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "name is required");
@@ -334,7 +318,7 @@ describe("builtin-vault list", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "list" }, ctx);
+    const result = await reg.execute("vault", { action: "list" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -362,7 +346,7 @@ describe("builtin-vault list", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "list" }, ctx);
+    const result = await reg.execute("vault", { action: "list" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -389,7 +373,7 @@ describe("builtin-vault subagent resolution", () => {
       agentId: "developer", // Should resolve to parent agent ID
     });
 
-    const result = await reg.execute("builtin-vault", { action: "get", name: "SECRET" }, ctx);
+    const result = await reg.execute("vault", { action: "get", name: "SECRET" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.ok, true);
@@ -416,7 +400,7 @@ describe("builtin-vault audit redaction", () => {
       agentId: "developer",
     });
 
-    const result = await reg.execute("builtin-vault", { action: "get", name: "API_KEY" }, ctx);
+    const result = await reg.execute("vault", { action: "get", name: "API_KEY" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     // The value field should be present in the response to the agent
@@ -442,7 +426,7 @@ describe("builtin-vault audit redaction", () => {
     });
 
     const result = await reg.execute(
-      "builtin-vault",
+      "vault",
       { action: "set", name: "API_KEY", value: "secret123" },
       ctx,
     );
@@ -468,7 +452,7 @@ describe("builtin-vault unknown action", () => {
 
     const ctx = stubCtx();
 
-    const result = await reg.execute("builtin-vault", { action: "invalid" }, ctx);
+    const result = await reg.execute("vault", { action: "invalid" }, ctx);
     const parsed = JSON.parse(result.resultJson);
 
     assert.strictEqual(parsed.error, "unknown action: invalid");
