@@ -1,8 +1,33 @@
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 // builtin-vault — secure credential storage
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------------
 
 import type { BuiltinToolRegistry, BuiltinToolContext } from "../builtin-tool-registry";
+import { parseAgentSessionUrn } from "@shoggoth/shared";
+
+/**
+ * Extended context with vault service and agentId.
+ * The vault and agentId are injected by session-agent-turn.ts.
+ */
+interface VaultToolContext extends BuiltinToolContext {
+  vault: {
+    put: (scope: string, name: string, plaintext: string, metadata?: unknown) => Promise<void>;
+    get: (scope: string, name: string) => Promise<string | null>;
+    resolve: (agentId: string, name: string) => Promise<string | null>;
+    delete: (scope: string, name: string) => Promise<boolean>;
+    list: (scope: string) => Array<{
+      name: string;
+      scope: string;
+      metadata: unknown | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    listScopes: () => string[];
+    rotateKey: (newIdentity: unknown) => Promise<void>;
+    readonly publicKey: string;
+  };
+  agentId: string;
+}
 
 export function register(registry: BuiltinToolRegistry): void {
   registry.register("builtin-vault", vaultHandler);
@@ -10,10 +35,127 @@ export function register(registry: BuiltinToolRegistry): void {
 
 async function vaultHandler(
   args: Record<string, unknown>,
-  _ctx: BuiltinToolContext,
+  ctx: BuiltinToolContext,
 ): Promise<{ resultJson: string }> {
-  // Stub: return error indicating not implemented
+  // Extend context with vault and agentId from the base context
+  const vaultCtx = ctx as VaultToolContext;
+  const vault = vaultCtx.vault;
+  const agentId = vaultCtx.agentId;
+
+  // Resolve agentId from session if not provided in context
+  const resolvedAgentId = agentId || parseAgentSessionUrn(ctx.sessionId)?.agentId;
+  if (!resolvedAgentId) {
+    return {
+      resultJson: JSON.stringify({ error: "unable to resolve agent ID from session" }),
+    };
+  }
+
+  const action = String(args.action ?? "");
+  switch (action) {
+    case "get":
+      return vaultGet(args, vault, resolvedAgentId);
+    case "set":
+      return vaultSet(args, vault, resolvedAgentId);
+    case "delete":
+      return vaultDelete(args, vault, resolvedAgentId);
+    case "list":
+      return vaultList(args, vault, resolvedAgentId);
+    default:
+      return {
+        resultJson: JSON.stringify({ error: `unknown action: ${action}` }),
+      };
+  }
+}
+
+async function vaultGet(
+  args: Record<string, unknown>,
+  vault: VaultToolContext["vault"],
+  agentId: string,
+): Promise<{ resultJson: string }> {
+  const name = String(args.name ?? "");
+  if (!name) {
+    return { resultJson: JSON.stringify({ error: "name is required" }) };
+  }
+
+  // Use resolve for scope precedence (agent scope first, then global)
+  let value = await vault.resolve(agentId, name);
+  let scope = `agent:${agentId}`;
+
+  // Fall back to global scope if not found in agent scope
+  if (value === null) {
+    value = await vault.get("global", name);
+    scope = "global";
+  }
+
+  if (value === null) {
+    return {
+      resultJson: JSON.stringify({ ok: true, name, value: null, exists: false }),
+    };
+  }
+
   return {
-    resultJson: JSON.stringify({ error: "vault handler not implemented" }),
+    resultJson: JSON.stringify({ ok: true, name, value, scope }),
+  };
+}
+
+async function vaultSet(
+  args: Record<string, unknown>,
+  vault: VaultToolContext["vault"],
+  agentId: string,
+): Promise<{ resultJson: string }> {
+  const name = String(args.name ?? "");
+  if (!name) {
+    return { resultJson: JSON.stringify({ error: "name is required" }) };
+  }
+
+  const value = args.value;
+  if (value === undefined || value === null) {
+    return { resultJson: JSON.stringify({ error: "value is required" }) };
+  }
+
+  const valueStr = String(value);
+  const scope = `agent:${agentId}`;
+
+  await vault.put(scope, name, valueStr);
+
+  return {
+    resultJson: JSON.stringify({ ok: true, name, scope, written: true }),
+  };
+}
+
+async function vaultDelete(
+  args: Record<string, unknown>,
+  vault: VaultToolContext["vault"],
+  agentId: string,
+): Promise<{ resultJson: string }> {
+  const name = String(args.name ?? "");
+  if (!name) {
+    return { resultJson: JSON.stringify({ error: "name is required" }) };
+  }
+
+  const scope = `agent:${agentId}`;
+  const deleted = await vault.delete(scope, name);
+
+  return {
+    resultJson: JSON.stringify({ ok: true, name, scope, deleted }),
+  };
+}
+
+function vaultList(
+  args: Record<string, unknown>,
+  vault: VaultToolContext["vault"],
+  agentId: string,
+): { resultJson: string } {
+  const agentScope = `agent:${agentId}`;
+
+  // Get entries from agent scope and global scope
+  const agentEntries = vault.list(agentScope);
+  const globalEntries = vault.list("global");
+
+  // Combine entries, agent scope first
+  const entries = [...agentEntries, ...globalEntries];
+
+  return {
+    resultJson: JSON.stringify({ ok: true, entries }),
   };
 }

@@ -2,7 +2,6 @@
  * Vault Service - Secure credential storage using age encryption.
  */
 
-import type Database from "better-sqlite3";
 import type { AgeIdentity } from "./age-crypto";
 
 export interface VaultEntryMetadata {
@@ -26,22 +25,22 @@ export interface VaultService {
    * Store a credential. Encrypts the plaintext with the loaded age recipient
    * and writes the ciphertext to the vault_secrets table.
    */
-  put(scope: string, name: string, plaintext: string, metadata?: VaultEntryMetadata): void;
+  put(scope: string, name: string, plaintext: string, metadata?: VaultEntryMetadata): Promise<void>;
 
   /**
    * Retrieve a credential by exact scope + name. Returns null if not found.
    * Decrypts on-demand — plaintext is never cached.
    */
-  get(scope: string, name: string): string | null;
+  get(scope: string, name: string): Promise<string | null>;
 
   /**
    * Resolve a credential by name using scope precedence for an agent.
    * Checks agent:<agentId> first, then global. Returns null if not found in either.
    */
-  resolve(agentId: string, name: string): string | null;
+  resolve(agentId: string, name: string): Promise<string | null>;
 
   /** Delete a credential. Returns true if it existed. */
-  delete(scope: string, name: string): boolean;
+  delete(scope: string, name: string): Promise<boolean>;
 
   /** List credential names (no values) in a scope. */
   list(scope: string): VaultListEntry[];
@@ -53,7 +52,7 @@ export interface VaultService {
    * Re-encrypt all entries with a new age identity. The old identity is used
    * to decrypt, the new identity encrypts. Atomic (transaction).
    */
-  rotateKey(newIdentity: AgeIdentity): void;
+  rotateKey(newIdentity: AgeIdentity): Promise<void>;
 
   /** The public key (recipient) of the currently loaded identity. */
   readonly publicKey: string;
@@ -67,10 +66,4 @@ export interface VaultService {
  * @param identityPath - Path to the age identity file (read or create).
  * @param secretsDir - Docker secrets directory to check first (e.g. /run/secrets).
  */
-export function createVaultService(
-  db: Database.Database,
-  identityPath: string,
-  secretsDir: string,
-): VaultService {
-  throw new Error("not implemented");
-}
+export { createVaultService } from "./vault-service-impl";
