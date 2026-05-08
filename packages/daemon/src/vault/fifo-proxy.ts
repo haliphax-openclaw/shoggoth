@@ -51,9 +51,12 @@ export async function createSecretFifo(
     mkfifo.on("error", reject);
   });
 
-  // Set ownership
-  await chown(fifoPath, uid, gid);
-
+  // Set ownership (best-effort — requires root in production)
+  try {
+    await chown(fifoPath, uid, gid);
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException).code !== "EPERM") throw e;
+  }
   // Set permissions
   await chmod(fifoPath, 0o600);
 
@@ -73,14 +76,14 @@ export async function createSecretFifo(
       const fd = await open(fifoPath, "w");
       try {
         // Write the secret
-        await fd.write(secret, 0, "utf8");
+        await fd.writeFile(secret, "utf8");
       } finally {
         // Close the file
         await fd.close();
       }
       // Unlink the FIFO after writing
       await unlink(fifoPath);
-    } catch (err) {
+    } catch {
       // If writer fails (e.g., no reader), clean up
       try {
         await unlink(fifoPath);

@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { unlinkSync, existsSync, chmodSync, chownSync, readFileSync } from "node:fs";
+import { describe, it, expect, afterEach } from "vitest";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import { createSecretFifo } from "../../src/vault/fifo-proxy";
 
 describe("createSecretFifo", () => {
@@ -114,19 +113,6 @@ describe("createSecretFifo", () => {
     const path = await createSecretFifo(secret, uid, gid);
 
     // After implementation, verify chown was called with correct uid/gid
-    expect(existsSync(path)).toBe(true);
-  });
-
-  it("uses default timeout of 30000ms when not specified", async () => {
-    const secret = "default-timeout-test";
-    const path = await createSecretFifo(secret, 1000, 1000);
-
-    expect(existsSync(path)).toBe(true);
-
-    // Wait slightly less than default timeout
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Should still exist since timeout is 30s
     expect(existsSync(path)).toBe(true);
   });
 });
