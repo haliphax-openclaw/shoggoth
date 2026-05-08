@@ -24,7 +24,7 @@ Usage:
   shoggoth vault delete <scope> <name>        Remove a credential
   shoggoth vault list [scope]                 List credentials (all scopes if omitted)
   shoggoth vault import <scope> <file>        Bulk import from .env file
-  shoggoth vault rotate-key <identity-file>   Re-encrypt all entries with new key
+  shoggoth vault rotate-key [identity-file]   Re-encrypt all entries with new key (auto-generates if omitted)
 
 Scopes: global, agent:<id>`);
 }
@@ -140,19 +140,19 @@ export async function runVaultCli(argv: string[]): Promise<void> {
     return;
   }
   if (sub === "rotate-key") {
-    const identityFile = argv[1]?.trim();
-    if (!identityFile) {
-      console.error("usage: shoggoth vault rotate-key <identity-file>");
-      process.exitCode = 1;
-      return;
+    const identityFile = argv[1]?.trim() || undefined;
+    const payload: Record<string, string> = {};
+    if (identityFile) {
+      payload.newIdentityPath = resolve(identityFile);
     }
     const res = await invokeControlRequest({
       socketPath,
       auth,
       op: "vault.rotate-key",
-      payload: { newIdentityPath: identityFile },
+      payload,
     });
     console.log(JSON.stringify(res, null, 2));
+    if (!res.ok) process.exitCode = 1;
     if (!res.ok) process.exitCode = 1;
     return;
   }

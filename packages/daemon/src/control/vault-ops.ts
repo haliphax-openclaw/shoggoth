@@ -7,7 +7,7 @@ import type { AuthenticatedPrincipal } from "@shoggoth/authn";
 import type { IntegrationOpsContext } from "./integration-ops";
 import type { VaultService, VaultEntryMetadata } from "../vault/vault-service";
 import { parseEnvFile } from "../vault/env-parser";
-import { ageLoadIdentity } from "../vault/age-crypto";
+import { ageLoadIdentity, ageGenerateIdentity } from "../vault/age-crypto";
 
 /**
  * Extract the vault service from the integration context.
@@ -53,14 +53,14 @@ export async function handleVaultSet(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
+
   const scope = requireString(payload, "scope");
   const name = requireString(payload, "name");
   const value = requireString(payload, "value");
   const metadata = payload.metadata as VaultEntryMetadata | undefined;
-  
+
   await vault.put(scope, name, value, metadata);
-  
+
   return { ok: true, scope, name, written: true };
 }
 
@@ -75,12 +75,12 @@ export async function handleVaultGet(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
+
   const scope = requireString(payload, "scope");
   const name = requireString(payload, "name");
-  
+
   const value = await vault.get(scope, name);
-  
+
   return { ok: true, scope, name, value };
 }
 
@@ -95,12 +95,12 @@ export async function handleVaultDelete(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
+
   const scope = requireString(payload, "scope");
   const name = requireString(payload, "name");
-  
+
   const deleted = await vault.delete(scope, name);
-  
+
   return { ok: true, deleted };
 }
 
@@ -115,9 +115,9 @@ export async function handleVaultList(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
+
   const scope = payload.scope as string | undefined;
-  
+
   let entries: Array<{
     name: string;
     scope: string;
@@ -125,7 +125,7 @@ export async function handleVaultList(
     createdAt: string;
     updatedAt: string;
   }>;
-  
+
   if (scope) {
     entries = vault.list(scope);
   } else {
@@ -137,7 +137,7 @@ export async function handleVaultList(
       entries.push(...scopeEntries);
     }
   }
-  
+
   return { ok: true, entries };
 }
 
@@ -152,25 +152,27 @@ export async function handleVaultImport(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
+
   const scope = requireString(payload, "scope");
   const envFileContent = requireString(payload, "envFileContent");
-  
+
   const entries = parseEnvFile(envFileContent);
-  
+
   // Filter out entries with empty values (they can't be encrypted)
   const nonEmptyEntries = entries.filter((entry) => entry.value !== "");
-  
+
   for (const entry of nonEmptyEntries) {
     await vault.put(scope, entry.key, entry.value);
   }
-  
+
   return { ok: true, imported: nonEmptyEntries.length };
 }
 
 /**
  * Handle vault.rotate-key control operation.
  * Re-encrypts all entries with a new identity.
+ * If newIdentityPath is provided, loads the identity from that file.
+ * Otherwise, generates a fresh identity automatically.
  */
 export async function handleVaultRotateKey(
   req: WireRequest,
@@ -179,12 +181,20 @@ export async function handleVaultRotateKey(
 ): Promise<unknown> {
   const vault = requireVaultService(ctx);
   const payload = getPayload(req);
-  
-  const newIdentityPath = requireString(payload, "newIdentityPath");
-  
-  const newIdentity = await ageLoadIdentity(newIdentityPath);
-  
+
+  const newIdentityPath =
+    typeof payload === "object" && payload !== null && "newIdentityPath" in payload
+      ? String((payload as Record<string, unknown>).newIdentityPath).trim()
+      : "";
+
+  let newIdentity: import("../vault/age-crypto").AgeIdentity;
+  if (newIdentityPath) {
+    newIdentity = await ageLoadIdentity(newIdentityPath);
+  } else {
+    newIdentity = await ageGenerateIdentity();
+  }
+
   await vault.rotateKey(newIdentity);
-  
-  return { ok: true };
+
+  return { ok: true, publicKey: newIdentity.recipient };
 }

@@ -28,17 +28,21 @@ export async function createVaultService(
 ): Promise<VaultService> {
   // Determine the identity source: secretsDir/vault_age_key, identityPath, or generate new
   let identity: AgeIdentity;
+  let activeKeyPath: string;
 
   // Check secrets directory first
   const secretsKeyPath = join(secretsDir, "vault_age_key");
   if (existsSync(secretsKeyPath)) {
     identity = await ageLoadIdentity(secretsKeyPath);
+    activeKeyPath = secretsKeyPath;
   } else if (existsSync(identityPath)) {
     identity = await ageLoadIdentity(identityPath);
+    activeKeyPath = identityPath;
   } else {
     // Auto-generate new identity
     identity = await ageGenerateIdentity();
     writeFileSync(identityPath, identity.identityString, "utf8");
+    activeKeyPath = identityPath;
   }
 
   // Create the vault service instance
@@ -161,19 +165,18 @@ export async function createVaultService(
       }
 
       // Now do the DB updates in a synchronous transaction
-      const updateTransaction = db.transaction(() => {
+      db.transaction(() => {
         for (const entry of reEncrypted) {
           db.prepare(`
             UPDATE vault_secrets SET ciphertext = ?, updated_at = datetime('now')
             WHERE scope = ? AND name = ?
           `).run(entry.ciphertext, entry.scope, entry.name);
         }
-      });
+      })();
 
-      updateTransaction();
-
-      // Update the identity for future operations
+      // Update the identity for future operations and persist to disk
       identity = newIdentity;
+      writeFileSync(activeKeyPath, newIdentity.identityString, "utf8");
     },
 
     get publicKey(): string {
