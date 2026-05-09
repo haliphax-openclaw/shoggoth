@@ -1,21 +1,151 @@
+import { writeFile, mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { MediaAdapterRequest, MediaAdapterResult } from "./types";
 
-/**
- * OpenAI Video Async Adapter
- *
- * Handles async video generation via OpenAI-compatible API.
- *
- * Submit: POST {baseUrl}/chat/completions with { model, messages: [{role:'user', content: prompt}] }
- * Extract generation_id from body `id` or header `X-Generation-Id`
- * Poll: GET {baseUrl}/generation?id={generation_id} with auth
- * Poll response: { status: 'complete', video_url } or { status: 'pending' }
- *
- * Uses adapterDefaults.pollIntervalMs (default 5000) and adapterDefaults.timeoutMs (default 300000)
- * On complete: download video_url, write to outputPath
- * On timeout: return in_progress
- */
-export async function openaiVideoAsyncAdapter(
-  req: MediaAdapterRequest & { adapterDefaults?: { pollIntervalMs?: number; timeoutMs?: number } },
-): Promise<MediaAdapterResult> {
-  throw new Error("OpenAI Video Async Adapter not yet implemented");
+interface VideoRequest extends MediaAdapterRequest {
+  adapterDefaults?: {
+    pollIntervalMs?: number;
+    timeoutMs?: number;
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function openaiVideoAsyncAdapter(req: VideoRequest): Promise<MediaAdapterResult> {
+  const pollIntervalMs = req.adapterDefaults?.pollIntervalMs ?? 5000;
+  const timeoutMs = req.adapterDefaults?.timeoutMs ?? 300000;
+
+  // Support both provider object and direct apiKey/baseUrl
+  const apiKey = (req as { provider?: { apiKey: string } }).provider?.apiKey ?? req.apiKey;
+  const baseUrl = (req as { provider?: { baseUrl: string } }).provider?.baseUrl ?? req.baseUrl;
+
+  if (!apiKey || !baseUrl) {
+    return {
+      status: "error",
+      error: "Missing apiKey or baseUrl",
+    };
+  }
+
+  try {
+    // Submit generation request
+    const submitResponse = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: req.model,
+        messages: [{ role: "user", content: req.prompt }],
+      }),
+    });
+
+    if (!submitResponse.ok) {
+      const errorText = await submitResponse.text();
+      return {
+        status: "error",
+        error: `API error ${submitResponse.status}: ${errorText}`,
+      };
+    }
+
+    const submitJson = (await submitResponse.json()) as { id?: string };
+
+    // Extract generation_id from body or header
+    let generationId = submitJson.id;
+    if (!generationId) {
+      const headerGenId = submitResponse.headers.get("X-Generation-Id");
+      if (headerGenId) {
+        generationId = headerGenId;
+      }
+    }
+
+    if (!generationId) {
+      return {
+        status: "error",
+        error: "No generation_id in response",
+      };
+    }
+
+    // Poll for completion
+    const startTime = Date.now();
+
+    while (true) {
+      // Check for timeout
+      if (Date.now() - startTime >= timeoutMs) {
+        return {
+          status: "in_progress",
+          operation_id: generationId,
+        };
+      }
+
+      // Sleep before polling (except on first iteration)
+      if (Date.now() !== startTime) {
+        await sleep(pollIntervalMs);
+      }
+
+      const pollResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!pollResponse.ok) {
+        const errorText = await pollResponse.text();
+        return {
+          status: "error",
+          error: `Poll error ${pollResponse.status}: ${errorText}`,
+        };
+      }
+
+      const pollJson = (await pollResponse.json()) as {
+        status?: string;
+        video_url?: string;
+      };
+
+      if (pollJson.status === "complete") {
+        if (!pollJson.video_url) {
+          return {
+            status: "error",
+            error: "No video_url in complete response",
+          };
+        }
+
+        // Download the video
+        const videoResponse = await fetch(pollJson.video_url, {
+          method: "GET",
+        });
+
+        if (!videoResponse.ok) {
+          return {
+            status: "error",
+            error: `Failed to download video: ${videoResponse.status}`,
+          };
+        }
+
+        const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+
+        // Write to output path
+        await mkdir(dirname(req.outputPath), { recursive: true });
+        await writeFile(req.outputPath, videoBuffer);
+
+        return {
+          status: "complete",
+          path: req.outputPath,
+          mime_type: "video/mp4",
+        };
+      }
+
+      // If not complete, continue polling
+      // Sleep for the poll interval before next iteration
+      await sleep(pollIntervalMs);
+    }
+  } catch (err) {
+    return {
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
