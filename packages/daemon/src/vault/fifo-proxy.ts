@@ -2,7 +2,7 @@
  * FIFO Credential Proxy - Creates short-lived named pipes for credential delivery.
  */
 
-import { mkdir, chmod, chown, open, unlink } from "node:fs/promises";
+import { mkdir, chmod, open, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -51,17 +51,8 @@ export async function createSecretFifo(
     mkfifo.on("error", reject);
   });
 
-  // Set ownership (best-effort — requires root in production)
-  let chownSucceeded = false;
-  try {
-    await chown(fifoPath, uid, gid);
-    chownSucceeded = true;
-  } catch (e: unknown) {
-    if ((e as NodeJS.ErrnoException).code !== "EPERM") throw e;
-  }
-  // If chown succeeded, lock to owner only; otherwise allow group/other read
-  // so the agent (different UID) can still consume the FIFO.
-  await chmod(fifoPath, chownSucceeded ? 0o600 : 0o644);
+  // Set permissions so any local user (including the agent) can read the FIFO.
+  await chmod(fifoPath, 0o644);
 
   // Set up timeout to unlink if no reader connects
   const timeoutId = setTimeout(async () => {
