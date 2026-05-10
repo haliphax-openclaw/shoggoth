@@ -1,7 +1,30 @@
-import { describe, it, vi, beforeEach } from "vitest";
-import assert from "node:assert";
+import { describe, it, vi, beforeEach, expect } from "vitest";
 
-// Mock the adapters
+// Mock all adapters
+vi.mock("../../src/media/adapters/openai-images-adapter", () => ({
+  openAIImagesAdapter: vi.fn().mockResolvedValue({
+    status: "complete",
+    path: "/tmp/media/output.png",
+    mime_type: "image/png",
+  }),
+}));
+
+vi.mock("../../src/media/adapters/openai-chat-image-adapter", () => ({
+  openAIChatImageAdapter: vi.fn().mockResolvedValue({
+    status: "complete",
+    path: "/tmp/media/output.png",
+    mime_type: "image/png",
+  }),
+}));
+
+vi.mock("../../src/media/adapters/openai-video-async-adapter", () => ({
+  openaiVideoAsyncAdapter: vi.fn().mockResolvedValue({
+    status: "complete",
+    path: "/tmp/media/output.mp4",
+    mime_type: "video/mp4",
+  }),
+}));
+
 vi.mock("../../src/media/adapters/generate-content-adapter", () => ({
   generateContentAdapter: vi.fn().mockResolvedValue({
     status: "complete",
@@ -25,198 +48,83 @@ vi.mock("../../src/media/adapters/long-running-adapter", () => ({
   }),
 }));
 
+import { openAIImagesAdapter } from "../../src/media/adapters/openai-images-adapter";
+import { openAIChatImageAdapter } from "../../src/media/adapters/openai-chat-image-adapter";
+import { openaiVideoAsyncAdapter } from "../../src/media/adapters/openai-video-async-adapter";
 import { generateContentAdapter } from "../../src/media/adapters/generate-content-adapter";
 import { predictAdapter } from "../../src/media/adapters/predict-adapter";
 import { longRunningAdapter } from "../../src/media/adapters/long-running-adapter";
 import { MediaGenerationService } from "../../src/media/media-generation-service";
-import type { MediaAdapterResult } from "../../src/media/adapters/types";
 
-function makeProviders(overrides?: { kind?: string; id?: string }[]) {
-  const defaults = [
-    {
-      id: "gemini-default",
-      kind: "gemini" as const,
-      apiKey: "test-key",
-      baseUrl: "https://generativelanguage.googleapis.com",
-      models: [{ name: "gemini-2.5-flash-image" }],
-    },
-  ];
-  if (overrides) {
-    return overrides.map((o) => ({
-      id: o.id ?? "gemini-default",
-      kind: o.kind ?? "gemini",
-      apiKey: "test-key",
-      baseUrl: "https://generativelanguage.googleapis.com",
-      models: [{ name: "gemini-2.5-flash-image" }],
-    }));
-  }
-  return defaults;
-}
+// -----------------------------------------------------------------------------
+// Tests
+// -----------------------------------------------------------------------------
 
-interface ServiceConfig {
-  providers: Array<{
-    id: string;
-    kind: string;
-    apiKey?: string;
-    baseUrl?: string;
-    models?: Array<{ name: string }>;
-  }>;
-  modelAdapterMap?: Record<string, "generateContent" | "predict" | "longRunning">;
-}
-
-function createService(configOverrides?: Partial<ServiceConfig>) {
-  const config: ServiceConfig = {
-    providers: makeProviders(),
-    ...configOverrides,
-  };
-  return new MediaGenerationService(config);
-}
-
-describe("MediaGenerationService", () => {
+describe("MediaGenerationService - Multi-Provider Routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("model routing", () => {
-    it("routes to generateContent adapter for image generation models", async () => {
-      const service = createService();
+  describe("Routes to correct adapter based on provider.kind + model.mediaType", () => {
+    it("openai-compatible + image → openai-chat-image", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "openrouter",
+            kind: "openai-compatible",
+            baseUrl: "https://openrouter.ai/api",
+            apiKey: "sk-test",
+            models: [{ name: "black-forest-labs/flux.2-klein-4b", mediaType: "image" }],
+          },
+        ],
+      });
 
-      await service.generate({
-        model: "gemini-2.5-flash-image",
+      const result = await service.generate({
+        model: "black-forest-labs/flux.2-klein-4b",
         prompt: "a cat",
-        provider_id: "gemini-default",
         params: { kind: "image" },
         output_path: "/tmp/out.png",
       });
 
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 1);
-      assert.strictEqual(vi.mocked(predictAdapter).mock.calls.length, 0);
-      assert.strictEqual(vi.mocked(longRunningAdapter).mock.calls.length, 0);
+      expect(result.status).toBe("complete");
+      expect(openAIChatImageAdapter).toHaveBeenCalledTimes(1);
+      expect(openAIImagesAdapter).not.toHaveBeenCalled();
     });
 
-    it("routes to predict adapter for imagen models", async () => {
-      const service = createService();
-
-      await service.generate({
-        model: "imagen-4.0-generate-preview-06-2025",
-        prompt: "a landscape",
-        provider_id: "gemini-default",
-        params: { kind: "image" },
-        output_path: "/tmp/out.png",
+    it("openai-compatible + video → openai-video-async", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "openrouter",
+            kind: "openai-compatible",
+            baseUrl: "https://openrouter.ai/api",
+            apiKey: "sk-test",
+            models: [{ name: "google/veo-3.1", mediaType: "video" }],
+          },
+        ],
       });
 
-      assert.strictEqual(vi.mocked(predictAdapter).mock.calls.length, 1);
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 0);
-      assert.strictEqual(vi.mocked(longRunningAdapter).mock.calls.length, 0);
-    });
-
-    it("routes to longRunning adapter for veo models", async () => {
-      const service = createService();
-
-      await service.generate({
-        model: "veo-3.1-generate-preview",
-        prompt: "a sunset timelapse",
-        provider_id: "gemini-default",
+      const result = await service.generate({
+        model: "google/veo-3.1",
+        prompt: "a sunset",
         params: { kind: "video" },
         output_path: "/tmp/out.mp4",
       });
 
-      assert.strictEqual(vi.mocked(longRunningAdapter).mock.calls.length, 1);
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 0);
-      assert.strictEqual(vi.mocked(predictAdapter).mock.calls.length, 0);
+      expect(result.status).toBe("complete");
+      expect(openaiVideoAsyncAdapter).toHaveBeenCalledTimes(1);
     });
-  });
 
-  describe("operator modelAdapterMap override", () => {
-    it("merges operator modelAdapterMap on top of built-in defaults", async () => {
-      const service = createService({
-        modelAdapterMap: {
-          "my-custom-model": "generateContent",
-        },
-      });
-
-      await service.generate({
-        model: "my-custom-model",
-        prompt: "custom prompt",
-        provider_id: "gemini-default",
-        params: { kind: "image" },
-        output_path: "/tmp/out.png",
-      });
-
-      // Custom model should route to generateContent via operator override
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 1);
-    });
-  });
-
-  describe("error handling", () => {
-    it("returns error for unknown model names", async () => {
-      const service = createService();
-
-      const result = await service.generate({
-        model: "totally-unknown-model-xyz",
-        prompt: "something",
-        provider_id: "gemini-default",
-        params: { kind: "image" },
-        output_path: "/tmp/out.png",
-      });
-
-      assert.strictEqual(result.status, "error");
-      assert.ok(
-        (result as MediaAdapterResult & { status: "error" }).error.includes(
-          "totally-unknown-model-xyz",
-        ),
-      );
-      // No adapter should have been called
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 0);
-      assert.strictEqual(vi.mocked(predictAdapter).mock.calls.length, 0);
-      assert.strictEqual(vi.mocked(longRunningAdapter).mock.calls.length, 0);
-    });
-  });
-
-  describe("provider resolution", () => {
-    it("resolves provider config by provider_id", async () => {
-      const service = createService({
+    it("gemini + image → gemini-generate-content", async () => {
+      const service = new MediaGenerationService({
         providers: [
           {
-            id: "my-gemini",
+            id: "google",
             kind: "gemini",
-            apiKey: "my-key",
-            baseUrl: "https://custom.api.example.com",
-            models: [],
-          },
-          {
-            id: "other-provider",
-            kind: "gemini",
-            apiKey: "other-key",
-            baseUrl: "https://other.api.example.com",
-            models: [],
-          },
-        ],
-      });
-
-      await service.generate({
-        model: "gemini-2.5-flash-image",
-        prompt: "a dog",
-        provider_id: "my-gemini",
-        params: { kind: "image" },
-        output_path: "/tmp/out.png",
-      });
-
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 1);
-      const adapterReq = vi.mocked(generateContentAdapter).mock.calls[0][0];
-      assert.strictEqual(adapterReq.apiKey, "my-key");
-      assert.strictEqual(adapterReq.baseUrl, "https://custom.api.example.com");
-    });
-
-    it("returns error when provider is not kind: 'gemini'", async () => {
-      const service = createService({
-        providers: [
-          {
-            id: "openai-provider",
-            kind: "openai-compatible",
-            apiKey: "oai-key",
-            baseUrl: "https://api.openai.com/v1",
-            models: [],
+            baseUrl: "https://generativelanguage.googleapis.com",
+            apiKey: "google-key",
+            apiVersion: "v1beta",
+            models: [{ name: "gemini-2.5-flash-image", mediaType: "image" }],
           },
         ],
       });
@@ -224,15 +132,213 @@ describe("MediaGenerationService", () => {
       const result = await service.generate({
         model: "gemini-2.5-flash-image",
         prompt: "a cat",
-        provider_id: "openai-provider",
         params: { kind: "image" },
         output_path: "/tmp/out.png",
       });
 
-      assert.strictEqual(result.status, "error");
-      assert.ok((result as MediaAdapterResult & { status: "error" }).error.includes("gemini"));
-      // No adapter should have been called
-      assert.strictEqual(vi.mocked(generateContentAdapter).mock.calls.length, 0);
+      expect(result.status).toBe("complete");
+      expect(generateContentAdapter).toHaveBeenCalledTimes(1);
+    });
+
+    it("gemini + video → gemini-long-running", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "google",
+            kind: "gemini",
+            baseUrl: "https://generativelanguage.googleapis.com",
+            apiKey: "google-key",
+            apiVersion: "v1beta",
+            models: [{ name: "veo-3.1", mediaType: "video" }],
+          },
+        ],
+      });
+
+      const result = await service.generate({
+        model: "veo-3.1",
+        prompt: "a sunset timelapse",
+        params: { kind: "video" },
+        output_path: "/tmp/out.mp4",
+      });
+
+      expect(result.status).toBe("in_progress");
+      expect(longRunningAdapter).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Explicit adapter override on model", () => {
+    it("uses openai-images when explicitly set despite openai-compatible + image default", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "openai-direct",
+            kind: "openai-compatible",
+            baseUrl: "https://api.openai.com/v1",
+            apiKey: "sk-test",
+            models: [{ name: "dall-e-3", mediaType: "image", adapter: "openai-images" }],
+          },
+        ],
+      });
+
+      const result = await service.generate({
+        model: "dall-e-3",
+        prompt: "a cat",
+        params: { kind: "image" },
+        output_path: "/tmp/out.png",
+      });
+
+      expect(result.status).toBe("complete");
+      expect(openAIImagesAdapter).toHaveBeenCalledTimes(1);
+      expect(openAIChatImageAdapter).not.toHaveBeenCalled();
+    });
+
+    it("uses gemini-predict when explicitly set on a gemini image model", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "google",
+            kind: "gemini",
+            baseUrl: "https://generativelanguage.googleapis.com",
+            apiKey: "google-key",
+            models: [
+              {
+                name: "imagen-4.0-fast-generate-001",
+                mediaType: "image",
+                adapter: "gemini-predict",
+              },
+            ],
+          },
+        ],
+      });
+
+      const result = await service.generate({
+        model: "imagen-4.0-fast-generate-001",
+        prompt: "a landscape",
+        params: { kind: "image" },
+        output_path: "/tmp/out.png",
+      });
+
+      expect(result.status).toBe("complete");
+      expect(predictAdapter).toHaveBeenCalledTimes(1);
+      expect(generateContentAdapter).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Error cases", () => {
+    it("returns error for unknown model", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "openrouter",
+            kind: "openai-compatible",
+            baseUrl: "https://openrouter.ai/api",
+            apiKey: "sk-test",
+            models: [{ name: "black-forest-labs/flux.2-klein-4b", mediaType: "image" }],
+          },
+        ],
+      });
+
+      const result = await service.generate({
+        model: "totally-unknown-model-xyz",
+        prompt: "something",
+        params: { kind: "image" },
+        output_path: "/tmp/out.png",
+      });
+
+      expect(result.status).toBe("error");
+      expect((result as { error: string }).error).toContain("totally-unknown-model-xyz");
+    });
+
+    it("returns error when no providers configured", async () => {
+      const service = new MediaGenerationService({ providers: [] });
+
+      const result = await service.generate({
+        model: "any-model",
+        prompt: "something",
+        params: { kind: "image" },
+        output_path: "/tmp/out.png",
+      });
+
+      expect(result.status).toBe("error");
+    });
+  });
+
+  describe("Provider info passed to adapter", () => {
+    it("passes provider with id, kind, baseUrl, and apiKey to adapter", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "my-provider",
+            kind: "openai-compatible",
+            baseUrl: "https://custom.api.example.com",
+            apiKey: "my-secret-key",
+            models: [{ name: "test-model", mediaType: "image" }],
+          },
+        ],
+      });
+
+      await service.generate({
+        model: "test-model",
+        prompt: "a cat",
+        params: { kind: "image" },
+        output_path: "/tmp/out.png",
+      });
+
+      expect(openAIChatImageAdapter).toHaveBeenCalledTimes(1);
+      const adapterCall = (openAIChatImageAdapter as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(adapterCall.provider.id).toBe("my-provider");
+      expect(adapterCall.provider.kind).toBe("openai-compatible");
+      expect(adapterCall.provider.baseUrl).toBe("https://custom.api.example.com");
+      expect(adapterCall.provider.apiKey).toBe("my-secret-key");
+    });
+  });
+
+  describe("Multiple providers", () => {
+    it("routes to correct provider based on model name", async () => {
+      const service = new MediaGenerationService({
+        providers: [
+          {
+            id: "openrouter",
+            kind: "openai-compatible",
+            baseUrl: "https://openrouter.ai/api",
+            apiKey: "or-key",
+            models: [
+              { name: "black-forest-labs/flux.2-klein-4b", mediaType: "image" },
+              { name: "google/veo-3.1", mediaType: "video" },
+            ],
+          },
+          {
+            id: "google",
+            kind: "gemini",
+            baseUrl: "https://generativelanguage.googleapis.com",
+            apiKey: "google-key",
+            apiVersion: "v1beta",
+            models: [
+              { name: "gemini-2.5-flash-image", mediaType: "image" },
+              { name: "veo-3.1", mediaType: "video" },
+            ],
+          },
+        ],
+      });
+
+      // OpenRouter image
+      await service.generate({
+        model: "black-forest-labs/flux.2-klein-4b",
+        prompt: "cat",
+        params: { kind: "image" },
+        output_path: "/tmp/out1.png",
+      });
+
+      // Google Gemini image
+      await service.generate({
+        model: "gemini-2.5-flash-image",
+        prompt: "dog",
+        params: { kind: "image" },
+        output_path: "/tmp/out2.png",
+      });
+
+      expect(openAIChatImageAdapter).toHaveBeenCalledTimes(1);
+      expect(generateContentAdapter).toHaveBeenCalledTimes(1);
     });
   });
 });

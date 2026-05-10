@@ -582,6 +582,70 @@ export type AttachmentHandlingMode = (typeof attachmentHandlingModes)[number];
 
 export type AttachmentHandlingConfig = z.infer<typeof attachmentHandlingSchema>;
 
+// ---------------------------------------------------------------------------
+// Media Generation
+// ---------------------------------------------------------------------------
+
+const mediaGenerationAdapterType = z.enum([
+  "openrouter-video",
+  "openai-images",
+  "openai-chat-image",
+  "openai-video-async",
+  "gemini-generate-content",
+  "gemini-predict",
+  "gemini-long-running",
+]);
+
+const mediaGenerationModelSchema = z.object({
+  /** Exact model name. */
+  name: z.string().min(1),
+  /** Type of media this model generates. */
+  mediaType: z.enum(["image", "video", "audio"]),
+  /** Optional adapter override. If omitted, derived from provider.kind + mediaType. */
+  adapter: mediaGenerationAdapterType.optional(),
+  /** Optional modalities to send with the request (e.g. ["image"] or ["text", "image"]). */
+  modalities: z.array(z.string()).optional(),
+});
+
+const mediaGenerationProviderSchema = z.object({
+  /** Unique identifier for this media provider. */
+  id: z.string().min(1),
+  /** Determines auth headers and URL construction. */
+  kind: z.enum(["openai-compatible", "gemini"]),
+  /** Base URL for API requests. */
+  baseUrl: z.string().min(1),
+  /** API key (plaintext or env var reference). */
+  apiKey: z.string().optional(),
+  /** Environment variable name containing the API key. */
+  apiKeyEnv: z.string().optional(),
+  /** Gemini-specific: API version path segment. Default "v1beta". */
+  apiVersion: z.string().optional(),
+  /** Models available from this provider. */
+  models: z.array(mediaGenerationModelSchema).optional().default([]),
+});
+
+const mediaGenerationAdapterDefaults = z.object({
+  /** Polling interval for async adapters. */
+  pollIntervalMs: z.number().int().positive().optional(),
+  /** Max time to poll before returning in_progress. */
+  timeoutMs: z.number().int().positive().optional(),
+});
+
+export const shoggothMediaGenerationConfigSchema = z
+  .object({
+    /** Media generation providers with their models. */
+    providers: z.array(mediaGenerationProviderSchema).optional().default([]),
+    /** Per-adapter-type default settings. */
+    adapterDefaults: z
+      .record(mediaGenerationAdapterType, mediaGenerationAdapterDefaults)
+      .optional(),
+    /** Directory for generated media files. Default: "{workspacePath}/tmp/media". */
+    outputDirectory: z.string().min(1).optional(),
+  })
+  .strict();
+
+export type ShoggothMediaGenerationConfig = z.infer<typeof shoggothMediaGenerationConfigSchema>;
+
 /** Daemon timers, probes, and feature flags also available via `SHOGGOTH_*` env (env wins when set). */
 export const shoggothRuntimeConfigSchema = z
   .object({
@@ -910,38 +974,16 @@ export const processDeclarationSchema = z
     restartMode: z.enum(["never", "on-failure", "always"]).optional(),
     /** Max restart retries. Default 5. */
     maxRetries: z.number().int().nonnegative().optional(),
-    /** Health check (optional). */
     health: processDeclarationHealthSchema.optional(),
   })
   .strict();
 
 export type ProcessDeclaration = z.infer<typeof processDeclarationSchema>;
 
-// ---------------------------------------------------------------------------
 // SearXNG web search
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Media Generation
-// ---------------------------------------------------------------------------
-
-export const shoggothMediaGenerationConfigSchema = z
-  .object({
-    /** Default provider ID for media generation (must be kind: "gemini"). Resolved from first gemini provider if omitted. */
-    defaultProviderId: z.string().min(1).optional(),
-    /** Directory for generated media files. Default: "{workspacesRoot}/{agentId}/tmp/media" */
-    outputDirectory: z.string().min(1).optional(),
-    /** Max poll time for async models (Veo). Default 300000 (5 min). */
-    defaultTimeoutMs: z.number().int().positive().optional(),
-    /** Operator-defined model-to-adapter mappings, merged on top of built-in defaults. Values must be one of "generateContent", "predict", or "longRunning". */
-    modelAdapterMap: z
-      .record(z.string(), z.enum(["generateContent", "predict", "longRunning"]))
-      .optional(),
-  })
-  .strict();
-
-export type ShoggothMediaGenerationConfig = z.infer<typeof shoggothMediaGenerationConfigSchema>;
-
 // ---------------------------------------------------------------------------
 // SearXNG web search
 // ---------------------------------------------------------------------------

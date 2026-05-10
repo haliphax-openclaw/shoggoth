@@ -425,7 +425,13 @@ const MEDIA_GENERATE_TOOL_DESCRIPTOR: AggregatedTool = {
           },
           aspectRatio: {
             type: "string",
-            description: "Aspect ratio (image/video, e.g. '16:9', '1:1')",
+            description:
+              "Aspect ratio (image/video, e.g. '16:9', '1:1'). For OpenAI-compatible image APIs, supported values: 1:1, 16:9, 9:16, 4:3, 3:4",
+          },
+          size: {
+            type: "string",
+            description:
+              "Raw size string (e.g. '1024x1024', '512x512'). Alternative to aspectRatio for OpenAI-compatible image APIs. Ignored if aspectRatio is set.",
           },
           numberOfImages: {
             type: "number",
@@ -522,15 +528,18 @@ export function createWebSearchToolFinalizer(
 }
 
 /**
- * Creates a context finalizer that appends `builtin-media-generate` when a gemini provider is configured.
  */
 export function createMediaGenerateToolFinalizer(
   config: ShoggothConfig,
 ): (ctx: SessionMcpToolContext, sessionId: string) => SessionMcpToolContext {
-  const hasGemini = (config.models?.providers ?? []).some((p) => p.kind === "gemini");
+  const hasMediaConfig =
+    (config.models?.providers ?? []).length > 0 ||
+    ((config as any).mediaGeneration?.providers ?? []).some(
+      (p: { models?: unknown[] }) => (p.models?.length ?? 0) > 0,
+    );
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return (ctx, _sessionId) => {
-    if (!hasGemini) return ctx;
+    if (!hasMediaConfig) return ctx;
     if (ctx.aggregated.tools.some((t) => t.namespacedName === "builtin-media-generate")) return ctx;
     const aggregated: AggregateMcpCatalogResult = {
       tools: [...ctx.aggregated.tools, MEDIA_GENERATE_TOOL_DESCRIPTOR],

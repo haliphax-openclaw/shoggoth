@@ -56,8 +56,10 @@ export async function generateContentAdapter(
   req: MediaAdapterRequest,
 ): Promise<MediaAdapterResult> {
   try {
-    const url = `${req.baseUrl}/v1beta/models/${req.model}:generateContent?key=${req.apiKey}`;
     const parts = await buildParts(req);
+
+    const apiVersion = req.provider.apiVersion ?? "v1beta";
+    const url = `${req.provider.baseUrl}/${apiVersion}/models/${req.model}:generateContent?key=${req.provider.apiKey}`;
 
     const body = {
       contents: [{ role: "user", parts }],

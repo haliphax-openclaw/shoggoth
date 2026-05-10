@@ -14,12 +14,7 @@ vi.mock("@shoggoth/shared", () => ({
   VERSION: "0.0.0-test",
 }));
 
-import {
-  parseMediaGenerateArgs,
-  parseMediaPollArgs,
-  runMediaCli,
-  BUILTIN_MEDIA_MODELS,
-} from "../src/run-media";
+import { parseMediaGenerateArgs, parseMediaPollArgs, runMediaCli } from "../src/run-media";
 
 let logged: string[] = [];
 let errored: string[] = [];
@@ -49,21 +44,18 @@ afterEach(() => {
 // parseMediaGenerateArgs
 // ---------------------------------------------------------------------------
 describe("parseMediaGenerateArgs", () => {
-  it("parses --model, --prompt, --provider, --output flags", () => {
+  it("parses --model, --prompt, --output flags", () => {
     const result = parseMediaGenerateArgs([
       "--model",
       "gemini-2.5-flash-image",
       "--prompt",
       "a cat",
-      "--provider",
-      "gemini-1",
       "--output",
       "/tmp/out.png",
     ]);
     assert.ok(result.ok);
     assert.strictEqual(result.payload.model, "gemini-2.5-flash-image");
     assert.strictEqual(result.payload.prompt, "a cat");
-    assert.strictEqual(result.payload.provider_id, "gemini-1");
     assert.strictEqual(result.payload.output_path, "/tmp/out.png");
   });
 
@@ -73,8 +65,6 @@ describe("parseMediaGenerateArgs", () => {
       "gemini-2.5-flash-image",
       "--prompt",
       "a dog",
-      "--provider",
-      "g1",
       "--param",
       "kind=image",
       "--param",
@@ -91,31 +81,17 @@ describe("parseMediaGenerateArgs", () => {
   });
 
   it("requires --model", () => {
-    const result = parseMediaGenerateArgs(["--prompt", "hello", "--provider", "g"]);
+    const result = parseMediaGenerateArgs(["--prompt", "hello"]);
     assert.strictEqual(result.ok, false);
   });
 
   it("requires --prompt", () => {
-    const result = parseMediaGenerateArgs(["--model", "m", "--provider", "g"]);
-    assert.strictEqual(result.ok, false);
-  });
-
-  it("requires --provider", () => {
-    const result = parseMediaGenerateArgs(["--model", "m", "--prompt", "p"]);
+    const result = parseMediaGenerateArgs(["--model", "m"]);
     assert.strictEqual(result.ok, false);
   });
 
   it("handles --param with missing value gracefully", () => {
-    const result = parseMediaGenerateArgs([
-      "--model",
-      "m",
-      "--prompt",
-      "p",
-      "--provider",
-      "g",
-      "--param",
-      "noequals",
-    ]);
+    const result = parseMediaGenerateArgs(["--model", "m", "--prompt", "p", "--param", "noequals"]);
     // A param without '=' should either be rejected or treated as key with empty value
     // The implementation should handle this; either way it should not crash
     assert.ok(typeof result.ok === "boolean");
@@ -174,8 +150,6 @@ describe("runMediaCli generate", () => {
       "gemini-2.5-flash-image",
       "--prompt",
       "a cat on a roof",
-      "--provider",
-      "gemini-1",
       "--output",
       "/tmp/out.png",
       "--param",
@@ -187,7 +161,6 @@ describe("runMediaCli generate", () => {
     assert.strictEqual(call.op, "media_generate");
     assert.strictEqual(call.payload.model, "gemini-2.5-flash-image");
     assert.strictEqual(call.payload.prompt, "a cat on a roof");
-    assert.strictEqual(call.payload.provider_id, "gemini-1");
     assert.strictEqual(call.payload.output_path, "/tmp/out.png");
     assert.deepStrictEqual(call.payload.params, { kind: "image" });
   });
@@ -198,15 +171,7 @@ describe("runMediaCli generate", () => {
       result: { status: "complete", path: "/workspace/img.png", mime_type: "image/png" },
     });
 
-    await runMediaCli([
-      "generate",
-      "--model",
-      "gemini-2.5-flash-image",
-      "--prompt",
-      "test",
-      "--provider",
-      "g1",
-    ]);
+    await runMediaCli(["generate", "--model", "gemini-2.5-flash-image", "--prompt", "test"]);
 
     const output = logged.join("\n");
     assert.ok(output.includes("/workspace/img.png"), `Expected path in output: ${output}`);
@@ -218,15 +183,7 @@ describe("runMediaCli generate", () => {
       result: { status: "error", error: "Rate limit exceeded" },
     });
 
-    await runMediaCli([
-      "generate",
-      "--model",
-      "gemini-2.5-flash-image",
-      "--prompt",
-      "test",
-      "--provider",
-      "g1",
-    ]);
+    await runMediaCli(["generate", "--model", "gemini-2.5-flash-image", "--prompt", "test"]);
 
     const allOutput = [...logged, ...errored].join("\n");
     assert.ok(allOutput.includes("Rate limit exceeded"), `Expected error in output: ${allOutput}`);
@@ -238,7 +195,7 @@ describe("runMediaCli generate", () => {
       error: { message: "socket unreachable" },
     });
 
-    await runMediaCli(["generate", "--model", "m", "--prompt", "p", "--provider", "g"]);
+    await runMediaCli(["generate", "--model", "m", "--prompt", "p"]);
 
     assert.ok(process.exitCode === 1);
   });
@@ -259,7 +216,6 @@ describe("runMediaCli poll", () => {
       ok: true,
       result: { status: "complete", path: "/tmp/video.mp4", mime_type: "video/mp4" },
     });
-
     await runMediaCli([
       "poll",
       "--provider",
@@ -316,25 +272,14 @@ describe("runMediaCli poll", () => {
 // shoggoth media models
 // ---------------------------------------------------------------------------
 describe("runMediaCli models", () => {
-  it("lists available media generation models from the built-in map", async () => {
+  it("shows message when no providers configured", async () => {
     await runMediaCli(["models"]);
 
     const output = logged.join("\n");
-    // Should list known built-in models
     assert.ok(
-      output.includes("gemini-2.5-flash-image"),
-      `Expected gemini-2.5-flash-image in output: `,
+      output.includes("No media generation providers configured"),
+      `Expected no-config message: ${output}`,
     );
-    assert.ok(output.includes("imagen"), `Expected imagen in output: ${output}`);
-    assert.ok(output.includes("veo"), `Expected veo in output: ${output}`);
-    assert.ok(output.includes("lyria-3"), `Expected lyria-3 in output: ${output}`);
-  });
-
-  it("exports BUILTIN_MEDIA_MODELS containing known models", () => {
-    assert.ok(typeof BUILTIN_MEDIA_MODELS === "object");
-    assert.ok("gemini-2.5-flash-image" in BUILTIN_MEDIA_MODELS);
-    assert.ok("imagen" in BUILTIN_MEDIA_MODELS);
-    assert.ok("veo" in BUILTIN_MEDIA_MODELS);
   });
 
   it("does not call control socket", async () => {
@@ -342,23 +287,73 @@ describe("runMediaCli models", () => {
     assert.strictEqual(mockInvoke.mock.calls.length, 0);
   });
 
-  it("includes operator-configured models from mediaGeneration.modelAdapterMap", async () => {
+  it("lists configured models from mediaGeneration providers", async () => {
     mockLoadLayeredConfig.mockReturnValue({
       socketPath: "/tmp/test.sock",
       mediaGeneration: {
-        modelAdapterMap: {
-          "my-custom-model": "generateContent",
-        },
+        providers: [
+          {
+            id: "google",
+            kind: "gemini",
+            apiKey: "key",
+            baseUrl: "https://generativelanguage.googleapis.com",
+            models: [
+              { name: "gemini-2.5-flash-image", mediaType: "image" },
+              { name: "veo-3.1-generate-preview", mediaType: "video" },
+            ],
+          },
+          {
+            id: "openrouter",
+            kind: "openai-compatible",
+            apiKey: "key2",
+            baseUrl: "https://openrouter.ai/api",
+            models: [
+              { name: "recraft/recraft-v3", mediaType: "image" },
+              { name: "openai/gpt-5-image-mini", mediaType: "image", adapter: "openai-chat-image" },
+            ],
+          },
+        ],
       },
     });
 
     await runMediaCli(["models"]);
 
     const output = logged.join("\n");
-    assert.ok(output.includes("my-custom-model"), `Expected my-custom-model in output: ${output}`);
-    assert.ok(output.includes("(config)"), `Expected (config) tag for operator model: ${output}`);
-    // Built-in models should still be present
-    assert.ok(output.includes("gemini-2.5-flash-image"), `Expected built-in model: ${output}`);
+    assert.ok(output.includes("gemini-2.5-flash-image"), `Expected gemini model: ${output}`);
+    assert.ok(output.includes("veo-3.1-generate-preview"), `Expected veo model: ${output}`);
+    assert.ok(output.includes("recraft/recraft-v3"), `Expected recraft model: ${output}`);
+    assert.ok(output.includes("openai/gpt-5-image-mini"), `Expected gpt model: ${output}`);
+    assert.ok(output.includes("[google]"), `Expected provider tag [google]: ${output}`);
+    assert.ok(output.includes("[openrouter]"), `Expected provider tag [openrouter]: ${output}`);
+  });
+
+  it("shows adapter override when specified", async () => {
+    mockLoadLayeredConfig.mockReturnValue({
+      socketPath: "/tmp/test.sock",
+      mediaGeneration: {
+        providers: [
+          {
+            id: "google",
+            kind: "gemini",
+            apiKey: "key",
+            baseUrl: "https://generativelanguage.googleapis.com",
+            models: [
+              {
+                name: "imagen-4.0-fast-generate-001",
+                mediaType: "image",
+                adapter: "gemini-predict",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    await runMediaCli(["models"]);
+
+    const output = logged.join("\n");
+    assert.ok(output.includes("imagen-4.0-fast-generate-001"), `Expected imagen model: ${output}`);
+    assert.ok(output.includes("gemini-predict"), `Expected adapter override: ${output}`);
   });
 });
 
