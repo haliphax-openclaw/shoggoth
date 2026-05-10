@@ -48,28 +48,32 @@ Surfaced via builtin-show / platform attachment
 
 ### Configuration-Driven Routing
 
-All routing decisions come from the `mediaGeneration` config section. No hardcoded model-to-adapter map. No hardcoded provider kind checks.
+All routing decisions come from the `mediaGeneration` config section. No hardcoded model-to-adapter map. No hardcoded provider kind checks. No glob/pattern matching.
 
 The config declares:
 
-1. **Providers** — independent from LLM providers. Each has an id, kind (for auth/URL scheme), baseUrl, and apiKey.
-2. **Models** — a list of pattern-matched entries mapping model names to a provider and adapter type.
-3. **Adapter defaults** — per-adapter-type settings (e.g. polling interval/timeout for async adapters).
+1. **Providers** — independent from LLM providers. Each has an id, kind (for auth/URL scheme), baseUrl, apiKey, an optional `defaultAdapter`, and a `models` array listing exact model names.
+2. **Adapter defaults** — per-adapter-type settings (e.g. polling interval/timeout for async adapters).
 
-If `mediaGeneration` is absent or has no providers/models, the `builtin-media-generate` tool is not injected and the feature is disabled.
+Model resolution is explicit: search all providers for an exact model name match (first match wins). Adapter is determined by per-model override → provider `defaultAdapter` → built-in kind+mediaType fallback.
+
+Operators can configure multiple providers pointing to the same API (e.g., two OpenRouter providers — one for images, one for video) with different `defaultAdapter` values to cleanly separate adapter routing.
+
+If `mediaGeneration` is absent or has no providers with models, the `builtin-media-generate` tool is not injected and the feature is disabled.
 
 ### Adapter Types
 
-Six adapter types, identified by string:
+Seven adapter types, identified by string:
 
-| Adapter                   | Protocol                                              | Sync/Async | Use Case                           |
-| ------------------------- | ----------------------------------------------------- | ---------- | ---------------------------------- |
-| `openai-images`           | `POST /images/generations`                            | Sync       | FLUX, Recraft, Seedream, Riverflow |
-| `openai-chat-image`       | `POST /chat/completions` (image output parts)         | Sync       | GPT-5 Image, GPT-5.4 Image 2       |
-| `openai-video-async`      | `POST /chat/completions` → poll `GET /generation?id=` | Async      | Hailuo, Kling, Sora, Seedance, Wan |
-| `gemini-generate-content` | Gemini `generateContent`                              | Sync       | Nano Banana, TTS, Lyria            |
-| `gemini-predict`          | Gemini `predict`                                      | Sync       | Imagen                             |
-| `gemini-long-running`     | Gemini `predictLongRunning` + poll                    | Async      | Veo                                |
+| Adapter                   | Protocol                                              | Sync/Async | Use Case                                                 |
+| ------------------------- | ----------------------------------------------------- | ---------- | -------------------------------------------------------- |
+| `openai-images`           | `POST /images/generations`                            | Sync       | FLUX, Recraft, Seedream, Riverflow                       |
+| `openai-chat-image`       | `POST /chat/completions` (image output parts)         | Sync       | GPT-5 Image, GPT-5.4 Image 2                             |
+| `openai-video-async`      | `POST /chat/completions` → poll `GET /generation?id=` | Async      | (legacy, non-OpenRouter providers)                       |
+| `openrouter-video`        | `POST /videos` → poll `GET /videos/{jobId}`           | Async      | Hailuo, Kling, Sora, Seedance, Wan, Veo (via OpenRouter) |
+| `gemini-generate-content` | Gemini `generateContent`                              | Sync       | Nano Banana, TTS, Lyria                                  |
+| `gemini-predict`          | Gemini `predict`                                      | Sync       | Imagen                                                   |
+| `gemini-long-running`     | Gemini `predictLongRunning` + poll                    | Async      | Veo                                                      |
 
 ### Provider Kind
 
@@ -80,24 +84,27 @@ The provider `kind` determines auth headers and URL construction:
 | `openai-compatible` | `Authorization: Bearer {apiKey}`               | `{baseUrl}/images/generations`, `{baseUrl}/chat/completions` |
 | `gemini`            | `x-goog-api-key` header or `?key=` query param | `{baseUrl}/{apiVersion}/models/{model}:generateContent`      |
 
-### Model Pattern Matching
+### Model Routing
 
-Models are matched by glob-style patterns evaluated in declaration order (first match wins):
+Model routing is **explicit**, not pattern-based. Each model entry in a provider's `models` array declares its name exactly. The adapter is determined by:
 
-- `black-forest-labs/*` — matches any model starting with `black-forest-labs/`
-- `minimax/hailuo*` — matches `minimax/hailuo-2.3`, `minimax/hailuo-2.3-fast`, etc.
-- `gemini-*-image` — matches `gemini-2.5-flash-image`, `gemini-3-pro-image-preview` (if using `*` as wildcard)
-- Exact match: `veo-3.1-generate-preview`
+1. **Per-model `adapter` override** — if the model entry specifies an `adapter`, use it.
+2. **Provider-level `defaultAdapter`** — if the provider declares a `defaultAdapter`, use it for any model that doesn't override.
+3. **Provider `kind` + model `mediaType` fallback** — built-in defaults (e.g., `openai-compatible` + `video` → `openai-video-async`).
+
+This means operators can configure two OpenRouter providers with different default adapters (e.g., one for images via `openai-chat-image`, one for video via `openrouter-video`) and list models under each accordingly. Or they can use a single provider and set `adapter` explicitly on each model entry.
+
+No glob patterns. No implicit matching. First provider with an exact model name match wins.
 
 ### Tool Injection
 
-The `createMediaGenerateToolFinalizer` checks whether `config.mediaGeneration.providers` has at least one entry and `config.mediaGeneration.models` has at least one entry. If both are present, the tool is injected. No provider-kind check.
+The `createMediaGenerateToolFinalizer` checks whether `config.mediaGeneration.providers` has at least one entry with at least one model. If so, the tool is injected. No provider-kind check.
 
 ### Control Plane Validation
 
 The `media_generate` op validates:
 
-1. The requested model matches a configured pattern
+1. The requested model exists in a configured provider's model list
 2. The resolved provider exists in `mediaGeneration.providers`
 3. The resolved adapter type is known
 
@@ -105,7 +112,7 @@ No `kind === "gemini"` gate.
 
 ### Async Polling
 
-For async adapters (`openai-video-async`, `gemini-long-running`), the service:
+For async adapters (`openai-video-async`, `openrouter-video`, `gemini-long-running`), the service:
 
 1. Submits the generation request
 2. Polls internally up to the configured timeout
@@ -119,6 +126,9 @@ adapterDefaults:
   openai-video-async:
     pollIntervalMs: 5000
     timeoutMs: 300000
+  openrouter-video:
+    pollIntervalMs: 30000
+    timeoutMs: 300000
   gemini-long-running:
     pollIntervalMs: 10000
     timeoutMs: 300000
@@ -129,13 +139,14 @@ adapterDefaults:
 - Delete `BUILTIN_MODEL_ADAPTER_MAP` from `media-generation-service.ts`
 - Remove `kind === "gemini"` checks from `integration-ops.ts` and the service
 - Remove `hasGemini` check from `createMediaGenerateToolFinalizer`
-- Remove `mediaGeneration.modelAdapterMap` (replaced by `mediaGeneration.models`)
-- Remove `mediaGeneration.defaultProviderId` (replaced by explicit provider in each model entry)
+- Remove `mediaGeneration.modelAdapterMap` (replaced by provider-nested models with explicit adapters)
+- Remove `mediaGeneration.defaultProviderId` (replaced by explicit provider per model via nesting)
+- Remove glob/pattern matching logic (replaced by exact name lookup)
 
 ## Testing Strategy
 
 - Unit tests for each new adapter (mocked fetch, verify request shape, response parsing, file writing)
-- Unit tests for pattern matching / model resolution logic
+- Unit tests for exact-name model resolution logic
 - Unit tests for provider auth header construction per kind
 - Integration tests for the control op (mock service, verify routing and validation)
 - Integration test for tool injection (present when config has entries, absent when not)
@@ -143,6 +154,7 @@ adapterDefaults:
 
 ## Considerations
 
+- **OpenRouter video API is separate from chat/completions.** Video models use `POST /api/v1/videos` with a dedicated async polling workflow (`GET /videos/{jobId}`). This is NOT the same as the chat completions endpoint. The `openrouter-video` adapter handles this protocol.
 - **OpenRouter pricing** uses per-request flat fees for media models (not token-based). The cost model is different from LLM usage. Operators should be aware.
 - **Rate limits** vary wildly between media providers. The existing resilience layer is not wired into media generation. This plan does not add retry/backoff to media adapters — surface errors clearly and let the agent/operator retry.
 - **Response format detection** — OpenRouter's image endpoint can return `b64_json` or `url`. The adapter should handle both (download URL if given, decode base64 if given).

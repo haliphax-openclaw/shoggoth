@@ -4,12 +4,12 @@
 
 Establish the new configuration schema and the model resolution logic that routes a model name to a provider + adapter.
 
-- Define `mediaGenerationConfigSchema` in the shared schema package
+- Define `mediaGenerationConfigSchema` in the shared schema package (providers with nested models, no top-level models array)
 - Remove the old `mediaGeneration` schema fields (`defaultProviderId`, `modelAdapterMap`)
-- Implement glob pattern matching for model entries
-- Implement `resolveModel()` function
+- Implement `resolveModel()` function — exact name match across all providers' model lists (first match wins)
+- Adapter resolution: per-model `adapter` override → provider `defaultAdapter` → built-in kind+mediaType fallback
 - Implement `resolveMediaProvider()` to extract apiKey (from field or env var)
-- Unit tests for pattern matching and resolution
+- Unit tests for exact name resolution and adapter precedence
 
 **Files:**
 
@@ -23,8 +23,8 @@ Rewrite the service to use config-driven routing instead of the hardcoded adapte
 
 - Remove `BUILTIN_MODEL_ADAPTER_MAP`
 - Remove `kind === "gemini"` checks
-- Accept `MediaGenerationServiceConfig` (providers + models + adapterDefaults)
-- Dispatch to adapter based on resolved `adapter` type
+- Accept `MediaGenerationServiceConfig` (providers with nested models + adapterDefaults)
+- Dispatch to adapter based on resolved `adapter` type (including new `openrouter-video`)
 - Update `MediaAdapterRequest` to carry `ResolvedMediaProvider` instead of flat `apiKey`/`baseUrl`
 - Refactor existing Gemini adapters to accept the new request shape
 - Unit tests for service dispatch logic
@@ -70,7 +70,7 @@ Implement the chat-completions adapter for models that output images inline (GPT
 
 ## Phase 5: OpenAI Video Async Adapter
 
-Implement the async video generation adapter with polling.
+Implement the async video generation adapter with polling (legacy protocol for non-OpenRouter providers).
 
 - Submit generation request via chat completions
 - Extract `generation_id` from response header (`X-Generation-Id`) or body
@@ -84,6 +84,38 @@ Implement the async video generation adapter with polling.
 
 - `packages/daemon/src/media/adapters/openai-video-async-adapter.ts` (new)
 - `packages/daemon/test/media/openai-video-async-adapter.test.ts` (new)
+
+## Phase 5b: OpenRouter Video Adapter
+
+Implement the dedicated OpenRouter video generation adapter. OpenRouter uses a completely separate `/videos` endpoint (not chat/completions) with an async polling workflow.
+
+**Protocol:**
+
+- Submit: `POST {baseUrl}/videos` with `{ model, prompt, duration?, resolution?, aspect_ratio?, frame_images?, generate_audio? }`
+- Response: `{ id, polling_url, status: "pending" }`
+- Poll: `GET {polling_url}` (URL returned in submit response)
+- Poll response: `{ id, status, unsigned_urls?, usage?, error? }`
+- Status values: `"pending"` | `"in_progress"` | `"completed"` | `"failed"`
+- Download: `GET unsigned_urls[0]` returns raw video bytes
+
+**Implementation details:**
+
+- Map `params.durationSeconds` → `duration`
+- Map `params.aspectRatio` → `aspect_ratio`
+- Map `params.input_image` → `frame_images` array with `frame_type: "first_frame"`
+- Map `params.last_frame` → `frame_images` array entry with `frame_type: "last_frame"`
+- Use `polling_url` from submit response (don't construct poll URL manually)
+- Poll at 30s intervals (OpenRouter docs recommend this for video)
+- On `"completed"`: download from `unsigned_urls[0]`, write to file
+- On `"failed"`: return error with message from `error` field
+- On timeout: return `in_progress` with job `id` as `operation_id`
+- Auth: `Authorization: Bearer {apiKey}` on all requests (submit + poll + download)
+- Unit tests with mocked fetch (submit → poll pending → poll completed → download)
+
+**Files:**
+
+- `packages/daemon/src/media/adapters/openrouter-video-adapter.ts` (new)
+- `packages/daemon/test/media/openrouter-video-adapter.test.ts` (new)
 
 ## Phase 6: Control Plane and Tool Injection
 

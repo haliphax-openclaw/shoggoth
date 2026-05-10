@@ -5,6 +5,27 @@
 ### Configuration Schema
 
 ```ts
+const mediaGenerationAdapterType = z.enum([
+  "openai-images",
+  "openai-chat-image",
+  "openai-video-async",
+  "openrouter-video",
+  "gemini-generate-content",
+  "gemini-predict",
+  "gemini-long-running",
+]);
+
+const mediaGenerationModelEntry = z.object({
+  /** Exact model name (what the agent passes as `model`). */
+  name: z.string().min(1),
+  /** Media type this model produces. */
+  mediaType: z.enum(["image", "video", "audio"]),
+  /** Per-model adapter override. Takes priority over provider defaultAdapter. */
+  adapter: mediaGenerationAdapterType.optional(),
+  /** Modalities to send in the request (for openai-chat-image). */
+  modalities: z.array(z.string()).optional(),
+});
+
 const mediaGenerationProviderSchema = z.object({
   /** Unique identifier for this media provider. */
   id: z.string().min(1),
@@ -18,24 +39,10 @@ const mediaGenerationProviderSchema = z.object({
   apiKeyEnv: z.string().optional(),
   /** Gemini-specific: API version path segment. Default "v1beta". */
   apiVersion: z.string().optional(),
-});
-
-const mediaGenerationAdapterType = z.enum([
-  "openai-images",
-  "openai-chat-image",
-  "openai-video-async",
-  "gemini-generate-content",
-  "gemini-predict",
-  "gemini-long-running",
-]);
-
-const mediaGenerationModelEntry = z.object({
-  /** Glob pattern matched against the model name. First match wins. */
-  pattern: z.string().min(1),
-  /** ID of the provider from mediaGeneration.providers. */
-  provider: z.string().min(1),
-  /** Which adapter protocol to use. */
-  adapter: mediaGenerationAdapterType,
+  /** Default adapter for all models in this provider (unless overridden per-model). */
+  defaultAdapter: mediaGenerationAdapterType.optional(),
+  /** Models available through this provider. */
+  models: z.array(mediaGenerationModelEntry).min(1),
 });
 
 const mediaGenerationAdapterDefaults = z.object({
@@ -48,8 +55,6 @@ const mediaGenerationAdapterDefaults = z.object({
 const mediaGenerationConfigSchema = z.object({
   /** Media generation providers (independent from LLM providers). */
   providers: z.array(mediaGenerationProviderSchema).min(1),
-  /** Model routing rules. Evaluated in order; first pattern match wins. */
-  models: z.array(mediaGenerationModelEntry).min(1),
   /** Per-adapter-type default settings. */
   adapterDefaults: z.record(mediaGenerationAdapterType, mediaGenerationAdapterDefaults).optional(),
   /** Directory for generated media files. Default: "{workspacePath}/tmp/media". */
@@ -99,10 +104,29 @@ type MediaAdapterResult =
 
 ```ts
 interface MediaGenerationServiceConfig {
-  providers: ResolvedMediaProvider[];
-  models: MediaGenerationModelEntry[];
+  providers: MediaProviderConfig[]; // providers with nested models
   adapterDefaults?: Record<string, { pollIntervalMs?: number; timeoutMs?: number }>;
 }
+
+interface MediaProviderConfig {
+  id: string;
+  kind: "openai-compatible" | "gemini";
+  baseUrl: string;
+  apiKey: string;
+  apiVersion?: string;
+  defaultAdapter?: string;
+  models: { name: string; mediaType: string; adapter?: string; modalities?: string[] }[];
+}
+
+interface MediaGenerateRequest {
+  model: string;
+  prompt: string;
+  params: MediaGenerateParams;
+  output_path: string;
+  timeout_ms?: number;
+}
+
+interface MediaPollRequest {
 
 interface MediaGenerateRequest {
   model: string;
@@ -134,27 +158,23 @@ class MediaGenerationService {
 ```ts
 interface ResolvedModel {
   provider: ResolvedMediaProvider;
-  adapter: MediaGenerationAdapterType;
+  adapter: string;
+  modalities?: string[];
 }
 
 /**
- * Match a model name against the ordered list of pattern entries.
- * Returns the first match or undefined.
+ * Resolve a model name by searching all providers' model lists for an exact name match.
+ * First provider with a matching model entry wins.
+ *
+ * Adapter resolution order:
+ * 1. model.adapter (per-model override)
+ * 2. provider.defaultAdapter
+ * 3. ADAPTER_DEFAULTS[provider.kind][model.mediaType] (built-in fallback)
  */
-function resolveModel(
-  model: string,
-  models: MediaGenerationModelEntry[],
-  providers: ResolvedMediaProvider[],
-): ResolvedModel | undefined;
+function resolveModel(model: string, providers: MediaProviderConfig[]): ResolvedModel | undefined;
 ```
 
-Pattern matching uses simple glob rules:
-
-- `*` matches any sequence of characters (including `/`)
-- Exact string match if no wildcards present
-- Case-sensitive
-
-## API / Function Signatures
+No glob patterns. No implicit matching. Exact model name lookup only.
 
 ### OpenAI Images Adapter
 
@@ -211,7 +231,7 @@ async function openaiImagesAdapter(req: MediaAdapterRequest): Promise<MediaAdapt
 async function openaiChatImageAdapter(req: MediaAdapterRequest): Promise<MediaAdapterResult>;
 ```
 
-### OpenAI Video Async Adapter
+### OpenAI Video Async Adapter (legacy)
 
 ```ts
 /**
@@ -237,11 +257,48 @@ async function openaiChatImageAdapter(req: MediaAdapterRequest): Promise<MediaAd
 async function openaiVideoAsyncAdapter(req: MediaAdapterRequest): Promise<MediaAdapterResult>;
 ```
 
+### OpenRouter Video Adapter
+
+```ts
+/**
+ * OpenRouter's dedicated video generation API.
+ * Completely separate from chat/completions — uses /videos endpoint.
+ *
+ * Submit: POST {baseUrl}/videos
+ * {
+ *   "model": "google/veo-3.1",
+ *   "prompt": "A drone shot over a tropical island",
+ *   "duration": 8,              // from params.durationSeconds
+ *   "resolution": "1080p",      // derived from params or default
+ *   "aspect_ratio": "16:9",     // from params.aspectRatio
+ *   "frame_images": [...]       // from params.input_image (mapped to first_frame)
+ * }
+ *
+ * Submit Response (202):
+ * {
+ *   "id": "abc123",
+ *   "polling_url": "https://openrouter.ai/api/v1/videos/abc123",
+ *   "status": "pending"
+ * }
+ *
+ * Poll: GET {polling_url}
+ * Response:
+ * {
+ *   "id": "abc123",
+ *   "status": "completed",       // "pending" | "in_progress" | "completed" | "failed"
+ *   "unsigned_urls": ["https://openrouter.ai/api/v1/videos/abc123/content?index=0"],
+ *   "usage": { "cost": 0.25 }
+ * }
+ *
+ * Download: GET unsigned_urls[0]
+ * Returns raw video bytes (video/mp4).
+ */
+async function openrouterVideoAdapter(req: MediaAdapterRequest): Promise<MediaAdapterResult>;
+```
+
 ### Existing Gemini Adapters
 
 Signatures unchanged. The `MediaAdapterRequest` interface gains a `provider` field instead of flat `apiKey`/`baseUrl` — adapters extract what they need from it.
-
-## Data Structures / Schemas
 
 ### Example Configuration
 
@@ -250,62 +307,71 @@ Signatures unchanged. The `MediaAdapterRequest` interface gains a `provider` fie
   "mediaGeneration": {
     "providers": [
       {
-        "id": "openrouter",
+        "id": "openrouter-images",
         "kind": "openai-compatible",
         "baseUrl": "https://openrouter.ai/api/v1",
         "apiKeyEnv": "OPENROUTER_API_KEY",
+        "defaultAdapter": "openai-images",
+        "models": [
+          { "name": "black-forest-labs/flux.2-pro", "mediaType": "image" },
+          { "name": "black-forest-labs/flux.2-klein-4b", "mediaType": "image" },
+          { "name": "recraft/recraft-v3", "mediaType": "image" },
+          { "name": "bytedance-seed/seedream-3.0", "mediaType": "image" },
+          // Chat-image models override the provider default
+          {
+            "name": "openai/gpt-5-image",
+            "mediaType": "image",
+            "adapter": "openai-chat-image",
+            "modalities": ["text", "image"],
+          },
+          {
+            "name": "openai/gpt-5-image-mini",
+            "mediaType": "image",
+            "adapter": "openai-chat-image",
+            "modalities": ["text", "image"],
+          },
+        ],
+      },
+      {
+        "id": "openrouter-video",
+        "kind": "openai-compatible",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "defaultAdapter": "openrouter-video",
+        "models": [
+          { "name": "google/veo-3.1", "mediaType": "video" },
+          { "name": "google/veo-3.1-fast", "mediaType": "video" },
+          { "name": "google/veo-3.1-lite", "mediaType": "video" },
+          { "name": "minimax/hailuo-2.3", "mediaType": "video" },
+          { "name": "kwaivgi/kling-v3.0-pro", "mediaType": "video" },
+          { "name": "kwaivgi/kling-v3.0-std", "mediaType": "video" },
+          { "name": "openai/sora-2-pro", "mediaType": "video" },
+          { "name": "bytedance/seedance-2.0", "mediaType": "video" },
+          { "name": "alibaba/wan-2.7", "mediaType": "video" },
+        ],
       },
       {
         "id": "gemini",
         "kind": "gemini",
         "baseUrl": "https://generativelanguage.googleapis.com",
         "apiKeyEnv": "GEMINI_API_KEY",
+        "models": [
+          { "name": "gemini-2.5-flash-preview-image", "mediaType": "image" },
+          { "name": "gemini-3-pro-image-preview", "mediaType": "image" },
+          { "name": "gemini-2.5-flash-preview-tts", "mediaType": "audio" },
+          { "name": "lyria-3-pro-preview", "mediaType": "audio" },
+          { "name": "imagen-3.0-generate-002", "mediaType": "image", "adapter": "gemini-predict" },
+          { "name": "veo-3.1-generate-preview", "mediaType": "video" },
+        ],
       },
-    ],
-    "models": [
-      // OpenAI-compatible image models (sync)
-      { "pattern": "black-forest-labs/*", "provider": "openrouter", "adapter": "openai-images" },
-      { "pattern": "sourceful/*", "provider": "openrouter", "adapter": "openai-images" },
-      { "pattern": "recraft/*", "provider": "openrouter", "adapter": "openai-images" },
-      {
-        "pattern": "bytedance-seed/seedream*",
-        "provider": "openrouter",
-        "adapter": "openai-images",
-      },
-
-      // Chat-completions image models
-      {
-        "pattern": "openai/gpt-5-image*",
-        "provider": "openrouter",
-        "adapter": "openai-chat-image",
-      },
-      {
-        "pattern": "openai/gpt-5.4-image*",
-        "provider": "openrouter",
-        "adapter": "openai-chat-image",
-      },
-
-      // Async video models
-      { "pattern": "minimax/hailuo*", "provider": "openrouter", "adapter": "openai-video-async" },
-      { "pattern": "kwaivgi/*", "provider": "openrouter", "adapter": "openai-video-async" },
-      { "pattern": "openai/sora*", "provider": "openrouter", "adapter": "openai-video-async" },
-      {
-        "pattern": "bytedance/seedance*",
-        "provider": "openrouter",
-        "adapter": "openai-video-async",
-      },
-      { "pattern": "alibaba/wan*", "provider": "openrouter", "adapter": "openai-video-async" },
-
-      // Gemini native
-      { "pattern": "gemini-*-image*", "provider": "gemini", "adapter": "gemini-generate-content" },
-      { "pattern": "gemini-*-tts*", "provider": "gemini", "adapter": "gemini-generate-content" },
-      { "pattern": "lyria-*", "provider": "gemini", "adapter": "gemini-generate-content" },
-      { "pattern": "imagen*", "provider": "gemini", "adapter": "gemini-predict" },
-      { "pattern": "veo-*", "provider": "gemini", "adapter": "gemini-long-running" },
     ],
     "adapterDefaults": {
       "openai-video-async": {
         "pollIntervalMs": 5000,
+        "timeoutMs": 300000,
+      },
+      "openrouter-video": {
+        "pollIntervalMs": 30000,
         "timeoutMs": 300000,
       },
       "gemini-long-running": {
@@ -316,6 +382,8 @@ Signatures unchanged. The `MediaAdapterRequest` interface gains a `provider` fie
   },
 }
 ```
+
+````
 
 ### Control Plane Payload (unchanged shape, new routing)
 
@@ -330,8 +398,7 @@ interface MediaGeneratePayload {
 }
 
 // provider_id is NO LONGER in the payload.
-// The service resolves it from config based on model pattern match.
-```
+// The service resolves it from config based on exact model name match.
 
 ### Builtin Tool Schema (updated)
 
@@ -368,7 +435,7 @@ interface MediaGeneratePayload {
     "required": ["model", "prompt", "params"]
   }
 }
-```
+````
 
 ## Code Examples
 
@@ -378,21 +445,30 @@ interface MediaGeneratePayload {
 const config: MediaGenerationServiceConfig = {
   providers: [
     {
-      id: "openrouter",
+      id: "openrouter-images",
       kind: "openai-compatible",
       baseUrl: "https://openrouter.ai/api/v1",
       apiKey: "sk-...",
+      defaultAdapter: "openai-images",
+      models: [{ name: "black-forest-labs/flux.2-pro", mediaType: "image" }],
     },
-  ],
-  models: [
-    { pattern: "black-forest-labs/*", provider: "openrouter", adapter: "openai-images" },
-    { pattern: "minimax/hailuo*", provider: "openrouter", adapter: "openai-video-async" },
+    {
+      id: "openrouter-video",
+      kind: "openai-compatible",
+      baseUrl: "https://openrouter.ai/api/v1",
+      apiKey: "sk-...",
+      defaultAdapter: "openrouter-video",
+      models: [
+        { name: "minimax/hailuo-2.3", mediaType: "video" },
+        { name: "google/veo-3.1", mediaType: "video" },
+      ],
+    },
   ],
 };
 
 const service = new MediaGenerationService(config);
 
-// Image generation — resolves to openai-images adapter via openrouter provider
+// Image generation — resolves to openai-images adapter (provider default)
 const result = await service.generate({
   model: "black-forest-labs/flux.2-pro",
   prompt: "A cabin at sunset in watercolor style",
@@ -401,14 +477,14 @@ const result = await service.generate({
 });
 // → { status: "complete", path: "/workspace/tmp/media/cabin.png", mime_type: "image/png" }
 
-// Video generation — resolves to openai-video-async adapter
+// Video generation — resolves to openrouter-video adapter (provider default)
 const videoResult = await service.generate({
-  model: "minimax/hailuo-2.3",
+  model: "google/veo-3.1",
   prompt: "Drone shot over a tropical island at golden hour",
-  params: { kind: "video", durationSeconds: 8 },
+  params: { kind: "video", durationSeconds: 8, aspectRatio: "16:9" },
   output_path: "/workspace/tmp/media/island.mp4",
 });
-// → { status: "in_progress", operation_id: "gen_abc123" }
+// → { status: "in_progress", operation_id: "abc123" }
 // OR after polling completes:
 // → { status: "complete", path: "/workspace/tmp/media/island.mp4", mime_type: "video/mp4" }
 ```
