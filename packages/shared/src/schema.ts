@@ -1094,6 +1094,39 @@ export const serviceManifestSchema = z
 
 export type ServiceManifest = z.infer<typeof serviceManifestSchema>;
 
+// HTTP Gateway Configuration
+// -----------------------------------------------------------------------------
+
+export const gatewayConfigSchema = z
+  .object({
+    /** Whether the gateway is enabled. Default: false */
+    enabled: z.boolean().default(false),
+    /** Port to listen on. Default: 8800 */
+    port: z.number().int().min(1).max(65535).default(8800),
+    /** Host address to bind to. Default: "0.0.0.0" */
+    host: z.string().default("0.0.0.0"),
+    /** URL prefix for service routes. Default: "/svc" */
+    prefix: z.string().default("/svc"),
+    /** CORS configuration */
+    cors: z
+      .object({
+        origins: z.array(z.string()),
+        credentials: z.boolean().optional(),
+      })
+      .optional(),
+    /** Rate limiting configuration */
+    rateLimit: z
+      .object({
+        windowMs: z.number().int().positive(),
+        maxRequests: z.number().int().positive(),
+      })
+      .optional(),
+  })
+  .strict()
+  .optional();
+
+export type GatewayConfig = z.infer<typeof gatewayConfigSchema>;
+
 //
 const processDeclarationHealthSchema = z
   .object({
@@ -1232,6 +1265,8 @@ export const shoggothConfigFragmentSchema = z
     processes: z.array(processDeclarationSchema).optional(),
     /** External service declarations for web services plugin. */
     services: z.array(externalServiceDeclarationSchema).optional(),
+    /** HTTP gateway configuration for proxying service requests. */
+    gateway: gatewayConfigSchema,
     /** Dynamic tool discovery / collapse configuration. */
     toolDiscovery: shoggothToolDiscoveryConfigSchema.optional(),
     /** How to display model thinking output. Default: "none" if omitted. */
@@ -1285,6 +1320,8 @@ export const shoggothConfigSchema = z
     processes: z.array(processDeclarationSchema).optional(),
     /** External service declarations for web services plugin. */
     services: z.array(externalServiceDeclarationSchema).optional(),
+    /** HTTP gateway configuration for proxying service requests. */
+    gateway: gatewayConfigSchema,
     dynamicConfigDirectory: z.string().min(1).optional(),
     /** SearXNG web search integration. */
     searxng: shoggothSearxngConfigSchema.optional(),

@@ -102,6 +102,8 @@ export {
   type ExternalServiceDeclaration,
   externalServiceHealthSchema,
   type ExternalServiceHealth,
+  gatewayConfigSchema,
+  type GatewayConfig,
   attachmentHandlingSchema,
   attachmentHandlingModes,
   type AttachmentHandlingMode,
