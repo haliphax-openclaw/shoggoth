@@ -24,7 +24,10 @@ Extend the config schema to support both managed and external service declaratio
 
 Implement the service registration and approval flow via the operator CLI. Each approved service gets a unique age X25519 identity. The daemon stores the recipient (public key) and encrypts tokens to it; the service holds the identity (private key) and decrypts tokens.
 
-- Add `shoggoth service register <id>` CLI command — prompts operator for approval, generates age identity on confirmation
+- Add `shoggoth service register <id>` CLI command — submits a registration request (does not auto-approve)
+- Add `shoggoth service requests` CLI command — lists service IDs with pending registration/scope-change requests
+- Add `shoggoth service request <id>` CLI command — displays full details of a pending request (requested ops, capabilities, manifest info)
+- Add `shoggoth service approve <id>` CLI command — approves the request, generates age identity on confirmation
 - Add `shoggoth service rotate-key <id>` CLI command — generates new identity, displays new private key for the service
 - Add `shoggoth service list` and `shoggoth service revoke <id>` CLI commands
 - Implement `ServiceKeyStore` — stores recipients (public keys) in the daemon's credential store, keyed by service ID

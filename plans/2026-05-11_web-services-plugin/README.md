@@ -115,18 +115,21 @@ New services must be registered and approved by the operator via the CLI before 
 
 Registration flow:
 
-1. Operator runs `shoggoth service register <id>` (or the service is declared in config with `approved: false`)
-2. Service declares its requested control plane operations in its manifest (e.g., `ops: ["turn.invoke", "session.send", "session.query"]`)
-3. CLI displays the requested scope and prompts operator for approval
-4. On approval, daemon generates an age X25519 identity for the service and stores the recipient (public key, `age1...`) in the daemon's credential store
-5. The service's identity (private key, `AGE-SECRET-KEY-1...`) is provided to the service **once** at registration time (displayed by CLI, or written to a file the service can read)
-6. The daemon encrypts tokens to the service's recipient; only the service can decrypt them using its identity
+1. Service is declared in config or operator runs `shoggoth service register <id>`
+2. Service starts and serves its manifest (including requested `ops[]`)
+3. Daemon fetches manifest and creates a pending registration request
+4. Operator runs `shoggoth service requests` to see pending service IDs
+5. Operator runs `shoggoth service request <id>` to view full details (requested ops, capabilities, manifest info)
+6. Operator runs `shoggoth service approve <id>` to approve
+7. On approval, daemon generates an age X25519 identity for the service and stores the recipient (public key, `age1...`) in the daemon's credential store
+8. The service's identity (private key, `AGE-SECRET-KEY-1...`) is provided to the service **once** at approval time (displayed by CLI, or written to a file the service can read)
+9. The daemon encrypts tokens to the service's recipient; only the service can decrypt them using its identity
 
 This means:
 
 - No shared secrets in environment variables
 - Each service has its own age identity — compromise of one service doesn't affect others
-- Operator must explicitly approve each service and its requested scope before it can interact with the daemon
+- Operator must explicitly review and approve each service and its requested scope before it can interact with the daemon
 - Key rotation is per-service via `shoggoth service rotate-key <id>`
 - Scope changes require re-approval via `shoggoth service approve <id>`
 
