@@ -945,6 +945,95 @@ export const DEFAULT_SKILLS_CONFIG: ShoggothSkillsConfig = {
 // Declarative sidecar process definitions (Phase 4 — procman)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Web Services Plugin - Service Declaration (Phase 1)
+// ---------------------------------------------------------------------------
+
+/** Protocol types for service declarations. */
+export const serviceProtocolSchema = z.enum(["http", "ws", "http+ws"]);
+
+/** Exposure mode for services. */
+export const serviceExposeSchema = z.enum(["gateway", "direct", "both"]);
+
+/** Schema for declaring a service within a process. */
+export const serviceDeclarationSchema = z
+  .object({
+    /** Port number (1-65535). */
+    port: z.number().int().min(1).max(65535),
+    /** Protocol type. */
+    protocol: serviceProtocolSchema,
+    /** Base path for the service (default "/"). */
+    basePath: z.string().default("/"),
+    /** Optional capabilities advertised by this service. */
+    capabilities: z.array(z.string()).optional(),
+    /** How to expose this service (default "direct"). */
+    expose: serviceExposeSchema.default("direct"),
+    /** Path to the service manifest (default "/manifest"). */
+    manifestPath: z.string().default("/manifest"),
+    /** Host address (default "127.0.0.1"). */
+    host: z.string().default("127.0.0.1"),
+  })
+  .strict();
+
+export type ServiceDeclaration = z.infer<typeof serviceDeclarationSchema>;
+
+/** TCP health check configuration. */
+const externalServiceHealthTcpSchema = z
+  .object({
+    kind: z.literal("tcp"),
+    port: z.number().int().min(1).max(65535).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
+/** HTTP health check configuration. */
+const externalServiceHealthHttpSchema = z
+  .object({
+    kind: z.literal("http"),
+    url: z.string().min(1),
+    expectedStatus: z.number().int().optional(),
+    timeoutMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
+/** Discriminated union for external service health checks. */
+export const externalServiceHealthSchema = z.discriminatedUnion("kind", [
+  externalServiceHealthTcpSchema,
+  externalServiceHealthHttpSchema,
+]);
+
+export type ExternalServiceHealth = z.infer<typeof externalServiceHealthSchema>;
+
+/** Schema for declaring an external service in the config. */
+export const externalServiceDeclarationSchema = z
+  .object({
+    /** Unique identifier for this service. */
+    id: z.string().min(1),
+    /** Human-readable label. */
+    label: z.string().min(1).optional(),
+    /** Host address. */
+    host: z.string(),
+    /** Port number. */
+    port: z.number().int().min(1).max(65535),
+    /** Protocol type. */
+    protocol: serviceProtocolSchema,
+    /** Base path (default "/"). */
+    basePath: z.string().default("/"),
+    /** Capabilities advertised by this service. */
+    capabilities: z.array(z.string()).optional(),
+    /** How to expose this service (default "direct"). */
+    expose: serviceExposeSchema.default("direct"),
+    /** Path to service manifest (default "/manifest"). */
+    manifestPath: z.string().default("/manifest"),
+    /** Health check configuration. */
+    health: externalServiceHealthSchema,
+    /** Health check interval in milliseconds (default 30000). */
+    healthIntervalMs: z.number().int().positive().default(30000),
+  })
+  .strict();
+
+export type ExternalServiceDeclaration = z.infer<typeof externalServiceDeclarationSchema>;
+
 const processDeclarationHealthSchema = z
   .object({
     kind: z.enum(["tcp", "http", "stdout-match"]),
@@ -958,9 +1047,8 @@ export const processDeclarationSchema = z
   .object({
     /** Unique ID for this process (used as ProcessSpec.id). */
     id: z.string().min(1),
-    /** Human-readable label. */
-    label: z.string().min(1).optional(),
-    /** When to start: "boot" (daemon startup) or "on-demand" (first reference). */
+    /** Service declaration for this process (web services plugin). */
+    service: serviceDeclarationSchema.optional(),
     startPolicy: z.enum(["boot", "on-demand"]),
     /** Command to run. */
     command: z.string().min(1),
@@ -1078,12 +1166,9 @@ export const shoggothConfigFragmentSchema = z
     policy: shoggothPolicyFragmentSchema,
     /** Override default tool availability per context level. */
     contextLevelTools: contextLevelToolsConfigSchema.optional(),
-    /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
-    /** Daemon-writable directory for agent-requested config overrides. */
-    dynamicConfigDirectory: z.string().min(1).optional(),
-    /** SearXNG web search integration. */
-    searxng: shoggothSearxngConfigSchema.optional(),
+    /** External service declarations for web services plugin. */
+    services: z.array(externalServiceDeclarationSchema).optional(),
     /** Dynamic tool discovery / collapse configuration. */
     toolDiscovery: shoggothToolDiscoveryConfigSchema.optional(),
     /** How to display model thinking output. Default: "none" if omitted. */
@@ -1135,7 +1220,8 @@ export const shoggothConfigSchema = z
     contextLevelTools: contextLevelToolsConfigSchema.optional(),
     /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
-    /** Daemon-writable directory for agent-requested config overrides. */
+    /** External service declarations for web services plugin. */
+    services: z.array(externalServiceDeclarationSchema).optional(),
     dynamicConfigDirectory: z.string().min(1).optional(),
     /** SearXNG web search integration. */
     searxng: shoggothSearxngConfigSchema.optional(),
