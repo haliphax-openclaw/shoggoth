@@ -1041,7 +1041,60 @@ export const externalServiceDeclarationSchema = z
   .strict();
 
 export type ExternalServiceDeclaration = z.infer<typeof externalServiceDeclarationSchema>;
+// Web Services Plugin - Service Tool Declaration
+// -----------------------------------------------------------------------------
 
+/** Schema for a tool exposed by a service manifest. */
+export const serviceToolDeclarationSchema = z
+  .object({
+    /** Tool name following reverse-DNS pattern (e.g., "users.get", "orders.list") */
+    name: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)*$/),
+    /** Human-readable description of what the tool does */
+    description: z.string().min(1),
+    /** JSON schema for the tool's parameters */
+    parameters: z.record(z.unknown()),
+    /** HTTP method for invoking this tool */
+    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+    /** URL path for the tool endpoint */
+    path: z.string().min(1),
+    /** How to dispatch arguments: in request body, query params, or path (default "body") */
+    dispatch: z.enum(["body", "query", "path"]).optional().default("body"),
+  })
+  .strict();
+
+export type ServiceToolDeclaration = z.infer<typeof serviceToolDeclarationSchema>;
+
+/** WebSocket endpoint description in a service manifest */
+const wsEndpointSchema = z
+  .object({
+    /** WebSocket path */
+    path: z.string().min(1),
+    /** Optional description */
+    description: z.string().min(1).optional(),
+    /** Optional protocol identifier */
+    protocol: z.string().optional(),
+  })
+  .strict();
+
+/** Schema for a service manifest fetched from a service endpoint */
+export const serviceManifestSchema = z
+  .object({
+    /** Service name */
+    name: z.string().min(1),
+    /** Service version */
+    version: z.string().min(1),
+    /** Available tools exposed by this service */
+    tools: z.array(serviceToolDeclarationSchema).optional(),
+    /** Available operations (simple string identifiers) */
+    ops: z.array(z.string().min(1)).optional(),
+    /** WebSocket endpoints */
+    wsEndpoints: wsEndpointSchema.array().optional(),
+  })
+  .strict();
+
+export type ServiceManifest = z.infer<typeof serviceManifestSchema>;
+
+//
 const processDeclarationHealthSchema = z
   .object({
     kind: z.enum(["tcp", "http", "stdout-match"]),
