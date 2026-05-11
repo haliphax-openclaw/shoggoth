@@ -25,7 +25,7 @@ Without this, each web integration becomes a bespoke wiring job. A plugin spec g
 
 ### Architecture Overview
 
-![Architecture Overview](architecture.png)
+![Architecture Overview](architecture.svg)
 
 ### Key Components
 
