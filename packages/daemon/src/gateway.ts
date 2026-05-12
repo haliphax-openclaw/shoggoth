@@ -297,6 +297,13 @@ export class ServiceGateway {
       return;
     }
 
+    // Check service has a URL (plugin services without a port don't have a URL)
+    if (!service.url) {
+      res.writeHead(400, { "Content-Type": "text/plain" });
+      res.end("Service does not expose HTTP endpoint");
+      return;
+    }
+
     // Auth middleware: validate token if auth is configured and required
     if (this.options.auth?.required) {
       const authHeader = req.headers.authorization;

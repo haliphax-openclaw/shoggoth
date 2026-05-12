@@ -7,7 +7,7 @@ completed: never
 
 ## Summary
 
-A first-class subsystem for declaring, managing, discovering, and communicating with HTTP/WebSocket services within Shoggoth. Enables agents to expose and consume web-based interfaces (Canvas, dashboards, APIs) through a unified lifecycle managed by procman.
+A first-class subsystem for declaring, managing, discovering, and communicating with HTTP/WebSocket services within Shoggoth. Enables agents to expose and consume web-based interfaces (Canvas, dashboards, APIs) through a unified lifecycle. Services can run as in-process plugins, procman-managed processes, or external processes — all producing the same registry entry and tool experience for agents.
 
 ## Motivation
 
@@ -27,18 +27,44 @@ Without this, each web integration becomes a bespoke wiring job. A plugin spec g
 
 ![Architecture Overview](architecture.svg)
 
+### Service Tiers
+
+Services come in three tiers, each suited to different deployment needs:
+
+| Tier                 | Lifecycle         | Auth                    | Tool Dispatch        | Config                    | Language |
+| -------------------- | ----------------- | ----------------------- | -------------------- | ------------------------- | -------- |
+| **Plugin service**   | In-process, hooks | Implicit (trusted code) | Direct function call | Self-configuring defaults | JS/TS    |
+| **Managed process**  | Procman           | Age-encrypted tokens    | HTTP proxy           | Explicit in `processes[]` | Any      |
+| **External process** | External          | Age-encrypted tokens    | HTTP proxy           | Explicit in `services[]`  | Any      |
+
+All three tiers produce the same `ServiceEntry` in the registry. Downstream consumers (gateway, agents, tool system) don't need to know how a service was loaded.
+
 ### Key Components
 
-**1. Service Declaration (config-driven)**
+**1. Service Declaration**
 
-Services come in two flavors:
+**Plugin services** — true Shoggoth plugins using the `hooks-plugin` system. They run in-process in the daemon's Node runtime, register tools directly via the `service.register` hook, and provide their own default configuration. The user only adds a config block to override defaults. Declared in `plugins[]` with `kind: "service"`.
 
-- **Managed services** — declared in `processes[]` with a `service` block. Procman handles the full lifecycle (start, stop, restart, health monitoring).
-- **External services** — declared in a top-level `services[]` block. Shoggoth does not launch or stop these processes, but still performs health checks, auth, tool registration, and gateway routing. Useful for services running in separate containers, on remote hosts, or managed by systemd/Docker/k8s.
+```json
+{
+  "plugins": [{ "package": "@shoggoth/service-canvas" }]
+}
+```
 
-Both types go through the same registration, approval, health check, and tool lifecycle. The only difference is who owns the process.
+The plugin self-configures via the `daemon.configure` waterfall hook. To override defaults, the user adds a matching entry in `services[]`:
 
-Managed service example:
+```jsonc
+{
+  "services": [
+    {
+      "id": "canvas",
+      "port": 3200, // override the plugin's default port
+    },
+  ],
+}
+```
+
+**Managed services** — declared in `processes[]` with a `service` block. Procman handles the full lifecycle (start, stop, restart, health monitoring).
 
 ```jsonc
 {
@@ -64,7 +90,7 @@ Managed service example:
 }
 ```
 
-External service example:
+**External services** — declared in a top-level `services[]` block. Shoggoth does not launch or stop these processes, but still performs health checks, auth, tool registration, and gateway routing. Useful for services running in separate containers, on remote hosts, or managed by systemd/Docker/k8s.
 
 ```jsonc
 {
@@ -86,32 +112,38 @@ External service example:
 
 **2. Service Registry (runtime)**
 
-A singleton that tracks healthy services and their metadata. For managed services, it's populated by procman lifecycle events (process started + health check passed → registered; process stopped → deregistered). For external services, the registry runs its own health check loop and registers/deregisters based on reachability. Provides lookup by ID and by capability.
+A singleton that tracks healthy services and their metadata. All three tiers register into the same registry:
+
+- **Plugin services** register themselves directly via the `service.register` hook during `daemon.startup`.
+- **Managed services** are registered by procman lifecycle events (process started + health check passed → registered; process stopped → deregistered).
+- **External services** are registered via a health check polling loop that registers/deregisters based on reachability.
+
+Provides lookup by ID and by capability.
 
 **3. HTTP Gateway (optional, daemon-managed)**
 
-A lightweight reverse proxy that routes external requests to managed services. Runs as a procman-managed process itself (or an in-process HTTP listener). Provides:
+A lightweight reverse proxy that routes external requests to services. Runs as an in-process HTTP listener. Provides:
 
 - Path-based routing: `GET /svc/canvas-web/...` → `http://localhost:3100/...`
 - Auth enforcement: validates Shoggoth-issued tokens before proxying
 - CORS and rate limiting at the edge
 
-The gateway is optional — services can also bind directly to host ports for development or single-service deployments.
+The gateway is optional — services can also bind directly to host ports for development or single-service deployments. Plugin services that don't listen on a port are not routable through the gateway (their tools are direct function calls).
 
-**4. Plugin Tool Registration**
+**4. Tool Registration**
 
-Services provide their own tools rather than going through a generic invoke layer. The service plugin spec defines a hook for services to register tools with the daemon at startup:
+Services provide their own tools rather than going through a generic invoke layer. Tool registration differs by tier:
 
-- Service declares its tools in its manifest (`GET /manifest` → `tools[]`)
-- On service registration (healthy), the daemon registers those tools into the builtin tool registry scoped to the service
-- On service deregistration (stopped/failed), tools are removed
-- Tools are thin proxies: the daemon handles auth token minting and HTTP dispatch; the service defines the tool schema and handles the request
+- **Plugin services** register tools directly via the `service.register` hook. Tools are direct function calls — no HTTP dispatch, no auth tokens. The plugin provides handler implementations inline.
+- **Managed/external services** declare tools in their manifest (`GET /manifest` → `tools[]`). On service registration (healthy), the daemon fetches the manifest and registers those tools as HTTP proxy handlers. On deregistration (stopped/failed), tools are removed.
 
-This means Canvas provides `canvas.show`, `canvas.push`, `canvas.eval` etc. as first-class agent tools — not generic HTTP calls wrapped in a `service.invoke` envelope.
+Both dispatch modes produce the same tool interface for agents. Canvas provides `canvas.show`, `canvas.push`, `canvas.eval` etc. as first-class agent tools regardless of which tier it's deployed as.
 
 **5. Auth & Control Plane Access with Operator Approval**
 
-New services must be registered and approved by the operator via the CLI before they can communicate with the daemon. During registration, a unique key pair is generated and the operator approves the service's requested control plane scope.
+Auth applies to **managed and external services** only. Plugin services are trusted code running in-process and don't need token-based auth.
+
+New managed/external services must be registered and approved by the operator via the CLI before they can communicate with the daemon. During registration, a unique key pair is generated and the operator approves the service's requested control plane scope.
 
 Registration flow:
 
@@ -146,14 +178,19 @@ When a plugin tool proxies a request to its service, the daemon encrypts a short
 
 Services that need to interact with Shoggoth beyond responding to tool calls (e.g., Canvas invoking agent turns when a user clicks a button) get scoped access to the existing control plane.
 
-- On startup, an approved service connects to the daemon's control plane (Unix socket or localhost endpoint) and authenticates with its age identity
-- The daemon enforces the approved operation scope — requests for unapproved operations are rejected
-- Services use the same control plane protocol and operations that already exist (turn invocation, session messaging, queries, etc.)
-- No new API surface needed — the control plane is the API; registration just gates access to it
+- **Plugin services** already have direct access to daemon internals via hook contexts and shared dependencies. They can invoke turns, send messages, etc. through the APIs provided in `ServiceRegisterCtx.deps`. No control plane connection needed.
+- **Managed/external services** connect to the daemon's control plane (Unix socket or localhost endpoint) and authenticate with their age identity. The daemon enforces the approved operation scope.
 
-This avoids building a parallel service-specific API. The control plane already supports the operations services need; the plugin system just adds authentication and scoped authorization on top.
+Both use the same control plane protocol and operations that already exist (turn invocation, session messaging, queries, etc.). No new API surface needed — the control plane is the API; registration just gates access to it.
 
-### Data Flow: Agent Uses a Service Tool
+### Data Flow: Agent Uses a Plugin Service Tool
+
+1. Agent calls `canvas.push { surface: "main", nodes: [...] }` (a tool registered by the Canvas plugin)
+2. Tool handler is a direct function call — no network hop
+3. Plugin handler processes the push, returns response
+4. Tool handler returns the result to the agent
+
+### Data Flow: Agent Uses a Managed/External Service Tool
 
 1. Agent calls `canvas.push { surface: "main", nodes: [...] }` (a tool registered by the Canvas service)
 2. Tool handler (registered dynamically from manifest) resolves the Canvas service URL from the registry
@@ -163,7 +200,14 @@ This avoids building a parallel service-specific API. The control plane already 
 6. Canvas Web decrypts the token using its identity, processes the push, returns response
 7. Tool handler returns the result to the agent
 
-### Data Flow: Service Invokes an Agent Turn
+### Data Flow: Plugin Service Invokes an Agent Turn
+
+1. User clicks a button in the Canvas UI
+2. Canvas plugin (running in-process) calls `deps.runSessionModelTurn(...)` directly
+3. Daemon injects the message and triggers an agent turn
+4. Agent processes the event, potentially calling `canvas.push` back to update the UI
+
+### Data Flow: Managed/External Service Invokes an Agent Turn
 
 1. User clicks a button in the Canvas UI
 2. Canvas Web connects to the daemon control plane (already authenticated at startup)
@@ -174,46 +218,58 @@ This avoids building a parallel service-specific API. The control plane already 
 
 ### Integration with Existing Systems
 
+- **Plugin system** — New `"service"` plugin kind. Service plugins use `daemon.configure` for self-configuration and `service.register` for tool/service registration. Fits naturally alongside `"messaging-platform"` and `"general"` kinds.
 - **procman** — No changes to procman's core. The service registry listens to procman's `process-started` / `process-stopped` / `process-failed` events and maintains its own state.
-- **Config schema** — `ProcessDeclaration` gains an optional `service` field. Backward compatible. New top-level `services[]` for external services.
-- **Tool registry** — Service tools are dynamically registered/deregistered based on service health. They coexist with builtin tools.
-- **Control plane** — Existing operations are reused. New auth/scope layer gates access for service clients.
-- **Shutdown** — Gateway drains connections before procman stops service processes. Registered as a separate drain phase.
-- **CLI** — New `shoggoth service` subcommands for registration, approval, scope review, key rotation, and status.
+- **Config schema** — `ProcessDeclaration` gains an optional `service` field. New top-level `services[]` for external services and plugin service overrides. Backward compatible.
+- **Tool registry** — Extended to support two dispatch modes: `"direct"` (plugin services provide handler functions) and `"http"` (managed/external services use HTTP proxy dispatch). Service tools are dynamically registered/deregistered based on service health. They coexist with builtin tools.
+- **Control plane** — Existing operations are reused. New auth/scope layer gates access for managed/external service clients. Plugin services bypass this (already trusted).
+- **Shutdown** — Plugin services clean up via `daemon.shutdown`. Gateway drains connections before procman stops managed service processes. Registered as separate drain phases.
+- **CLI** — New `shoggoth service` subcommands for registration, approval, scope review, key rotation, and status. Plugin services appear in `shoggoth service list` but don't require approval.
 
-### Service Contract (what services must implement)
+### Service Contract
 
-A Shoggoth-managed web service must:
+The contract differs by tier:
 
-1. Listen on the port declared in the `service.port` config field (how the service determines its port is its own concern — env var, config file, hardcoded default, etc.)
+**Plugin services must:**
+
+1. Export a plugin with `kind: "service"` in `package.json`
+2. Tap `daemon.configure` to inject default config
+3. Tap `service.register` to register tools (with direct handler functions) and the service entry
+4. Tap `health.register` to provide a health probe
+5. Clean up resources on `daemon.shutdown`
+
+**Managed/external services must:**
+
+1. Listen on the port declared in config
 2. Expose a health endpoint (path configurable in `health` config)
 3. Decrypt `Authorization: Bearer <token>` headers using the age identity provided during operator-approved registration
-4. Expose a `GET /manifest` endpoint (path configurable via `service.manifestPath`) if it provides agent tools
-
-The manifest endpoint is required for services that provide agent tools. It enables the daemon to dynamically register and describe tools without hardcoding knowledge of each service.
+4. Expose a `GET /manifest` endpoint (path configurable via `service.manifestPath`) if they provide agent tools
 
 ## Testing Strategy
 
-- **Unit tests** for service registry (register, deregister, lookup by ID, lookup by capability, health state transitions)
-- **Unit tests** for token minting and validation
-- **Integration tests** for the full flow: procman starts a mock HTTP service → registry picks it up → manifest fetched → tools registered → agent invokes tool → request proxied → response returned
+- **Unit tests** for service registry (register, deregister, lookup by ID, lookup by capability, health state transitions) — covering all three tiers
+- **Unit tests** for token minting and validation (managed/external tier)
+- **Unit tests** for direct dispatch tool registration (plugin tier)
+- **Integration tests** for plugin service flow: plugin loads → `daemon.configure` injects defaults → `service.register` registers tools → agent invokes tool → direct handler called → response returned
+- **Integration tests** for managed service flow: procman starts a mock HTTP service → registry picks it up → manifest fetched → tools registered → agent invokes tool → request proxied → response returned
 - **Integration tests** for gateway proxying with auth enforcement
 - **Integration tests** for tool lifecycle: service goes unhealthy → tools deregistered → service recovers → tools re-registered
-- **Manual verification** with Canvas Web as the first real service
+- **Manual verification** with Canvas Web as the first real service (initially as a plugin, later optionally as a managed process)
 
 ## Considerations
 
-- **Port conflicts** — Services declare their ports in config. The registry should detect conflicts at config validation time, not at runtime.
-- **Hot reload** — If a service's config changes (port, basePath), the gateway must update its routing table. This ties into Shoggoth's existing config hot-reload mechanism.
-- **Multi-tenant isolation** — In a multi-agent deployment, services may need to scope data by agent. The auth token provides identity; the service is responsible for isolation. This plan does not prescribe how services partition data internally.
+- **Port conflicts** — Services declare their ports in config. The registry should detect conflicts at config validation time, not at runtime. Plugin services that don't bind a port are exempt.
+- **Hot reload** — If a service's config changes (port, basePath), the gateway must update its routing table. This ties into Shoggoth's existing config hot-reload mechanism. Plugin services can respond to config changes via the `daemon.configure` waterfall on reload.
+- **Multi-tenant isolation** — In a multi-agent deployment, services may need to scope data by agent. The auth token provides identity for managed/external services; plugin services receive agent context directly via tool handler arguments. The service is responsible for isolation.
 - **WebSocket lifecycle** — Services that register tools involving long-lived WebSocket connections need cleanup when sessions end. The service registry should notify services of session teardown so they can close associated connections.
-- **Gateway vs. direct access** — For development, direct port access is simpler. The gateway adds latency but provides auth and a single entry point. Both modes should be supported; `expose: "gateway" | "direct" | "both"` in config.
-- **Control plane scope evolution** — As new control plane operations are added to Shoggoth, services can request access to them by updating their manifest's `ops[]` field. The operator must re-approve the expanded scope via `shoggoth service approve <id>`.
+- **Gateway vs. direct access** — For development, direct port access is simpler. The gateway adds latency but provides auth and a single entry point. Both modes should be supported; `expose: "gateway" | "direct" | "both"` in config. Plugin services without a port are `"direct"` only (in-process calls).
+- **Control plane scope evolution** — As new control plane operations are added to Shoggoth, managed/external services can request access to them by updating their manifest's `ops[]` field. The operator must re-approve the expanded scope. Plugin services get access to new operations automatically (they're trusted code).
 - **Static file serving** — Canvas Web serves a Vue SPA. The gateway could serve static assets directly (bypassing the service process) for performance, but this adds complexity. Deferred to a future optimization pass.
+- **Plugin-to-process migration** — A service can start as a plugin (fast iteration, no auth overhead) and later be extracted to a managed process (language flexibility, isolation). The tool interface and registry entry are identical — agents don't notice the change.
 
 ## Migration
 
-No existing data or configuration is affected. The `service` field on `ProcessDeclaration` is optional and additive. Existing `processes[]` entries without a `service` block continue to work unchanged.
+No existing data or configuration is affected. The `service` field on `ProcessDeclaration` is optional and additive. Existing `processes[]` entries without a `service` block continue to work unchanged. The new `"service"` plugin kind is additive to the plugin system.
 
 ## References
 

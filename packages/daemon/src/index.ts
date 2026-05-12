@@ -79,9 +79,7 @@ import { registerContextFinalizer, getSessionMcpRuntimeRef } from "./sessions/se
 import { getBuiltinToolRegistry } from "./sessions/session-agent-turn";
 import type { PlatformAdapter } from "./presentation/platform-adapter";
 
-const platformAdapterRef: { current?: PlatformAdapter } = {
-  current: undefined,
-};
+const platformAdapterRef: { current?: PlatformAdapter } = { current: undefined };
 import {
   messageToolFinalizer,
   subagentToolStripFinalizer,
@@ -104,6 +102,7 @@ import { TimerScheduler } from "./timers/timer-scheduler";
 import { setTimerScheduler } from "./sessions/builtin-handlers/timer-handler";
 import { ShoggothPluginSystem, type PlatformDeps } from "@shoggoth/plugins";
 import { fireDaemonHooks } from "./plugins/daemon-hooks";
+import { createServiceRegistry, createServiceToolRegistry } from "./service-lifecycle";
 import { appendAuditRow } from "./audit/append-audit";
 
 process.umask(0o007);
@@ -403,6 +402,12 @@ void (async () => {
     noticeResolver: daemonNotice as (key: string, params?: Record<string, unknown>) => string,
   };
 
+  // Create service registries for plugin service support
+  const serviceRegistry = createServiceRegistry();
+  const serviceToolRegistry = createServiceToolRegistry(serviceRegistry, {
+    dispatch: () => Promise.reject(new Error("HTTP service dispatch not configured")),
+  } as never);
+
   // Fire daemon hooks — plugins handle platform.start, health.register, etc.
   const hookResult = await fireDaemonHooks(pluginSystem, {
     config,
@@ -428,6 +433,8 @@ void (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       platformAdapterRef.current = adapter as any;
     },
+    serviceRegistry,
+    serviceToolRegistry,
   });
 
   // Register plugin shutdown drains

@@ -9,8 +9,10 @@ export interface ServiceEntry {
   id: string;
   /** Human-readable label. */
   label?: string;
-  /** Base URL for HTTP access. */
-  url: string;
+  /** How this service was loaded. */
+  tier: "plugin" | "managed" | "external";
+  /** Base URL for HTTP access. Null for plugin services that don't bind a port. */
+  url: string | null;
   /** WebSocket URL (if applicable). */
   wsUrl?: string;
   /** Whether the service is currently healthy. */

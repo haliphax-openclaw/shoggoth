@@ -2,6 +2,211 @@
 
 ## Interfaces
 
+### Plugin Service (in-process, hooks-based)
+
+```ts
+/**
+ * Context provided to the `service.register` hook.
+ * Plugin services use this to register themselves, their tools, and access daemon deps.
+ */
+interface ServiceRegisterCtx {
+  /** Register this plugin as a service in the ServiceRegistry. */
+  registerService(entry: PluginServiceEntry): void;
+
+  /**
+   * Register tools with direct handler functions (no HTTP dispatch).
+   * Tools registered here are invoked in-process — no network hop, no auth tokens.
+   */
+  registerTools(tools: DirectServiceTool[]): void;
+
+  /** Shared daemon dependencies (same as PlatformStartCtx.deps). */
+  deps: ServiceDeps;
+
+  /** Resolved config (after daemon.configure waterfall). */
+  config: Readonly<ShoggothConfig>;
+}
+
+/** A service entry for plugin services (no URL, no manifest fetch). */
+interface PluginServiceEntry {
+  /** Unique service ID. */
+  id: string;
+  /** Human-readable label. */
+  label?: string;
+  /** Named capabilities this service provides (for discovery). */
+  capabilities?: string[];
+  /**
+   * How the service is exposed externally.
+   * Plugin services that don't bind a port should use "direct" (default).
+   * Plugin services that also run an HTTP listener can use "gateway" or "both".
+   */
+  expose?: "gateway" | "direct" | "both";
+  /** Optional port if the plugin also binds an HTTP listener. */
+  port?: number;
+  /** Optional protocol (default "http"). */
+  protocol?: "http" | "ws" | "http+ws";
+  /** Optional base path for gateway routing. */
+  basePath?: string;
+}
+
+/**
+ * A tool provided by a plugin service with a direct handler function.
+ * No HTTP dispatch — the handler runs in-process.
+ */
+interface DirectServiceTool {
+  /** Tool name as exposed to agents (e.g. "canvas.push"). */
+  name: string;
+  /** Human-readable description for the tool descriptor. */
+  description: string;
+  /** JSON Schema for the tool's parameters. */
+  parameters: JSONSchema;
+  /** Direct handler function invoked when an agent calls this tool. */
+  handler(args: Record<string, unknown>, ctx: DirectToolContext): Promise<{ resultJson: string }>;
+}
+
+/** Context passed to a direct tool handler at invocation time. */
+interface DirectToolContext {
+  /** Agent ID that invoked the tool. */
+  agentId: string;
+  /** Session URN of the invoking session. */
+  sessionUrn: string;
+  /** Service entry from the registry. */
+  serviceEntry: ServiceEntry;
+}
+
+/** Dependencies available to plugin services via ServiceRegisterCtx. */
+interface ServiceDeps {
+  /** Run a model turn on a session. */
+  runSessionModelTurn: SubagentRuntimeExtension["runSessionModelTurn"];
+  /** Service registry instance (for querying other services). */
+  serviceRegistry: ServiceRegistry;
+  /** Logger scoped to the service. */
+  logger: Logger;
+}
+```
+
+### Plugin Service package.json
+
+```json
+{
+  "name": "@shoggoth/service-canvas",
+  "version": "1.0.0",
+  "shoggothPlugin": {
+    "kind": "service",
+    "entrypoint": "./src/plugin.ts"
+  }
+}
+```
+
+### Plugin Service Example
+
+```ts
+import type { Plugin } from "hooks-plugin";
+import type { ShoggothHooks } from "@shoggoth/plugins";
+
+export default function createCanvasServicePlugin(): Plugin<ShoggothHooks> {
+  let server: HttpServer | undefined;
+
+  return {
+    name: "service-canvas",
+    hooks: {
+      // Self-configure: inject defaults if no user override exists
+      "daemon.configure"(ctx) {
+        const existing = ctx.config.services?.find((s) => s.id === "canvas");
+        if (!existing) {
+          ctx.config = {
+            ...ctx.config,
+            services: [
+              ...(ctx.config.services ?? []),
+              {
+                id: "canvas",
+                label: "Canvas",
+                port: 3100,
+                protocol: "http+ws",
+                capabilities: ["canvas", "a2ui"],
+                expose: "gateway",
+              },
+            ],
+          };
+        }
+        return ctx;
+      },
+
+      // Register service and tools directly — no manifest fetch needed
+      async "service.register"(ctx) {
+        const serviceConfig = ctx.config.services?.find((s) => s.id === "canvas");
+        const port = serviceConfig?.port ?? 3100;
+
+        // Start HTTP listener (for WebSocket clients, static assets, etc.)
+        server = await startCanvasServer(port);
+
+        ctx.registerService({
+          id: "canvas",
+          label: "Canvas",
+          capabilities: ["canvas", "a2ui"],
+          expose: "gateway",
+          port,
+          protocol: "http+ws",
+          basePath: "/",
+        });
+
+        ctx.registerTools([
+          {
+            name: "canvas.push",
+            description: "Push an A2UI surface to the canvas for rendering",
+            parameters: {
+              type: "object",
+              properties: {
+                surface: { type: "string", description: "Surface ID" },
+                nodes: { type: "array", description: "A2UI node tree" },
+              },
+              required: ["surface", "nodes"],
+            },
+            async handler(args, toolCtx) {
+              // Direct in-process call — no HTTP, no token
+              const result = await canvasEngine.push(
+                args.surface as string,
+                args.nodes as unknown[],
+                { agent: toolCtx.agentId, session: toolCtx.sessionUrn },
+              );
+              return { resultJson: JSON.stringify(result) };
+            },
+          },
+          {
+            name: "canvas.show",
+            description: "Navigate the canvas to a specific URL or file",
+            parameters: {
+              type: "object",
+              properties: {
+                url: { type: "string", description: "URL to display" },
+              },
+              required: ["url"],
+            },
+            async handler(args) {
+              const result = await canvasEngine.show(args.url as string);
+              return { resultJson: JSON.stringify(result) };
+            },
+          },
+        ]);
+      },
+
+      "health.register"(ctx) {
+        ctx.registerProbe({
+          name: "canvas",
+          check: async () => ({
+            status: server?.listening ? "pass" : "fail",
+          }),
+        });
+      },
+
+      async "daemon.shutdown"() {
+        await server?.close();
+        server = undefined;
+      },
+    },
+  };
+}
+```
+
 ### Service Declaration (config extension for managed services)
 
 ```ts
@@ -58,7 +263,7 @@ type ExternalServiceHealthCheck =
   | { kind: "http"; url: string; expectedStatus?: number; timeoutMs?: number };
 ```
 
-### Service Manifest (served by the service at its manifest endpoint)
+### Service Manifest (served by managed/external services at their manifest endpoint)
 
 ```ts
 /** Returned by GET /manifest on a Shoggoth-managed service. */
@@ -75,7 +280,7 @@ interface ServiceManifest {
   wsEndpoints?: ManifestWsEndpoint[];
 }
 
-/** A tool declared by a service, registered dynamically with the daemon. */
+/** A tool declared by a managed/external service, registered dynamically with the daemon. */
 interface ServiceToolDeclaration {
   /** Tool name as exposed to agents (e.g. "canvas.push"). */
   name: string;
@@ -103,12 +308,15 @@ interface ManifestWsEndpoint {
 
 ```ts
 interface ServiceEntry {
-  /** Process declaration ID. */
+  /** Service ID. */
   id: string;
   /** Human-readable label. */
   label?: string;
-  /** Resolved base URL (e.g. "http://127.0.0.1:3100"). */
-  url: string;
+  /**
+   * Resolved base URL (e.g. "http://127.0.0.1:3100").
+   * Null for plugin services that don't bind a port.
+   */
+  url: string | null;
   /** WebSocket URL if protocol includes ws. */
   wsUrl?: string;
   /** Current health state. */
@@ -117,23 +325,25 @@ interface ServiceEntry {
   capabilities: string[];
   /** Exposure mode. */
   expose: "gateway" | "direct" | "both";
-  /** Fetched manifest (null if not yet fetched or fetch failed). */
+  /** Fetched manifest (null for plugin services or if fetch failed). */
   manifest: ServiceManifest | null;
   /** Tools currently registered for this service. */
   registeredTools: string[];
+  /** Service tier — how this service was loaded. */
+  tier: "plugin" | "managed" | "external";
 }
 
 class ServiceRegistry extends EventEmitter {
-  /** Register a service (called when procman reports healthy). */
+  /** Register a service (called by plugin hook, procman events, or health poller). */
   register(entry: ServiceEntry): void;
 
-  /** Deregister a service (called on process stop/fail). */
+  /** Deregister a service (called on process stop/fail or plugin shutdown). */
   deregister(id: string): void;
 
   /** Mark a service as unhealthy; deregisters its tools. */
   markUnhealthy(id: string): void;
 
-  /** Mark healthy and re-register tools from manifest. */
+  /** Mark healthy and re-register tools from manifest (managed/external) or direct handlers (plugin). */
   markHealthy(id: string): void;
 
   /** Look up a service by ID. */
@@ -147,6 +357,37 @@ class ServiceRegistry extends EventEmitter {
 
   // Events: "registered", "deregistered", "health-changed", "tools-registered", "tools-deregistered"
 }
+```
+
+### Tool Registry Extension
+
+```ts
+/**
+ * Extended tool registry supporting two dispatch modes.
+ */
+interface ServiceToolRegistry {
+  /**
+   * Register a tool with HTTP proxy dispatch (managed/external services).
+   * The dispatcher mints auth tokens and proxies HTTP requests.
+   */
+  registerHttpTool(serviceId: string, toolDecl: ServiceToolDeclaration): void;
+
+  /**
+   * Register a tool with direct dispatch (plugin services).
+   * The handler function is called in-process with no network hop.
+   */
+  registerDirectTool(serviceId: string, tool: DirectServiceTool): void;
+
+  /** Deregister all tools for a service. */
+  deregisterServiceTools(serviceId: string): void;
+
+  /** Look up a registered service tool by name. */
+  get(toolName: string): RegisteredServiceTool | undefined;
+}
+
+type RegisteredServiceTool =
+  | { kind: "http"; serviceId: string; decl: ServiceToolDeclaration }
+  | { kind: "direct"; serviceId: string; tool: DirectServiceTool };
 ```
 
 ### Auth & Control Plane Access
@@ -209,22 +450,20 @@ interface TokenValidator {
 }
 ```
 
-### Plugin Tool Dispatcher
+### Service Tool Dispatcher
 
 ```ts
 /**
- * Handles tool calls for service-provided tools.
- * Registered dynamically when a service's manifest is fetched.
+ * Unified dispatcher that handles both direct and HTTP tool calls.
  */
 interface ServiceToolDispatcher {
   /**
-   * Dispatch a tool call to the backing service.
-   * Mints auth token, builds HTTP request from tool declaration + args, returns response.
+   * Dispatch a tool call. Routes to direct handler or HTTP proxy based on tool registration kind.
    */
   dispatch(
-    toolDecl: ServiceToolDeclaration,
+    toolName: string,
     args: Record<string, unknown>,
-    ctx: { agentId: string; sessionUrn: string; serviceEntry: ServiceEntry },
+    ctx: { agentId: string; sessionUrn: string },
   ): Promise<{ resultJson: string }>;
 }
 ```
@@ -312,6 +551,41 @@ const externalServiceDeclarationSchema = z
 // services: z.array(externalServiceDeclarationSchema).optional()
 ```
 
+### Config Schema (Zod — plugin service overrides in `services[]`)
+
+```ts
+// Plugin services inject their own defaults via daemon.configure.
+// Users can override specific fields by adding a matching entry in services[].
+// The schema is permissive — only `id` is required; all other fields are optional overrides.
+const pluginServiceOverrideSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1).optional(),
+    port: z.number().int().min(1).max(65535).optional(),
+    protocol: z.enum(["http", "ws", "http+ws"]).optional(),
+    basePath: z.string().optional(),
+    capabilities: z.array(z.string().min(1)).optional(),
+    expose: z.enum(["gateway", "direct", "both"]).optional(),
+  })
+  .strict();
+
+// The top-level services[] array accepts both external declarations and plugin overrides.
+// Discrimination: entries with a `health` field are external; entries without are plugin overrides.
+```
+
+### Plugin Kind Extension
+
+```ts
+// Extended shoggothPlugin.kind enum:
+type PluginKind = "messaging-platform" | "observability" | "general" | "service";
+
+// Service plugins must implement:
+// - daemon.configure (waterfall) — inject default config
+// - service.register (async) — register service entry and tools
+// - health.register (sync) — register health probe
+// - daemon.shutdown (async) — clean up resources
+```
+
 ### Gateway Config Schema
 
 ```ts
@@ -374,7 +648,68 @@ const serviceManifestSchema = z.object({
 
 ## Code Examples
 
-### Declaring a service in config
+### Plugin service (minimal)
+
+```ts
+import type { Plugin } from "hooks-plugin";
+import type { ShoggothHooks } from "@shoggoth/plugins";
+
+export default function createMyServicePlugin(): Plugin<ShoggothHooks> {
+  return {
+    name: "service-my-api",
+    hooks: {
+      "daemon.configure"(ctx) {
+        if (!ctx.config.services?.find((s) => s.id === "my-api")) {
+          ctx.config = {
+            ...ctx.config,
+            services: [
+              ...(ctx.config.services ?? []),
+              { id: "my-api", label: "My API", capabilities: ["my-api"] },
+            ],
+          };
+        }
+        return ctx;
+      },
+
+      async "service.register"(ctx) {
+        ctx.registerService({
+          id: "my-api",
+          label: "My API",
+          capabilities: ["my-api"],
+        });
+
+        ctx.registerTools([
+          {
+            name: "my_api.hello",
+            description: "Returns a greeting",
+            parameters: {
+              type: "object",
+              properties: { name: { type: "string" } },
+              required: ["name"],
+            },
+            async handler(args) {
+              return { resultJson: JSON.stringify({ greeting: `Hello, ${args.name}!` }) };
+            },
+          },
+        ]);
+      },
+
+      "health.register"(ctx) {
+        ctx.registerProbe({
+          name: "my-api",
+          check: async () => ({ status: "pass" }),
+        });
+      },
+
+      async "daemon.shutdown"() {
+        // nothing to clean up for this simple example
+      },
+    },
+  };
+}
+```
+
+### Declaring a managed service in config
 
 ```jsonc
 {
@@ -406,7 +741,7 @@ const serviceManifestSchema = z.object({
 }
 ```
 
-### Service manifest response (served by Canvas Web)
+### Service manifest response (served by managed/external Canvas Web)
 
 ```json
 {
@@ -467,7 +802,8 @@ const serviceManifestSchema = z.object({
 ### Agent using a service-provided tool
 
 ```
-// These tools appear in the agent's tool list automatically when Canvas is healthy:
+// These tools appear in the agent's tool list automatically when the service is healthy.
+// The agent doesn't know (or care) whether it's a plugin, managed, or external service.
 
 canvas.push { surface: "main", nodes: [{ type: "text", content: "Hello world" }] }
 // → { ok: true, surface: "main", nodeCount: 1 }
@@ -479,7 +815,7 @@ canvas.reset { surface: "main" }
 // → { ok: true }
 ```
 
-### Service validating a Shoggoth token (service-side code)
+### Service validating a Shoggoth token (managed/external service-side code)
 
 ```ts
 import * as age from "age-encryption";
@@ -505,29 +841,35 @@ async function validateToken(authHeader: string): Promise<ServiceTokenPayload | 
 }
 ```
 
-### Tool dispatch flow (daemon internals)
+### Tool dispatch flow (daemon internals — unified dispatcher)
 
 ```ts
 // When agent calls "canvas.push { surface: "main", nodes: [...] }":
 
-// 1. Look up tool declaration from registered service tools
-const toolDecl = serviceToolRegistry.get("canvas.push");
-// → { name: "canvas.push", method: "POST", path: "/api/a2ui/push", dispatch: "body", ... }
+// 1. Look up registered tool
+const registered = serviceToolRegistry.get("canvas.push");
 
-// 2. Resolve backing service
-const entry = serviceRegistry.get(toolDecl.serviceId);
-// → { url: "http://127.0.0.1:3100", healthy: true, ... }
+if (registered.kind === "direct") {
+  // Plugin service — direct function call, no network
+  const result = await registered.tool.handler(args, {
+    agentId: ctx.agentId,
+    sessionUrn: ctx.sessionUrn,
+    serviceEntry: serviceRegistry.get(registered.serviceId)!,
+  });
+  return result;
+}
 
-// 3. Mint token
-const token = tokenMinter.mint(ctx.agentId, entry.id, ctx.sessionUrn);
+if (registered.kind === "http") {
+  // Managed/external service — HTTP proxy with auth
+  const entry = serviceRegistry.get(registered.serviceId)!;
+  const token = await tokenMinter.mint(ctx.agentId, entry.id, ctx.sessionUrn);
 
-// 4. Dispatch
-const response = await fetch(`${entry.url}${toolDecl.path}`, {
-  method: toolDecl.method,
-  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  body: JSON.stringify(args),
-});
+  const response = await fetch(`${entry.url}${registered.decl.path}`, {
+    method: registered.decl.method,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
+  });
 
-// 5. Return to agent
-return { resultJson: await response.text() };
+  return { resultJson: await response.text() };
+}
 ```

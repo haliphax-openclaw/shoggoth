@@ -48,6 +48,11 @@ export class ServiceToolDispatcher {
     // Get service URL from context
     const serviceUrl = ctx.serviceEntry.url;
 
+    // Plugin services without a port don't have a URL - HTTP dispatch shouldn't be used
+    if (!serviceUrl) {
+      throw new Error("Service does not expose HTTP endpoint for tool dispatch");
+    }
+
     // Mint authentication token
     const token = await this.tokenMinter.mint(ctx.agentId, ctx.serviceEntry.id, ctx.sessionUrn);
 

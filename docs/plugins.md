@@ -221,6 +221,123 @@ Additional setters on the context: `setSubagentRuntimeExtension`, `setMessageToo
 
 ---
 
+## Service Plugin Guide
+
+To add an in-process service that registers tools directly (no HTTP gateway required), create a plugin with `kind: "service"`.
+
+### Required Hooks
+
+| Hook               | Purpose                                                 |
+| ------------------ | ------------------------------------------------------- |
+| `daemon.configure` | Inspect/transform config, set up service initialization |
+| `service.register` | Register the service and its tools in the registry      |
+| `daemon.shutdown`  | Clean up resources on shutdown                          |
+| `health.register`  | Register a health probe for the service                 |
+
+### Example
+
+```ts
+import { defineServicePlugin } from "@shoggoth/plugins";
+
+export default function createCanvasService() {
+  let state: CanvasState | undefined;
+
+  return defineServicePlugin({
+    name: "service-canvas",
+    version: "0.1.0",
+    hooks: {
+      "daemon.configure"(ctx) {
+        // Optionally transform config or set defaults
+        return ctx;
+      },
+
+      async "service.register"(ctx) {
+        ctx.registerService({
+          id: "canvas",
+          label: "Canvas Service",
+          capabilities: ["drawing", "rendering"],
+        });
+
+        ctx.registerTools([
+          {
+            name: "canvas.push",
+            description: "Push a drawing operation to the canvas",
+            parameters: {
+              type: "object",
+              properties: {
+                operation: { type: "string" },
+                data: { type: "object" },
+              },
+              required: ["operation", "data"],
+            },
+            handler: async (args, ctx) => {
+              // Direct handler - runs in-process with the daemon
+              state = pushOperation(state, args.operation, args.data);
+              return { resultJson: JSON.stringify({ success: true, state }) };
+            },
+          },
+        ]);
+      },
+
+      async "daemon.shutdown"(ctx) {
+        // Clean up resources
+        state = undefined;
+      },
+
+      "health.register"(ctx) {
+        ctx.registerProbe({
+          name: "canvas",
+          check: async () => ({
+            status: state ? "pass" : "fail",
+          }),
+        });
+      },
+    },
+  });
+}
+```
+
+**package.json:**
+
+```json
+{
+  "name": "@shoggoth/service-canvas",
+  "version": "0.1.0",
+  "shoggothPlugin": {
+    "kind": "service",
+    "entrypoint": "./src/plugin.ts"
+  }
+}
+```
+
+`defineServicePlugin` validates that all four required hooks are present at registration time and throws if any are missing.
+
+### Direct Tool Dispatch
+
+Tools registered via `registerTools` use direct dispatch — the handler function is called in-process without HTTP requests or auth token handling. This is ideal for:
+
+- Lightweight services that don't need a separate process
+- Services that benefit from shared memory with the daemon
+- Rapid prototyping before extracting to a full microservice
+
+### Overriding Defaults
+
+Plugin defaults can be overridden via the `services[]` config:
+
+```json
+{
+  "services": [
+    {
+      "id": "canvas",
+      "port": 3001,
+      "basePath": "/api"
+    }
+  ]
+}
+```
+
+This allows a service plugin to optionally bind an HTTP listener while still providing direct tool dispatch for internal use.
+
 ## Error Handling
 
 The `ShoggothPluginSystem` provides centralized error handling via `listenError`:

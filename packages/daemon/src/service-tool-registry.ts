@@ -8,11 +8,14 @@
 import type { ServiceManifest, ServiceToolDeclaration } from "@shoggoth/shared";
 import type { ServiceRegistry } from "./service-registry";
 import type { ServiceToolDispatcher } from "./service-tool-dispatcher";
+import type { DirectServiceTool, DirectToolContext } from "@shoggoth/plugins";
 
-interface RegisteredTool {
-  serviceId: string;
-  toolDecl: ServiceToolDeclaration;
-}
+/**
+ * Registered tool - either HTTP-based (proxied to external service) or direct (in-process handler).
+ */
+type RegisteredTool =
+  | { kind: "http"; serviceId: string; toolDecl: ServiceToolDeclaration }
+  | { kind: "direct"; serviceId: string; tool: DirectServiceTool };
 
 /**
  * ServiceToolRegistry handles dynamic registration and invocation of tools
@@ -42,7 +45,7 @@ export class ServiceToolRegistry {
 
     for (const tool of tools) {
       const qualifiedName = `${serviceId}.${tool.name}`;
-      this.toolMap.set(qualifiedName, { serviceId, toolDecl: tool });
+      this.toolMap.set(qualifiedName, { kind: "http", serviceId, toolDecl: tool });
       registered.push(qualifiedName);
     }
 
@@ -50,6 +53,31 @@ export class ServiceToolRegistry {
     const entry = this.serviceRegistry.get(serviceId);
     if (entry) {
       entry.registeredTools = registered;
+    }
+
+    return registered;
+  }
+
+  /**
+   * Register tools with direct handler functions under the given service ID.
+   * Tool names are used as-is (the plugin provides fully qualified names like "canvas.push").
+   *
+   * @param serviceId - The service ID to associate with these tools
+   * @param tools - Array of direct service tools with handler functions
+   * @returns Array of tool names that were registered
+   */
+  registerDirectTools(serviceId: string, tools: DirectServiceTool[]): string[] {
+    const registered: string[] = [];
+
+    for (const tool of tools) {
+      this.toolMap.set(tool.name, { kind: "direct", serviceId, tool });
+      registered.push(tool.name);
+    }
+
+    // Update the ServiceEntry's registeredTools array
+    const entry = this.serviceRegistry.get(serviceId);
+    if (entry) {
+      entry.registeredTools = [...(entry.registeredTools ?? []), ...registered];
     }
 
     return registered;
@@ -75,7 +103,7 @@ export class ServiceToolRegistry {
   }
 
   /**
-   * Get the tool declaration for a qualified tool name.
+   * Get the registered tool info for a qualified tool name.
    *
    * @param qualifiedName - The fully qualified tool name (e.g., "myservice.users.get")
    * @returns The registered tool info or undefined if not found
@@ -91,8 +119,10 @@ export class ServiceToolRegistry {
    */
   listTools(): Array<{ qualifiedName: string; serviceId: string; description: string }> {
     const result: Array<{ qualifiedName: string; serviceId: string; description: string }> = [];
-    for (const [qualifiedName, { serviceId, toolDecl }] of this.toolMap) {
-      result.push({ qualifiedName, serviceId, description: toolDecl.description });
+    for (const [qualifiedName, registered] of this.toolMap) {
+      const description =
+        registered.kind === "http" ? registered.toolDecl.description : registered.tool.description;
+      result.push({ qualifiedName, serviceId: registered.serviceId, description });
     }
     return result;
   }
@@ -116,6 +146,16 @@ export class ServiceToolRegistry {
       throw new Error(`Unknown tool: ${qualifiedName}`);
     }
 
+    if (registered.kind === "direct") {
+      // Direct tool invocation - call the handler function directly
+      const toolContext: DirectToolContext = {
+        agentId: ctx.agentId,
+        sessionUrn: ctx.sessionUrn,
+      };
+      return registered.tool.handler(args, toolContext);
+    }
+
+    // HTTP tool invocation - use the dispatcher
     const serviceEntry = this.serviceRegistry.get(registered.serviceId);
     if (!serviceEntry) {
       throw new Error(`Service not found: ${registered.serviceId}`);
