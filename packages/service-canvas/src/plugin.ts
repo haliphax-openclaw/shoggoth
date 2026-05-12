@@ -4,9 +4,9 @@
 
 import type { Plugin } from "hooks-plugin";
 import type { ShoggothHooks, DirectServiceTool, ServiceRegisterCtx } from "@shoggoth/plugins";
-import { createCanvasServer, type CanvasServer } from "./server/index.js";
-import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "./server/config.js";
-import type { Gateway } from "./server/services/gateway.js";
+import { createCanvasServer, type CanvasServer } from "./server/index";
+import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "./server/config";
+import type { Gateway } from "./server/services/gateway";
 
 /**
  * Canvas-specific config that can be provided via ShoggothConfig.services.canvas

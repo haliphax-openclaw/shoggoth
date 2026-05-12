@@ -4,10 +4,10 @@
 
 import express, { type Express, type Application } from "express";
 import { createServer, type Server as HttpServer } from "http";
-import { Gateway } from "./services/gateway.js";
-import { createAgentProxyRouter } from "./routes/agent-proxy.js";
-import { createFileSpawnRouter } from "./routes/file-spawn.js";
-import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "./config.js";
+import { Gateway } from "./services/gateway";
+import { createAgentProxyRouter } from "./routes/agent-proxy";
+import { createFileSpawnRouter } from "./routes/file-spawn";
+import { DEFAULT_CANVAS_CONFIG, type CanvasConfig } from "./config";
 
 export interface CanvasServer {
   server: HttpServer;

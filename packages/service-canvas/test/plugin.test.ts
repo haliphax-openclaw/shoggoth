@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import createCanvasPlugin from "../src/plugin.js";
+import createCanvasPlugin from "../src/plugin";
 
 describe("createCanvasPlugin", () => {
   // Track servers to clean up
