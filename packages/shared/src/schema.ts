@@ -59,6 +59,8 @@ const providerRetryFields = {
 const shoggothOpenAiCompatibleProviderSchema = z
   .object({
     id: z.string().min(1),
+    /** Human-readable label. */
+    label: z.string().optional(),
     kind: z.literal("openai-compatible"),
     baseUrl: z.string().min(1),
     apiKey: z.string().min(1).optional(),
@@ -72,6 +74,8 @@ const shoggothOpenAiCompatibleProviderSchema = z
 const shoggothAnthropicMessagesProviderSchema = z
   .object({
     id: z.string().min(1),
+    /** Human-readable label. */
+    label: z.string().optional(),
     kind: z.literal("anthropic-messages"),
     /** API origin (or URL whose origin is used); POST `{origin}/v1/messages`. */
     baseUrl: z.string().min(1),
@@ -89,6 +93,8 @@ const shoggothAnthropicMessagesProviderSchema = z
 const shoggothGeminiProviderSchema = z
   .object({
     id: z.string().min(1),
+    /** Human-readable label. */
+    label: z.string().optional(),
     kind: z.literal("gemini"),
     /** API origin, e.g. "https://generativelanguage.googleapis.com". Defaults in provider factory when omitted. */
     baseUrl: z.string().min(1).optional(),
@@ -610,6 +616,8 @@ const mediaGenerationModelSchema = z.object({
 const mediaGenerationProviderSchema = z.object({
   /** Unique identifier for this media provider. */
   id: z.string().min(1),
+  /** Human-readable label. */
+  label: z.string().optional(),
   /** Determines auth headers and URL construction. */
   kind: z.enum(["openai-compatible", "gemini"]),
   /** Base URL for API requests. */
@@ -945,6 +953,181 @@ export const DEFAULT_SKILLS_CONFIG: ShoggothSkillsConfig = {
 // Declarative sidecar process definitions (Phase 4 — procman)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Web Services Plugin - Service Declaration (Phase 1)
+// ---------------------------------------------------------------------------
+
+/** Protocol types for service declarations. */
+export const serviceProtocolSchema = z.enum(["http", "ws", "http+ws"]);
+
+/** Exposure mode for services. */
+export const serviceExposeSchema = z.enum(["gateway", "direct", "both"]);
+
+/** Schema for declaring a service within a process. */
+export const serviceDeclarationSchema = z
+  .object({
+    /** Port number (1-65535). */
+    port: z.number().int().min(1).max(65535),
+    /** Protocol type. */
+    protocol: serviceProtocolSchema,
+    /** Base path for the service (default "/"). */
+    basePath: z.string().default("/"),
+    /** Optional capabilities advertised by this service. */
+    capabilities: z.array(z.string()).optional(),
+    /** How to expose this service (default "direct"). */
+    expose: serviceExposeSchema.default("direct"),
+    /** Path to the service manifest (default "/manifest"). */
+    manifestPath: z.string().default("/manifest"),
+    /** Host address (default "127.0.0.1"). */
+    host: z.string().default("127.0.0.1"),
+  })
+  .strict();
+
+export type ServiceDeclaration = z.infer<typeof serviceDeclarationSchema>;
+
+/** TCP health check configuration. */
+const externalServiceHealthTcpSchema = z
+  .object({
+    kind: z.literal("tcp"),
+    port: z.number().int().min(1).max(65535).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
+/** HTTP health check configuration. */
+const externalServiceHealthHttpSchema = z
+  .object({
+    kind: z.literal("http"),
+    url: z.string().min(1),
+    expectedStatus: z.number().int().optional(),
+    timeoutMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
+/** Discriminated union for external service health checks. */
+export const externalServiceHealthSchema = z.discriminatedUnion("kind", [
+  externalServiceHealthTcpSchema,
+  externalServiceHealthHttpSchema,
+]);
+
+export type ExternalServiceHealth = z.infer<typeof externalServiceHealthSchema>;
+
+/** Schema for declaring an external service in the config. */
+export const externalServiceDeclarationSchema = z
+  .object({
+    /** Unique identifier for this service. */
+    id: z.string().min(1),
+    /** Human-readable label. */
+    label: z.string().min(1).optional(),
+    /** Host address. */
+    host: z.string(),
+    /** Port number. */
+    port: z.number().int().min(1).max(65535),
+    /** Protocol type. */
+    protocol: serviceProtocolSchema,
+    /** Base path (default "/"). */
+    basePath: z.string().default("/"),
+    /** Capabilities advertised by this service. */
+    capabilities: z.array(z.string()).optional(),
+    /** How to expose this service (default "direct"). */
+    expose: serviceExposeSchema.default("direct"),
+    /** Path to service manifest (default "/manifest"). */
+    manifestPath: z.string().default("/manifest"),
+    /** Health check configuration. */
+    health: externalServiceHealthSchema,
+    /** Health check interval in milliseconds (default 30000). */
+    healthIntervalMs: z.number().int().positive().default(30000),
+  })
+  .strict();
+
+export type ExternalServiceDeclaration = z.infer<typeof externalServiceDeclarationSchema>;
+// Web Services Plugin - Service Tool Declaration
+// -----------------------------------------------------------------------------
+
+/** Schema for a tool exposed by a service manifest. */
+export const serviceToolDeclarationSchema = z
+  .object({
+    /** Tool name following reverse-DNS pattern (e.g., "users.get", "orders.list") */
+    name: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)*$/),
+    /** Human-readable description of what the tool does */
+    description: z.string().min(1),
+    /** JSON schema for the tool's parameters */
+    parameters: z.record(z.unknown()),
+    /** HTTP method for invoking this tool */
+    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+    /** URL path for the tool endpoint */
+    path: z.string().min(1),
+    /** How to dispatch arguments: in request body, query params, or path (default "body") */
+    dispatch: z.enum(["body", "query", "path"]).optional().default("body"),
+  })
+  .strict();
+
+export type ServiceToolDeclaration = z.infer<typeof serviceToolDeclarationSchema>;
+
+/** WebSocket endpoint description in a service manifest */
+const wsEndpointSchema = z
+  .object({
+    /** WebSocket path */
+    path: z.string().min(1),
+    /** Optional description */
+    description: z.string().min(1).optional(),
+    /** Optional protocol identifier */
+    protocol: z.string().optional(),
+  })
+  .strict();
+
+/** Schema for a service manifest fetched from a service endpoint */
+export const serviceManifestSchema = z
+  .object({
+    /** Service name */
+    name: z.string().min(1),
+    /** Service version */
+    version: z.string().min(1),
+    /** Available tools exposed by this service */
+    tools: z.array(serviceToolDeclarationSchema).optional(),
+    /** Available operations (simple string identifiers) */
+    ops: z.array(z.string().min(1)).optional(),
+    /** WebSocket endpoints */
+    wsEndpoints: wsEndpointSchema.array().optional(),
+  })
+  .strict();
+
+export type ServiceManifest = z.infer<typeof serviceManifestSchema>;
+
+// HTTP Gateway Configuration
+// -----------------------------------------------------------------------------
+
+export const gatewayConfigSchema = z
+  .object({
+    /** Whether the gateway is enabled. Default: false */
+    enabled: z.boolean().default(false),
+    /** Port to listen on. Default: 8000 */
+    port: z.number().int().min(1).max(65535).default(8000),
+    /** Host address to bind to. Default: "0.0.0.0" */
+    host: z.string().default("0.0.0.0"),
+    /** URL prefix for service routes. Default: "/svc" */
+    prefix: z.string().default("/svc"),
+    /** CORS configuration */
+    cors: z
+      .object({
+        origins: z.array(z.string()),
+        credentials: z.boolean().optional(),
+      })
+      .optional(),
+    /** Rate limiting configuration */
+    rateLimit: z
+      .object({
+        windowMs: z.number().int().positive(),
+        maxRequests: z.number().int().positive(),
+      })
+      .optional(),
+  })
+  .strict()
+  .optional();
+
+export type GatewayConfig = z.infer<typeof gatewayConfigSchema>;
+
+//
 const processDeclarationHealthSchema = z
   .object({
     kind: z.enum(["tcp", "http", "stdout-match"]),
@@ -959,8 +1142,9 @@ export const processDeclarationSchema = z
     /** Unique ID for this process (used as ProcessSpec.id). */
     id: z.string().min(1),
     /** Human-readable label. */
-    label: z.string().min(1).optional(),
-    /** When to start: "boot" (daemon startup) or "on-demand" (first reference). */
+    label: z.string().optional(),
+    /** Service declaration for this process (web services plugin). */
+    service: serviceDeclarationSchema.optional(),
     startPolicy: z.enum(["boot", "on-demand"]),
     /** Command to run. */
     command: z.string().min(1),
@@ -1078,18 +1262,21 @@ export const shoggothConfigFragmentSchema = z
     policy: shoggothPolicyFragmentSchema,
     /** Override default tool availability per context level. */
     contextLevelTools: contextLevelToolsConfigSchema.optional(),
-    /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
     /** Daemon-writable directory for agent-requested config overrides. */
     dynamicConfigDirectory: z.string().min(1).optional(),
-    /** SearXNG web search integration. */
-    searxng: shoggothSearxngConfigSchema.optional(),
+    /** External service declarations for web services plugin. */
+    services: z.array(externalServiceDeclarationSchema).optional(),
+    /** HTTP gateway configuration for proxying service requests. */
+    gateway: gatewayConfigSchema,
     /** Dynamic tool discovery / collapse configuration. */
     toolDiscovery: shoggothToolDiscoveryConfigSchema.optional(),
     /** How to display model thinking output. Default: "none" if omitted. */
     thinkingDisplay: thinkingDisplaySchema.optional(),
     /** Media generation configuration. */
     mediaGeneration: shoggothMediaGenerationConfigSchema.optional(),
+    /** SearXNG web search configuration. */
+    searxng: shoggothSearxngConfigSchema.optional(),
   })
   .strict();
 
@@ -1135,7 +1322,10 @@ export const shoggothConfigSchema = z
     contextLevelTools: contextLevelToolsConfigSchema.optional(),
     /** Declarative sidecar process definitions managed by procman. */
     processes: z.array(processDeclarationSchema).optional(),
-    /** Daemon-writable directory for agent-requested config overrides. */
+    /** External service declarations for web services plugin. */
+    services: z.array(externalServiceDeclarationSchema).optional(),
+    /** HTTP gateway configuration for proxying service requests. */
+    gateway: gatewayConfigSchema,
     dynamicConfigDirectory: z.string().min(1).optional(),
     /** SearXNG web search integration. */
     searxng: shoggothSearxngConfigSchema.optional(),
