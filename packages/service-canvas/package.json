@@ -1,0 +1,31 @@
+{
+  "name": "@shoggoth/service-canvas",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/plugin.ts",
+  "types": "./src/plugin.ts",
+  "exports": {
+    ".": {
+      "types": "./src/plugin.ts",
+      "import": "./src/plugin.ts",
+      "default": "./src/plugin.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@shoggoth/plugins": "*",
+    "@shoggoth/shared": "*",
+    "better-sqlite3": "^12.8.0",
+    "chokidar": "^4.0.0",
+    "express": "^5.1.0",
+    "mime-types": "^2.1.35",
+    "ws": "^8.18.0"
+  },
+  "shoggothPlugin": {
+    "kind": "service",
+    "entrypoint": "./src/plugin.ts"
+  }
+}
