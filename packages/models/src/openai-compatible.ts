@@ -1,4 +1,4 @@
-import { ModelHttpError } from "./errors";
+import { EmptyModelResponseError, ModelHttpError } from "./errors";
 import { openaiImageBlockCodec } from "./image-codec";
 import { getResilienceGate, parseRateLimitHeaders } from "./resilience";
 import {
@@ -313,213 +313,321 @@ export function createOpenAICompatibleProvider(
     }
   }
 
+  /**
+   * Retry wrapper for empty model responses. Free-tier models (e.g. on
+   * OpenRouter) occasionally return 200 OK with no content and no tool_calls.
+   * This retries the request using the same backoff parameters as the
+   * resilience gate before giving up and letting failover take over.
+   */
+  async function withEmptyResponseRetry<T>(fn: () => Promise<T>): Promise<T> {
+    const gate = getResilienceGate();
+    const manager = gate.getOrCreateManager(id);
+    const maxRetries = 2;
+    let attempt = 0;
+    while (true) {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof EmptyModelResponseError && attempt < maxRetries) {
+          attempt++;
+          const delay = manager.recordFailure();
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
   return {
     id,
     async complete(input: ModelCompleteInput) {
-      const url = `${base}/chat/completions`;
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-      };
-      if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
-
-      const body: Record<string, unknown> = {
-        model: input.model,
-        messages: input.messages.map((m) => serializeChatMessage(m, input.thinkingFormat)),
-        max_tokens: input.maxOutputTokens,
-        temperature: input.temperature,
-      };
-      if (input.stream === true) {
-        body.stream = true;
-        body.stream_options = { include_usage: true };
-      }
-      applyOpenAICompatibleRequestExtensions(body, input);
-
-      // Structured output: apply response_format AFTER requestExtras so typed field wins
-      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
-      if (input.responseSchema && mode !== "none") {
-        body.response_format = {
-          type: "json_schema",
-          json_schema: {
-            name: "response",
-            schema: input.responseSchema.schema,
-            strict: mode === "strict",
-          },
+      return withEmptyResponseRetry(async () => {
+        const url = `${base}/chat/completions`;
+        const headers: Record<string, string> = {
+          "content-type": "application/json",
         };
-      }
+        if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
 
-      const res = await resilientFetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+        const body: Record<string, unknown> = {
+          model: input.model,
+          messages: input.messages.map((m) => serializeChatMessage(m, input.thinkingFormat)),
+          max_tokens: input.maxOutputTokens,
+          temperature: input.temperature,
+        };
+        if (input.stream === true) {
+          body.stream = true;
+          body.stream_options = { include_usage: true };
+        }
+        applyOpenAICompatibleRequestExtensions(body, input);
 
-      if (input.stream === true) {
+        // Structured output: apply response_format AFTER requestExtras so typed field wins
+        const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
+        if (input.responseSchema && mode !== "none") {
+          body.response_format = {
+            type: "json_schema",
+            json_schema: {
+              name: "response",
+              schema: input.responseSchema.schema,
+              strict: mode === "strict",
+            },
+          };
+        }
+
+        const res = await resilientFetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        if (input.stream === true) {
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new ModelHttpError(
+              res.status,
+              res.statusText || `HTTP ${res.status}`,
+              errText.slice(0, 500),
+            );
+          }
+          if (!res.body) {
+            throw new ModelHttpError(502, "missing response body for stream", undefined);
+          }
+          const {
+            content: streamed,
+            toolCalls,
+            usage,
+            reasoningContent,
+          } = await consumeOpenAIChatCompletionStream(res.body, {
+            accumulateTools: false,
+            onTextDelta: input.onTextDelta,
+          });
+          if (toolCalls.length > 0) {
+            throw new ModelHttpError(
+              502,
+              "unexpected tool_calls in non-tool chat completion stream",
+              "",
+            );
+          }
+          if (streamed === null) {
+            throw new EmptyModelResponseError();
+          }
+          const thinkingFormat = input.thinkingFormat ?? "none";
+          const normalized = normalizeThinkingBlocks(streamed, thinkingFormat);
+          const content = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+          return { content, usage, reasoningContent };
+        }
+
+        const rawText = await res.text();
         if (!res.ok) {
-          const errText = await res.text();
           throw new ModelHttpError(
             res.status,
             res.statusText || `HTTP ${res.status}`,
-            errText.slice(0, 500),
+            rawText.slice(0, 500),
           );
         }
-        if (!res.body) {
-          throw new ModelHttpError(502, "missing response body for stream", undefined);
-        }
-        const {
-          content: streamed,
-          toolCalls,
-          usage,
-          reasoningContent,
-        } = await consumeOpenAIChatCompletionStream(res.body, {
-          accumulateTools: false,
-          onTextDelta: input.onTextDelta,
-        });
-        if (toolCalls.length > 0) {
-          throw new ModelHttpError(
-            502,
-            "unexpected tool_calls in non-tool chat completion stream",
-            "",
-          );
-        }
-        if (streamed === null) {
-          throw new ModelHttpError(502, "missing streamed assistant content", "");
-        }
-        const thinkingFormat = input.thinkingFormat ?? "none";
-        const normalized = normalizeThinkingBlocks(streamed, thinkingFormat);
-        const content = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
-        return { content, usage, reasoningContent };
-      }
 
-      const rawText = await res.text();
-      if (!res.ok) {
-        throw new ModelHttpError(
-          res.status,
-          res.statusText || `HTTP ${res.status}`,
-          rawText.slice(0, 500),
-        );
-      }
+        const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
+        let json: unknown;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
+        }
 
-      const text = input.thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
-      let json: unknown;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
-      }
-
-      const choices = (json as { choices?: unknown }).choices;
-      const first = Array.isArray(choices) ? choices[0] : undefined;
-      const message =
-        first && typeof first === "object" && first !== null && "message" in first
-          ? (first as { message?: { content?: unknown; reasoning_content?: unknown } }).message
-          : undefined;
-      const content =
-        message && typeof message.content === "string"
-          ? message.content
-          : message && message.content === null
-            ? ""
+        const choices = (json as { choices?: unknown }).choices;
+        const first = Array.isArray(choices) ? choices[0] : undefined;
+        const message =
+          first && typeof first === "object" && first !== null && "message" in first
+            ? (first as { message?: { content?: unknown; reasoning_content?: unknown } }).message
             : undefined;
-      if (typeof content !== "string") {
-        throw new ModelHttpError(502, "missing choices[0].message.content", text.slice(0, 200));
-      }
-
-      const thinkingFormat = input.thinkingFormat ?? "none";
-      const normalized = normalizeThinkingBlocks(content, thinkingFormat);
-      const finalContent = typeof normalized === "string" ? normalized : JSON.stringify(normalized);
-
-      // Extract reasoning_content
-      let reasoningContent: string | undefined;
-      if (
-        message &&
-        typeof message.reasoning_content === "string" &&
-        message.reasoning_content.length > 0
-      ) {
-        reasoningContent = message.reasoning_content;
-      }
-
-      // Structured output: post-validate when mode is "best-effort"
-      if (input.responseSchema && mode !== "strict" && mode !== "none") {
-        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
-        if (!result.valid) {
-          throw new StructuredOutputValidationError(
-            result.error,
-            result.rawContent,
-            input.responseSchema.schema,
-          );
+        const content =
+          message && typeof message.content === "string"
+            ? message.content
+            : message && message.content === null
+              ? ""
+              : undefined;
+        if (typeof content !== "string") {
+          throw new ModelHttpError(502, "missing choices[0].message.content", text.slice(0, 200));
         }
-      }
 
-      return { content: finalContent, usage: extractOpenAIUsage(json), reasoningContent };
+        const thinkingFormat = input.thinkingFormat ?? "none";
+        const normalized = normalizeThinkingBlocks(content, thinkingFormat);
+        const finalContent =
+          typeof normalized === "string" ? normalized : JSON.stringify(normalized);
+
+        // Extract reasoning_content
+        let reasoningContent: string | undefined;
+        if (
+          message &&
+          typeof message.reasoning_content === "string" &&
+          message.reasoning_content.length > 0
+        ) {
+          reasoningContent = message.reasoning_content;
+        }
+
+        // Structured output: post-validate when mode is "best-effort"
+        if (input.responseSchema && mode !== "strict" && mode !== "none") {
+          const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+          if (!result.valid) {
+            throw new StructuredOutputValidationError(
+              result.error,
+              result.rawContent,
+              input.responseSchema.schema,
+            );
+          }
+        }
+
+        return { content: finalContent, usage: extractOpenAIUsage(json), reasoningContent };
+      });
     },
 
     async completeWithTools(input: ModelToolCompleteInput): Promise<ModelToolCompleteOutput> {
-      const url = `${base}/chat/completions`;
-      const headers: Record<string, string> = {
-        "content-type": "application/json",
-      };
-      if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
-
-      const body: Record<string, unknown> = {
-        model: input.model,
-        messages: input.messages.map((m) => serializeChatMessage(m, input.thinkingFormat)),
-        tools: input.tools,
-        tool_choice: "auto" as const,
-        max_tokens: input.maxOutputTokens,
-        temperature: input.temperature,
-      };
-      if (input.stream === true) {
-        body.stream = true;
-        body.stream_options = { include_usage: true };
-      }
-      applyOpenAICompatibleRequestExtensions(body, input);
-
-      // Structured output: apply response_format AFTER requestExtras so typed field wins
-      const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
-      if (input.responseSchema && mode !== "none") {
-        body.response_format = {
-          type: "json_schema",
-          json_schema: {
-            name: "response",
-            schema: input.responseSchema.schema,
-            strict: mode === "strict",
-          },
+      return withEmptyResponseRetry(async () => {
+        const url = `${base}/chat/completions`;
+        const headers: Record<string, string> = {
+          "content-type": "application/json",
         };
-      }
+        if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
 
-      const res = await resilientFetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
+        const body: Record<string, unknown> = {
+          model: input.model,
+          messages: input.messages.map((m) => serializeChatMessage(m, input.thinkingFormat)),
+          tools: input.tools,
+          tool_choice: "auto" as const,
+          max_tokens: input.maxOutputTokens,
+          temperature: input.temperature,
+        };
+        if (input.stream === true) {
+          body.stream = true;
+          body.stream_options = { include_usage: true };
+        }
+        applyOpenAICompatibleRequestExtensions(body, input);
 
-      const thinkingFormat = input.thinkingFormat ?? "none";
+        // Structured output: apply response_format AFTER requestExtras so typed field wins
+        const mode = resolveStructuredOutputMode(input.structuredOutputMode, "strict");
+        if (input.responseSchema && mode !== "none") {
+          body.response_format = {
+            type: "json_schema",
+            json_schema: {
+              name: "response",
+              schema: input.responseSchema.schema,
+              strict: mode === "strict",
+            },
+          };
+        }
 
-      if (input.stream === true) {
+        const res = await resilientFetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        const thinkingFormat = input.thinkingFormat ?? "none";
+
+        if (input.stream === true) {
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new ModelHttpError(
+              res.status,
+              res.statusText || `HTTP ${res.status}`,
+              errText.slice(0, 500),
+            );
+          }
+          if (!res.body) {
+            throw new ModelHttpError(502, "missing response body for stream", undefined);
+          }
+          const {
+            content: rawContent,
+            toolCalls,
+            usage,
+            reasoningContent,
+          } = await consumeOpenAIChatCompletionStream(res.body, {
+            accumulateTools: true,
+            thinkingFormat,
+            onTextDelta: input.onTextDelta,
+          });
+          const content = rawContent;
+
+          if (toolCalls.length === 0 && (content === null || content === "")) {
+            throw new EmptyModelResponseError();
+          }
+
+          const normalized = content ? normalizeThinkingBlocks(content, thinkingFormat) : null;
+          const finalContent =
+            normalized === null
+              ? null
+              : typeof normalized === "string"
+                ? normalized
+                : JSON.stringify(normalized);
+          return { content: finalContent, toolCalls, usage, reasoningContent };
+        }
+
+        const rawText = await res.text();
         if (!res.ok) {
-          const errText = await res.text();
           throw new ModelHttpError(
             res.status,
             res.statusText || `HTTP ${res.status}`,
-            errText.slice(0, 500),
+            rawText.slice(0, 500),
           );
         }
-        if (!res.body) {
-          throw new ModelHttpError(502, "missing response body for stream", undefined);
+
+        const text = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
+        let json: unknown;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
         }
-        const {
-          content: rawContent,
-          toolCalls,
-          usage,
-          reasoningContent,
-        } = await consumeOpenAIChatCompletionStream(res.body, {
-          accumulateTools: true,
-          thinkingFormat,
-          onTextDelta: input.onTextDelta,
-        });
-        const content = rawContent;
+
+        const choices = (json as { choices?: unknown }).choices;
+        const first = Array.isArray(choices) ? choices[0] : undefined;
+        const message =
+          first && typeof first === "object" && first !== null && "message" in first
+            ? (first as { message?: Record<string, unknown> }).message
+            : undefined;
+
+        let content: string | null = null;
+        if (message && typeof message.content === "string") {
+          content =
+            thinkingFormat === "xml-tags" ? stripXmlThinkingTags(message.content) : message.content;
+        } else if (message && message.content === null) {
+          content = null;
+        }
+
+        const toolCallsRaw = message?.tool_calls;
+        const toolCalls: { id: string; name: string; arguments: string }[] = [];
+        if (Array.isArray(toolCallsRaw)) {
+          for (const tc of toolCallsRaw) {
+            if (!tc || typeof tc !== "object") continue;
+            const id =
+              typeof (tc as { id?: unknown }).id === "string" ? (tc as { id: string }).id : "";
+            const fn = (tc as { function?: unknown }).function;
+            if (!fn || typeof fn !== "object") continue;
+            const name =
+              typeof (fn as { name?: unknown }).name === "string"
+                ? (fn as { name: string }).name
+                : "";
+            const rawArgs =
+              typeof (fn as { arguments?: unknown }).arguments === "string"
+                ? (fn as { arguments: string }).arguments
+                : "{}";
+            const args = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawArgs) : rawArgs;
+            if (id && name) toolCalls.push({ id, name, arguments: args });
+          }
+        }
+
+        // Extract reasoning_content
+        let reasoningContent: string | undefined;
+        if (
+          message &&
+          typeof message.reasoning_content === "string" &&
+          message.reasoning_content.length > 0
+        ) {
+          reasoningContent = message.reasoning_content;
+        }
 
         if (toolCalls.length === 0 && (content === null || content === "")) {
-          throw new ModelHttpError(502, "missing assistant content and tool_calls", "");
+          throw new EmptyModelResponseError(text.slice(0, 200));
         }
 
         const normalized = content ? normalizeThinkingBlocks(content, thinkingFormat) : null;
@@ -529,113 +637,32 @@ export function createOpenAICompatibleProvider(
             : typeof normalized === "string"
               ? normalized
               : JSON.stringify(normalized);
-        return { content: finalContent, toolCalls, usage, reasoningContent };
-      }
 
-      const rawText = await res.text();
-      if (!res.ok) {
-        throw new ModelHttpError(
-          res.status,
-          res.statusText || `HTTP ${res.status}`,
-          rawText.slice(0, 500),
-        );
-      }
-
-      const text = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawText) : rawText;
-      let json: unknown;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        throw new ModelHttpError(502, "invalid JSON from model endpoint", text.slice(0, 200));
-      }
-
-      const choices = (json as { choices?: unknown }).choices;
-      const first = Array.isArray(choices) ? choices[0] : undefined;
-      const message =
-        first && typeof first === "object" && first !== null && "message" in first
-          ? (first as { message?: Record<string, unknown> }).message
-          : undefined;
-
-      let content: string | null = null;
-      if (message && typeof message.content === "string") {
-        content =
-          thinkingFormat === "xml-tags" ? stripXmlThinkingTags(message.content) : message.content;
-      } else if (message && message.content === null) {
-        content = null;
-      }
-
-      const toolCallsRaw = message?.tool_calls;
-      const toolCalls: { id: string; name: string; arguments: string }[] = [];
-      if (Array.isArray(toolCallsRaw)) {
-        for (const tc of toolCallsRaw) {
-          if (!tc || typeof tc !== "object") continue;
-          const id =
-            typeof (tc as { id?: unknown }).id === "string" ? (tc as { id: string }).id : "";
-          const fn = (tc as { function?: unknown }).function;
-          if (!fn || typeof fn !== "object") continue;
-          const name =
-            typeof (fn as { name?: unknown }).name === "string"
-              ? (fn as { name: string }).name
-              : "";
-          const rawArgs =
-            typeof (fn as { arguments?: unknown }).arguments === "string"
-              ? (fn as { arguments: string }).arguments
-              : "{}";
-          const args = thinkingFormat === "xml-tags" ? stripXmlThinkingTags(rawArgs) : rawArgs;
-          if (id && name) toolCalls.push({ id, name, arguments: args });
+        // Structured output: post-validate when mode is "best-effort"
+        if (
+          input.responseSchema &&
+          mode !== "strict" &&
+          mode !== "none" &&
+          finalContent !== null &&
+          toolCalls.length === 0
+        ) {
+          const result = validateResponseSchema(finalContent, input.responseSchema.schema);
+          if (!result.valid) {
+            throw new StructuredOutputValidationError(
+              result.error,
+              result.rawContent,
+              input.responseSchema.schema,
+            );
+          }
         }
-      }
 
-      // Extract reasoning_content
-      let reasoningContent: string | undefined;
-      if (
-        message &&
-        typeof message.reasoning_content === "string" &&
-        message.reasoning_content.length > 0
-      ) {
-        reasoningContent = message.reasoning_content;
-      }
-
-      if (toolCalls.length === 0 && (content === null || content === "")) {
-        throw new ModelHttpError(
-          502,
-          "missing assistant content and tool_calls",
-          text.slice(0, 200),
-        );
-      }
-
-      const normalized = content ? normalizeThinkingBlocks(content, thinkingFormat) : null;
-      const finalContent =
-        normalized === null
-          ? null
-          : typeof normalized === "string"
-            ? normalized
-            : JSON.stringify(normalized);
-
-      // Structured output: post-validate when mode is "best-effort"
-      if (
-        input.responseSchema &&
-        mode !== "strict" &&
-        mode !== "none" &&
-        finalContent !== null &&
-        toolCalls.length === 0
-      ) {
-        const result = validateResponseSchema(finalContent, input.responseSchema.schema);
-        if (!result.valid) {
-          throw new StructuredOutputValidationError(
-            result.error,
-            result.rawContent,
-            input.responseSchema.schema,
-          );
-        }
-      }
-
-      return {
-        content: finalContent,
-        toolCalls,
-        usage: extractOpenAIUsage(json),
-        reasoningContent,
-      };
+        return {
+          content: finalContent,
+          toolCalls,
+          usage: extractOpenAIUsage(json),
+          reasoningContent,
+        };
+      });
     },
   };
 }
