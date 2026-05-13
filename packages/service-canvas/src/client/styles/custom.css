@@ -1,1 +1,50 @@
-/* Custom styles for Shoggoth Canvas SPA */
+/* Custom overrides — loaded after Tailwind/DaisyUI */
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+h5 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+h6 {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Row: columns default to content-width; share space so nested layouts (e.g. Accordion)
+ * can use the full column width. Collapse width is set on A2UIColumn. */
+.a2ui-row > .a2ui-column {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Row flex-direction at ≤960px is in A2UIRow.vue (scoped beats this file) */
+@media (max-width: 960px) {
+  .a2ui-row > .a2ui-column {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
