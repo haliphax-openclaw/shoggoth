@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -9,21 +9,15 @@ import { fileURLToPath } from "node:url";
  * and sends the result back via postMessage.
  */
 
+// Use createRequire for proper node_modules resolution in ESM (handles hoisting).
+const esmRequire = createRequire(fileURLToPath(import.meta.url));
+
 // Read the minified dom-to-image-more library at module load time.
 // This will throw if the dependency is not installed — that's intentional.
-const domToImageMin = (() => {
-  try {
-    const modPath = require.resolve("dom-to-image-more/dist/dom-to-image-more.min.js");
-    return readFileSync(modPath, "utf-8");
-  } catch {
-    const dir =
-      typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
-    return readFileSync(
-      resolve(dir, "../../../node_modules/dom-to-image-more/dist/dom-to-image-more.min.js"),
-      "utf-8",
-    );
-  }
-})();
+const domToImageMin = readFileSync(
+  esmRequire.resolve("dom-to-image-more/dist/dom-to-image-more.min.js"),
+  "utf-8",
+);
 
 const SNAPSHOT_HANDLER = `(function(){
 window.addEventListener('message',function(e){
