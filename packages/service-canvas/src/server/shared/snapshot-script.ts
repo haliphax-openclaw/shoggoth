@@ -9,22 +9,25 @@ import { fileURLToPath } from "node:url";
  * and sends the result back via postMessage.
  */
 
-// Read the minified dom-to-image-more library at module load time
-const domToImageMin = (() => {
+let domToImageMin: string | undefined;
+
+function getDomToImageMin(): string {
+  if (domToImageMin !== undefined) return domToImageMin;
   try {
-    // Try resolving from node_modules
+    // Try resolving from node_modules via require.resolve
     const modPath = require.resolve("dom-to-image-more/dist/dom-to-image-more.min.js");
-    return readFileSync(modPath, "utf-8");
+    domToImageMin = readFileSync(modPath, "utf-8");
   } catch {
     // Fallback: resolve relative to this file
     const dir =
       typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
-    return readFileSync(
+    domToImageMin = readFileSync(
       resolve(dir, "../../../node_modules/dom-to-image-more/dist/dom-to-image-more.min.js"),
       "utf-8",
     );
   }
-})();
+  return domToImageMin;
+}
 
 const SNAPSHOT_HANDLER = `(function(){
 window.addEventListener('message',function(e){
@@ -37,7 +40,19 @@ domtoimage.toPng(document.body)
 });
 })()`;
 
-export const SNAPSHOT_SCRIPT = `<script>${domToImageMin}</script><script>${SNAPSHOT_HANDLER}</script>`;
+export function getSnapshotScript(): string {
+  return `<script>${getDomToImageMin()}</script><script>${SNAPSHOT_HANDLER}</script>`;
+}
+
+/** @deprecated Use getSnapshotScript() for lazy loading */
+export const SNAPSHOT_SCRIPT = new Proxy({} as { toString(): string }, {
+  get(_target, prop) {
+    if (prop === Symbol.toPrimitive || prop === "toString" || prop === "valueOf") {
+      return () => getSnapshotScript();
+    }
+    return (getSnapshotScript() as any)[prop];
+  },
+}) as unknown as string;
 
 /**
  * Inject the snapshot script into a data:text/html URL.
@@ -60,12 +75,13 @@ export function injectSnapshotIntoDataUrl(url: string): string {
     html = decodeURIComponent(encoded);
   }
 
+  const script = getSnapshotScript();
   if (html.includes("</body>")) {
-    html = html.replace("</body>", SNAPSHOT_SCRIPT + "</body>");
+    html = html.replace("</body>", script + "</body>");
   } else if (html.includes("</html>")) {
-    html = html.replace("</html>", SNAPSHOT_SCRIPT + "</html>");
+    html = html.replace("</html>", script + "</html>");
   } else {
-    html += SNAPSHOT_SCRIPT;
+    html += script;
   }
 
   if (isBase64) {
