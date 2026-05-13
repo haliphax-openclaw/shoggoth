@@ -126,7 +126,7 @@ The plugin registers 8 direct service tools:
 | `canvas.a2ui.pushJSONL` | Push A2UI JSONL payload (string)                  |
 | `canvas.a2ui.reset`     | Clear A2UI surface state                          |
 
-See [Tool Reference](../../docs/tools/canvas.md) for full parameter documentation.
+See [Tool Reference](../../docs/canvas/tools.md) for full parameter documentation.
 
 ## Custom URL Schemes
 
@@ -138,11 +138,11 @@ Trigger agent runs from links inside canvas HTML. When a user clicks a `shoggoth
 <a href="shoggoth://agent?message=run+my+task">Run Task</a>
 ```
 
-See [docs/deep-linking.md](docs/deep-linking.md) for the full URL format, parameters, confirmation dialog, script injection details, and security considerations.
+See [Deep Linking](../../docs/canvas/deep-linking.md) for the full URL format, parameters, confirmation dialog, script injection details, and security considerations.
 
 ### `shoggoth-fileprompt://` — File-Based Subagent Spawn
 
-Spawn a subagent whose task is the contents of a file. The **path after the scheme** identifies the file (not `?file=`). The server resolves it under **`<agent workspace>/canvas`** when `agentId` matches a configured agent in `agentWorkspaces`, otherwise under `basePath`. See [docs/deep-linking.md](docs/deep-linking.md#file-based-subagent-spawn--shoggoth-fileprompt-urls).
+Spawn a subagent whose task is the contents of a file. The **path after the scheme** identifies the file (not `?file=`). The server resolves it under **`<agent workspace>/canvas`** when `agentId` matches a configured agent in `agentWorkspaces`, otherwise under `basePath`. See [Deep Linking](../../docs/canvas/deep-linking.md#file-based-subagent-spawn--shoggoth-fileprompt-urls).
 
 ```html
 <a href="shoggoth-fileprompt://jsonl/deploy-notes.md?agentId=developer">Deploy</a>
@@ -235,9 +235,9 @@ The `canvas.snapshot` tool captures the canvas as a base64 PNG. A snapshot helpe
 
 ## Documentation
 
-- [Component Reference](docs/components.md) — all A2UI components with props and examples
-- [Reactive Data Binding](docs/a2ui-reactive.md) — data sources, filtering, aggregates
-- [Deep Linking](docs/deep-linking.md) — URL schemes, confirmation dialog, file-spawn
-- [Creating Catalog Packages](docs/creating-catalog-packages.md) — third-party component catalogs
-- [JSONL Watcher](docs/jsonl-watcher.md) — auto-push from filesystem
+- [Component Reference](../../docs/canvas/components.md) — all A2UI components with props and examples
+- [Reactive Data Binding](../../docs/canvas/a2ui-reactive.md) — data sources, filtering, aggregates
+- [Deep Linking](../../docs/canvas/deep-linking.md) — URL schemes, confirmation dialog, file-spawn
+- [Creating Catalog Packages](../../docs/canvas/creating-catalog-packages.md) — third-party component catalogs
+- [JSONL Watcher](../../docs/canvas/jsonl-watcher.md) — auto-push from filesystem
 - [Tool Reference](../../docs/tools/canvas.md) — tool parameters and usage

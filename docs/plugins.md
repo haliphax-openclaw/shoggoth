@@ -312,7 +312,7 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
 }
 ```
 
-See [Canvas Tools](tools/canvas.md) for the full tool reference.
+See [Canvas Tools](canvas/tools.md) for the full tool reference.
 
 ---
 
@@ -320,5 +320,5 @@ See [Canvas Tools](tools/canvas.md) for the full tool reference.
 
 - [Daemon](daemon.md) — boot sequence and plugin loading
 - [Discord Platform](platform-discord.md) — reference platform plugin implementation
-- [Canvas Tools](tools/canvas.md) — reference service plugin tool documentation
+- [Canvas Tools](canvas/tools.md) — reference service plugin tool documentation
 - [Shared](shared.md) — `ShoggothPluginEntry` config schema
