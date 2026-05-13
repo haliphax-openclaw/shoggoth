@@ -1,4 +1,7 @@
+import { getLogger } from "@shoggoth/shared";
 import type { A2UIStore } from "./a2ui-store";
+
+const log = getLogger("service-canvas:a2ui-manager");
 
 export interface A2UISurface {
   surfaceId: string;
@@ -97,9 +100,7 @@ export class A2UIManager {
             const fields: string[] = src.fields;
             const hasArrayRows = src.rows.some((r: any) => Array.isArray(r));
             if (hasArrayRows) {
-              console.log(
-                `[a2ui-manager] Normalizing array rows for source "${name}" in ${surfaceId}`,
-              );
+              log.debug("normalizing array rows", { source: name, surfaceId });
               src.rows = src.rows.map((r: any) =>
                 Array.isArray(r)
                   ? Object.fromEntries(fields.map((f: string, i: number) => [f, r[i]]))

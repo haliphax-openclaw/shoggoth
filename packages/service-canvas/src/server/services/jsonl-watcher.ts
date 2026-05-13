@@ -1,9 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getLogger } from "@shoggoth/shared";
 import type { Gateway } from "./gateway";
 import type { A2UIManager } from "./a2ui-manager";
 import { processA2UICommand } from "./a2ui-commands";
 import type { SchemaResolver } from "./a2ui-component-schemas";
+
+const log = getLogger("service-canvas:jsonl-watcher");
 
 export interface JSONLWatcherOptions {
   debounceMs?: number;
@@ -40,9 +43,9 @@ export class JSONLWatcher {
           this.scheduleProcess(session, filePath);
         });
         this.watchers.set(session, watcher);
-        console.log(`[jsonl-watcher] Watching ${jsonlDir} for session "${session}"`);
+        log.debug("watching jsonl directory", { dir: jsonlDir, session });
       } catch (err: any) {
-        console.warn(`[jsonl-watcher] Failed to watch ${jsonlDir}: ${err.message}`);
+        log.warn("failed to watch jsonl directory", { dir: jsonlDir, err: err.message });
       }
     }
   }
@@ -74,9 +77,10 @@ export class JSONLWatcher {
       try {
         parsed = JSON.parse(line);
       } catch {
-        console.warn(
-          `[jsonl-watcher] Skipping invalid JSON in ${path.basename(filePath)}: ${line.slice(0, 80)}`,
-        );
+        log.warn("skipping invalid JSON line", {
+          file: path.basename(filePath),
+          preview: line.slice(0, 80),
+        });
         continue;
       }
 

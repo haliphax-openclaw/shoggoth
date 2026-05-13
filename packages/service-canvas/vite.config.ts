@@ -31,7 +31,7 @@ function shoggothCatalogsPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [tailwindcss(), vue(), shoggothCatalogsPlugin()],
-  base: process.env.VITE_BASE || "/",
+  base: process.env.VITE_BASE || "/svc/canvas/",
   resolve: {
     alias: {
       "@shoggoth/a2ui-sdk": path.resolve(__dirname, "packages/a2ui-sdk/src/index.ts"),
