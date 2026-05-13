@@ -47,7 +47,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -73,7 +73,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -93,7 +93,7 @@ describe("createCanvasPlugin", () => {
       expect(toolNames).toContain("canvas.eval");
       expect(toolNames).toContain("canvas.snapshot");
       expect(toolNames).toContain("canvas.a2ui.push");
-      expect(toolNames).toContain("canvas.a2ui.pushJSONL");
+      expect(toolNames).toContain("canvas.navigateExternal");
       expect(toolNames).toContain("canvas.a2ui.reset");
     });
 
@@ -105,7 +105,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -151,7 +151,7 @@ describe("createCanvasPlugin", () => {
         },
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -193,7 +193,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -215,7 +215,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -231,9 +231,7 @@ describe("createCanvasPlugin", () => {
         {},
         { agentId: "test-agent", sessionUrn: "test:session" },
       );
-      expect(result).toEqual({
-        resultJson: JSON.stringify({ ok: true }),
-      });
+      expect(JSON.parse(result.resultJson).ok).toBe(true);
     });
 
     it("canvas.hide handler returns { resultJson } with { ok: true }", async () => {
@@ -244,7 +242,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };
@@ -273,7 +271,7 @@ describe("createCanvasPlugin", () => {
         registerTools: registerToolsMock,
         config: {
           services: {
-            canvas: { port: 0 },
+            canvas: { port: 0, a2uiDbPath: ":memory:" },
           },
         },
       };

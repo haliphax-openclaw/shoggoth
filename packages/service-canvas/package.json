@@ -13,22 +13,31 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.json"
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "dev": "vite",
+    "build:client": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@shoggoth/plugins": "*",
     "@shoggoth/shared": "*",
     "better-sqlite3": "^12.8.0",
     "chokidar": "^4.0.0",
+    "dom-to-image-more": "^3.4.5",
     "express": "^5.1.0",
     "mime-types": "^2.1.35",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
     "@types/express": "^5.0.1",
     "@types/supertest": "^6.0.2",
     "@types/ws": "^8.18.0",
-    "supertest": "^7.0.0"
+    "@vitejs/plugin-vue": "^5.2.0",
+    "supertest": "^7.0.0",
+    "tailwindcss": "^4.1.0",
+    "vite": "^6.3.0",
+    "vue": "^3.5.0"
   },
   "shoggothPlugin": {
     "kind": "service",

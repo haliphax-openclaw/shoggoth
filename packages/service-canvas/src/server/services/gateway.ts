@@ -3,6 +3,7 @@
  */
 
 import type { Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 
 export interface SpaSession {
   id: string;
@@ -14,14 +15,21 @@ interface PendingSnapshot {
   timeout: NodeJS.Timeout;
 }
 
+type CommandHandler = (
+  msg: Record<string, unknown>,
+  reply: (result: unknown) => void,
+) => void | Promise<void>;
+
 export class Gateway {
   private clients: Map<string, Set<WebSocket>> = new Map();
   private wss: WebSocketServer | null = null;
   private pendingSnapshots: Map<string, PendingSnapshot> = new Map();
+  private handlers: Map<string, CommandHandler> = new Map();
+  private spaConnectListeners: Array<(ws: WebSocket) => void> = [];
+  private a2uiManager: unknown = null;
+  private schemaResolver: unknown = null;
 
   constructor(options?: { server?: Server }) {
-    // Initialize without starting WebSocket server - methods are no-ops if no clients
-    // The server parameter can be used later to attach WS if needed
     if (options?.server) {
       this.attachToServer(options.server);
     }
@@ -31,7 +39,6 @@ export class Gateway {
     this.wss = new WebSocketServer({ server });
 
     this.wss.on("connection", (ws, req) => {
-      // Extract session ID from URL query params
       const url = new URL(req.url ?? "", "http://localhost");
       const sessionId = url.searchParams.get("session");
 
@@ -40,11 +47,15 @@ export class Gateway {
         return;
       }
 
-      // Add client to session's client set
       if (!this.clients.has(sessionId)) {
         this.clients.set(sessionId, new Set());
       }
       this.clients.get(sessionId)!.add(ws);
+
+      // Notify SPA connect listeners
+      for (const listener of this.spaConnectListeners) {
+        listener(ws);
+      }
 
       ws.on("close", () => {
         this.clients.get(sessionId)?.delete(ws);
@@ -71,6 +82,54 @@ export class Gateway {
         }
       });
     });
+  }
+
+  /** Register a command handler */
+  on(type: string, handler: CommandHandler): void {
+    this.handlers.set(type, handler);
+  }
+
+  /** Dispatch a command and return the reply */
+  dispatch(type: string, msg: Record<string, unknown>): Promise<unknown> {
+    const handler = this.handlers.get(type);
+    if (!handler) {
+      return Promise.resolve({ error: `No handler for ${type}` });
+    }
+    return new Promise((resolve) => {
+      const result = handler(msg, resolve);
+      if (result instanceof Promise) {
+        result.catch((err) => resolve({ error: String(err) }));
+      }
+    });
+  }
+
+  setA2UIManager(manager: unknown): void {
+    this.a2uiManager = manager;
+  }
+
+  setSchemaResolver(resolver: unknown): void {
+    this.schemaResolver = resolver;
+  }
+
+  onSpaConnect(listener: (ws: unknown) => void): void {
+    this.spaConnectListeners.push(listener as (ws: WebSocket) => void);
+  }
+
+  getSpaSession(ws: unknown): string {
+    // Find which session this WebSocket belongs to
+    for (const [sessionId, clients] of this.clients) {
+      if (clients.has(ws as WebSocket)) {
+        return sessionId;
+      }
+    }
+    return "main";
+  }
+
+  sendToSpa(ws: unknown, message: unknown): void {
+    const socket = ws as WebSocket;
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+    }
   }
 
   broadcastSpaSession(session: string | SpaSession, message: unknown): void {
@@ -103,22 +162,19 @@ export class Gateway {
   requestSnapshot(session: string | SpaSession): Promise<string> {
     const sessionId = typeof session === "string" ? session : session.id;
 
-    // Request snapshot from the SPA session
     this.broadcastSpaSession(sessionId, { type: "requestSnapshot" });
 
-    // Return a promise that resolves after 30 seconds if no response
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       const timeout = setTimeout(() => {
         this.pendingSnapshots.delete(sessionId);
         resolve(""); // Return empty string on timeout
       }, 30000);
 
-      this.pendingSnapshots.set(sessionId, { resolve, reject, timeout });
+      this.pendingSnapshots.set(sessionId, { resolve, reject: _reject, timeout });
     });
   }
 
   close(): void {
-    // Close all client connections
     for (const clients of this.clients.values()) {
       for (const client of clients) {
         client.close();
@@ -126,19 +182,14 @@ export class Gateway {
     }
     this.clients.clear();
 
-    // Close WebSocket server
     if (this.wss) {
       this.wss.close();
       this.wss = null;
     }
 
-    // Clear any pending snapshots
     for (const pending of this.pendingSnapshots.values()) {
       clearTimeout(pending.timeout);
     }
     this.pendingSnapshots.clear();
   }
 }
-
-// Import WebSocketServer at the top level for proper typing
-import { WebSocketServer, WebSocket } from "ws";

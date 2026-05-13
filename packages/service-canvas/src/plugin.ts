@@ -15,6 +15,9 @@ interface CanvasServiceConfig {
   port?: number;
   host?: string;
   basePath?: string;
+  a2uiDbPath?: string;
+  ignoreDirs?: string[];
+  agentWorkspaces?: Record<string, string>;
 }
 
 /**
@@ -33,7 +36,6 @@ interface ExtendedServiceRegisterCtx extends Omit<ServiceRegisterCtx, "config"> 
  * This plugin provides canvas manipulation tools and an A2UI WebSocket gateway.
  */
 export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
-  // Create module-level state for this plugin instance
   let canvasServer: CanvasServer | undefined;
   let gateway: Gateway | undefined;
 
@@ -61,7 +63,6 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
         // Wait for server to start listening
         await new Promise<void>((resolve) => {
           canvasServer!.server.once("listening", resolve);
-          // In case it's already listening (sync case)
           if (canvasServer!.server.listening) resolve();
         });
 
@@ -73,7 +74,7 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
           port: config.port,
         });
 
-        // Register all 8 canvas tools
+        // Register all canvas tools
         ctx.registerTools(getCanvasTools(gateway));
       },
 
@@ -98,8 +99,8 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
 }
 
 /**
- * Returns the 8 canvas tool definitions.
- * Each tool handler delegates to the gateway instance.
+ * Returns the canvas tool definitions.
+ * Each tool handler dispatches through the gateway to the registered command handlers.
  */
 function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
   return [
@@ -126,19 +127,13 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
         required: ["session"],
       },
       async handler(args, ctx) {
-        const { target, surface } = args as {
-          target?: string;
-          surface?: string;
-        };
-        // Use session from args, fallback to context sessionUrn
         const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "canvas.show",
+        const result = await gatewayRef?.dispatch("canvas.show", {
           session,
-          target,
-          surface,
+          target: args.target,
+          surface: args.surface,
         });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
@@ -149,13 +144,13 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
         properties: {},
       },
       async handler() {
-        gatewayRef?.broadcastSpa({ type: "canvas.hide" });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        const result = await gatewayRef?.dispatch("canvas.hide", {});
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
       name: "canvas.navigate",
-      description: "Navigate a session's canvas to a URL.",
+      description: "Navigate a session's canvas to a path.",
       parameters: {
         type: "object",
         properties: {
@@ -167,54 +162,61 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
             type: "string",
             description: "Path to navigate to",
           },
-          url: {
-            type: "string",
-            description: "Full URL to navigate to",
-          },
         },
         required: ["session"],
       },
       async handler(args, ctx) {
-        const { path, url } = args as {
-          path?: string;
-          url?: string;
-        };
         const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "canvas.navigate",
+        const result = await gatewayRef?.dispatch("canvas.navigate", {
           session,
-          path,
-          url,
+          path: args.path,
         });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
+      },
+    },
+    {
+      name: "canvas.navigateExternal",
+      description: "Navigate the canvas to an external URL (http/https only).",
+      parameters: {
+        type: "object",
+        properties: {
+          url: {
+            type: "string",
+            description: "Full URL to navigate to (http or https)",
+          },
+        },
+        required: ["url"],
+      },
+      async handler(args) {
+        const result = await gatewayRef?.dispatch("canvas.navigateExternal", {
+          url: args.url,
+        });
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
       name: "canvas.eval",
-      description: "Execute JavaScript in a session's canvas context.",
+      description: "Execute JavaScript in the canvas context.",
       parameters: {
         type: "object",
         properties: {
-          session: {
-            type: "string",
-            description: "Session ID to execute JS in",
-          },
           js: {
             type: "string",
             description: "JavaScript code to execute",
           },
+          id: {
+            type: "string",
+            description: "Optional eval ID for tracking",
+          },
         },
-        required: ["session", "js"],
+        required: ["js"],
       },
-      async handler(args, ctx) {
-        const { js } = args as { js?: string };
-        const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "canvas.eval",
-          session,
-          js,
+      async handler(args) {
+        const result = await gatewayRef?.dispatch("canvas.eval", {
+          js: args.js,
+          id: args.id,
         });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
@@ -232,13 +234,15 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
       },
       async handler(args, ctx) {
         const session = (args.session as string) || ctx.sessionUrn;
-        const snapshot = await gatewayRef?.requestSnapshot(session);
-        return { resultJson: JSON.stringify({ ok: true, snapshot }) };
+        const result = await gatewayRef?.dispatch("canvas.snapshot", {
+          id: session,
+        });
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
       name: "canvas.a2ui.push",
-      description: "Push A2UI (Agent-to-User Interface) data to a session.",
+      description: "Push A2UI (Agent-to-User Interface) JSONL payload to a session.",
       parameters: {
         type: "object",
         properties: {
@@ -247,50 +251,21 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
             description: "Session ID to push A2UI data to",
           },
           payload: {
-            type: "object",
-            description: "A2UI payload data to push",
-          },
-        },
-        required: ["session", "payload"],
-      },
-      async handler(args, ctx) {
-        const { payload } = args as { payload?: unknown };
-        const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "a2ui.push",
-          session,
-          payload,
-        });
-        return { resultJson: JSON.stringify({ ok: true }) };
-      },
-    },
-    {
-      name: "canvas.a2ui.pushJSONL",
-      description: "Push A2UI data as JSONL to a session (alias for a2ui.push).",
-      parameters: {
-        type: "object",
-        properties: {
-          session: {
             type: "string",
-            description: "Session ID to push A2UI data to",
-          },
-          payload: {
-            type: "object",
-            description: "A2UI payload data to push",
+            description: "JSONL payload string containing A2UI commands",
           },
         },
         required: ["session", "payload"],
       },
       async handler(args, ctx) {
-        // Same as a2ui.push - this is an alias
-        const { payload } = args as { payload?: unknown };
         const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "a2ui.push",
+        const payload =
+          typeof args.payload === "string" ? args.payload : JSON.stringify(args.payload);
+        const result = await gatewayRef?.dispatch("a2ui.push", {
           session,
           payload,
         });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
     {
@@ -308,11 +283,8 @@ function getCanvasTools(gatewayRef: Gateway | undefined): DirectServiceTool[] {
       },
       async handler(args, ctx) {
         const session = (args.session as string) || ctx.sessionUrn;
-        gatewayRef?.broadcastSpaSession(session, {
-          type: "a2ui.reset",
-          session,
-        });
-        return { resultJson: JSON.stringify({ ok: true }) };
+        const result = await gatewayRef?.dispatch("a2ui.reset", { session });
+        return { resultJson: JSON.stringify(result ?? { ok: true }) };
       },
     },
   ];
