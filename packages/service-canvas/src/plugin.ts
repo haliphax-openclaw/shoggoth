@@ -2,6 +2,7 @@
  * Canvas Service Plugin Entry Point
  */
 
+import path from "node:path";
 import type { Plugin } from "hooks-plugin";
 import type { ShoggothHooks, DirectServiceTool, ServiceRegisterCtx } from "@shoggoth/plugins";
 import { createCanvasServer, type CanvasServer } from "./server/index";
@@ -51,9 +52,28 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
 
         // Merge user config with defaults
         const userConfig = typedCtx.config.services?.canvas ?? {};
+
+        // Derive agent workspaces from daemon config (workspacesRoot + agents.list)
+        const workspacesRoot = typedCtx.config.workspacesRoot;
+        const agentWorkspaces: Record<string, string> = {
+          __default: workspacesRoot,
+          ...userConfig.agentWorkspaces,
+        };
+
+        // Auto-populate from agents.list if not explicitly provided
+        const agentsList = typedCtx.config.agents?.list;
+        if (agentsList) {
+          for (const agentId of Object.keys(agentsList)) {
+            if (!agentWorkspaces[agentId]) {
+              agentWorkspaces[agentId] = path.join(workspacesRoot, agentId);
+            }
+          }
+        }
+
         const config: CanvasConfig = {
           ...DEFAULT_CANVAS_CONFIG,
           ...userConfig,
+          agentWorkspaces,
         };
 
         // Create and start the canvas server
