@@ -1,10 +1,54 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
+import path from "node:path";
+import type { Plugin } from "vite";
+
+/**
+ * Vite plugin that provides the virtual:shoggoth-catalogs module.
+ * This resolves catalog component registrations for the A2UI renderer.
+ */
+function shoggothCatalogsPlugin(): Plugin {
+  const virtualModuleId = "virtual:shoggoth-catalogs";
+  const resolvedVirtualModuleId = "\0" + virtualModuleId;
+
+  return {
+    name: "shoggoth-catalogs",
+    resolveId(id) {
+      if (id === virtualModuleId) {
+        return resolvedVirtualModuleId;
+      }
+    },
+    load(id) {
+      if (id === resolvedVirtualModuleId) {
+        // Export an empty catalog map for now.
+        // Catalog Vue components will be registered here once they are built.
+        return `export const catalogComponents = {};`;
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [tailwindcss(), vue()],
+  plugins: [tailwindcss(), vue(), shoggothCatalogsPlugin()],
   base: process.env.VITE_BASE || "/",
+  resolve: {
+    alias: {
+      "@shoggoth/a2ui-sdk": path.resolve(__dirname, "packages/a2ui-sdk/src/index.ts"),
+      "@shoggoth/a2ui-catalog-basic": path.resolve(
+        __dirname,
+        "packages/a2ui-catalog-basic/src/index.ts",
+      ),
+      "@shoggoth/a2ui-catalog-extended": path.resolve(
+        __dirname,
+        "packages/a2ui-catalog-extended/src/index.ts",
+      ),
+      "@shoggoth/a2ui-catalog-all": path.resolve(
+        __dirname,
+        "packages/a2ui-catalog-all/src/index.ts",
+      ),
+    },
+  },
   build: {
     outDir: "dist/client",
     emptyOutDir: true,

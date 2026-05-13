@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { FileResolver } from "../services/file-resolver";
 
 import { DEEP_LINK_SCRIPT } from "../shared/deep-link-script";
-import { getSnapshotScript } from "../shared/snapshot-script";
+import { SNAPSHOT_SCRIPT } from "../shared/snapshot-script";
 
 export function canvasRoute(fileResolver: FileResolver, basePath: string = ""): Router {
   const router = Router();
@@ -37,7 +37,7 @@ export function canvasRoute(fileResolver: FileResolver, basePath: string = ""): 
     const content = await fs.readFile(resolved);
     if (contentType === "text/html") {
       let html = content.toString();
-      const injected = DEEP_LINK_SCRIPT + getSnapshotScript();
+      const injected = DEEP_LINK_SCRIPT + SNAPSHOT_SCRIPT;
       if (html.includes("</head>")) {
         html = html.replace("</head>", injected + "</head>");
       } else if (html.includes("</body>")) {

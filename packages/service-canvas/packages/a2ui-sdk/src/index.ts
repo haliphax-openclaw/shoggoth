@@ -1,58 +1,32 @@
-/**
- * A2UI SDK - Types and utilities for Shoggoth canvas service
- */
+// Types
+export type {
+  A2UISurfaceState,
+  DataSource,
+  FieldFilter,
+  ComponentRegistration,
+  PackageDefinition,
+} from "./types";
 
-// Core A2UI Types
-export interface A2UICommand {
-  id: string;
-  type: string;
-  action: string;
-  payload: Record<string, unknown>;
-}
+// Filters
+export { matchFilter, applyFilters, formatCompact, computeAggregate } from "./filters";
+export type { AggregateSpec } from "./filters";
 
-export interface A2UISurface {
-  id: string;
-  elements: A2UIElement[];
-  metadata?: Record<string, unknown>;
-}
+// Composables
+export { useDataSource } from "./composables/useDataSource";
+export { useFilterBind } from "./composables/useFilterBind";
+export { useOptionsFrom } from "./composables/useOptionsFrom";
+export { useSortable } from "./composables/useSortable";
+export type { SortDirection } from "./composables/useSortable";
 
-export interface A2UIState {
-  surfaceId: string;
-  values: Record<string, unknown>;
-}
+// WebSocket
+export { sendEvent, registerWsSend } from "./ws";
 
-export interface A2UIElement {
-  type: string;
-  id: string;
-  props: Record<string, unknown>;
-}
-
-// Utility Functions
-export function parseCommand(raw: string): A2UICommand | null {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed.id && parsed.type && parsed.action) {
-      return parsed as A2UICommand;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-export function serializeCommand(command: A2UICommand): string {
-  return JSON.stringify(command);
-}
-
-export function createCommand(
-  type: string,
-  action: string,
-  payload: Record<string, unknown> = {},
-): A2UICommand {
-  return {
-    id: crypto.randomUUID(),
-    type,
-    action,
-    payload,
-  };
-}
+// Utilities
+export { formatString } from "./utils/format-string";
+export type { FormatStringOptions } from "./utils/format-string";
+export { materializeDataRow } from "./utils/materialize-data-row";
+export {
+  getDataModelValue,
+  resolveDynamicString,
+  resolveDynamicBoolean,
+} from "./utils/data-model-resolve";
