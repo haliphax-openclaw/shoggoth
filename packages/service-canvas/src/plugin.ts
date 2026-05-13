@@ -75,6 +75,8 @@ export default function createCanvasPlugin(): Plugin<ShoggothHooks> {
           ...DEFAULT_CANVAS_CONFIG,
           ...userConfig,
           agentWorkspaces,
+          // Set basePath to the gateway prefix so redirects resolve correctly
+          basePath: userConfig.basePath ?? "/svc/canvas",
         };
 
         // Create and start the canvas server
