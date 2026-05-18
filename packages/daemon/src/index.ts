@@ -45,6 +45,7 @@ import {
 } from "./config/effective-runtime";
 import { startControlPlane } from "./control/control-plane";
 import { handleIntegrationControlOp, type IntegrationOpsContext } from "./control/integration-ops";
+import { resolveSessionTargetFromCliArg } from "./control/resolve-session-cli-target";
 import { WIRE_VERSION } from "@shoggoth/authn";
 import { requestSessionTurnAbort } from "./sessions/session-turn-abort";
 import { createSessionStore } from "./sessions/session-store";
@@ -439,9 +440,72 @@ void (async () => {
     },
     serviceRegistry,
     serviceToolRegistry,
-  });
+    spawnSession: async (opts) => {
+      const sessions = createSessionStore(db);
+      const serviceSessionManager = createSessionManager({
+        db,
+        sessions,
+        agentTokens: createSqliteAgentTokenStore(db),
+        workspacesRoot: config.workspacesRoot,
+        agentId: resolveShoggothAgentId(config),
+        agentsConfig: config.agents,
+      });
+      const ctx: IntegrationOpsContext = {
+        config: configRef.current,
+        stateDb: db,
+        acpxStore: undefined,
+        sessions,
+        sessionManager: serviceSessionManager,
+        acpxSupervisor: undefined,
+        hitlPending: hitlStack?.pending,
+        recordIntegrationAudit: () => {},
+      };
 
-  // Register plugin shutdown drains
+      // Resolve parent session: use explicit sessionKey, or read the daemon's
+      // default agent's primary session URN directly from config.
+      let parentSessionId = opts.sessionKey;
+      if (!parentSessionId) {
+        const ownerAgentId = resolveShoggothAgentId(config) ?? "main";
+        const ownerAgent = configRef.current.agents?.list?.[ownerAgentId];
+        const ownerPlatformKeys = ownerAgent?.platforms
+          ? Object.keys(ownerAgent.platforms as Record<string, unknown>)
+          : [];
+        const ownerPlatform = ownerPlatformKeys[0];
+        if (ownerAgent && ownerPlatform) {
+          const platformConfig = (
+            ownerAgent.platforms as Record<string, Record<string, unknown>>
+          )?.[ownerPlatform];
+          const routes = platformConfig?.routes as Array<{ sessionId?: string }> | undefined;
+          parentSessionId = routes?.[0]?.sessionId?.trim();
+        }
+        if (!parentSessionId) {
+          parentSessionId = resolveSessionTargetFromCliArg(ownerAgentId, configRef.current);
+        }
+      }
+
+      const req = {
+        v: WIRE_VERSION,
+        id: randomUUID(),
+        op: "subagent_spawn" as const,
+        auth: { kind: "operator_token" as const, token: "__internal__" },
+        payload: {
+          mode: opts.mode ?? "one_shot",
+          prompt: opts.message,
+          agent_id: opts.agentId,
+          model: opts.model,
+          parent_session_id: parentSessionId,
+        },
+      };
+      const principal = {
+        kind: "operator" as const,
+        operatorId: "service-plugin",
+        roles: ["admin"],
+        source: "cli_operator_token" as const,
+      };
+      const result = await handleIntegrationControlOp(req, principal, ctx);
+      return { ok: true, result };
+    },
+  });
   rt.shutdown.registerDrain("plugin-platform-stop", hookResult.drains.platformStop);
   rt.shutdown.registerDrain("plugin-daemon-shutdown", hookResult.drains.daemonShutdown);
   stateShutdown.db = db;
@@ -471,7 +535,6 @@ void (async () => {
       getLogger("daemon").error("gateway failed to start", { err: String(e) });
     }
   }
-
 
   // --- Timer Scheduler: init, restore, register shutdown ---
   const timerScheduler = new TimerScheduler(async (sessionId, message) => {

@@ -4,7 +4,8 @@
   "private": true,
   "description": "Shoggoth agent orchestration platform",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/service-canvas/packages/*"
   ],
   "type": "module",
   "scripts": {
