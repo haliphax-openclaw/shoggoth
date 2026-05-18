@@ -465,10 +465,7 @@ void (async () => {
       // default agent's bootstrap primary session URN.
       const parentSessionId =
         opts.sessionKey ||
-        resolveSessionTargetFromCliArg(
-          resolveShoggothAgentId(config) ?? "main",
-          configRef.current,
-        );
+        resolveSessionTargetFromCliArg(resolveShoggothAgentId(config) ?? "main", configRef.current);
 
       const req = {
         v: WIRE_VERSION,
@@ -476,7 +473,7 @@ void (async () => {
         op: "subagent_spawn" as const,
         auth: { kind: "operator_token" as const, token: "__internal__" },
         payload: {
-          mode: opts.mode ?? "run",
+          mode: opts.mode ?? "one_shot",
           prompt: opts.message,
           agent_id: opts.agentId,
           model: opts.model,
@@ -522,7 +519,6 @@ void (async () => {
       getLogger("daemon").error("gateway failed to start", { err: String(e) });
     }
   }
-
 
   // --- Timer Scheduler: init, restore, register shutdown ---
   const timerScheduler = new TimerScheduler(async (sessionId, message) => {
