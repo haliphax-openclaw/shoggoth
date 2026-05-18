@@ -66,15 +66,17 @@ describe("Agent Proxy Router", () => {
       );
     });
 
-    it("should pass optional timeoutSeconds", async () => {
+    it("should pass optional sessionKey", async () => {
       const mockResult = { ok: true, sessionId: "test-123" };
       mockSessionsSpawn.mockResolvedValue(mockResult);
 
-      await request(app).post("/api/agent").send({ message: "Hello", timeoutSeconds: 60 });
+      await request(app)
+        .post("/api/agent")
+        .send({ message: "Hello", sessionKey: "agent:dev:discord:channel:123" });
 
       expect(mockSessionsSpawn).toHaveBeenCalledWith(
         expect.objectContaining({
-          timeoutSeconds: 60,
+          sessionKey: "agent:dev:discord:channel:123",
         }),
       );
     });

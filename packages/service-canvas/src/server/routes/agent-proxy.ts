@@ -13,7 +13,7 @@ export function createAgentProxyRouter(opts: AgentProxyOptions): Router {
 
   router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { message, agentId, model, timeoutSeconds, sessionKey } = req.body;
+      const { message, agentId, model, sessionKey } = req.body;
 
       // Validate message is required
       if (message === undefined || message === null || message === "") {
@@ -21,10 +21,9 @@ export function createAgentProxyRouter(opts: AgentProxyOptions): Router {
         return;
       }
 
-      // Build the sessionsSpawn call - pass through keys as-is
+      // Build the sessionsSpawn call
       const spawnOptions: Record<string, unknown> = {
-        message: message,
-        mode: "run",
+        message,
       };
 
       if (agentId !== undefined) {
@@ -32,9 +31,6 @@ export function createAgentProxyRouter(opts: AgentProxyOptions): Router {
       }
       if (model !== undefined) {
         spawnOptions.model = model;
-      }
-      if (timeoutSeconds !== undefined) {
-        spawnOptions.timeoutSeconds = timeoutSeconds;
       }
       if (sessionKey !== undefined) {
         spawnOptions.sessionKey = sessionKey;

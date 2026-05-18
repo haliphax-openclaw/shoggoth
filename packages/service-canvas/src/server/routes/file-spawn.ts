@@ -35,8 +35,7 @@ export function createFileSpawnRouter(opts: FileSpawnOptions): Router {
       }
 
       // Resolve root based on agentId
-      const root =
-        (agentId && opts.agentWorkspaceMap?.get(agentId)) ?? opts.canvasRoot;
+      const root = (agentId && opts.agentWorkspaceMap?.get(agentId)) ?? opts.canvasRoot;
 
       // Resolve relative paths against the root; absolute paths are validated below
       const resolved = path.isAbsolute(decodedFile)
@@ -61,7 +60,6 @@ export function createFileSpawnRouter(opts: FileSpawnOptions): Router {
       // Build the sessionsSpawn call
       const spawnOptions: Record<string, unknown> = {
         message: fileContent,
-        mode: "run",
       };
 
       if (agentId !== undefined) {
