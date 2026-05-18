@@ -16,12 +16,16 @@ vi.mock("fs/promises", () => ({
 describe("File Spawn Router", () => {
   let app: express.Application;
   const mockSessionsSpawn = vi.fn();
+  const canvasRoot = "/path/to";
 
   beforeEach(() => {
     vi.clearAllMocks();
     app = express();
     app.use(express.json());
-    app.use("/api/file-spawn", createFileSpawnRouter({ sessionsSpawn: mockSessionsSpawn }));
+    app.use(
+      "/api/file-spawn",
+      createFileSpawnRouter({ sessionsSpawn: mockSessionsSpawn, canvasRoot }),
+    );
   });
 
   describe("POST /api/file-spawn", () => {
@@ -34,7 +38,7 @@ describe("File Spawn Router", () => {
 
       const response = await request(app)
         .post("/api/file-spawn")
-        .send({ file: "/path/to/prompt.txt" });
+        .send({ file: "prompt.txt" });
 
       expect(fs.readFile).toHaveBeenCalledWith("/path/to/prompt.txt", "utf-8");
       expect(mockSessionsSpawn).toHaveBeenCalledWith(
@@ -77,10 +81,37 @@ describe("File Spawn Router", () => {
 
       const response = await request(app)
         .post("/api/file-spawn")
-        .send({ file: "/path/to/prompt.txt" });
+        .send({ file: "prompt.txt" });
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ ok: true, result: mockResult });
+    });
+
+    it("should resolve file path using agentWorkspaceMap when agentId is provided", async () => {
+      const agentApp = express();
+      agentApp.use(express.json());
+      const agentMap = new Map([["developer", "/workspaces/developer/canvas"]]);
+      agentApp.use(
+        "/api/file-spawn",
+        createFileSpawnRouter({
+          sessionsSpawn: mockSessionsSpawn,
+          canvasRoot,
+          agentWorkspaceMap: agentMap,
+        }),
+      );
+
+      vi.mocked(fs.readFile).mockResolvedValue("Agent prompt");
+      mockSessionsSpawn.mockResolvedValue({ ok: true });
+
+      const response = await request(agentApp)
+        .post("/api/file-spawn")
+        .send({ file: "jsonl/task.md", agentId: "developer" });
+
+      expect(fs.readFile).toHaveBeenCalledWith(
+        "/workspaces/developer/canvas/jsonl/task.md",
+        "utf-8",
+      );
+      expect(response.status).toBe(200);
     });
   });
 });

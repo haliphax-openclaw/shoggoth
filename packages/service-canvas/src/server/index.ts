@@ -100,10 +100,17 @@ export function createCanvasServer(
   const app: Express = express();
   app.use(express.json());
 
+  // Build canvas config data for the SPA
+  const canvasConfigData = {
+    skipConfirmation: fullConfig.skipConfirm,
+    agents: Array.from(agentWorkspaceMap.keys()),
+    allowedAgentIds: Array.from(agentWorkspaceMap.keys()),
+  };
+
   // Mount API and canvas-file routes first (before SPA catch-all)
   app.use(canvasRoute(fileResolver, basePath));
   app.use(scaffoldRoute());
-  app.use(canvasConfigRoute());
+  app.use(canvasConfigRoute(canvasConfigData));
   app.use(catalogsRoute(catalogRegistry));
   app.use("/api/agent", createAgentProxyRouter({ sessionsSpawn: spawnFn }));
   app.use(
@@ -111,6 +118,7 @@ export function createCanvasServer(
     createFileSpawnRouter({
       sessionsSpawn: spawnFn,
       canvasRoot,
+      agentWorkspaceMap,
     }),
   );
 

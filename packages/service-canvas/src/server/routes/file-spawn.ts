@@ -8,7 +8,8 @@ import * as path from "path";
 
 export interface FileSpawnOptions {
   sessionsSpawn: Function;
-  canvasRoot?: string;
+  canvasRoot: string;
+  agentWorkspaceMap?: Map<string, string>;
 }
 
 export function createFileSpawnRouter(opts: FileSpawnOptions): Router {
@@ -33,22 +34,31 @@ export function createFileSpawnRouter(opts: FileSpawnOptions): Router {
         return;
       }
 
-      // Additional check: if canvasRoot is provided and path is absolute, verify it's within canvasRoot
-      if (opts.canvasRoot && path.isAbsolute(decodedFile)) {
-        const resolvedPath = path.resolve(decodedFile);
-        const resolvedRoot = path.resolve(opts.canvasRoot);
+      // Resolve root based on agentId
+      const root =
+        (agentId && opts.agentWorkspaceMap?.get(agentId)) ?? opts.canvasRoot;
 
-        // Only allow absolute paths that are within canvasRoot
-        if (!resolvedPath.startsWith(resolvedRoot + path.sep) && resolvedPath !== resolvedRoot) {
-          res.status(400).json({ error: "path traversal detected" });
-          return;
-        }
+      // Resolve relative paths against the root; absolute paths are validated below
+      const resolved = path.isAbsolute(decodedFile)
+        ? path.resolve(decodedFile)
+        : path.resolve(root, decodedFile);
+
+      // Verify resolved path is within the root
+      if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+        res.status(400).json({ error: "path traversal detected" });
+        return;
       }
 
       // Read file content
-      const fileContent = await fs.readFile(decodedFile, "utf-8");
+      let fileContent: string;
+      try {
+        fileContent = await fs.readFile(resolved, "utf-8");
+      } catch {
+        res.status(404).json({ error: "file not found" });
+        return;
+      }
 
-      // Build the sessionsSpawn call - use 'message' key to match test expectations
+      // Build the sessionsSpawn call
       const spawnOptions: Record<string, unknown> = {
         message: fileContent,
         mode: "run",
