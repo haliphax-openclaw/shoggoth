@@ -3,7 +3,7 @@ import path from "node:path";
 import { getLogger } from "@shoggoth/shared";
 import type { Gateway } from "./gateway";
 import type { A2UIManager } from "./a2ui-manager";
-import { processA2UICommand } from "./a2ui-commands";
+import { processA2UICommand } from "./a2ui-pipeline";
 import type { SchemaResolver } from "./a2ui-component-schemas";
 
 const log = getLogger("service-canvas:jsonl-watcher");

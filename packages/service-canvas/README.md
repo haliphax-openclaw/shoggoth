@@ -86,7 +86,6 @@ packages/
 │   │       │   ├── a2ui-manager.ts      # A2UI surface state (in-memory cache, backed by a2ui-store)
 │   │       │   ├── a2ui-store.ts        # SQLite persistence for A2UI surfaces (better-sqlite3)
 │   │       │   ├── a2ui-pipeline.ts     # A2UI command processing pipeline
-│   │       │   ├── a2ui-commands.ts     # v0.8 → v0.9 normalization layer
 │   │       │   └── catalog-registry.ts  # Discovers catalog packages in node_modules/
 │   │       ├── shared/
 │   │       │   ├── deep-link-script.ts  # Injected script for shoggoth:// deep links
@@ -200,20 +199,6 @@ A2UI surface state is persisted to a local SQLite database so it survives server
 - The in-memory `Map` in `A2UIManager` remains the primary data source; SQLite is the backing store
 - Every mutation (`upsertSurface`, `setRoot`, `updateDataModel`, `deleteSurface`, `clearAll`) writes through to SQLite
 - DB location defaults to `/var/lib/shoggoth/state/a2ui.db`, configurable via `a2uiDbPath`
-
-## Backward Compatibility
-
-The server includes a normalization layer (`src/server/services/a2ui-commands.ts`) that auto-converts v0.8 commands and component shapes to v0.9 format with deprecation warnings logged. v0.8 payloads still work but are deprecated:
-
-| v0.8 (deprecated)                                                           | v0.9                                                             |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `surfaceUpdate`                                                             | `updateComponents`                                               |
-| `beginRendering`                                                            | `createSurface`                                                  |
-| `dataModelUpdate`                                                           | `updateDataModel`                                                |
-| `usageHint` (Text prop)                                                     | `variant`                                                        |
-| Wrapped component shape: `{ id, component: { "Text": { "text": "..." } } }` | Flat component shape: `{ id, component: "Text", "text": "..." }` |
-
-`dataSourcePush` and `deleteSurface` are unchanged.
 
 ## Reactive Data Binding (A2UI)
 
